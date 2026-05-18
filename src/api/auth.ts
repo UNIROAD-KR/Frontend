@@ -1,20 +1,43 @@
 import { api } from './client';
 
-export const signUp = (data: {
+export type AuthStatus = 'NEED_SIGNUP' | 'NEED_ONBOARDING' | 'ACTIVE';
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  status: AuthStatus;
+}
+
+export interface SignUpRequest {
   username: string;
   email: string;
   password: string;
   name: string;
+}
+
+export interface OnboardingRequest {
   age: number;
   dispatchedUniversity: string;
   dispatchedCountry: string;
   dispatchedRegion: string;
-}) => {
+}
+
+export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
 };
 
+export const onboarding = (data: OnboardingRequest) => {
+  return api.post('/api/auth/onboarding', data);
+};
+
 export const login = (data: { username: string; password: string }) => {
-  return api.post('/api/auth/login', data);
+  return api.post<LoginResponse>('/api/auth/login', data);
+};
+
+export const checkUsername = (username: string) => {
+  return api.get('/api/auth/check-username', {
+    params: { username },
+  });
 };
 
 export const checkEmail = (email: string) => {
@@ -24,13 +47,13 @@ export const checkEmail = (email: string) => {
 };
 
 export const reissueToken = (refreshToken: string) => {
-  return api.post('/api/auth/reissue', {
+  return api.post<LoginResponse>('/api/auth/reissue', {
     refreshToken,
   });
 };
 
 export const socialLogin = (provider: string, accessToken: string) => {
-  return api.post('/api/auth/social-login', {
+  return api.post<LoginResponse>('/api/auth/social-login', {
     provider,
     accessToken,
   });
@@ -39,3 +62,4 @@ export const socialLogin = (provider: string, accessToken: string) => {
 export const logout = () => {
   return api.post('/api/auth/logout');
 };
+
