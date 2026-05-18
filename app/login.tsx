@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import { login } from '../src/api/auth';
+import { login, socialLogin } from '../src/api/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -45,6 +45,43 @@ export default function LoginPage() {
       console.log('로그인 실패:', error.response?.data || error.message);
 
       Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
+    }
+  };
+
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      // 1. 각 플랫폼 SDK를 사용하여 액세스 토큰을 받아옵니다.
+      // (여기에 카카오, 네이버, 구글, 애플 SDK 로그인 로직이 들어갑니다)
+      let sdkAccessToken = '임시_SDK_토큰'; 
+
+      /* 예시:
+      if (provider === 'kakao') {
+        const token = await KakaoLogin.login();
+        sdkAccessToken = token.accessToken;
+      }
+      */
+
+      // 2. 백엔드 API로 토큰 전송
+      const response = await socialLogin(provider, sdkAccessToken);
+      console.log(`${provider} 로그인 성공:`, response.data);
+
+      const { accessToken, refreshToken, status } = response.data.data;
+
+      // 3. 발급받은 서비스 토큰 저장
+      await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // 4. 상태(status)에 따라 라우팅
+      if (status === 'NEED_SIGNUP' || status === 'NEED_ONBOARDING') {
+        // 백엔드 명세상 social-login 결과로 status가 반환됩니다.
+        // 온보딩 정보나 추가 정보가 필요하다면 해당 화면으로 이동
+        router.replace('/sns-signup'); // 임시: sns-signup 또는 onboarding으로 유도
+      } else {
+        router.replace('/home');
+      }
+    } catch (error: any) {
+      console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
+      Alert.alert('소셜 로그인 실패', '로그인 처리 중 문제가 발생했습니다.');
     }
   };
 
@@ -113,14 +150,14 @@ export default function LoginPage() {
       </View>
 
       <View style={styles.snsRow}>
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('kakao')}>
           <Image
             source={require('../assets/images/kakao.png')}
             style={styles.snsImage}
           />
         </Pressable>
 
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('google')}>
           <Image
             source={require('../assets/images/google.png')}
             style={styles.snsImage}
@@ -129,14 +166,14 @@ export default function LoginPage() {
 
         <Pressable
           style={[styles.snsCircle, styles.naver]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('naver')}
         >
           <Text style={styles.naverText}>N</Text>
         </Pressable>
 
         <Pressable
           style={[styles.snsCircle, styles.apple]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('apple')}
         >
           <Text style={styles.appleText}></Text>
         </Pressable>

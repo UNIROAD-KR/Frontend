@@ -8,6 +8,14 @@ export interface LoginResponse {
   status: AuthStatus;
 }
 
+// 백엔드 공통 응답 구조 (data 안에 실제 내용이 들어있는 형태)
+export interface BaseResponse<T> {
+  data: T;
+  message?: string;
+  status?: number;
+  [key: string]: any;
+}
+
 export interface SignUpRequest {
   username: string;
   email: string;
@@ -31,7 +39,7 @@ export const onboarding = (data: OnboardingRequest) => {
 };
 
 export const login = (data: { username: string; password: string }) => {
-  return api.post<LoginResponse>('/api/auth/login', data);
+  return api.post<BaseResponse<LoginResponse>>('/api/auth/login', data);
 };
 
 export const checkUsername = (username: string) => {
@@ -47,13 +55,13 @@ export const checkEmail = (email: string) => {
 };
 
 export const reissueToken = (refreshToken: string) => {
-  return api.post<LoginResponse>('/api/auth/reissue', {
+  return api.post<BaseResponse<LoginResponse>>('/api/auth/reissue', {
     refreshToken,
   });
 };
 
 export const socialLogin = (provider: string, accessToken: string) => {
-  return api.post<LoginResponse>('/api/auth/social-login', {
+  return api.post<BaseResponse<LoginResponse>>('/api/auth/social-login', {
     provider,
     accessToken,
   });
