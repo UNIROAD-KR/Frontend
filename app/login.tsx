@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as KakaoLogins from '@react-native-seoul/kakao-login';
+import NaverLogin from '@react-native-seoul/naver-login';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -9,7 +12,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 import { login, socialLogin } from '../src/api/auth';
@@ -17,6 +20,17 @@ import { login, socialLogin } from '../src/api/auth';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com',
+    });
+
+    NaverLogin.initialize({
+      appName: '유니로드',
+      consumerKey: '3jo54WreHzQliJbUhzPo',
+      consumerSecret: '_N6TMAqNu0',
+    });
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -50,16 +64,45 @@ export default function LoginPage() {
 
   const handleSocialLogin = async (provider: string) => {
     try {
-      // 1. 각 플랫폼 SDK를 사용하여 액세스 토큰을 받아옵니다.
-      // (여기에 카카오, 네이버, 구글, 애플 SDK 로그인 로직이 들어갑니다)
-      let sdkAccessToken = '임시_SDK_토큰'; 
+      let sdkAccessToken = '';
+      console.log('provider:', provider);
 
-      /* 예시:
       if (provider === 'kakao') {
-        const token = await KakaoLogin.login();
+        console.log('KakaoLogins:', KakaoLogins);
+        try {
+          await KakaoLogins.unlink();
+        } catch { }
+
+        const token = await KakaoLogins.login();
+        console.log(token);
+
         sdkAccessToken = token.accessToken;
+      } else if (provider === 'naver') {
+        const response = await NaverLogin.login();
+
+        console.log('네이버 로그인:', response);
+
+        if (!response.isSuccess || !response.successResponse) {
+          throw new Error(
+            response.failureResponse?.message || '네이버 로그인 실패'
+          );
+        }
+        sdkAccessToken = response.successResponse.accessToken;
+      } else if (provider === 'google') {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        console.log('구글 로그인:', userInfo);
+        const idToken = userInfo.data?.idToken;
+        if (!idToken) {
+          throw new Error('구글 토큰 없음');
+        }
+        sdkAccessToken = idToken;
       }
-      */
+      else {
+        Alert.alert('준비 중', `${provider} 로그인은 아직 구현되지 않았습니다.`);
+        return;
+      }
+
 
       // 2. 백엔드 API로 토큰 전송
       const response = await socialLogin(provider, sdkAccessToken);
