@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as KakaoLogins from '@react-native-seoul/kakao-login';
+import NaverLogin from '@react-native-seoul/naver-login';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -9,14 +12,25 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
-import { login } from '../src/api/auth';
+import { login, socialLogin } from '../src/api/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com',
+    });
+
+    NaverLogin.initialize({
+      appName: '유니로드',
+      consumerKey: '3jo54WreHzQliJbUhzPo',
+      consumerSecret: '_N6TMAqNu0',
+    });
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -45,6 +59,72 @@ export default function LoginPage() {
       console.log('로그인 실패:', error.response?.data || error.message);
 
       Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
+    }
+  };
+
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      let sdkAccessToken = '';
+      console.log('provider:', provider);
+
+      if (provider === 'kakao') {
+        console.log('KakaoLogins:', KakaoLogins);
+        try {
+          await KakaoLogins.unlink();
+        } catch { }
+
+        const token = await KakaoLogins.login();
+        console.log(token);
+
+        sdkAccessToken = token.accessToken;
+      } else if (provider === 'naver') {
+        const response = await NaverLogin.login();
+
+        console.log('네이버 로그인:', response);
+
+        if (!response.isSuccess || !response.successResponse) {
+          throw new Error(
+            response.failureResponse?.message || '네이버 로그인 실패'
+          );
+        }
+        sdkAccessToken = response.successResponse.accessToken;
+      } else if (provider === 'google') {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        console.log('구글 로그인:', userInfo);
+        const idToken = userInfo.data?.idToken;
+        if (!idToken) {
+          throw new Error('구글 토큰 없음');
+        }
+        sdkAccessToken = idToken;
+      }
+      else {
+        Alert.alert('준비 중', `${provider} 로그인은 아직 구현되지 않았습니다.`);
+        return;
+      }
+
+
+      // 2. 백엔드 API로 토큰 전송
+      const response = await socialLogin(provider, sdkAccessToken);
+      console.log(`${provider} 로그인 성공:`, response.data);
+
+      const { accessToken, refreshToken, status } = response.data.data;
+
+      // 3. 발급받은 서비스 토큰 저장
+      await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // 4. 상태(status)에 따라 라우팅
+      if (status === 'NEED_SIGNUP') {
+        router.replace('/sns-signup');
+      } else if (status === 'NEED_ONBOARDING') {
+        router.replace('/onboarding/nickname');
+      } else {
+        router.replace('/home');
+      }
+    } catch (error: any) {
+      console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
+      Alert.alert('소셜 로그인 실패', '로그인 처리 중 문제가 발생했습니다.');
     }
   };
 
@@ -113,14 +193,14 @@ export default function LoginPage() {
       </View>
 
       <View style={styles.snsRow}>
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('kakao')}>
           <Image
             source={require('../assets/images/kakao.png')}
             style={styles.snsImage}
           />
         </Pressable>
 
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('google')}>
           <Image
             source={require('../assets/images/google.png')}
             style={styles.snsImage}
@@ -129,14 +209,14 @@ export default function LoginPage() {
 
         <Pressable
           style={[styles.snsCircle, styles.naver]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('naver')}
         >
           <Text style={styles.naverText}>N</Text>
         </Pressable>
 
         <Pressable
           style={[styles.snsCircle, styles.apple]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('apple')}
         >
           <Text style={styles.appleText}></Text>
         </Pressable>

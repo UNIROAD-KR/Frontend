@@ -44,8 +44,13 @@ export default function CountryPage() {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [customCountry, setCustomCountry] = useState('');
   const [isCustomCountry, setIsCustomCountry] = useState(false);
+  
+  // 파견 지역, 파견 대학 추가 (준비 중인 학생도 목표 대학/지역을 입력할 수 있도록 함)
+  const [region, setRegion] = useState('');
+  const [university, setUniversity] = useState('');
 
   const finalCountry = isCustomCountry ? customCountry.trim() : selectedCountry;
+  // 파견 국가만 필수이거나 지역/대학도 입력 받도록 유도할 수 있습니다.
   const isValid = finalCountry.length > 0;
 
   const handleSelectCountry = (countryName: string) => {
@@ -71,6 +76,8 @@ export default function CountryPage() {
     }
 
     await AsyncStorage.setItem('dispatchedCountry', finalCountry);
+    await AsyncStorage.setItem('dispatchedRegion', region.trim());
+    await AsyncStorage.setItem('dispatchedUniversity', university.trim());
 
     router.push({
       pathname: '/onboarding/interests',
@@ -143,6 +150,28 @@ export default function CountryPage() {
             />
           </View>
         )}
+
+        <View style={styles.extraInputWrap}>
+          <Text style={styles.customLabel}>희망/예정 파견 지역</Text>
+          <TextInput
+            style={styles.customInput}
+            placeholder="예: 도쿄, 뉴욕 (선택 사항)"
+            placeholderTextColor="#9A9A9A"
+            value={region}
+            onChangeText={setRegion}
+          />
+        </View>
+
+        <View style={styles.extraInputWrap}>
+          <Text style={styles.customLabel}>희망/예정 파견 대학</Text>
+          <TextInput
+            style={styles.customInput}
+            placeholder="파견 예정이거나 희망하는 대학 입력 (선택 사항)"
+            placeholderTextColor="#9A9A9A"
+            value={university}
+            onChangeText={setUniversity}
+          />
+        </View>
       </ScrollView>
 
       <Pressable
@@ -258,6 +287,12 @@ const styles = StyleSheet.create({
   customInputWrap: {
     width: '100%',
     marginTop: 8,
+    marginBottom: 16,
+  },
+
+  extraInputWrap: {
+    width: '100%',
+    marginBottom: 16,
   },
 
   customLabel: {

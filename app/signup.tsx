@@ -10,26 +10,45 @@ import {
   Image,
 } from 'react-native';
 
-import { checkEmail, signUp } from '../src/api/auth';
+import { checkEmail, signUp, checkUsername } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordCheck, setShowPasswordCheck] = useState(false);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [passwordCheck, setPasswordCheck] = useState('');
   const [phone, setPhone] = useState('');
 
+  const cleanedUsername = username.trim();
   const cleanedEmail = email.trim();
 
   const isFormValid =
+    cleanedUsername.length > 0 &&
     cleanedEmail.length > 0 &&
+    name.trim().length > 0 &&
     password.length > 0 &&
     passwordCheck.length > 0 &&
     phone.length > 0;
 
   const [domainModalVisible, setDomainModalVisible] = useState(false);
+
+  const handleCheckUsername = async () => {
+    if (!cleanedUsername) {
+      Alert.alert('입력 오류', '아이디를 입력해주세요.');
+      return;
+    }
+
+    try {
+      await checkUsername(cleanedUsername);
+      Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
+    } catch (error: any) {
+      Alert.alert('중복 확인 실패', '이미 사용 중인 아이디입니다.');
+    }
+  };
 
   const handleCheckEmail = async () => {
     if (!cleanedEmail) {
@@ -53,7 +72,7 @@ export default function SignupPage() {
     if (!isFormValid) {
       Alert.alert(
         '입력 오류',
-        '이메일, 비밀번호, 휴대폰 번호를 모두 입력해주세요.',
+        '모든 항목을 입력해주세요.',
       );
       return;
     }
@@ -67,14 +86,10 @@ export default function SignupPage() {
       console.log('회원가입 이메일:', cleanedEmail);
 
       await signUp({
-        username: cleanedEmail,
+        username: cleanedUsername,
         email: cleanedEmail,
         password,
-        name: '홍길동',
-        age: 23,
-        dispatchedUniversity: '도쿄대학',
-        dispatchedCountry: '일본',
-        dispatchedRegion: '도쿄',
+        name: name.trim(),
       });
 
       Alert.alert('가입 완료', '회원가입이 완료되었습니다.');
@@ -102,7 +117,24 @@ export default function SignupPage() {
         <View style={styles.headerBlank} />
       </View>
 
-      <Text style={styles.label}>이메일</Text>
+      <Text style={styles.label}>아이디</Text>
+
+      <View style={styles.row}>
+        <TextInput
+          style={[styles.input, styles.flexInput]}
+          placeholder="아이디"
+          placeholderTextColor="#9A9A9A"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+        />
+
+        <Pressable style={styles.checkButton} onPress={handleCheckUsername}>
+          <Text style={styles.checkButtonText}>중복확인</Text>
+        </Pressable>
+      </View>
+
+      <Text style={[styles.label, styles.emailSection]}>이메일</Text>
 
       <View style={styles.row}>
         <TextInput
@@ -123,6 +155,18 @@ export default function SignupPage() {
       <Text style={styles.helpText}>
         로그인에 사용할 이메일을 입력해주세요.
       </Text>
+
+      <Text style={[styles.label, styles.emailSection]}>이름</Text>
+
+      <View style={styles.row}>
+        <TextInput
+          style={[styles.input, styles.flexInput]}
+          placeholder="이름 (실명)"
+          placeholderTextColor="#9A9A9A"
+          value={name}
+          onChangeText={setName}
+        />
+      </View>
 
       <Text style={[styles.label, styles.passwordSection]}>비밀번호</Text>
 
