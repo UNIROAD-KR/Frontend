@@ -53,3 +53,13 @@ export const getAccountBookDailyDetails = (date: string) => {
     params: { date },
   });
 };
+
+export interface BalanceResponse {
+  balance: number;
+}
+
+// 잔액 조회
+export const getAccountBookBalance = () => {
+  return api.get<BaseResponse<BalanceResponse>>('/api/account-book/balance');
+};
+
