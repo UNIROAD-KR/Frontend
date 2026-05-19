@@ -115,10 +115,10 @@ export default function LoginPage() {
       await AsyncStorage.setItem('refreshToken', refreshToken);
 
       // 4. 상태(status)에 따라 라우팅
-      if (status === 'NEED_SIGNUP' || status === 'NEED_ONBOARDING') {
-        // 백엔드 명세상 social-login 결과로 status가 반환됩니다.
-        // 온보딩 정보나 추가 정보가 필요하다면 해당 화면으로 이동
-        router.replace('/sns-signup'); // 임시: sns-signup 또는 onboarding으로 유도
+      if (status === 'NEED_SIGNUP') {
+        router.replace('/sns-signup');
+      } else if (status === 'NEED_ONBOARDING') {
+        router.replace('/onboarding/nickname');
       } else {
         router.replace('/home');
       }

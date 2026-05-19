@@ -11,6 +11,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
 export default function SnsSignupPage() {
@@ -25,9 +26,12 @@ export default function SnsSignupPage() {
 
   const fullEmail = emailId && emailDomain ? `${emailId}@${emailDomain}` : '';
 
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/;
+  const isPasswordValid = passwordRegex.test(password);
+
   const canSubmit =
     username.trim().length >= 4 &&
-    password.length >= 6 &&
+    isPasswordValid &&
     password === passwordCheck;
 
   const [domainModalVisible, setDomainModalVisible] = useState(false);
@@ -43,19 +47,57 @@ export default function SnsSignupPage() {
     '직접 입력',
   ];
 
-  const handleSubmit = () => {
+  const handleCheckUsername = async () => {
+    const cleanedUsername = username.trim();
+    if (!cleanedUsername) {
+      Alert.alert('입력 오류', '아이디를 입력해주세요.');
+      return;
+    }
+
+    try {
+      await checkUsername(cleanedUsername);
+      Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
+    } catch (error: any) {
+      Alert.alert('중복 확인 실패', '이미 사용 중인 아이디입니다.');
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!canSubmit) {
       Alert.alert('입력 확인', '아이디와 비밀번호를 확인해주세요.');
       return;
     }
 
-    router.push({
-      pathname: '/onboarding/nickname',
-      params: {
-        username,
-        email: fullEmail,
-      },
-    } as any);
+    try {
+      const signUpData: { username: string; password: string; email?: string } = {
+        username: username.trim(),
+        password,
+      };
+
+      if (fullEmail.trim()) {
+        signUpData.email = fullEmail.trim();
+      }
+
+      await socialSignUp(signUpData);
+
+      Alert.alert('가입 완료', '아이디와 비밀번호 설정이 완료되었습니다.', [
+        {
+          text: '확인',
+          onPress: () => {
+            router.push({
+              pathname: '/onboarding/nickname',
+              params: {
+                username: username.trim(),
+                email: signUpData.email || '',
+              },
+            } as any);
+          },
+        },
+      ]);
+    } catch (error: any) {
+      console.log('소셜 회원가입 실패:', error.response?.data || error.message);
+      Alert.alert('회원가입 실패', error.response?.data?.message || '입력 정보를 다시 확인해주세요.');
+    }
   };
 
   return (
@@ -87,7 +129,7 @@ export default function SnsSignupPage() {
           autoCapitalize="none"
         />
 
-        <Pressable style={styles.checkButton}>
+        <Pressable style={styles.checkButton} onPress={handleCheckUsername}>
           <Text style={styles.checkButtonText}>중복확인</Text>
         </Pressable>
       </View>
@@ -155,7 +197,7 @@ export default function SnsSignupPage() {
       )}
 
       <Text style={styles.helpText}>
-        6~20자/영문 대문자, 소문자, 숫자, 특수문자 2가지 이상 조합
+        8~20자/영문, 숫자, 특수문자 필수 조합
       </Text>
 
       <Text style={[styles.label, styles.emailLabel]}>이메일 (선택)</Text>

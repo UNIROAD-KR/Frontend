@@ -30,8 +30,18 @@ export interface OnboardingRequest {
   dispatchedRegion: string;
 }
 
+export interface SocialSignUpRequest {
+  username: string;
+  password: string;
+  email?: string;
+}
+
 export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
+};
+
+export const socialSignUp = (data: SocialSignUpRequest) => {
+  return api.post<BaseResponse<void>>('/api/auth/social-sign-up', data);
 };
 
 export const onboarding = (data: OnboardingRequest) => {
@@ -70,4 +80,5 @@ export const socialLogin = (provider: string, accessToken: string) => {
 export const logout = () => {
   return api.post('/api/auth/logout');
 };
+
 
