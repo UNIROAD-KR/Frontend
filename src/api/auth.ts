@@ -36,6 +36,20 @@ export interface SocialSignUpRequest {
   email?: string;
 }
 
+export interface MemberResponse {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  age: number | null;
+  dispatchedUniversity: string | null;
+  dispatchedCountry: string | null;
+  dispatchedRegion: string | null;
+  role: string;
+  status: AuthStatus;
+  balance: number;
+}
+
 export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
 };
@@ -80,5 +94,10 @@ export const socialLogin = (provider: string, accessToken: string) => {
 export const logout = () => {
   return api.post('/api/auth/logout');
 };
+
+export const getMemberMe = () => {
+  return api.get<BaseResponse<MemberResponse>>('/api/members/me');
+};
+
 
 
