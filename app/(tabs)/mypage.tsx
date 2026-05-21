@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 import {
   getAccountBookBalance,
@@ -26,6 +28,8 @@ import {
   TransactionType,
   AccountBookResponse,
 } from '../../src/api/accountBook';
+import { getMemberMe, logout } from '../../src/api/auth';
+
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +47,8 @@ const CATEGORIES: {
 ];
 
 export default function MyPageScreen() {
+  const router = useRouter();
+  const [userName, setUserName] = useState<string>('사용자');
   const [balance, setBalance] = useState<number>(0);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [monthlySummary, setMonthlySummary] = useState<{
@@ -94,9 +100,21 @@ export default function MyPageScreen() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. 잔액 가져오기
-      const balanceRes = await getAccountBookBalance();
-      setBalance(balanceRes.data?.data?.balance || 0);
+      // 1. 내 정보 가져오기
+      try {
+        const memberRes = await getMemberMe();
+        if (memberRes.data?.data) {
+          setUserName(memberRes.data.data.name || '사용자');
+          setBalance(memberRes.data.data.balance || 0);
+        } else {
+          const balanceRes = await getAccountBookBalance();
+          setBalance(balanceRes.data?.data?.balance || 0);
+        }
+      } catch (memberError) {
+        console.log('내 정보 조회 실패, 기존 잔액 가져오기 시도:', memberError);
+        const balanceRes = await getAccountBookBalance();
+        setBalance(balanceRes.data?.data?.balance || 0);
+      }
 
       // 2. 월간 요약 가져오기
       const summaryRes = await getAccountBookMonthlySummary(currentYear, currentMonth + 1);
@@ -113,6 +131,7 @@ export default function MyPageScreen() {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchData();
@@ -223,6 +242,37 @@ export default function MyPageScreen() {
     });
   };
 
+  // 로그아웃 처리
+  const handleLogout = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    Alert.alert(
+      '로그아웃',
+      '정말 로그아웃 하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '로그아웃',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (err) {
+              console.log('백엔드 로그아웃 API 호출 에러:', err);
+            } finally {
+              await AsyncStorage.removeItem('accessToken');
+              await AsyncStorage.removeItem('refreshToken');
+              await AsyncStorage.removeItem('nickname');
+              Alert.alert('로그아웃 완료', '정상적으로 로그아웃되었습니다.');
+              router.replace('/login');
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+
   // 지출 카테고리 클릭 시 모달 오픈
   const openExpenseModal = (category: AccountBookCategory) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -299,10 +349,10 @@ export default function MyPageScreen() {
         {/* 헤더 */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerSubtitle}>반가워요, 사용자님</Text>
+            <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
             <Text style={styles.headerTitle}>나의 교화 관리</Text>
           </View>
-          <Pressable style={styles.settingsButton}>
+          <Pressable style={styles.settingsButton} onPress={handleLogout}>
             <Ionicons name="settings-outline" size={26} color="#000" />
           </Pressable>
         </View>
@@ -795,6 +845,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1C1C1E',
   },
+
   weekHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -802,9 +853,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFF4',
     paddingBottom: 8,
+    width: '100%',
   },
   weekHeaderText: {
-    width: (width - 72) / 7,
+    width: '14.28%',
     textAlign: 'center',
     fontSize: 13,
     fontWeight: '600',
@@ -813,9 +865,10 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    width: '100%',
   },
   calendarDayCell: {
-    width: (width - 72) / 7,
+    width: '14.28%',
     height: 60,
     alignItems: 'center',
     justifyContent: 'flex-start',
