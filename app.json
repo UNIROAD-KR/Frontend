@@ -30,28 +30,6 @@
     "plugins": [
       "expo-router",
       [
-        "@react-native-seoul/kakao-login",
-        {
-          "kakaoAppKey": "74ee7bda6641cc4cc638a8458c0e249d",
-          "kotlinVersion": "2.0.21"
-        }
-      ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.673770846880-49k51s70r23e9b7459v6d7q90r7t8f95"
-        }
-      ],
-      "@react-native-google-signin/google-signin",
-      [
-        "@react-native-seoul/naver-login",
-        {
-          "consumerKey": "3jo54WreHzQliJbUhzPo",
-          "consumerSecret": "_N6TMAqNu0",
-          "serviceUrlSchemeIOS": "univ"
-        }
-      ],
-      [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
