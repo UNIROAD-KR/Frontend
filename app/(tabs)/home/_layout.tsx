@@ -11,6 +11,8 @@ export default function HomeLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="explore" />
       <Stack.Screen name="school-info" />
+      <Stack.Screen name="my-school-info" />
+      <Stack.Screen name="scholarship-info" />
       <Stack.Screen name="guide" />
       <Stack.Screen name="mentoring" />
       <Stack.Screen name="school-detail" />
