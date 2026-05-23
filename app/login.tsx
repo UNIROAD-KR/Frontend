@@ -154,7 +154,7 @@ export default function LoginPage() {
       {/* 이메일 */}
       <TextInput
         style={styles.input}
-        placeholder="이메일 입력"
+        placeholder="아이디 입력"
         placeholderTextColor="#8A8A8A"
         value={email}
         onChangeText={setEmail}
@@ -183,12 +183,6 @@ export default function LoginPage() {
         <Text style={styles.bar}>|</Text>
 
         <Text style={styles.findText}>비밀번호 찾기</Text>
-
-        <Text style={styles.bar}>|</Text>
-
-        <Pressable onPress={() => router.push('/signup')}>
-          <Text style={styles.findText}>회원가입</Text>
-        </Pressable>
       </View>
 
       {/* SNS 로그인 */}
@@ -241,8 +235,8 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 30,
-    paddingTop: 170,
-    paddingBottom: 80,
+    paddingTop: 150,
+    paddingBottom: 64,
   },
 
   logo: {
@@ -258,34 +252,34 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#000000',
     letterSpacing: -2,
-    marginBottom: 55,
+    marginBottom: 52,
   },
 
   input: {
     width: '100%',
-    height: 59,
+    height: 48,
     borderWidth: 1,
     borderColor: '#C9C9C9',
     borderRadius: 6,
-    paddingHorizontal: 16,
-    fontSize: 20,
+    paddingHorizontal: 14,
+    fontSize: 16,
     color: '#111111',
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   loginButton: {
     width: '100%',
-    height: 59,
+    height: 50,
     backgroundColor: BLUE,
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 15,
+    marginTop: 16,
   },
 
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '700',
   },
 
@@ -293,24 +287,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 31,
+    marginTop: 34,
   },
 
   findText: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#222222',
   },
 
   bar: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#D0D0D0',
-    marginHorizontal: 19,
+    marginHorizontal: 18,
   },
 
   snsTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 105,
+    marginTop: 108,
   },
 
   line: {
@@ -320,9 +314,9 @@ const styles = StyleSheet.create({
   },
 
   snsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#777777',
-    marginHorizontal: 15,
+    marginHorizontal: 12,
   },
 
   snsRow: {
@@ -330,7 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 31,
-    marginTop: 35,
+    marginTop: 28,
   },
 
   snsCircle: {
