@@ -422,7 +422,7 @@ export default function MyPageScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
-            <Text style={styles.headerTitle}>나의 교환 관리</Text>
+            <Text style={styles.headerTitle}>나의 지출 관리</Text>
           </View>
           <Pressable style={styles.settingsButton} onPress={handleLogout}>
             <Ionicons name="settings-outline" size={26} color="#000" />
