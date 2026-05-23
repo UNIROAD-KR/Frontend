@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -14,6 +13,7 @@ import {
 } from 'react-native';
 
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 
@@ -135,17 +135,7 @@ export default function MarketPage() {
   };
 
   const checkVerificationStatus = async () => {
-    /**
-     * 테스트 중 인증 알림이 계속 안 뜨면 아래 줄 주석 해제.
-     * 테스트 끝나면 반드시 다시 주석 처리해야 함.
-     */
-    // await AsyncStorage.removeItem('isVerified');
-
-    const verified = await AsyncStorage.getItem('isVerified');
-
-    console.log('현재 인증 상태:', verified);
-
-    if (verified !== 'true') {
+    const showVerificationAlert = () => {
       Alert.alert(
         '교환학생 인증',
         '중고거래를 이용하려면 교환학생 신원 인증이 필요해요.',
@@ -160,6 +150,21 @@ export default function MarketPage() {
           },
         ],
       );
+    };
+
+    try {
+      const canUseMarket = await canUseMarketWithoutVerification();
+
+      console.log('현재 마켓 이용 가능 상태:', canUseMarket);
+
+      if (canUseMarket) {
+        return;
+      }
+
+      showVerificationAlert();
+    } catch (error: any) {
+      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+      showVerificationAlert();
     }
   };
 

@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -18,8 +17,6 @@ export default function VerificationPage() {
       await submitVerification({
         imageUrl: 'https://example.com/verification-file.png',
       });
-
-      await AsyncStorage.setItem('isVerified', 'true');
 
       Alert.alert(
         '제출 완료',

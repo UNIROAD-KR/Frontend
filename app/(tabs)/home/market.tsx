@@ -1,5 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +11,27 @@ import {
   TextInput,
 } from 'react-native';
 
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+
 export default function MarketScreen() {
-  const isVerified = false;
+  const [isVerified, setIsVerified] = useState(false);
   const [marketMode, setMarketMode] = useState<'buy' | 'sell'>('buy');
+
+  useFocusEffect(
+    useCallback(() => {
+      const checkVerification = async () => {
+        try {
+          const canUseMarket = await canUseMarketWithoutVerification();
+          setIsVerified(canUseMarket);
+        } catch (error: any) {
+          console.log('내 정보 조회 실패:', error.response?.data || error.message);
+          setIsVerified(false);
+        }
+      };
+
+      checkVerification();
+    }, []),
+  );
 
   return (
     <View style={styles.container}>
@@ -63,7 +82,11 @@ export default function MarketScreen() {
 
             <TouchableOpacity
               style={styles.verifyButton}
-              onPress={() => router.push('/(tabs)/market/verify')}
+              onPress={() =>
+                isVerified
+                  ? router.push('/market/write' as any)
+                  : router.push('/verification' as any)
+              }
             >
               <Text style={styles.verifyButtonText}>
                 {isVerified

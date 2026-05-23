@@ -1,37 +1,72 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  View,
-  ScrollView,
-  Pressable,
-  Modal,
   TextInput,
-  Alert,
-  ActivityIndicator,
-  Dimensions,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
 
 import {
-  getAccountBookBalance,
-  getAccountBookMonthlySummary,
-  getAccountBookDailyDetails,
-  addAccountBookTransaction,
   AccountBookCategory,
-  TransactionType,
   AccountBookResponse,
+  addAccountBookTransaction,
+  getAccountBookBalance,
+  getAccountBookDailyDetails,
+  getAccountBookMonthlySummary
 } from '../../src/api/accountBook';
 import { getMemberMe, logout } from '../../src/api/auth';
 
 
 const { width } = Dimensions.get('window');
+
+const formatDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateInput = (dateText: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+  if (!match) {
+    return null;
+  }
+
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
 
 const CATEGORIES: {
   key: AccountBookCategory;
@@ -48,6 +83,8 @@ const CATEGORIES: {
 
 export default function MyPageScreen() {
   const router = useRouter();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isTabletDatePicker = Platform.OS === 'ios' && Math.min(windowWidth, windowHeight) >= 768;
   const [userName, setUserName] = useState<string>('사용자');
   const [balance, setBalance] = useState<number>(0);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -88,11 +125,38 @@ export default function MyPageScreen() {
   const currentMonth = currentDate.getMonth(); // 0-indexed
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
+    if (Platform.OS !== 'ios') {
+      setShowDatePicker(false);
+    }
+    if (event?.type === 'dismissed') {
+      return;
+    }
     if (selectedDate) {
       setExpenseDateValue(selectedDate);
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      setExpenseDate(dateStr);
+      setExpenseDate(formatDate(selectedDate));
+      if (isTabletDatePicker) {
+        setShowDatePicker(false);
+      }
+    }
+  };
+
+  const openDatePicker = () => {
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExpenseDateValue(parseDateInput(expenseDate) || new Date());
+    setShowDatePicker(true);
+  };
+
+  const closeExpenseModal = () => {
+    Keyboard.dismiss();
+    setShowDatePicker(false);
+    setExpenseModalVisible(false);
+  };
+
+  const dismissKeyboardAndTabletPicker = () => {
+    Keyboard.dismiss();
+    if (isTabletDatePicker) {
+      setShowDatePicker(false);
     }
   };
 
@@ -138,7 +202,7 @@ export default function MyPageScreen() {
   }, [currentDate]);
 
   // 특정 날짜의 상세 내역 조회
-  const fetchDailyDetails = async (dateStr: string) => {
+  const fetchDailyDetails = useCallback(async (dateStr: string) => {
     setDetailsLoading(true);
     try {
       const res = await getAccountBookDailyDetails(dateStr);
@@ -149,7 +213,16 @@ export default function MyPageScreen() {
     } finally {
       setDetailsLoading(false);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const today = new Date();
+
+      setCurrentDate(today);
+      fetchDailyDetails(formatDate(today));
+    }, [fetchDailyDetails])
+  );
 
   // 잔액 충전(수입 추가) API 호출
   const handleChargeSubmit = async () => {
@@ -194,10 +267,8 @@ export default function MyPageScreen() {
       return;
     }
 
-    // 날짜 포맷 검증 (YYYY-MM-DD)
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(expenseDate)) {
-      Alert.alert('입력 오류', '날짜 형식은 YYYY-MM-DD 여야 합니다.');
+    if (!parseDateInput(expenseDate)) {
+      Alert.alert('입력 오류', '날짜 형식은 YYYY-MM-DD 여야 하며 실제 존재하는 날짜여야 합니다.');
       return;
     }
 
@@ -213,7 +284,7 @@ export default function MyPageScreen() {
       });
 
       Alert.alert('등록 완료', '지출 내역이 성공적으로 등록되었습니다.');
-      setExpenseModalVisible(false);
+      closeExpenseModal();
       setExpenseAmount('');
       setExpenseTitle('');
       setExpenseDescription('');
@@ -278,8 +349,9 @@ export default function MyPageScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedCategory(category);
     const today = new Date();
-    setExpenseDate(today.toISOString().split('T')[0]); // 오늘 날짜 기본 세팅
+    setExpenseDate(formatDate(today)); // 오늘 날짜 기본 세팅
     setExpenseDateValue(today); // 데이트 피커용 밸류 초기화
+    setShowDatePicker(false);
     setExpenseModalVisible(true);
   };
 
@@ -350,7 +422,7 @@ export default function MyPageScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
-            <Text style={styles.headerTitle}>나의 교화 관리</Text>
+            <Text style={styles.headerTitle}>나의 교환 관리</Text>
           </View>
           <Pressable style={styles.settingsButton} onPress={handleLogout}>
             <Ionicons name="settings-outline" size={26} color="#000" />
@@ -528,39 +600,44 @@ export default function MyPageScreen() {
         visible={chargeModalVisible}
         onRequestClose={() => setChargeModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>잔액 충전</Text>
-              <Pressable onPress={() => setChargeModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalHeaderTitle}>잔액 충전</Text>
+                <Pressable onPress={() => {
+                  Keyboard.dismiss();
+                  setChargeModalVisible(false);
+                }}>
+                  <Ionicons name="close" size={24} color="#000" />
+                </Pressable>
+              </View>
+
+              <Text style={styles.inputLabel}>충전 금액 (€)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="예: 50.5"
+                placeholderTextColor="#C7C7CC"
+                keyboardType="decimal-pad"
+                value={chargeAmount}
+                onChangeText={setChargeAmount}
+              />
+
+              <Text style={styles.inputLabel}>내역 설명</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="예: 용돈 입금, 비상금 충전"
+                placeholderTextColor="#C7C7CC"
+                value={chargeTitle}
+                onChangeText={setChargeTitle}
+              />
+
+              <Pressable style={styles.submitModalButton} onPress={handleChargeSubmit}>
+                <Text style={styles.submitModalButtonText}>충전하기</Text>
               </Pressable>
             </View>
-
-            <Text style={styles.inputLabel}>충전 금액 (€)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="예: 50.5"
-              placeholderTextColor="#C7C7CC"
-              keyboardType="decimal-pad"
-              value={chargeAmount}
-              onChangeText={setChargeAmount}
-            />
-
-            <Text style={styles.inputLabel}>내역 설명</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="예: 용돈 입금, 비상금 충전"
-              placeholderTextColor="#C7C7CC"
-              value={chargeTitle}
-              onChangeText={setChargeTitle}
-            />
-
-            <Pressable style={styles.submitModalButton} onPress={handleChargeSubmit}>
-              <Text style={styles.submitModalButtonText}>충전하기</Text>
-            </Pressable>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* 2. 지출 등록 모달 */}
@@ -568,77 +645,155 @@ export default function MyPageScreen() {
         animationType="slide"
         transparent={true}
         visible={expenseModalVisible}
-        onRequestClose={() => setExpenseModalVisible(false)}
+        onRequestClose={closeExpenseModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalHeaderTitle}>
-                지출 등록 ({CATEGORIES.find((c) => c.key === selectedCategory)?.label})
-              </Text>
-              <Pressable onPress={() => setExpenseModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#000" />
+        <TouchableWithoutFeedback onPress={dismissKeyboardAndTabletPicker} accessible={false}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {showDatePicker && isTabletDatePicker && (
+                <Pressable
+                  style={styles.tabletPickerDismissLayer}
+                  onPress={() => setShowDatePicker(false)}
+                />
+              )}
+
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalHeaderTitle}>
+                  지출 등록 ({CATEGORIES.find((c) => c.key === selectedCategory)?.label})
+                </Text>
+                <Pressable onPress={closeExpenseModal}>
+                  <Ionicons name="close" size={24} color="#000" />
+                </Pressable>
+              </View>
+
+              <Text style={styles.inputLabel}>지출 금액 (€)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="예: 12.5"
+                placeholderTextColor="#C7C7CC"
+                keyboardType="decimal-pad"
+                value={expenseAmount}
+                onChangeText={setExpenseAmount}
+              />
+
+              <Text style={styles.inputLabel}>내역 이름 (필수)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="예: 점심 학식, 에펠탑 티켓"
+                placeholderTextColor="#C7C7CC"
+                value={expenseTitle}
+                onChangeText={setExpenseTitle}
+              />
+
+              <Text style={styles.inputLabel}>메모 (선택)</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="예: 마트 장보기 지출"
+                placeholderTextColor="#C7C7CC"
+                value={expenseDescription}
+                onChangeText={setExpenseDescription}
+              />
+
+              <Text style={styles.inputLabel}>거래 일자 (선택)</Text>
+              <View style={[styles.datePickerAnchor, showDatePicker && isTabletDatePicker && styles.datePickerAnchorOpen]}>
+                <Pressable
+                  style={styles.dateSelectorField}
+                  onPress={openDatePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="거래 일자 달력 열기"
+                >
+                  <Text style={[styles.dateSelectorText, !expenseDate && styles.dateSelectorPlaceholder]}>
+                    {expenseDate || formatDate(new Date())}
+                  </Text>
+                  <View style={styles.dateSelectorButton}>
+                    <Ionicons name="calendar-outline" size={22} color="#8E8E93" />
+                  </View>
+                </Pressable>
+
+                {showDatePicker && isTabletDatePicker && (
+                  <View style={styles.tabletPickerPopover}>
+                    <View style={styles.tabletPickerHeader}>
+                      <Text style={styles.tabletPickerTitle}>거래 일자 선택</Text>
+                      <Pressable
+                        style={styles.tabletPickerCloseButton}
+                        onPress={() => setShowDatePicker(false)}
+                        accessibilityRole="button"
+                        accessibilityLabel="거래 일자 달력 닫기"
+                      >
+                        <Ionicons name="close" size={18} color="#8E8E93" />
+                      </Pressable>
+                    </View>
+
+                    <DateTimePicker
+                      value={expenseDateValue}
+                      mode="date"
+                      display="inline"
+                      locale="ko-KR"
+                      textColor="#111111"
+                      accentColor="#123F9F"
+                      themeVariant="light"
+                      style={styles.tabletInlinePicker}
+                      onChange={onDateChange}
+                    />
+                  </View>
+                )}
+              </View>
+
+              <Pressable
+                style={[styles.submitModalButton, { backgroundColor: '#FF3B30' }]}
+                onPress={handleExpenseSubmit}
+              >
+                <Text style={styles.submitModalButtonText}>지출 기록하기</Text>
               </Pressable>
             </View>
 
-            <Text style={styles.inputLabel}>지출 금액 (€)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="예: 12.5"
-              placeholderTextColor="#C7C7CC"
-              keyboardType="decimal-pad"
-              value={expenseAmount}
-              onChangeText={setExpenseAmount}
-            />
+            {showDatePicker && Platform.OS === 'ios' && !isTabletDatePicker && (
+              <View style={styles.pickerOverlay}>
+                <Pressable
+                  style={styles.pickerBackdrop}
+                  onPress={() => setShowDatePicker(false)}
+                />
 
-            <Text style={styles.inputLabel}>내역 이름 (필수)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="예: 점심 학식, 에펠탑 티켓"
-              placeholderTextColor="#C7C7CC"
-              value={expenseTitle}
-              onChangeText={setExpenseTitle}
-            />
+                <View style={styles.pickerSheet}>
+                  <View style={styles.pickerHeader}>
+                    <Pressable onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.pickerCancel}>취소</Text>
+                    </Pressable>
 
-            <Text style={styles.inputLabel}>메모 (선택)</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="예: 마트 장보기 지출"
-              placeholderTextColor="#C7C7CC"
-              value={expenseDescription}
-              onChangeText={setExpenseDescription}
-            />
+                    <Text style={styles.pickerTitle}>거래 일자 선택</Text>
 
-            <Text style={styles.inputLabel}>거래 일자 (선택)</Text>
-            <Pressable
-              style={styles.dateSelectorField}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setShowDatePicker(true);
-              }}
-            >
-              <Text style={styles.dateSelectorText}>{expenseDate}</Text>
-              <Ionicons name="calendar-outline" size={20} color="#8E8E93" />
-            </Pressable>
+                    <Pressable onPress={() => setShowDatePicker(false)}>
+                      <Text style={styles.pickerDone}>완료</Text>
+                    </Pressable>
+                  </View>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={expenseDateValue}
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-              />
+                  <DateTimePicker
+                    value={expenseDateValue}
+                    mode="date"
+                    display="inline"
+                    locale="ko-KR"
+                    textColor="#111111"
+                    accentColor="#123F9F"
+                    themeVariant="light"
+                    style={styles.iosPicker}
+                    onChange={onDateChange}
+                  />
+                </View>
+              </View>
             )}
-
-            <Pressable
-              style={[styles.submitModalButton, { backgroundColor: '#FF3B30' }]}
-              onPress={handleExpenseSubmit}
-            >
-              <Text style={styles.submitModalButtonText}>지출 기록하기</Text>
-            </Pressable>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
+
+      {showDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={expenseDateValue}
+          mode="date"
+          display="calendar"
+          onChange={onDateChange}
+        />
+      )}
+
     </SafeAreaView>
   );
 }
@@ -986,6 +1141,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 24,
     paddingBottom: 40,
+    overflow: 'visible',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1014,20 +1170,86 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1C1C1E',
   },
+  datePickerAnchor: {
+    position: 'relative',
+  },
+  datePickerAnchorOpen: {
+    zIndex: 20,
+  },
   dateSelectorField: {
     height: 52,
     borderWidth: 1,
     borderColor: '#E5E5EA',
     borderRadius: 10,
-    paddingHorizontal: 16,
+    paddingLeft: 16,
+    paddingRight: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
   },
   dateSelectorText: {
+    flex: 1,
     fontSize: 16,
     color: '#1C1C1E',
+  },
+  dateSelectorPlaceholder: {
+    color: '#C7C7CC',
+  },
+  dateSelectorButton: {
+    width: 48,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabletPickerDismissLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    backgroundColor: 'transparent',
+  },
+  tabletPickerPopover: {
+    position: 'absolute',
+    right: 0,
+    bottom: 62,
+    width: 350,
+    maxWidth: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  tabletPickerHeader: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 16,
+    paddingRight: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F2F2F7',
+  },
+  tabletPickerTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1C1C1E',
+  },
+  tabletPickerCloseButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 17,
+  },
+  tabletInlinePicker: {
+    width: '100%',
+    height: 320,
+    backgroundColor: '#FFFFFF',
   },
   submitModalButton: {
     height: 54,
@@ -1041,5 +1263,49 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '700',
+  },
+  pickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingBottom: 24,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  pickerCancel: {
+    fontSize: 16,
+    color: '#777777',
+    fontWeight: '700',
+  },
+  pickerTitle: {
+    fontSize: 17,
+    color: '#111111',
+    fontWeight: '900',
+  },
+  pickerDone: {
+    fontSize: 16,
+    color: '#123F9F',
+    fontWeight: '800',
+  },
+  iosPicker: {
+    height: 360,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
   },
 });
