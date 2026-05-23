@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router, usePathname } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -10,27 +11,41 @@ export default function TabLayout() {
 
   const isMarketActive =
     pathname.startsWith('/market') || pathname.includes('/home/market');
-  const isHomeActive = pathname === '/home' || pathname === '/';
+  const isExploreActive =
+    pathname.startsWith('/explore') || pathname.includes('/home/explore');
+  const isCommunityActive = pathname.startsWith('/community');
+  const isMyPageActive = pathname.startsWith('/mypage');
+  const isHomeActive =
+    (pathname === '/home' || pathname === '/') &&
+    !isExploreActive &&
+    !isMarketActive &&
+    !isCommunityActive &&
+    !isMyPageActive;
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2F66D0',
+        tabBarActiveTintColor: '#111111',
         tabBarInactiveTintColor: '#777',
         tabBarStyle: {
-          height: 92,
-          paddingTop: 10,
-          paddingBottom: 18,
+          height: 86,
+          paddingTop: 6,
+          paddingBottom: 22,
           backgroundColor: '#FAFAFA',
-          borderTopWidth: 0,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: '#E6E6E6',
         },
         tabBarLabelStyle: {
-          fontSize: 14,
+          fontSize: 12,
           fontWeight: '600',
-          marginTop: 4,
+          marginTop: 0,
         },
         tabBarIconStyle: {
-          marginBottom: 2,
+          marginBottom: -1,
+        },
+        tabBarItemStyle: {
+          paddingTop: 1,
+          paddingBottom: 8,
         },
       }}
     >
@@ -44,15 +59,19 @@ export default function TabLayout() {
         }}
         options={{
           title: '홈',
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/home.png')}
-              style={[
-                styles.tabIcon,
-                { tintColor: focused ? '#2F66D0' : '#6d7075' },
-              ]}
+          tabBarIcon: () => (
+            <Ionicons
+              name={isHomeActive ? 'home' : 'home-outline'}
+              size={26}
+              color={isHomeActive ? '#111111' : '#6d7075'}
             />
           ),
+          tabBarLabelStyle: {
+            color: isHomeActive ? '#111111' : '#6d7075',
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 0,
+          },
         }}
       />
       <Tabs.Screen
@@ -71,15 +90,19 @@ export default function TabLayout() {
         }}
         options={{
           title: '탐색',
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/explore.png')}
-              style={[
-                styles.tabIcon,
-                { tintColor: focused ? '#2F66D0' : '#6d7075' },
-              ]}
+          tabBarIcon: () => (
+            <Ionicons
+              name={isExploreActive ? 'school' : 'school-outline'}
+              size={26}
+              color={isExploreActive ? '#111111' : '#6d7075'}
             />
           ),
+          tabBarLabelStyle: {
+            color: isExploreActive ? '#111111' : '#6d7075',
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 0,
+          },
         }}
       />
 
@@ -87,15 +110,19 @@ export default function TabLayout() {
         name="community"
         options={{
           title: '커뮤니티',
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/community.png')}
-              style={[
-                styles.tabIcon,
-                { tintColor: focused ? '#2F66D0' : '#6d7075' },
-              ]}
+          tabBarIcon: () => (
+            <Ionicons
+              name={isCommunityActive ? 'people' : 'people-outline'}
+              size={26}
+              color={isCommunityActive ? '#111111' : '#6d7075'}
             />
           ),
+          tabBarLabelStyle: {
+            color: isCommunityActive ? '#111111' : '#6d7075',
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 0,
+          },
         }}
       />
 
@@ -115,19 +142,17 @@ export default function TabLayout() {
         options={{
           title: '중고 마켓',
           tabBarIcon: () => (
-            <Image
-              source={require('../../assets/images/market.png')}
-              style={[
-                styles.tabIcon,
-                { tintColor: isMarketActive ? '#2F66D0' : '#6d7075' },
-              ]}
+            <Ionicons
+              name={isMarketActive ? 'cart' : 'cart-outline'}
+              size={26}
+              color={isMarketActive ? '#111111' : '#6d7075'}
             />
           ),
           tabBarLabelStyle: {
-            color: isMarketActive ? '#2F66D0' : '#6d7075',
-            fontSize: 14,
+            color: isMarketActive ? '#111111' : '#6d7075',
+            fontSize: 12,
             fontWeight: '600',
-            marginTop: 4,
+            marginTop: 0,
           },
         }}
       />
@@ -136,25 +161,21 @@ export default function TabLayout() {
         name="mypage"
         options={{
           title: '나의 관리',
-          tabBarIcon: ({ focused }) => (
-            <Image
-              source={require('../../assets/images/my_manage.png')}
-              style={[
-                styles.tabIcon,
-                { tintColor: focused ? '#2F66D0' : '#6d7075' },
-              ]}
+          tabBarIcon: () => (
+            <Ionicons
+              name={isMyPageActive ? 'person' : 'person-outline'}
+              size={25}
+              color={isMyPageActive ? '#111111' : '#6d7075'}
             />
           ),
+          tabBarLabelStyle: {
+            color: isMyPageActive ? '#111111' : '#6d7075',
+            fontSize: 12,
+            fontWeight: '600',
+            marginTop: 0,
+          },
         }}
       />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabIcon: {
-    width: 34,
-    height: 34,
-    resizeMode: 'contain',
-  },
-});
