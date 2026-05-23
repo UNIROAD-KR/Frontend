@@ -1,33 +1,30 @@
 import { api } from './client';
+import { BaseResponse } from './types';
 
 export type AuthStatus = 'NEED_SIGNUP' | 'NEED_ONBOARDING' | 'ACTIVE';
 
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
+  tokenType?: string;
+  accessTokenExpiresIn?: number;
   status: AuthStatus;
 }
 
 // 백엔드 공통 응답 구조 (data 안에 실제 내용이 들어있는 형태)
-export interface BaseResponse<T> {
-  data: T;
-  message?: string;
-  status?: number;
-  [key: string]: any;
-}
-
 export interface SignUpRequest {
   username: string;
-  email: string;
+  email?: string;
   password: string;
   name: string;
 }
 
 export interface OnboardingRequest {
-  age: number;
-  dispatchedUniversity: string;
-  dispatchedCountry: string;
-  dispatchedRegion: string;
+  age?: number;
+  domesticUniversity: string;
+  dispatchedUniversity?: string;
+  dispatchedCountry?: string;
+  dispatchedRegion?: string;
 }
 
 export interface SocialSignUpRequest {
@@ -42,6 +39,9 @@ export interface MemberResponse {
   email: string;
   name: string;
   age: number | null;
+  domesticUniversityId: number | null;
+  domesticUniversity: string | null;
+  homeUniversity: string | null;
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;
@@ -98,6 +98,3 @@ export const logout = () => {
 export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };
-
-
-

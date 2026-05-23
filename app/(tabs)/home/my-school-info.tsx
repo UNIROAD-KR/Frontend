@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Image,
   LayoutAnimation,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
   UIManager,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  getMyUniversityExchangeInfo,
+  MyUniversityExchangeInfoResponse,
+  updateMyUniversityDocumentCheck,
+} from '../../../src/api/universityExchangeInfo';
 
 // Android에서 LayoutAnimation을 활성화하기 위한 설정
 if (
@@ -23,23 +28,52 @@ if (
 
 export default function MySchoolInfoScreen() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [myExchangeInfo, setMyExchangeInfo] = useState<MyUniversityExchangeInfoResponse | null>(null);
 
   // 제출 서류 체크리스트 상태
   const [documents, setDocuments] = useState([
-    { id: 1, text: '교환학생 지원 신청서 (웹 종합정보시스템 작성)', checked: false },
+    { id: 1, text: '교환학생 지원 신청서(로컬입니다.) (웹 종합정보시스템 작성)', checked: false },
     { id: 2, text: '대학 국문/영문 성적증명서 (발급 1개월 이내)', checked: false },
     { id: 3, text: '공인 어학성적표 사본 (TOEFL, IELTS, TOEIC 등)', checked: false },
     { id: 4, text: '국문 수학계획서 및 자기소개서 (A4 2매 이내)', checked: false },
     { id: 5, text: '지도교수 추천서 (해당 파견교 필수 요청 시)', checked: false },
   ]);
 
+  useEffect(() => {
+    const fetchMyExchangeInfo = async () => {
+      try {
+        const response = await getMyUniversityExchangeInfo();
+        const data = response.data.data;
+        setMyExchangeInfo(data);
+        setDocuments(
+          data.requiredDocuments.map((document) => ({
+            id: document.id,
+            text: document.text,
+            checked: document.checkedByMe,
+          })),
+        );
+      } catch (error: any) {
+        console.log('내 학교 교환학생 정보 API 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    fetchMyExchangeInfo();
+  }, []);
+
   // 체크리스트 토글
-  const toggleDoc = (id: number) => {
+  const toggleDoc = async (id: number) => {
+    const nextChecked = !(documents.find((doc) => doc.id === id)?.checked ?? false);
     setDocuments(
       documents.map((doc) =>
-        doc.id === id ? { ...doc, checked: !doc.checked } : doc
+        doc.id === id ? { ...doc, checked: nextChecked } : doc
       )
     );
+
+    try {
+      await updateMyUniversityDocumentCheck(id, nextChecked);
+    } catch (error: any) {
+      console.log('내 학교 체크리스트 저장 API 실패:', error.response?.data || error.message);
+    }
   };
 
   // 준비 완료율 계산
@@ -57,12 +91,18 @@ export default function MySchoolInfoScreen() {
   };
 
   // 모의 교환학교 파트너 리스트
-  const partnerSchools = [
-    { name: '뮌헨 공과대학교 (TUM)', country: '독일 / 뮌헨', rating: '4.8' },
-    { name: '베를린 자유대학교', country: '독일 / 베를린', rating: '4.6' },
-    { name: 'UCLA', country: '미국 / 로스앤젤레스', rating: '4.8' },
-    { name: '와세다 대학교', country: '일본 / 도쿄', rating: '4.7' },
-  ];
+  const partnerSchools =
+    myExchangeInfo?.partnerSchools.map((school) => ({
+      id: school.id,
+      name: school.name,
+      country: `${school.country} / ${school.city}`,
+      rating: String(school.rating),
+    })) ?? [
+      { id: 1, name: '뮌헨 공과대학교 (TUM)', country: '독일 / 뮌헨', rating: '4.8' },
+      { id: 2, name: '베를린 자유대학교', country: '독일 / 베를린', rating: '4.6' },
+      { id: 3, name: 'UCLA', country: '미국 / 로스앤젤레스', rating: '4.8' },
+      { id: 4, name: '와세다 대학교', country: '일본 / 도쿄', rating: '4.7' },
+    ];
 
   return (
     <View style={styles.container}>
@@ -95,18 +135,18 @@ export default function MySchoolInfoScreen() {
               <Ionicons name="school-outline" size={28} color="#FFFFFF" />
             </View>
             <View style={styles.schoolNameBox}>
-              <Text style={styles.schoolName}>서울과학기술대학교</Text>
-              <Text style={styles.departmentName}>국제교류처 (대외협력본부)</Text>
+              <Text style={styles.schoolName}>{myExchangeInfo?.universityName ?? '서울과학기술대학교'}</Text>
+              <Text style={styles.departmentName}>{myExchangeInfo?.officeName ?? '국제교류처 (대외협력본부)'}</Text>
             </View>
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
             <Ionicons name="call" size={14} color="#64748B" />
-            <Text style={styles.infoText}>02-970-6892 (유럽/미주 지역 담당)</Text>
+            <Text style={styles.infoText}>{myExchangeInfo?.phone ?? '02-970-6892 (유럽/미주 지역 담당)'}</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="mail" size={14} color="#64748B" />
-            <Text style={styles.infoText}>studyabroad@seoultech.ac.kr</Text>
+            <Text style={styles.infoText}>{myExchangeInfo?.email ?? 'studyabroad@seoultech.ac.kr'}</Text>
           </View>
         </View>
 
@@ -301,7 +341,7 @@ export default function MySchoolInfoScreen() {
                     onPress={() => {
                       router.push({
                         pathname: '/(tabs)/home/school-detail',
-                        params: { name: school.name }
+                        params: { id: String(school.id), name: school.name }
                       });
                     }}
                   >

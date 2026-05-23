@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Image,
   LayoutAnimation,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
   UIManager,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { getScholarships } from '../../../src/api/scholarships';
 
 if (
   Platform.OS === 'android' &&
@@ -35,7 +36,7 @@ interface Scholarship {
 const SCHOLARSHIP_DATA: Scholarship[] = [
   {
     id: 'mirae',
-    name: '미래에셋 해외교환 장학생',
+    name: '미래에셋 해외교환 장학생(로컬)',
     provider: '미래에셋 박현주재단',
     amount: '7,000,000원 (일시 지급)',
     target: '전 세계 파견 대학 대상',
@@ -68,6 +69,7 @@ const SCHOLARSHIP_DATA: Scholarship[] = [
 export default function ScholarshipInfoScreen() {
   const [selectedSch, setSelectedSch] = useState<string | null>(null);
   const [activeMenuTab, setActiveMenuTab] = useState<'info' | 'doc' | 'essay'>('info');
+  const [scholarships, setScholarships] = useState<Scholarship[]>(SCHOLARSHIP_DATA);
 
   // 서류 체크리스트 상태
   const [docs, setDocs] = useState([
@@ -90,6 +92,32 @@ export default function ScholarshipInfoScreen() {
       setSelectedSch(id);
     }
   };
+
+  useEffect(() => {
+    const fetchScholarships = async () => {
+      try {
+        const response = await getScholarships({ page: 0, size: 20 });
+        const apiScholarships = response.data.data.content.map((scholarship) => ({
+          id: String(scholarship.id),
+          name: scholarship.name,
+          provider: scholarship.provider,
+          amount: scholarship.amount,
+          target: scholarship.target,
+          eligibility: scholarship.eligibility,
+          description: scholarship.description,
+          tips: scholarship.tips,
+        }));
+
+        if (apiScholarships.length > 0) {
+          setScholarships(apiScholarships);
+        }
+      } catch (error: any) {
+        console.log('장학금 API 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    fetchScholarships();
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -130,7 +158,7 @@ export default function ScholarshipInfoScreen() {
         <Text style={styles.sectionSubtitle}>카드를 눌러 상세 자격요건과 선발 혜택을 확인하세요</Text>
 
         <View style={styles.schList}>
-          {SCHOLARSHIP_DATA.map((sch) => {
+          {scholarships.map((sch) => {
             const isExpanded = selectedSch === sch.id;
             return (
               <View key={sch.id} style={[styles.schCard, isExpanded && styles.schCardExpanded]}>

@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse } from './auth';
+import { BaseResponse } from './types';
 
 export type TicketType = 'TOUR' | 'CONCERT' | 'TRAIN' | 'FLIGHT' | 'ACCOMMODATION';
 

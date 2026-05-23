@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse } from './auth';
+import { BaseResponse } from './types';
 
 export interface VerificationResponse {
   id: number;
@@ -19,9 +19,6 @@ export interface AdminVerificationResponse {
 
 export const submitVerification = (data: {
   imageUrl: string;
-  university: string;
-  country: string;
-  region: string;
 }) => {
   return api.post<BaseResponse<VerificationResponse>>('/api/v1/verifications', data);
 };

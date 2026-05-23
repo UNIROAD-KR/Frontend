@@ -1,9 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { reissueToken } from './auth'; // 리프레시 API 호출용
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+const API_BASE_URL = 'https://api.uniroad-kr.store';
+
+type RetryableRequestConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+};
+
+type FailedQueueItem = {
+  resolve: (value?: string | null) => void;
+  reject: (reason?: unknown) => void;
+};
 
 export const api = axios.create({
-  baseURL: 'https://api.uniroad-kr.store',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,8 +22,6 @@ export const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const accessToken = await AsyncStorage.getItem('accessToken');
 
-  console.log('요청 accessToken:', accessToken);
-
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
   }
@@ -21,82 +29,73 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// 토큰 갱신 중복 방지를 위한 플래그 및 대기 큐
 let isRefreshing = false;
-let failedQueue: { resolve: (value?: unknown) => void; reject: (reason?: any) => void }[] = [];
+let failedQueue: FailedQueueItem[] = [];
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((promise) => {
     if (error) {
-      prom.reject(error);
+      promise.reject(error);
     } else {
-      prom.resolve(token);
+      promise.resolve(token);
     }
   });
   failedQueue = [];
 };
 
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    const originalRequest = error.config;
+  (response) => response,
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    // 401이고 재시도한 적이 없는 요청일 경우
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // 이미 갱신 중이라면 큐에 담아 대기
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const refreshToken = await AsyncStorage.getItem('refreshToken');
-        
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-
-        const { data } = await reissueToken(refreshToken);
-
-        const newAccessToken = data.accessToken;
-        const newRefreshToken = data.refreshToken;
-
-        await AsyncStorage.setItem('accessToken', newAccessToken);
-        await AsyncStorage.setItem('refreshToken', newRefreshToken);
-
-        // 갱신된 토큰을 axios 기본 헤더에 설정 (선택사항이나 인터셉터에서 매번 처리하므로 생략 가능)
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-
-        processQueue(null, newAccessToken);
-
-        return api(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
-        // 리프레시 실패 시 로그아웃 처리 (토큰 날림)
-        await AsyncStorage.removeItem('accessToken');
-        await AsyncStorage.removeItem('refreshToken');
-        await AsyncStorage.removeItem('nickname'); // 필요한 경우 기타 유저 정보도 삭제
-        
-        // 이 부분에서 보통 프론트 라우터/상태 관리에 로그아웃 이벤트를 전달합니다.
-        
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
+    if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
-  }
+    if (isRefreshing) {
+      return new Promise<string | null>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        if (token) {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+        }
+        return api(originalRequest);
+      });
+    }
+
+    originalRequest._retry = true;
+    isRefreshing = true;
+
+    try {
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const { data } = await axios.post(`${API_BASE_URL}/api/auth/reissue`, {
+        refreshToken,
+      });
+
+      const newAccessToken = data.data.accessToken;
+      const newRefreshToken = data.data.refreshToken;
+
+      await AsyncStorage.setItem('accessToken', newAccessToken);
+      await AsyncStorage.setItem('refreshToken', newRefreshToken);
+
+      api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+      originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+      processQueue(null, newAccessToken);
+
+      return api(originalRequest);
+    } catch (refreshError) {
+      processQueue(refreshError, null);
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
+    }
+  },
 );

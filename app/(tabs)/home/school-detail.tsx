@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   View,
@@ -12,6 +12,13 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  bookmarkPartnerSchool,
+  getPartnerSchool,
+  PartnerSchoolDetailResponse,
+  unbookmarkPartnerSchool,
+} from '../../../src/api/partnerSchools';
+import { getReviews } from '../../../src/api/reviews';
 
 const { width } = Dimensions.get('window');
 
@@ -168,12 +175,58 @@ const UNIVERSITY_DETAILS: Record<string, {
 };
 
 export default function SchoolDetailScreen() {
-  const { name } = useLocalSearchParams<{ name?: string }>();
+  const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
+  const [apiSchool, setApiSchool] = useState<PartnerSchoolDetailResponse | null>(null);
+  const [apiBlogs, setApiBlogs] = useState<{ title: string; views: number }[]>([]);
   
   // 🏫 기본 대학교 설정 (TUM)
   const schoolName = name || '뮌헨 공과대학교 (TUM)';
   // DB에서 데이터 조회, 없으면 기본값인 TUM 데이터 사용
-  const schoolData = UNIVERSITY_DETAILS[schoolName] || UNIVERSITY_DETAILS['뮌헨 공과대학교 (TUM)'];
+  const fallbackSchoolData = UNIVERSITY_DETAILS[schoolName] || UNIVERSITY_DETAILS['뮌헨 공과대학교 (TUM)'];
+  const schoolData = useMemo(() => {
+    if (!apiSchool) return fallbackSchoolData;
+
+    const images =
+      apiSchool.imageUrls?.length > 0
+        ? apiSchool.imageUrls.map((url) => ({ uri: url }))
+        : [require('../../../assets/images/background_school.png')];
+
+    const costLevel =
+      apiSchool.livingInfo?.costLevel === 'LOW'
+        ? '낮음'
+        : apiSchool.livingInfo?.costLevel === 'MEDIUM'
+          ? '보통'
+          : apiSchool.livingInfo?.costLevel === 'HIGH'
+            ? '높음'
+            : apiSchool.livingInfo?.costLevel ?? '보통';
+
+    return {
+      name: apiSchool.name,
+      country: apiSchool.country,
+      city: apiSchool.city,
+      rating: apiSchool.rating,
+      tags: apiSchool.tags ?? [],
+      images,
+      basicInfo: {
+        language: apiSchool.basicInfo?.language ?? '-',
+        departments: apiSchool.basicInfo?.departments ?? '-',
+        semesterSystem: apiSchool.basicInfo?.semesterSystem ?? '-',
+        website: apiSchool.basicInfo?.website ?? '',
+        contact: apiSchool.basicInfo?.contact ?? '-',
+      },
+      livingInfo: {
+        dorm: apiSchool.livingInfo?.dorm ?? '-',
+        transport: apiSchool.livingInfo?.transport ?? '-',
+        costLevel,
+        costDescription: apiSchool.livingInfo?.costDescription ?? '-',
+        environment: apiSchool.livingInfo?.environment ?? apiSchool.livingInfo?.safetyDescription ?? '-',
+      },
+      reviews: {
+        ...fallbackSchoolData.reviews,
+        blogs: apiBlogs.length > 0 ? apiBlogs : fallbackSchoolData.reviews.blogs,
+      },
+    };
+  }, [apiBlogs, apiSchool, fallbackSchoolData]);
 
   // 🤍 북마크 상태 및 토스트 팝업 상태
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -187,6 +240,33 @@ export default function SchoolDetailScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchSchoolDetail = async () => {
+      try {
+        const schoolId = Number(id);
+        const [detailResponse, reviewResponse] = await Promise.all([
+          getPartnerSchool(schoolId),
+          getReviews({ partnerUniversityId: schoolId, page: 0, size: 5 }),
+        ]);
+
+        setApiSchool(detailResponse.data.data);
+        setIsBookmarked(detailResponse.data.data.bookmarkedByMe);
+        setApiBlogs(
+          reviewResponse.data.data.content.map((review) => ({
+            title: review.title,
+            views: 0,
+          })),
+        );
+      } catch (error: any) {
+        console.log('파견교 상세 API 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    fetchSchoolDetail();
+  }, [id]);
+
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     {
@@ -199,19 +279,31 @@ export default function SchoolDetailScreen() {
   );
 
   // 북마크 토글 및 토스트 알림
-  const toggleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+  const toggleBookmark = async () => {
+    const nextState = !isBookmarked;
+    setIsBookmarked(nextState);
     
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
 
-    const nextState = !isBookmarked;
     setToastMessage(
       nextState 
         ? '관심 대학에 등록되었습니다. ⭐️' 
         : '관심 대학 등록이 취소되었습니다.'
     );
+
+    if (id) {
+      try {
+        if (nextState) {
+          await bookmarkPartnerSchool(Number(id));
+        } else {
+          await unbookmarkPartnerSchool(Number(id));
+        }
+      } catch (error: any) {
+        console.log('파견교 북마크 API 실패:', error.response?.data || error.message);
+      }
+    }
 
     toastTimeoutRef.current = setTimeout(() => {
       setToastMessage(null);

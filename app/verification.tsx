@@ -17,9 +17,6 @@ export default function VerificationPage() {
     try {
       await submitVerification({
         imageUrl: 'https://example.com/verification-file.png',
-        university: '소속대학',
-        country: '파견국가',
-        region: '파견지역',
       });
 
       await AsyncStorage.setItem('isVerified', 'true');

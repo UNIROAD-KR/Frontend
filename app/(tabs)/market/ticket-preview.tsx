@@ -133,7 +133,7 @@ const handleStartChat = async () => {
       targetMemberId: 1,
     });
 
-    const roomId = response.data.data?.roomId ?? response.data.roomId;
+    const roomId = response.data.roomId;
 
     router.push({
       pathname: '/chat/[roomId]',

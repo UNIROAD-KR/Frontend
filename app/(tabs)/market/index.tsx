@@ -185,7 +185,7 @@ export default function MarketPage() {
     priceText: formatPrice(item.price),
     likes: 0,
     chats: 0,
-    imageUrl: typeof item.imageUrls?.[0] === 'string' ? item.imageUrls[0] : '',
+    imageUrl: item.thumbnailImageUrl ?? '',
   }));
 
   const displayItems = apiItems.length > 0 ? apiItems : dummyItems;

@@ -36,7 +36,8 @@ export default function ChatRoomPage() {
   const fetchMessages = async () => {
     try {
       const response = await getChatMessages(Number(roomId));
-      setMessages(response.data.data ?? response.data ?? []);
+      const responseBody = response.data;
+      setMessages(Array.isArray(responseBody) ? responseBody : responseBody.data ?? []);
     } catch (error: any) {
       console.log('메시지 조회 실패:', error.response?.data || error.message);
     }

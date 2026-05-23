@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { router } from 'expo-router';
 import {
   View,
@@ -14,6 +14,14 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  createExchangeReviewComment,
+  getExchangeReviewComments,
+  getExchangeReviews,
+  likeExchangeReview,
+  unlikeExchangeReview,
+} from '../../../src/api/exchangeReviews';
+import { getPopularCountries } from '../../../src/api/exchangeInfo';
 
 // 📝 모의 후기 데이터베이스
 interface Review {
@@ -162,6 +170,13 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [selectedType, setSelectedType] = useState('후기');
+  const [reviews, setReviews] = useState<Review[]>(REVIEW_DATA);
+  const [popularCountries, setPopularCountries] = useState([
+    { name: '독일', code: 'DE', flag: require('../../../assets/images/flag_germany.png') },
+    { name: '프랑스', code: 'FR', flag: require('../../../assets/images/flag_france.png') },
+    { name: '일본', code: 'JP', flag: require('../../../assets/images/japan.png') },
+    { name: '미국', code: 'US', flag: require('../../../assets/images/flag_USA.png') },
+  ]);
   
   // 💬 상세 모달 관련 상태
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
@@ -177,23 +192,73 @@ export default function ExploreScreen() {
   });
   const [newCommentText, setNewCommentText] = useState('');
 
-  // 1. 많이 찾는 국가 리스트
-  const popularCountries = [
-    { name: '독일', code: 'DE', flag: require('../../../assets/images/flag_germany.png') },
-    { name: '프랑스', code: 'FR', flag: require('../../../assets/images/flag_france.png') },
-    { name: '일본', code: 'JP', flag: require('../../../assets/images/japan.png') },
-    { name: '미국', code: 'US', flag: require('../../../assets/images/flag_USA.png') },
-  ];
+  useEffect(() => {
+    const fetchExploreData = async () => {
+      try {
+        const [reviewResponse, countryResponse] = await Promise.all([
+          getExchangeReviews({ page: 0, size: 20 }),
+          getPopularCountries(),
+        ]);
+
+        const apiReviews = reviewResponse.data.data.content.map((review) => ({
+          id: String(review.id),
+          title: review.title,
+          content: review.content,
+          country: review.country,
+          type: review.type,
+          author: review.authorName,
+          date: review.createdAt?.slice(0, 10).replace(/-/g, '.') ?? '',
+          likes: review.likeCount,
+          commentsCount: review.commentCount,
+          tags: review.tags ?? [],
+          imageBg: '#EEF2F6',
+        }));
+
+        if (apiReviews.length > 0) {
+          setReviews(apiReviews);
+          setSelectedType(apiReviews[0].type);
+        }
+
+        const flagByCode: Record<string, any> = {
+          DE: require('../../../assets/images/flag_germany.png'),
+          FR: require('../../../assets/images/flag_france.png'),
+          JP: require('../../../assets/images/japan.png'),
+          US: require('../../../assets/images/flag_USA.png'),
+          USA: require('../../../assets/images/flag_USA.png'),
+        };
+
+        const apiCountries = countryResponse.data.data.map((country) => ({
+          name: country.name,
+          code: country.code,
+          flag: flagByCode[country.code] ?? require('../../../assets/images/etc.png'),
+        }));
+
+        if (apiCountries.length > 0) {
+          setPopularCountries(apiCountries);
+        }
+      } catch (error: any) {
+        console.log('정보 탐색 API 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    fetchExploreData();
+  }, []);
 
   // 2. 국가 필터
-  const countryFilters = ['전체', '독일', '프랑스', '일본', '미국'];
+  const countryFilters = useMemo(
+    () => ['전체', ...Array.from(new Set(reviews.map((review) => review.country).filter(Boolean)))],
+    [reviews],
+  );
 
   // 3. 정보 유형 필터
-  const typeFilters = ['후기', '준비팁', '생활팁', '여행'];
+  const typeFilters = useMemo(
+    () => Array.from(new Set(reviews.map((review) => review.type).filter(Boolean))),
+    [reviews],
+  );
 
   // 🔍 실시간 필터링 로직
   const filteredReviews = useMemo(() => {
-    return REVIEW_DATA.filter((review) => {
+    return reviews.filter((review) => {
       const matchSearch =
         review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         review.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -204,14 +269,25 @@ export default function ExploreScreen() {
 
       return matchSearch && matchCountry && matchType;
     });
-  }, [searchQuery, selectedCountry, selectedType]);
+  }, [reviews, searchQuery, selectedCountry, selectedType]);
 
   // 🤍 좋아요 토글 핸들러
-  const handleLikeToggle = (id: string) => {
+  const handleLikeToggle = async (id: string) => {
+    const nextLiked = !likedReviews[id];
     setLikedReviews((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: nextLiked,
     }));
+
+    try {
+      if (nextLiked) {
+        await likeExchangeReview(Number(id));
+      } else {
+        await unlikeExchangeReview(Number(id));
+      }
+    } catch (error: any) {
+      console.log('후기 좋아요 API 실패:', error.response?.data || error.message);
+    }
   };
 
   // 💬 댓글 작성 핸들러
@@ -225,11 +301,54 @@ export default function ExploreScreen() {
       time: '방금 전',
     };
 
-    setComments((prev) => ({
-      ...prev,
-      [reviewId]: [...(prev[reviewId] || []), newComment],
-    }));
-    setNewCommentText('');
+    const submitComment = async () => {
+      try {
+        const response = await createExchangeReviewComment(Number(reviewId), newCommentText);
+        const apiComment = response.data.data;
+
+        setComments((prev) => ({
+          ...prev,
+          [reviewId]: [
+            ...(prev[reviewId] || []),
+            {
+              id: String(apiComment.id),
+              user: apiComment.authorName,
+              text: apiComment.content,
+              time: apiComment.createdAt?.slice(0, 10) ?? '방금 전',
+            },
+          ],
+        }));
+      } catch (error: any) {
+        console.log('후기 댓글 작성 API 실패:', error.response?.data || error.message);
+        setComments((prev) => ({
+          ...prev,
+          [reviewId]: [...(prev[reviewId] || []), newComment],
+        }));
+      } finally {
+        setNewCommentText('');
+      }
+    };
+
+    submitComment();
+  };
+
+  const openReview = async (review: Review) => {
+    setSelectedReview(review);
+
+    try {
+      const response = await getExchangeReviewComments(Number(review.id));
+      setComments((prev) => ({
+        ...prev,
+        [review.id]: response.data.data.map((comment) => ({
+          id: String(comment.id),
+          user: comment.authorName,
+          text: comment.content,
+          time: comment.createdAt?.slice(0, 10) ?? '',
+        })),
+      }));
+    } catch (error: any) {
+      console.log('후기 댓글 조회 API 실패:', error.response?.data || error.message);
+    }
   };
 
   return (
@@ -445,7 +564,7 @@ export default function ExploreScreen() {
                 <TouchableOpacity
                   key={item.id}
                   style={styles.reviewCard}
-                  onPress={() => setSelectedReview(item)}
+                  onPress={() => openReview(item)}
                 >
                   <View style={styles.reviewMain}>
                     <View style={styles.reviewHeader}>

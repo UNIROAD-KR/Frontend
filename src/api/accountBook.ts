@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse } from './auth';
+import { BaseResponse } from './types';
 
 export type TransactionType = 'INCOME' | 'EXPENSE';
 export type AccountBookCategory = 'FOOD' | 'TRANSPORT' | 'SHOPPING' | 'TRAVEL' | 'ETC' | 'CHARGE';
@@ -62,4 +62,3 @@ export interface BalanceResponse {
 export const getAccountBookBalance = () => {
   return api.get<BaseResponse<BalanceResponse>>('/api/account-book/balance');
 };
-

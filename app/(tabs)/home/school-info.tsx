@@ -13,6 +13,7 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getPartnerSchools } from '../../../src/api/partnerSchools';
 
 if (
   Platform.OS === 'android' &&
@@ -131,6 +132,7 @@ export default function SchoolInfoScreen() {
   // 상태 관리
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
+  const [schools, setSchools] = useState<PartnerSchool[]>(SCHOOL_DATA);
 
   // 메인 explore 화면 등에서 특정 국가를 선택해서 넘어왔을 때 자동 필터링
   useEffect(() => {
@@ -139,12 +141,42 @@ export default function SchoolInfoScreen() {
     }
   }, [initCountry]);
 
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const response = await getPartnerSchools({ page: 0, size: 50 });
+        const apiSchools = response.data.data.content.map((school) => ({
+          id: String(school.id),
+          name: school.name,
+          country: school.country,
+          city: school.city,
+          rating: school.rating,
+          tags: school.tags ?? [],
+          image: school.thumbnailImageUrl
+            ? { uri: school.thumbnailImageUrl }
+            : require('../../../assets/images/background_school.png'),
+        }));
+
+        if (apiSchools.length > 0) {
+          setSchools(apiSchools);
+        }
+      } catch (error: any) {
+        console.log('파견교 목록 API 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    fetchSchools();
+  }, []);
+
   // 국가 목록 필터
-  const countries = ['전체', '독일', '프랑스', '일본', '미국'];
+  const countries = useMemo(
+    () => ['전체', ...Array.from(new Set(schools.map((school) => school.country).filter(Boolean)))],
+    [schools],
+  );
 
   // 🔍 검색 & 필터 적용된 결과 리스트
   const filteredSchools = useMemo(() => {
-    return SCHOOL_DATA.filter((school) => {
+    return schools.filter((school) => {
       const matchCountry = selectedCountry === '전체' || school.country === selectedCountry;
       const matchSearch =
         school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -152,7 +184,7 @@ export default function SchoolInfoScreen() {
         school.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       return matchCountry && matchSearch;
     });
-  }, [selectedCountry, searchQuery]);
+  }, [schools, selectedCountry, searchQuery]);
 
   const handleCountrySelect = (country: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -257,7 +289,7 @@ export default function SchoolInfoScreen() {
               onPress={() => {
                 router.push({
                   pathname: '/(tabs)/home/school-detail',
-                  params: { name: school.name },
+                  params: { id: school.id, name: school.name },
                 });
               }}
             >

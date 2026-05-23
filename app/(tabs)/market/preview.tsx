@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
-import { createUsedItem } from '../../../src/api/usedItems';
+import { createUsedItem, TradeCategory } from '../../../src/api/usedItems';
 
 type CategoryName =
   | '주방 용품'
@@ -44,12 +44,12 @@ type SelectedItemGroup = {
 const BLUE = '#102BE0';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const categoryCodeMap: Record<CategoryName, string> = {
+const categoryCodeMap: Record<CategoryName, TradeCategory> = {
   '주방 용품': 'KITCHEN',
-  '욕실 / 청소 용품': 'BATHROOM',
-  '생활 용품': 'LIVING',
+  '욕실 / 청소 용품': 'BATH',
+  '생활 용품': 'LIFE',
   침구류: 'BEDDING',
-  '각종 소스류': 'SAUCE',
+  '각종 소스류': 'ETC',
   기타: 'ETC',
 };
 
@@ -289,11 +289,6 @@ export default function MarketPreviewPage() {
   };
 
   const handleUpload = async () => {
-    const uploadedImageUrls = await Promise.all(
-      photoList.map((photo, index) => uploadImage(photo, index)),
-    );
-    const thumbnailImageUrl = uploadedImageUrls[0];
-
     if (photoList.length === 0) {
       Alert.alert('대표 이미지 필요', '대표 사진을 1장 이상 추가해주세요.');
       return;
@@ -310,6 +305,11 @@ export default function MarketPreviewPage() {
     }
 
     try {
+      const uploadedImageUrls = await Promise.all(
+        photoList.map((photo, index) => uploadImage(photo, index)),
+      );
+      const thumbnailImageUrl = uploadedImageUrls[0];
+
       const requestBody = {
         title: title.trim(),
         content: content.trim(),
