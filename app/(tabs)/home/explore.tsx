@@ -168,6 +168,7 @@ const REVIEW_DATA: Review[] = [
 
 export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activePrepTab, setActivePrepTab] = useState<'support' | 'dispatch'>('support');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [selectedType, setSelectedType] = useState('후기');
   const [reviews, setReviews] = useState<Review[]>(REVIEW_DATA);
@@ -355,19 +356,6 @@ export default function ExploreScreen() {
     <View style={styles.container}>
       {/* 🔝 헤더 (네이비 톤 포인트) */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.navigate('/(tabs)/home');
-            }
-          }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#0F2042" />
-        </TouchableOpacity>
-
         <Text style={styles.headerTitle}>정보 탐색</Text>
 
         <View style={styles.headerRight}>
@@ -377,7 +365,6 @@ export default function ExploreScreen() {
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.icon}
               />
-              <View style={styles.redBadge} />
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
@@ -390,6 +377,37 @@ export default function ExploreScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.prepTabs}>
+          <TouchableOpacity
+            style={[styles.prepTab, activePrepTab === 'support' && styles.prepTabActive]}
+            onPress={() => setActivePrepTab('support')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={[
+                styles.prepTabText,
+                activePrepTab === 'support' && styles.prepTabTextActive,
+              ]}
+            >
+              지원 준비
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.prepTab, activePrepTab === 'dispatch' && styles.prepTabActive]}
+            onPress={() => setActivePrepTab('dispatch')}
+            activeOpacity={0.85}
+          >
+            <Text
+              style={[
+                styles.prepTabText,
+                activePrepTab === 'dispatch' && styles.prepTabTextActive,
+              ]}
+            >
+              파견 준비
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* 🔍 검색창 (네이비 포커스 디자인) */}
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
@@ -421,7 +439,6 @@ export default function ExploreScreen() {
               <Text style={styles.cardTitle}>내 학교 정보</Text>
               <Text style={styles.cardDesc}>우리 학교의 교환학생 지원 기준 및 절차 확인</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           {/* 2. 파견교 정보 */}
@@ -436,7 +453,6 @@ export default function ExploreScreen() {
               <Text style={styles.cardTitle}>파견교 정보</Text>
               <Text style={styles.cardDesc}>글로벌 파견교 리스트와 생생한 상세 항목 탐색</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
 
           {/* 3. 장학금 정보 */}
@@ -451,7 +467,6 @@ export default function ExploreScreen() {
               <Text style={styles.cardTitle}>장학금 정보</Text>
               <Text style={styles.cardDesc}>교외 지원금 정보, 지원 시기, 자소서 꿀팁</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
@@ -748,42 +763,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 0,
     paddingBottom: 130,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingHorizontal: 23,
+    paddingTop: 84,
+    paddingBottom: 24,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '900',
     color: '#0F2042',
+    letterSpacing: 0,
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 22,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'transparent',
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     resizeMode: 'contain',
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 17,
   },
   bellContainer: {
     position: 'relative',
@@ -799,15 +814,43 @@ const styles = StyleSheet.create({
   },
 
   // 🔍 검색창
+  prepTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 38,
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  prepTab: {
+    flex: 1,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  prepTabActive: {
+    borderBottomColor: '#0F2042',
+  },
+  prepTabText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  prepTabTextActive: {
+    color: '#0F2042',
+    fontWeight: '800',
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-    marginTop: 15,
-    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    height: 44,
+    marginTop: 0,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
     shadowColor: '#0F2042',
     shadowOpacity: 0.03,
@@ -826,49 +869,54 @@ const styles = StyleSheet.create({
 
   // 📌 카드 섹션
   cardSection: {
-    marginTop: 20,
-    gap: 12,
+    flexDirection: 'row',
+    marginTop: 18,
+    gap: 10,
   },
   menuCard: {
-    flexDirection: 'row',
+    flex: 1,
+    minHeight: 104,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 8,
     borderWidth: 1,
     shadowColor: '#0F2042',
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.025,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
   cardIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardTextBox: {
-    flex: 1,
-    marginLeft: 14,
-    marginRight: 8,
+    alignItems: 'center',
+    marginTop: 8,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '800',
     color: '#0F2042',
+    textAlign: 'center',
   },
   cardDesc: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#64748B',
-    marginTop: 4,
-    lineHeight: 15,
+    marginTop: 3,
+    lineHeight: 12,
+    textAlign: 'center',
   },
 
   // ✈️ 많이 찾는 국가
   sectionHeader: {
-    marginTop: 28,
+    marginTop: 26,
     marginBottom: 12,
   },
   sectionTitle: {
@@ -882,45 +930,44 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   countryScroll: {
-    marginHorizontal: -20,
+    marginHorizontal: -16,
   },
   countryContent: {
-    paddingHorizontal: 20,
-    gap: 10,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   countryPill: {
-    flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    borderRadius: 9,
+    width: 94,
+    padding: 6,
     shadowColor: '#000',
     shadowOpacity: 0.02,
     shadowRadius: 4,
     elevation: 1,
   },
   countryFlag: {
-    width: 22,
-    height: 15,
-    borderRadius: 2,
-    marginRight: 8,
+    width: '100%',
+    height: 54,
+    borderRadius: 7,
+    marginBottom: 7,
     resizeMode: 'cover',
   },
   countryNameText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#0F2042',
   },
 
   // 💬 필터 스크롤
   filterScroll: {
-    marginHorizontal: -20,
+    marginHorizontal: -16,
   },
   filterContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     gap: 8,
   },
   pillBtn: {
