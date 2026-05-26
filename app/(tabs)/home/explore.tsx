@@ -471,7 +471,10 @@ export default function ExploreScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.prepTabs}>
           <TouchableOpacity
-            style={styles.prepTab}
+            style={[
+              styles.prepTab,
+              activePrepTab === 'support' && styles.prepTabActive,
+            ]}
             onPress={(event) => {
               event.preventDefault();
               setActiveInfoCardIndex(0);
@@ -489,11 +492,13 @@ export default function ExploreScreen() {
               >
                 지원 준비
               </Text>
-              {activePrepTab === 'support' && <View style={styles.prepTabUnderline} />}
             </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.prepTab}
+            style={[
+              styles.prepTab,
+              activePrepTab === 'dispatch' && styles.prepTabActive,
+            ]}
             onPress={(event) => {
               event.preventDefault();
               setActiveInfoCardIndex(0);
@@ -511,7 +516,6 @@ export default function ExploreScreen() {
               >
                 출국 준비
               </Text>
-              {activePrepTab === 'dispatch' && <View style={styles.prepTabUnderline} />}
             </View>
           </TouchableOpacity>
         </View>
@@ -976,26 +980,30 @@ const styles = StyleSheet.create({
 
   // 🔍 검색창
   prepTabs: {
+    height: 55,
+    backgroundColor: '#F0F3F7',
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    height: 44,
-    padding: 0,
+    padding: 5,
     margin: 0,
     gap: 0,
-    backgroundColor: '#FFFFFF',
     marginBottom: 16,
   },
   prepTab: {
-    width: '50%',
-    height: 44,
+    flex: 1,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 0,
     borderWidth: 0,
-    borderRadius: 0,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 9,
+    backgroundColor: 'transparent',
     position: 'relative',
+  },
+  prepTabActive: {
+    backgroundColor: '#FFFFFF',
   },
   prepTabLabelWrap: {
     alignItems: 'center',
@@ -1004,16 +1012,16 @@ const styles = StyleSheet.create({
   },
   prepTabText: {
     fontSize: 16,
-    fontWeight: '400',
-    color: '#888888',
+    fontWeight: '800',
+    color: '#8F8F8F',
     textAlign: 'center',
-    letterSpacing: -0.1,
+    letterSpacing: 0,
     lineHeight: 24,
-    paddingBottom: 8,
+    paddingBottom: 0,
   },
   prepTabTextActive: {
-    color: '#000000',
-    fontWeight: '800',
+    color: '#111111',
+    fontWeight: '900',
   },
   prepTabUnderline: {
     position: 'absolute',
