@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   },
 
   tradeTypeTextActive: {
-    color: BLUE,
+    color: '#111111',
     fontWeight: '900',
   },
 

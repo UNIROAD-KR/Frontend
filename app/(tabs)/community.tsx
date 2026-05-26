@@ -95,7 +95,7 @@ const topCompanions = [
     date: '03/15',
     people: '2명',
     likes: 24,
-    background: BLUE,
+    background: '#243C7A',
   },
   {
     id: 2,
@@ -105,7 +105,7 @@ const topCompanions = [
     date: '03/20',
     people: '1명',
     likes: 18,
-    background: GREEN,
+    background: '#2F6F5E',
   },
   {
     id: 3,
@@ -115,7 +115,7 @@ const topCompanions = [
     date: '03/22',
     people: '4명',
     likes: 16,
-    background: '#1A7AA8',
+    background: '#315B73',
   },
   {
     id: 4,
@@ -125,7 +125,7 @@ const topCompanions = [
     date: '03/28',
     people: '3명',
     likes: 15,
-    background: '#188A7B',
+    background: '#2D6965',
   },
   {
     id: 5,
@@ -135,7 +135,7 @@ const topCompanions = [
     date: '04/02',
     people: '2명',
     likes: 13,
-    background: '#2F66D0',
+    background: '#344B78',
   },
 ];
 
@@ -713,7 +713,7 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     paddingHorizontal: 9,
     paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   topStatusText: {
     fontSize: 12,
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
   topCity: {
     fontSize: 12,
     fontWeight: '800',
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(255,255,255,0.76)',
   },
   topTitle: {
     fontSize: 20,
