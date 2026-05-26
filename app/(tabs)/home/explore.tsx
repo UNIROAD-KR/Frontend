@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import {
   View,
@@ -9,11 +9,11 @@ import {
   TextInput,
   ScrollView,
   Modal,
-  FlatList,
   Dimensions,
   SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   createExchangeReviewComment,
   getExchangeReviewComments,
@@ -22,6 +22,59 @@ import {
   unlikeExchangeReview,
 } from '../../../src/api/exchangeReviews';
 import { getPopularCountries } from '../../../src/api/exchangeInfo';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const INFO_CARD_WIDTH = Math.min(342, SCREEN_WIDTH - 48);
+const INFO_CARD_GAP = 10;
+
+const BANNER_ITEMS = [
+  {
+    title: '내 학교 정보',
+    subtitle: '우리 학교 교환학생 지원 기준\n및 절차 확인',
+    route: '/(tabs)/home/my-school-info',
+    image: require('../../../assets/images/banner-school-supplies.png'),
+    backgroundColor: '#083493',
+  },
+  {
+    title: '파견교 정보',
+    subtitle: '글로벌 파견교 리스트와\n생생한 상세 항목 탐색 바로가기',
+    route: '/(tabs)/home/school-info',
+    image: require('../../../assets/images/banner-still-life.png'),
+    backgroundColor: '#0B3462',
+  },
+  {
+    title: '장학금 정보',
+    subtitle: '교외 지원금 정보,\n지원 시기 및 자소서 꿀팁',
+    route: '/(tabs)/home/scholarship-info',
+    image: require('../../../assets/images/banner-education-icons.png'),
+    backgroundColor: '#3988D8',
+  },
+] as const;
+
+const HOT_NEWS_ITEMS = [
+  {
+    category: '교환정보',
+    title: '교환학생 준비\n타임라인 확 눈에 확인',
+    image: require('../../../assets/images/hot-news-1.jpg'),
+  },
+  {
+    category: '교환정보',
+    title: '교환학생 놀면서도\n학점 잘 받은 방법',
+    image: require('../../../assets/images/hot-news-2.jpg'),
+  },
+  {
+    category: '장학금',
+    title: '장학금\n모음 비교',
+    image: require('../../../assets/images/hot-news-3.jpg'),
+  },
+] as const;
+
+const TRENDING_COUNTRIES = [
+  { name: '독일', flag: '🇩🇪', count: '52개 파견교' },
+  { name: '프랑스', flag: '🇫🇷', count: '31개 파견교' },
+  { name: '미국', flag: '🇺🇸', count: '47개 파견교' },
+  { name: '체코', flag: '🇨🇿', count: '18개 파견교' },
+] as const;
 
 // 📝 모의 후기 데이터베이스
 interface Review {
@@ -167,12 +220,14 @@ const REVIEW_DATA: Review[] = [
 ];
 
 export default function ExploreScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
   const [activePrepTab, setActivePrepTab] = useState<'support' | 'dispatch'>('support');
+  const [activeInfoCardIndex, setActiveInfoCardIndex] = useState(0);
+  const bannerScrollRef = useRef<ScrollView>(null);
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [selectedType, setSelectedType] = useState('후기');
   const [reviews, setReviews] = useState<Review[]>(REVIEW_DATA);
-  const [popularCountries, setPopularCountries] = useState([
+  const [, setPopularCountries] = useState([
     { name: '독일', code: 'DE', flag: require('../../../assets/images/flag_germany.png') },
     { name: '프랑스', code: 'FR', flag: require('../../../assets/images/flag_france.png') },
     { name: '일본', code: 'JP', flag: require('../../../assets/images/japan.png') },
@@ -379,129 +434,188 @@ export default function ExploreScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.prepTabs}>
           <TouchableOpacity
-            style={[styles.prepTab, activePrepTab === 'support' && styles.prepTabActive]}
-            onPress={() => setActivePrepTab('support')}
+            style={styles.prepTab}
+            onPress={(event) => {
+              event.preventDefault();
+              setActivePrepTab('support');
+            }}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.prepTabText,
-                activePrepTab === 'support' && styles.prepTabTextActive,
-              ]}
-            >
-              지원 준비
-            </Text>
+            <View style={styles.prepTabLabelWrap}>
+              <Text
+                style={[
+                  styles.prepTabText,
+                  activePrepTab === 'support' && styles.prepTabTextActive,
+                ]}
+              >
+                지원 준비
+              </Text>
+              {activePrepTab === 'support' && <View style={styles.prepTabUnderline} />}
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.prepTab, activePrepTab === 'dispatch' && styles.prepTabActive]}
-            onPress={() => setActivePrepTab('dispatch')}
+            style={styles.prepTab}
+            onPress={(event) => {
+              event.preventDefault();
+              setActivePrepTab('dispatch');
+            }}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.prepTabText,
-                activePrepTab === 'dispatch' && styles.prepTabTextActive,
-              ]}
-            >
-              파견 준비
-            </Text>
+            <View style={styles.prepTabLabelWrap}>
+              <Text
+                style={[
+                  styles.prepTabText,
+                  activePrepTab === 'dispatch' && styles.prepTabTextActive,
+                ]}
+              >
+                출국 준비
+              </Text>
+              {activePrepTab === 'dispatch' && <View style={styles.prepTabUnderline} />}
+            </View>
           </TouchableOpacity>
-        </View>
-
-        {/* 🔍 검색창 (네이비 포커스 디자인) */}
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#64748B" style={styles.searchIcon} />
-          <TextInput
-            placeholder="국가명, 학교명, 키워드를 검색해보세요"
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery !== '' && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* 📌 메인 3대 메뉴 카드 */}
-        <View style={styles.cardSection}>
-          {/* 1. 내 학교 정보 */}
-          <TouchableOpacity
-            style={[styles.menuCard, { borderColor: '#E2E8F0' }]}
-            onPress={() => router.push('/(tabs)/home/my-school-info')}
-          >
-            <View style={[styles.cardIconBg, { backgroundColor: '#EEF2F6' }]}>
-              <Ionicons name="school" size={26} color="#0F2042" />
-            </View>
-            <View style={styles.cardTextBox}>
-              <Text style={styles.cardTitle}>내 학교 정보</Text>
-              <Text style={styles.cardDesc}>우리 학교의 교환학생 지원 기준 및 절차 확인</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* 2. 파견교 정보 */}
-          <TouchableOpacity
-            style={[styles.menuCard, { borderColor: '#E2E8F0' }]}
-            onPress={() => router.push('/(tabs)/home/school-info')}
-          >
-            <View style={[styles.cardIconBg, { backgroundColor: '#EEF2F6' }]}>
-              <Ionicons name="earth" size={26} color="#1E3A8A" />
-            </View>
-            <View style={styles.cardTextBox}>
-              <Text style={styles.cardTitle}>파견교 정보</Text>
-              <Text style={styles.cardDesc}>글로벌 파견교 리스트와 생생한 상세 항목 탐색</Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* 3. 장학금 정보 */}
-          <TouchableOpacity
-            style={[styles.menuCard, { borderColor: '#E2E8F0' }]}
-            onPress={() => router.push('/(tabs)/home/scholarship-info')}
-          >
-            <View style={[styles.cardIconBg, { backgroundColor: '#EEF2F6' }]}>
-              <Ionicons name="cash" size={26} color="#2F66D0" />
-            </View>
-            <View style={styles.cardTextBox}>
-              <Text style={styles.cardTitle}>장학금 정보</Text>
-              <Text style={styles.cardDesc}>교외 지원금 정보, 지원 시기, 자소서 꿀팁</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ✈️ 많이 찾는 국가 */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>많이 찾는 국가</Text>
-        </View>
         <ScrollView
+          ref={bannerScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.countryScroll}
-          contentContainerStyle={styles.countryContent}
+          style={styles.cardSection}
+          contentContainerStyle={styles.cardSectionContent}
+          snapToInterval={INFO_CARD_WIDTH + INFO_CARD_GAP}
+          decelerationRate="fast"
+          onMomentumScrollEnd={(event) => {
+            const nextIndex = Math.round(
+              event.nativeEvent.contentOffset.x / (INFO_CARD_WIDTH + INFO_CARD_GAP),
+            );
+            setActiveInfoCardIndex(Math.min(Math.max(nextIndex, 0), 2));
+          }}
         >
-          {popularCountries.map((c) => (
+          {BANNER_ITEMS.map((item) => (
             <TouchableOpacity
-              key={c.name}
-              style={styles.countryPill}
-              onPress={() => {
-                // 파견교 정보로 이동하면서 국가 정보를 쿼리 파라미터로 넘김
-                router.push({
-                  pathname: '/(tabs)/home/school-info',
-                  params: { initCountry: c.name }
-                });
-              }}
+              key={item.title}
+              style={[styles.menuCard, { backgroundColor: item.backgroundColor }]}
+              onPress={() => router.push(item.route as any)}
+              activeOpacity={0.9}
             >
-              <Image source={c.flag} style={styles.countryFlag} />
-              <Text style={styles.countryNameText}>{c.name}</Text>
+              <View style={styles.cardTextBox}>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Image
+                    source={require('../../../assets/images/chevron-right-outline.png')}
+                    style={styles.cardArrowIcon}
+                  />
+                </View>
+                <Text style={styles.cardDesc}>
+                  {item.subtitle}
+                </Text>
+              </View>
+              <View style={styles.cardIllustration}>
+                <Image
+                  source={item.image}
+                  style={[
+                    styles.cardIllustrationImage,
+                    item.title === '파견교 정보' && styles.cardIllustrationImagePartner,
+                    item.title === '장학금 정보' && styles.cardIllustrationImageScholarship,
+                  ]}
+                />
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
+        <View style={styles.cardDots}>
+          {BANNER_ITEMS.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              activeOpacity={0.85}
+              onPress={() => {
+                bannerScrollRef.current?.scrollTo({
+                  x: index * (INFO_CARD_WIDTH + INFO_CARD_GAP),
+                  animated: true,
+                });
+                setActiveInfoCardIndex(index);
+              }}
+              style={[
+                styles.cardDot,
+                activeInfoCardIndex === index && [
+                  styles.cardDotActive,
+                  { backgroundColor: item.backgroundColor },
+                ],
+              ]}
+            />
+          ))}
+        </View>
+
+        <View style={styles.hotSection}>
+          <View style={styles.hotHeader}>
+            <Text style={styles.hotTitle}>서현님의 교환 준비 관련 HOT 소식</Text>
+            <View style={styles.hotMoreRow}>
+              <Text style={styles.hotMore}>전체보기</Text>
+              <Text style={styles.hotMoreArrow}>&gt;</Text>
+            </View>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.hotScroll}
+            contentContainerStyle={styles.hotContent}
+          >
+            {HOT_NEWS_ITEMS.map((item) => (
+              <TouchableOpacity key={item.title} style={styles.hotCard} activeOpacity={0.86}>
+                <Image source={item.image} style={styles.hotImage} />
+                <LinearGradient
+                  colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.72)']}
+                  locations={[0, 0.5]}
+                  style={styles.hotOverlay}
+                />
+                <View style={styles.hotBookmark}>
+                  <Ionicons name="bookmark" size={10} color="rgba(0,0,0,0.34)" />
+                </View>
+                <View style={styles.hotCardBody}>
+                  <Text style={styles.hotCategory}>{item.category}</Text>
+                  <Text style={styles.hotCardTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ✈️ 요즘 뜨는 국가 */}
+        <View style={styles.countrySection}>
+          <View style={[styles.sectionHeader, styles.countrySectionHeader]}>
+            <Text style={styles.countrySectionTitle}>요즘 뜨는 국가</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.countryScroll}
+            contentContainerStyle={styles.countryContent}
+          >
+            {TRENDING_COUNTRIES.map((c) => (
+              <TouchableOpacity
+                key={c.name}
+                style={styles.countryPill}
+                onPress={() => {
+                  router.push({
+                    pathname: '/(tabs)/home/school-info',
+                    params: { initCountry: c.name }
+                  });
+                }}
+              >
+                <Text style={styles.countryFlagEmoji}>{c.flag}</Text>
+                <Text style={styles.countryNameText}>{c.name}</Text>
+                <Text style={styles.countrySchoolCount}>{c.count}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* 💬 블로그 후기 탐색 섹션 */}
-        <View style={[styles.sectionHeader, { marginTop: 32 }]}>
-          <Text style={styles.sectionTitle}>생생한 교환학생 라이프 엿보기</Text>
-          <Text style={styles.sectionSubtitle}>경험자들이 직접 기록한 실제 후기 중심의 팁</Text>
+        <View style={styles.blogHeader}>
+          <Text style={styles.blogTitle}>블로그 후기</Text>
+          <Text style={styles.blogMore}>전체보기 &gt;</Text>
         </View>
 
         {/* 1) 국가 필터 Pill */}
@@ -760,7 +874,7 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 16,
@@ -780,7 +894,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     fontWeight: '900',
-    color: '#0F2042',
+    color: '#111111',
     letterSpacing: 0,
   },
   iconBtn: {
@@ -817,30 +931,49 @@ const styles = StyleSheet.create({
   prepTabs: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 38,
-    marginBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    width: '100%',
+    height: 44,
+    padding: 0,
+    margin: 0,
+    gap: 0,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 16,
   },
   prepTab: {
-    flex: 1,
-    height: 38,
+    width: '50%',
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    padding: 0,
+    borderWidth: 0,
+    borderRadius: 0,
+    backgroundColor: '#FFFFFF',
+    position: 'relative',
   },
-  prepTabActive: {
-    borderBottomColor: '#0F2042',
+  prepTabLabelWrap: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
   },
   prepTabText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#888888',
+    textAlign: 'center',
+    letterSpacing: -0.1,
+    lineHeight: 24,
+    paddingBottom: 8,
   },
   prepTabTextActive: {
-    color: '#0F2042',
+    color: '#000000',
     fontWeight: '800',
+  },
+  prepTabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    width: 181,
+    height: 2,
+    backgroundColor: '#000000',
   },
   searchBox: {
     flexDirection: 'row',
@@ -869,60 +1002,246 @@ const styles = StyleSheet.create({
 
   // 📌 카드 섹션
   cardSection: {
-    flexDirection: 'row',
-    marginTop: 18,
-    gap: 10,
+    marginTop: 0,
+    marginHorizontal: -16,
+    overflow: 'visible',
+  },
+  cardSectionContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    gap: INFO_CARD_GAP,
   },
   menuCard: {
-    flex: 1,
-    minHeight: 104,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    width: INFO_CARD_WIDTH,
+    height: 160,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    backgroundColor: '#2B3FA0',
     borderRadius: 10,
-    paddingVertical: 13,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    shadowColor: '#0F2042',
-    shadowOpacity: 0.025,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  cardIconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingLeft: 24,
+    paddingBottom: 20,
   },
   cardTextBox: {
+    width: INFO_CARD_WIDTH - 176,
+    zIndex: 2,
+    alignSelf: 'flex-start',
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
   },
   cardTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#0F2042',
-    textAlign: 'center',
+    fontFamily: 'Noto Sans KR',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: -0.5,
+    textAlign: 'left',
+  },
+  cardArrowIcon: {
+    width: 16,
+    height: 16,
+    marginLeft: 8,
+    resizeMode: 'contain',
   },
   cardDesc: {
-    fontSize: 9,
-    color: '#64748B',
-    marginTop: 3,
-    lineHeight: 12,
-    textAlign: 'center',
+    fontFamily: 'Noto Sans KR',
+    fontSize: 13,
+    fontWeight: '400',
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 12,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+    textAlign: 'left',
+  },
+  cardIllustration: {
+    position: 'absolute',
+    right: 2,
+    top: -18,
+    width: 180,
+    height: 180,
+  },
+  cardIllustrationImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  cardIllustrationImagePartner: {
+    marginTop: -18,
+  },
+  cardIllustrationImageScholarship: {
+    width: 140,
+    height: 126,
+    alignSelf: 'center',
+    marginTop: 27,
+  },
+  cardDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+  },
+  cardDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D9D9D9',
+  },
+  cardDotActive: {
+    width: 20,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  hotSection: {
+    marginTop: 36,
+    paddingHorizontal: 20,
+    marginHorizontal: -16,
+  },
+  hotHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  hotTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111111',
+  },
+  hotMore: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#A8A8A8',
+    lineHeight: 14,
+  },
+  hotMoreRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 10,
+    gap: 4,
+  },
+  hotMoreArrow: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#A8A8A8',
+    lineHeight: 14,
+  },
+  hotChipScroll: {
+    marginHorizontal: -16,
+  },
+  hotChipContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  hotChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  hotChipActive: {
+    backgroundColor: '#EAF1FF',
+    borderColor: '#D5E4FF',
+  },
+  hotChipText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  hotChipTextActive: {
+    color: '#2F66D0',
+  },
+  hotScroll: {
+    marginHorizontal: -20,
+    marginTop: 0,
+  },
+  hotContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 0,
+    gap: 10,
+  },
+  hotCard: {
+    width: 140,
+    height: 170,
+    backgroundColor: '#162138',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  hotImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
+    height: undefined,
+    resizeMode: 'cover',
+  },
+  hotOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  hotBookmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.78)',
+  },
+  hotCardBody: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingBottom: 13,
+  },
+  hotCategory: {
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(255,255,255,0.28)',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  hotCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    marginTop: 7,
+    lineHeight: 24,
+    letterSpacing: -0.64,
   },
 
   // ✈️ 많이 찾는 국가
+  countrySection: {
+    marginTop: 36,
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    paddingVertical: 24,
+    backgroundColor: '#F5F5F5',
+  },
   sectionHeader: {
-    marginTop: 26,
-    marginBottom: 12,
+    marginTop: 0,
+    marginBottom: 16,
+  },
+  countrySectionHeader: {
+    marginHorizontal: 0,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '800',
     color: '#0F2042',
+  },
+  countrySectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111111',
   },
   sectionSubtitle: {
     fontSize: 11,
@@ -930,36 +1249,53 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   countryScroll: {
-    marginHorizontal: -16,
+    marginHorizontal: 0,
   },
   countryContent: {
-    paddingHorizontal: 16,
-    gap: 12,
+    gap: 8,
   },
   countryPill: {
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 9,
-    width: 94,
-    padding: 6,
-    shadowColor: '#000',
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
-    elevation: 1,
+    borderRadius: 12,
+    minWidth: 96,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
   },
-  countryFlag: {
-    width: '100%',
-    height: 54,
-    borderRadius: 7,
-    marginBottom: 7,
-    resizeMode: 'cover',
+  countryFlagEmoji: {
+    fontSize: 32,
+    lineHeight: 36,
+    marginBottom: 8,
   },
   countryNameText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111111',
+  },
+  countrySchoolCount: {
     fontSize: 12,
+    fontWeight: '500',
+    color: '#8A8A8A',
+    marginTop: 5,
+  },
+  blogHeader: {
+    marginTop: 36,
+    marginBottom: 15,
+    marginHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  blogTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  blogMore: {
+    fontSize: 7,
     fontWeight: '700',
-    color: '#0F2042',
+    color: '#A8A8A8',
   },
 
   // 💬 필터 스크롤
