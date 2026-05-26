@@ -51,6 +51,23 @@ const BANNER_ITEMS = [
   },
 ] as const;
 
+const DEPARTURE_BANNER_ITEMS = [
+  {
+    title: '비자 가이드',
+    subtitle: '국가별 비자 종류와\n신청 절차 한 눈에 확인',
+    route: '/(tabs)/home/guide',
+    image: require('../../../assets/images/departure-visa-guide.png'),
+    backgroundColor: '#604EB6',
+  },
+  {
+    title: '출국 전 체크리스트',
+    subtitle: '짐싸기부터 보험까지,\n출국 전 필수 체크 리스트',
+    route: '/(tabs)/home/guide',
+    image: require('../../../assets/images/departure-checklist.png'),
+    backgroundColor: '#AB55AE',
+  },
+] as const;
+
 const HOT_NEWS_ITEMS = [
   {
     category: '교환정보',
@@ -64,8 +81,26 @@ const HOT_NEWS_ITEMS = [
   },
   {
     category: '장학금',
-    title: '장학금\n모음 비교',
+    title: '놓치면 아까운\n장학금 모음',
     image: require('../../../assets/images/hot-news-3.jpg'),
+  },
+] as const;
+
+const DEPARTURE_HOT_NEWS_ITEMS = [
+  {
+    category: '비자 발급',
+    title: '[독일 교환학생] 비자\n신청부터 수령까지',
+    image: require('../../../assets/images/departure-hot-visa.png'),
+  },
+  {
+    category: '출국 준비',
+    title: '학생 운임\n항공편 특가 및 혜택',
+    image: require('../../../assets/images/departure-hot-flight.jpg'),
+  },
+  {
+    category: '출국 준비',
+    title: '출국 전\n확인해야할 리스트',
+    image: require('../../../assets/images/departure-hot-checklist.jpg'),
   },
 ] as const;
 
@@ -247,6 +282,8 @@ export default function ExploreScreen() {
     ]
   });
   const [newCommentText, setNewCommentText] = useState('');
+  const activeBannerItems = activePrepTab === 'support' ? BANNER_ITEMS : DEPARTURE_BANNER_ITEMS;
+  const activeHotNewsItems = activePrepTab === 'support' ? HOT_NEWS_ITEMS : DEPARTURE_HOT_NEWS_ITEMS;
 
   useEffect(() => {
     const fetchExploreData = async () => {
@@ -437,6 +474,8 @@ export default function ExploreScreen() {
             style={styles.prepTab}
             onPress={(event) => {
               event.preventDefault();
+              setActiveInfoCardIndex(0);
+              bannerScrollRef.current?.scrollTo({ x: 0, animated: false });
               setActivePrepTab('support');
             }}
             activeOpacity={0.85}
@@ -457,6 +496,8 @@ export default function ExploreScreen() {
             style={styles.prepTab}
             onPress={(event) => {
               event.preventDefault();
+              setActiveInfoCardIndex(0);
+              bannerScrollRef.current?.scrollTo({ x: 0, animated: false });
               setActivePrepTab('dispatch');
             }}
             activeOpacity={0.85}
@@ -488,10 +529,10 @@ export default function ExploreScreen() {
             const nextIndex = Math.round(
               event.nativeEvent.contentOffset.x / (INFO_CARD_WIDTH + INFO_CARD_GAP),
             );
-            setActiveInfoCardIndex(Math.min(Math.max(nextIndex, 0), 2));
+            setActiveInfoCardIndex(Math.min(Math.max(nextIndex, 0), activeBannerItems.length - 1));
           }}
         >
-          {BANNER_ITEMS.map((item) => (
+          {activeBannerItems.map((item) => (
             <TouchableOpacity
               key={item.title}
               style={[styles.menuCard, { backgroundColor: item.backgroundColor }]}
@@ -517,6 +558,8 @@ export default function ExploreScreen() {
                     styles.cardIllustrationImage,
                     item.title === '파견교 정보' && styles.cardIllustrationImagePartner,
                     item.title === '장학금 정보' && styles.cardIllustrationImageScholarship,
+                    item.title === '비자 가이드' && styles.cardIllustrationImageVisa,
+                    item.title === '출국 전 체크리스트' && styles.cardIllustrationImageChecklist,
                   ]}
                 />
               </View>
@@ -524,7 +567,7 @@ export default function ExploreScreen() {
           ))}
         </ScrollView>
         <View style={styles.cardDots}>
-          {BANNER_ITEMS.map((item, index) => (
+          {activeBannerItems.map((item, index) => (
             <TouchableOpacity
               key={index}
               activeOpacity={0.85}
@@ -548,7 +591,11 @@ export default function ExploreScreen() {
 
         <View style={styles.hotSection}>
           <View style={styles.hotHeader}>
-            <Text style={styles.hotTitle}>서현님의 교환 준비 관련 HOT 소식</Text>
+            <Text style={styles.hotTitle}>
+              {activePrepTab === 'support'
+                ? '서현님의 교환 준비 관련 HOT 소식'
+                : '서현님의 출국 준비 관련 HOT 소식'}
+            </Text>
             <View style={styles.hotMoreRow}>
               <Text style={styles.hotMore}>전체보기</Text>
               <Text style={styles.hotMoreArrow}>&gt;</Text>
@@ -560,7 +607,7 @@ export default function ExploreScreen() {
             style={styles.hotScroll}
             contentContainerStyle={styles.hotContent}
           >
-            {HOT_NEWS_ITEMS.map((item) => (
+            {activeHotNewsItems.map((item) => (
               <TouchableOpacity key={item.title} style={styles.hotCard} activeOpacity={0.86}>
                 <Image source={item.image} style={styles.hotImage} />
                 <LinearGradient
@@ -1047,7 +1094,7 @@ const styles = StyleSheet.create({
   cardDesc: {
     fontFamily: 'Noto Sans KR',
     fontSize: 13,
-    fontWeight: '400',
+    fontWeight: '500',
     color: 'rgba(255,255,255,0.85)',
     marginTop: 12,
     lineHeight: 24,
@@ -1074,6 +1121,18 @@ const styles = StyleSheet.create({
     height: 126,
     alignSelf: 'center',
     marginTop: 27,
+  },
+  cardIllustrationImageVisa: {
+    width: 246,
+    height: 246,
+    marginLeft: -10,
+    marginTop: -21,
+  },
+  cardIllustrationImageChecklist: {
+    width: 136,
+    height: 136,
+    marginLeft: 30,
+    marginTop: 32,
   },
   cardDots: {
     flexDirection: 'row',
