@@ -1,312 +1,924 @@
-import { useLocalSearchParams } from 'expo-router';
-import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
   Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+const NAVY = '#0F2042';
+const BLUE = '#2F66D0';
+
+const quickActions = [
+  {
+    title: '비자 가이드',
+    icon: 'document-text-outline',
+    route: '/(tabs)/home/visa-guide',
+  },
+  {
+    title: '체크리스트',
+    icon: 'checkmark-done-outline',
+    route: '/(tabs)/home/departure-checklist',
+  },
+  {
+    title: '파견교 정보',
+    icon: 'school-outline',
+    route: '/(tabs)/home/school-info',
+  },
+  {
+    title: '장학금',
+    icon: 'ribbon-outline',
+    route: '/(tabs)/home/scholarship-info',
+  },
+  {
+    title: '동행 구하기',
+    icon: 'people-outline',
+    route: '/(tabs)/community',
+  },
+  {
+    title: '중고거래',
+    icon: 'cart-outline',
+    route: '/market',
+  },
+] as const;
+
+const popularPosts = [
+  {
+    title: '독일 비자 인터뷰 예약 가능한 날짜 공유합니다',
+    country: '독일',
+    likes: 34,
+    comments: 12,
+    time: '8분 전',
+  },
+  {
+    title: '파리 기숙사 보증금 송금할 때 수수료 줄이는 법',
+    country: '프랑스',
+    likes: 21,
+    comments: 7,
+    time: '19분 전',
+  },
+  {
+    title: '출국 전 꼭 챙겨야 하는 영문 서류 체크',
+    country: '공통',
+    likes: 42,
+    comments: 18,
+    time: '31분 전',
+  },
+  {
+    title: '뮌헨 도착 첫날 교통권은 이렇게 사면 편해요',
+    country: '독일',
+    likes: 16,
+    comments: 5,
+    time: '45분 전',
+  },
+];
+
+const companionPosts = [
+  {
+    city: '독일 뮌헨',
+    period: '7.18 - 7.21',
+    status: '모집중',
+    people: '2/4명',
+    verified: true,
+    likes: 18,
+  },
+  {
+    city: '프랑스 파리',
+    period: '8.02 - 8.05',
+    status: '모집중',
+    people: '1/3명',
+    verified: true,
+    likes: 11,
+  },
+  {
+    city: '일본 도쿄',
+    period: '7.27 하루',
+    status: '마감임박',
+    people: '3/4명',
+    verified: false,
+    likes: 9,
+  },
+];
+
+const bulkTradeItems = [
+  {
+    title: '독일 초기정착 일괄 세트',
+    price: '48,000원',
+    location: '뮌헨',
+    image: require('../../../assets/images/used_all.png'),
+  },
+  {
+    title: '기숙사 주방용품 일괄',
+    price: '32,000원',
+    location: '베를린',
+    image: require('../../../assets/images/used_all.png'),
+  },
+  {
+    title: '침구 + 멀티탭 + 수납함 일괄',
+    price: '25,000원',
+    location: '프랑크푸르트',
+    image: require('../../../assets/images/used_all.png'),
+  },
+];
+
+const ticketTradeItems = [
+  {
+    title: '파리 루브르 입장권 양도',
+    price: '€12',
+    location: '파리',
+    image: require('../../../assets/images/ticket.png'),
+  },
+  {
+    title: '뮌헨 Coldplay 콘서트 티켓',
+    price: '€90',
+    location: '뮌헨',
+    image: require('../../../assets/images/ticket.png'),
+  },
+  {
+    title: '바르셀로나 가우디 투어 양도',
+    price: '€18',
+    location: '바르셀로나',
+    image: require('../../../assets/images/ticket.png'),
+  },
+];
 
 export default function HomeScreen() {
   const [displayName, setDisplayName] = useState('서현');
+  const [exchangeStatus, setExchangeStatus] = useState<'preparing' | 'dispatched'>('preparing');
+  const [dispatchInfo, setDispatchInfo] = useState({
+    country: '독일',
+    university: '베를린 자유대학교',
+  });
+  const { nickname } = useLocalSearchParams<{ nickname?: string }>();
+
+  useEffect(() => {
+    if (nickname) {
+      setDisplayName(nickname);
+    }
+  }, [nickname]);
 
   useFocusEffect(
     useCallback(() => {
       const loadNickname = async () => {
         const savedNickname = await AsyncStorage.getItem('nickname');
+        const savedStatus = await AsyncStorage.getItem('exchangeStatus');
+        const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry');
+        const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity');
 
         if (savedNickname) {
           setDisplayName(savedNickname);
+        }
+
+        if (dispatchedCountry || dispatchedUniversity) {
+          setDispatchInfo({
+            country: dispatchedCountry || '독일',
+            university: dispatchedUniversity || '베를린 자유대학교',
+          });
+        }
+
+        if (savedStatus === 'dispatched' || dispatchedUniversity) {
+          setExchangeStatus('dispatched');
+        } else {
+          setExchangeStatus('preparing');
         }
       };
 
       loadNickname();
     }, []),
   );
-  const { nickname } = useLocalSearchParams<{ nickname?: string }>();
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <Image
-          source={require('../../../assets/images/profile.png')}
-          style={styles.profile}
-        />
 
-        <View>
-          <Text style={styles.title}>안녕, {displayName} !</Text>
-          <Text style={styles.sub}> 새로운 모험을 떠날 준비 됐나요?</Text>
+  const isDispatched = exchangeStatus === 'dispatched';
+  const tradeItems = isDispatched ? ticketTradeItems : bulkTradeItems;
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.profileWrap}
+          onPress={() => router.push('/(tabs)/mypage' as any)}
+          activeOpacity={0.82}
+        >
+          <Image
+            source={require('../../../assets/images/profile.png')}
+            style={styles.profile}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.headerTextBox}>
+          <Text style={styles.greeting}>안녕하세요, {displayName}님</Text>
+          <Text style={styles.headerSub}>
+            {isDispatched ? `${dispatchInfo.country} 파견 중` : '오늘 준비해야 할 일을 확인해보세요'}
+          </Text>
         </View>
 
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Image
-              source={require('../../../assets/images/search.png')}
-              style={styles.icon}
-            />
+            <Ionicons name="search" size={21} color={NAVY} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
-            <Image
-              source={require('../../../assets/images/menu.png')}
-              style={styles.icon}
-            />
+            <Ionicons name="notifications-outline" size={22} color={NAVY} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.banner}>
-        <Image
-          source={require('../../../assets/images/background_school.png')}
-          style={styles.bannerImage}
-        />
+      <View style={styles.heroCard}>
+        {isDispatched ? (
+          <>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroTag}>
+                <Text style={styles.heroTagText}>{dispatchInfo.university} 파견 중</Text>
+              </View>
+              <Text style={styles.heroSmallMeta}>47 / 180일</Text>
+            </View>
 
-        <View style={styles.bannerTextBox}>
-          <Text style={styles.bannerTitle}>D-67 to Munich</Text>
-          <Text style={styles.bannerSub}>독일 뮌헨 대학교 파견까지</Text>
-        </View>
+            <View style={styles.dispatchedDayRow}>
+              <Text style={styles.dispatchedDay}>47</Text>
+              <Text style={styles.dispatchedDayUnit}>일째</Text>
+            </View>
+            <Text style={styles.heroSubtitle}>귀국까지 133일 남았어요</Text>
 
-        <View style={styles.profileBtn}>
-          <Text style={styles.profileText}>프로필 설정</Text>
-        </View>
-      </TouchableOpacity>
+            <View style={styles.progressTrack}>
+              <View style={styles.dispatchedProgressFill} />
+            </View>
 
-      <View style={styles.cardRow}>
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => router.push('/(tabs)/home/explore')}
-        >
-          <Image
-            source={require('../../../assets/images/info_serch.png')}
-            style={styles.cardImage}
-          />
-          <Text style={styles.cardText}>교환학생 정보 탐색하기</Text>
-        </TouchableOpacity>
+            <View style={styles.progressInfoRow}>
+              <Text style={styles.progressLabel}>파견 기간 26% 경과</Text>
+              <Text style={styles.progressValue}>47 / 180일</Text>
+            </View>
 
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => router.push('/market')}
-        >
-          <Image
-            source={require('../../../assets/images/trade.png')}
-            style={styles.cardImage}
-          />
-          <Text style={styles.cardText}>교환학생 전용 거래</Text>
-        </TouchableOpacity>
+            <View style={styles.dispatchStatusGrid}>
+              <View style={styles.dispatchStatusCard}>
+                <Text style={styles.dispatchStatusLabel}>학점 이수 현황</Text>
+                <Text style={styles.dispatchStatusValue}>12학점</Text>
+                <Text style={styles.dispatchStatusSub}>목표 18학점</Text>
+              </View>
+              <View style={styles.dispatchStatusCard}>
+                <Text style={styles.dispatchStatusLabel}>남은 파견 기간</Text>
+                <Text style={styles.dispatchStatusValue}>133일</Text>
+                <Text style={styles.dispatchStatusSub}>귀국 07/26</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroTag}>
+                <Text style={styles.heroTagText}>파견 준비 중</Text>
+              </View>
+              <Text style={styles.heroDday}>D-58</Text>
+            </View>
+
+            <Text style={styles.heroTitle}>독일 파견 준비 중</Text>
+            <Text style={styles.heroSubtitle}>다음 해야 할 일: 비자 인터뷰 예약하기</Text>
+
+            <View style={styles.progressInfoRow}>
+              <Text style={styles.progressLabel}>준비 진행률</Text>
+              <Text style={styles.progressValue}>72%</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View style={styles.progressFill} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.heroButton}
+              onPress={() => router.push('/(tabs)/home/profile-card' as any)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.heroButtonText}>내 프로필 보기</Text>
+              <Ionicons name="arrow-forward" size={17} color={NAVY} />
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
-      <TouchableOpacity style={styles.chatBtn}>
-        <Text style={styles.chatText}>오픈 채팅방 바로가기</Text>
-        <Text style={styles.arrow}>›</Text>
-      </TouchableOpacity>
+      <View style={styles.sectionBlock}>
+        <Text style={styles.sectionTitle}>빠른 메뉴</Text>
 
-      <View style={styles.quickRow}>
-        <TouchableOpacity style={styles.quickItem}>
-          <Image
-            source={require('../../../assets/images/recru_schedule.png')}
-            style={styles.quickIcon}
-          />
-          <Text style={styles.quickText}>대학별{'\n'}모집 일정</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.quickItem}>
-          <Image
-            source={require('../../../assets/images/scholarship_info.png')}
-            style={styles.quickIcon}
-          />
-          <Text style={styles.quickText}>장학금{'\n'}정보</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.quickItem}>
-          <Image
-            source={require('../../../assets/images/travel_info.png')}
-            style={styles.quickIcon}
-          />
-          <Text style={styles.quickText}>교환학생{'\n'}여행 정보</Text>
-        </TouchableOpacity>
+        <View style={styles.quickGrid}>
+          {quickActions.map((item) => (
+            <TouchableOpacity
+              key={item.title}
+              style={styles.quickCard}
+              onPress={() => router.push(item.route as any)}
+              activeOpacity={0.86}
+            >
+              <View style={styles.quickIconBox}>
+                <Ionicons name={item.icon} size={22} color={NAVY} />
+              </View>
+              <Text style={styles.quickTitle}>{item.title}</Text>
+              <Ionicons name="chevron-forward" size={17} color="#CBD5E1" />
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.section}>
+      <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            파견 준비생을 위한 맞춤 콘텐츠
-          </Text>
-          <TouchableOpacity>
-            <Text style={styles.more}>더보기 ›</Text>
+          <Text style={styles.sectionTitle}>실시간 인기 게시글</Text>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+            <Text style={styles.moreText}>전체보기</Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {[1, 2, 3].map((item) => (
-            <TouchableOpacity key={item} style={styles.article}>
-              <View style={styles.articleImage} />
-              <Text style={styles.articleTitle}>
-                [독일 교환학생] 비자신청부터 수령까지
+        <View style={styles.postList}>
+          {popularPosts.map((post, index) => (
+            <TouchableOpacity
+              key={post.title}
+              style={[styles.postItem, index === popularPosts.length - 1 && styles.lastItem]}
+              activeOpacity={0.82}
+            >
+              <View style={styles.postTop}>
+                <View style={styles.countryBadge}>
+                  <Text style={styles.countryBadgeText}>{post.country}</Text>
+                </View>
+                <Text style={styles.postTime}>{post.time}</Text>
+              </View>
+              <Text style={styles.postTitle} numberOfLines={1}>
+                {post.title}
               </Text>
-              <Text style={styles.articleMeta}>2026.02.25 / 작성자: Lumy</Text>
+              <View style={styles.postMetaRow}>
+                <Ionicons name="heart-outline" size={14} color="#64748B" />
+                <Text style={styles.postMetaText}>{post.likes}</Text>
+                <Ionicons name="chatbubble-outline" size={13} color="#64748B" />
+                <Text style={styles.postMetaText}>{post.comments}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>지금 모집 중인 동행</Text>
+            <Text style={styles.sectionSub}>출국 전후 일정이 맞는 친구를 찾아보세요</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+            <Text style={styles.moreText}>더보기</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.companionScroll}
+          contentContainerStyle={styles.companionContent}
+        >
+          {companionPosts.map((post) => (
+            <TouchableOpacity key={post.city} style={styles.companionCard} activeOpacity={0.88}>
+              <View style={styles.companionTop}>
+                <View style={styles.companionPin}>
+                  <Ionicons name="location-outline" size={18} color={NAVY} />
+                </View>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusBadgeText}>{post.status}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.companionCity}>{post.city}</Text>
+              <Text style={styles.companionPeriod}>{post.period}</Text>
+
+              <View style={styles.companionMetaGrid}>
+                <View style={styles.companionMetaItem}>
+                  <Ionicons name="people-outline" size={14} color="#64748B" />
+                  <Text style={styles.companionMetaText}>{post.people}</Text>
+                </View>
+                <View style={styles.companionMetaItem}>
+                  <Ionicons
+                    name={post.verified ? 'shield-checkmark-outline' : 'shield-outline'}
+                    size={14}
+                    color="#64748B"
+                  />
+                  <Text style={styles.companionMetaText}>
+                    {post.verified ? '학교 인증' : '인증 예정'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.companionFooter}>
+                <Text style={styles.joinText}>함께 일정 보기</Text>
+                <View style={styles.likeRow}>
+                  <Ionicons name="heart-outline" size={14} color="#64748B" />
+                  <Text style={styles.likeText}>{post.likes}</Text>
+                </View>
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
+      </View>
+
+      <View style={styles.sectionBlock}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {isDispatched ? '최근 올라온 티켓 양도' : '최근 올라온 일괄거래'}
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/market' as any)}>
+            <Text style={styles.moreText}>전체보기</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.tradeList}>
+          {tradeItems.map((item, index) => (
+            <TouchableOpacity
+              key={item.title}
+              style={[styles.tradeItem, index === tradeItems.length - 1 && styles.lastItem]}
+              onPress={() => router.push('/market' as any)}
+              activeOpacity={0.84}
+            >
+              <View style={styles.tradeThumb}>
+                <Image source={item.image} style={styles.tradeImage} />
+              </View>
+              <View style={styles.tradeBody}>
+                <Text style={styles.tradeTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                <Text style={styles.tradeLocation}>{item.location}</Text>
+                <Text style={styles.tradePrice}>{item.price}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 20, paddingBottom: 120, paddingHorizontal: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', marginTop: 28 },
-  profileCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#000',
-    marginRight: 14,
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
-  title: {
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 52,
+    paddingBottom: 120,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+  },
+  profile: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+  },
+  headerTextBox: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  greeting: {
     fontSize: 18,
-    right: -6,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#111111',
   },
-  bannerTextBox: {
-    position: 'absolute',
-    left: 28,
-    right: 28,
-    top: 48,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+  headerSub: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
   },
-  quickIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-  },
-  icon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-  cardImage: {
-    width: 80,
-    height: 80,
-    resizeMode: 'contain',
-  },
-  bannerImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-    resizeMode: 'stretch',
-  },
-  hello: { fontSize: 18, fontWeight: '700' },
-  sub: { marginTop: 4, fontSize: 14, color: '#666' },
-  headerIcons: { marginLeft: 'auto', flexDirection: 'row', gap: 10 },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fafafa',
-  },
-
-  banner: {
-    marginTop: 48,
-    height: 185,
-    borderRadius: 8,
-    overflow: 'hidden', // 이거 반드시 추가
-    justifyContent: 'center',
-  },
-  bannerTitle: { color: '#fff', fontSize: 20, fontWeight: '800' },
-  bannerSub: { color: '#fff', marginTop: 8, fontSize: 12, fontWeight: '600' },
-  profileBtn: {
-    position: 'absolute',
-    right: 40,
-    top: 72,
-    backgroundColor: '#0648d8',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 14,
-  },
-  profileText: { color: '#fff', fontWeight: '700' },
-
-  cardRow: { flexDirection: 'row', gap: 16, marginTop: 40 },
-  card: {
-    flex: 1,
-    height: 140,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    padding: 14,
-  },
-  emoji: { fontSize: 48 },
-  cardText: {
-    marginTop: 18,
-    fontSize: 15,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-
-  chatBtn: {
-    marginTop: 18,
-    height: 70,
-    backgroundColor: '#fff',
-    paddingHorizontal: 24,
+  headerIcons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 2,
-  },
-  chatText: { fontSize: 16 },
-  arrow: { marginLeft: 'auto', fontSize: 30, color: '#666' },
-
-  quickRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 34,
-  },
-  quickItem: {
-    width: '31%',
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
   },
-  quickEmoji: { fontSize: 34 },
-  quickText: { fontSize: 14, fontWeight: '600', lineHeight: 22 },
-
-  section: { marginTop: 44 },
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#EEF2F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCard: {
+    marginTop: 24,
+    borderRadius: 20,
+    backgroundColor: NAVY,
+    padding: 22,
+    shadowColor: NAVY,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroTag: {
+    borderRadius: 13,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  heroTagText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#DDE8FF',
+  },
+  heroDday: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  heroSmallMeta: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  heroTitle: {
+    marginTop: 18,
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  heroSubtitle: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#DDE8FF',
+  },
+  progressInfoRow: {
+    marginTop: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#BFD0EA',
+  },
+  progressValue: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  progressTrack: {
+    marginTop: 10,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    width: '72%',
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+  },
+  dispatchedProgressFill: {
+    width: '26%',
+    height: '100%',
+    borderRadius: 4,
+    backgroundColor: '#FFFFFF',
+  },
+  dispatchedDayRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginTop: 14,
+  },
+  dispatchedDay: {
+    fontSize: 52,
+    lineHeight: 58,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  dispatchedDayUnit: {
+    marginLeft: 5,
+    marginBottom: 9,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  dispatchStatusGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  dispatchStatusCard: {
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    padding: 14,
+  },
+  dispatchStatusLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  dispatchStatusValue: {
+    marginTop: 10,
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  dispatchStatusSub: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  heroButton: {
+    marginTop: 20,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  heroButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  sectionBlock: {
+    marginTop: 30,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 12,
   },
-  sectionTitle: { fontSize: 22, fontWeight: '800', flex: 1 },
-  more: { fontSize: 14, color: '#666' },
-
-  article: { width: 220, marginRight: 18 },
-  articleImage: { width: '100%', height: 220, backgroundColor: '#d8d8d8' },
-  articleTitle: {
-    marginTop: 12,
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  sectionSub: {
+    marginTop: 4,
+    fontSize: 12,
     fontWeight: '600',
-    lineHeight: 22,
+    color: '#64748B',
   },
-  articleMeta: { marginTop: 8, fontSize: 12, color: '#888' },
-  profile: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  moreText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BLUE,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginTop: 14,
+  },
+  quickCard: {
+    width: '48.5%',
+    minHeight: 74,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: NAVY,
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  quickIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  quickTitle: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  postList: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  postItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  lastItem: {
+    borderBottomWidth: 0,
+  },
+  postTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  countryBadge: {
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  countryBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  postTime: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  postTitle: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  postMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 9,
+  },
+  postMetaText: {
+    marginRight: 8,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  companionScroll: {
+    marginHorizontal: -20,
+  },
+  companionContent: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  companionCard: {
+    width: 236,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    shadowColor: NAVY,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  companionTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  companionPin: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusBadge: {
+    borderRadius: 10,
+    backgroundColor: NAVY,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  companionCity: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  companionPeriod: {
+    marginTop: 5,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  companionMetaGrid: {
+    marginTop: 15,
+    gap: 8,
+  },
+  companionMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  companionMetaText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  companionFooter: {
+    marginTop: 18,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  joinText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  likeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  likeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  tradeList: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  tradeItem: {
+    minHeight: 86,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  tradeThumb: {
+    width: 62,
+    height: 62,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  tradeImage: {
+    width: 44,
+    height: 44,
+    resizeMode: 'contain',
+  },
+  tradeBody: {
+    flex: 1,
+  },
+  tradeTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  tradeLocation: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+  },
+  tradePrice: {
+    marginTop: 6,
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111111',
   },
 });
