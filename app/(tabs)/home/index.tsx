@@ -14,39 +14,63 @@ import {
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
+const HERO_BLUE = '#2446B8';
 
-const quickActions = [
-  {
-    title: '비자 가이드',
-    icon: 'document-text-outline',
-    route: '/(tabs)/home/visa-guide',
-  },
-  {
-    title: '체크리스트',
-    icon: 'checkmark-done-outline',
-    route: '/(tabs)/home/departure-checklist',
-  },
-  {
-    title: '파견교 정보',
-    icon: 'school-outline',
-    route: '/(tabs)/home/school-info',
-  },
-  {
-    title: '장학금',
-    icon: 'ribbon-outline',
-    route: '/(tabs)/home/scholarship-info',
-  },
-  {
-    title: '동행 구하기',
-    icon: 'people-outline',
-    route: '/(tabs)/community',
-  },
-  {
-    title: '중고거래',
-    icon: 'cart-outline',
-    route: '/market',
-  },
-] as const;
+type QuickMenuStage = 'applying' | 'accepted' | 'dispatched';
+
+const quickActionsByStage = {
+  applying: [
+    {
+      title: '파견교 정보',
+      icon: 'school-outline',
+      route: '/(tabs)/home/school-info',
+    },
+    {
+      title: '장학금 정보',
+      icon: 'ribbon-outline',
+      route: '/(tabs)/home/scholarship-info',
+    },
+    {
+      title: '내 학교 지원 기준',
+      icon: 'business-outline',
+      route: '/(tabs)/home/my-school-info',
+    },
+  ],
+  accepted: [
+    {
+      title: '비자 가이드',
+      icon: 'document-text-outline',
+      route: '/(tabs)/home/visa-guide',
+    },
+    {
+      title: '체크리스트',
+      icon: 'checkmark-done-outline',
+      route: '/(tabs)/home/departure-checklist',
+    },
+    {
+      title: '중고거래 구매',
+      icon: 'cart-outline',
+      route: '/market',
+    },
+  ],
+  dispatched: [
+    {
+      title: '동행 구하기',
+      icon: 'people-outline',
+      route: '/(tabs)/community',
+    },
+    {
+      title: '지출 관리',
+      icon: 'wallet-outline',
+      route: '/(tabs)/mypage',
+    },
+    {
+      title: '티켓 양도하기',
+      icon: 'ticket-outline',
+      route: '/market/ticket-preview',
+    },
+  ],
+} as const;
 
 const popularPosts = [
   {
@@ -148,9 +172,27 @@ const ticketTradeItems = [
   },
 ];
 
+function resolveQuickMenuStage(status: string | null): QuickMenuStage {
+  if (status === 'dispatched') {
+    return 'dispatched';
+  }
+
+  if (
+    status === 'applying' ||
+    status === 'beforeAccepted' ||
+    status === 'support' ||
+    status === 'preApply'
+  ) {
+    return 'applying';
+  }
+
+  return 'accepted';
+}
+
 export default function HomeScreen() {
   const [displayName, setDisplayName] = useState('서현');
   const [exchangeStatus, setExchangeStatus] = useState<'preparing' | 'dispatched'>('preparing');
+  const [quickMenuStage, setQuickMenuStage] = useState<QuickMenuStage>('accepted');
   const [dispatchInfo, setDispatchInfo] = useState({
     country: '독일',
     university: '베를린 자유대학교',
@@ -184,8 +226,10 @@ export default function HomeScreen() {
 
         if (savedStatus === 'dispatched' || dispatchedUniversity) {
           setExchangeStatus('dispatched');
+          setQuickMenuStage('dispatched');
         } else {
           setExchangeStatus('preparing');
+          setQuickMenuStage(resolveQuickMenuStage(savedStatus));
         }
       };
 
@@ -195,6 +239,7 @@ export default function HomeScreen() {
 
   const isDispatched = exchangeStatus === 'dispatched';
   const tradeItems = isDispatched ? ticketTradeItems : bulkTradeItems;
+  const quickActions = quickActionsByStage[quickMenuStage];
 
   return (
     <ScrollView
@@ -302,7 +347,17 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.sectionBlock}>
-        <Text style={styles.sectionTitle}>빠른 메뉴</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>빠른 메뉴</Text>
+          <TouchableOpacity
+            style={styles.quickMoreButton}
+            onPress={() => router.push('/(tabs)/home/more-menu' as any)}
+            activeOpacity={0.82}
+          >
+            <Text style={styles.moreText}>더보기</Text>
+            <Ionicons name="chevron-forward" size={14} color={BLUE} />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.quickGrid}>
           {quickActions.map((item) => (
@@ -313,10 +368,9 @@ export default function HomeScreen() {
               activeOpacity={0.86}
             >
               <View style={styles.quickIconBox}>
-                <Ionicons name={item.icon} size={22} color={NAVY} />
+                <Ionicons name={item.icon} size={24} color={NAVY} />
               </View>
               <Text style={styles.quickTitle}>{item.title}</Text>
-              <Ionicons name="chevron-forward" size={17} color="#CBD5E1" />
             </TouchableOpacity>
           ))}
         </View>
@@ -331,10 +385,10 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.postList}>
-          {popularPosts.map((post, index) => (
+          {popularPosts.slice(0, 2).map((post, index) => (
             <TouchableOpacity
               key={post.title}
-              style={[styles.postItem, index === popularPosts.length - 1 && styles.lastItem]}
+              style={[styles.postItem, index === 1 && styles.lastItem]}
               activeOpacity={0.82}
             >
               <View style={styles.postTop}>
@@ -363,7 +417,14 @@ export default function HomeScreen() {
             <Text style={styles.sectionTitle}>지금 모집 중인 동행</Text>
             <Text style={styles.sectionSub}>출국 전후 일정이 맞는 친구를 찾아보세요</Text>
           </View>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: '/(tabs)/community',
+                params: { tab: 'companion' },
+              } as any)
+            }
+          >
             <Text style={styles.moreText}>더보기</Text>
           </TouchableOpacity>
         </View>
@@ -457,7 +518,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 20,
@@ -515,13 +576,13 @@ const styles = StyleSheet.create({
   heroCard: {
     marginTop: 24,
     borderRadius: 20,
-    backgroundColor: NAVY,
+    backgroundColor: HERO_BLUE,
     padding: 22,
-    shadowColor: NAVY,
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
+    shadowColor: '#2446B8',
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -532,7 +593,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   heroTagText: {
     fontSize: 11,
@@ -581,7 +642,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.28)',
     overflow: 'hidden',
   },
   progressFill: {
@@ -622,7 +683,7 @@ const styles = StyleSheet.create({
   dispatchStatusCard: {
     flex: 1,
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: '#FFFFFF',
     padding: 14,
   },
   dispatchStatusLabel: {
@@ -683,43 +744,48 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: BLUE,
   },
+  quickMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
   quickGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 10,
-    marginTop: 14,
+    gap: 10,
   },
   quickCard: {
-    width: '48.5%',
-    minHeight: 74,
+    flex: 1,
+    minHeight: 104,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: NAVY,
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  quickIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    shadowColor: NAVY,
+    shadowOpacity: 0.015,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  quickIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#F6F8FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 11,
   },
   quickTitle: {
-    flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: NAVY,
+    textAlign: 'center',
+    lineHeight: 17,
   },
   postList: {
     borderRadius: 16,
@@ -791,10 +857,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     shadowColor: NAVY,
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   companionTop: {
     flexDirection: 'row',
@@ -811,14 +877,14 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     borderRadius: 10,
-    backgroundColor: NAVY,
+    backgroundColor: '#EEF2FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   statusBadgeText: {
     fontSize: 10,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: BLUE,
   },
   companionCity: {
     marginTop: 16,

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -185,9 +186,16 @@ const companionPosts = [
 ];
 
 export default function CommunityScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
   const [selectedBoardFilter, setSelectedBoardFilter] = useState('전체');
   const [selectedCompanionFilter, setSelectedCompanionFilter] = useState('전체');
+
+  useEffect(() => {
+    if (tab === 'companion') {
+      setActiveTab('동행 구하기');
+    }
+  }, [tab]);
 
   const filteredBoardPosts = useMemo(
     () =>

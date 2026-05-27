@@ -17,6 +17,7 @@ export default function HomeLayout() {
       <Stack.Screen name="visa-guide" />
       <Stack.Screen name="departure-checklist" />
       <Stack.Screen name="profile-card" />
+      <Stack.Screen name="more-menu" />
       <Stack.Screen name="mentoring" />
       <Stack.Screen name="school-detail" />
       <Stack.Screen name="market" />
