@@ -55,14 +55,14 @@ const DEPARTURE_BANNER_ITEMS = [
   {
     title: '비자 가이드',
     subtitle: '국가별 비자 종류와\n신청 절차 한 눈에 확인',
-    route: '/(tabs)/home/guide',
+    route: '/(tabs)/home/visa-guide',
     image: require('../../../assets/images/departure-visa-guide.png'),
     backgroundColor: '#604EB6',
   },
   {
     title: '출국 전 체크리스트',
     subtitle: '짐싸기부터 보험까지,\n출국 전 필수 체크 리스트',
-    route: '/(tabs)/home/guide',
+    route: '/(tabs)/home/departure-checklist',
     image: require('../../../assets/images/departure-checklist.png'),
     backgroundColor: '#AB55AE',
   },
