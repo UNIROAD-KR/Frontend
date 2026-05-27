@@ -111,6 +111,27 @@ const TRENDING_COUNTRIES = [
   { name: '체코', flag: '🇨🇿', count: '18개 파견교' },
 ] as const;
 
+const BLOG_COUNTRY_GROUPS = {
+  유럽권: ['전체', '독일', '프랑스', '체코', '스페인', '이탈리아'],
+  미주권: ['전체', '미국', '캐나다'],
+  아시아권: ['전체', '일본', '중국', '싱가포르'],
+  기타: ['전체'],
+} as const;
+const BLOG_STATUS_OPTIONS = [
+  '전체',
+  '합격 전 지원 준비',
+  '합격 후 출국 준비',
+  '파견 중',
+  '귀국',
+] as const;
+const BLOG_TYPE_OPTIONS = [
+  { label: '전체', value: '전체' },
+  { label: '파견 후기', value: '후기' },
+  { label: '준비 과정', value: '준비' },
+  { label: '생활 꿀팁', value: '생활팁' },
+  { label: '여행', value: '여행' },
+] as const;
+
 // 📝 모의 후기 데이터베이스
 interface Review {
   id: string;
@@ -260,7 +281,13 @@ export default function ExploreScreen() {
   const [activeInfoCardIndex, setActiveInfoCardIndex] = useState(0);
   const bannerScrollRef = useRef<ScrollView>(null);
   const [selectedCountry, setSelectedCountry] = useState('전체');
-  const [selectedType, setSelectedType] = useState('후기');
+  const [selectedType, setSelectedType] = useState('전체');
+  const [selectedDispatchStatus, setSelectedDispatchStatus] = useState('전체');
+  const [activeBlogFilter, setActiveBlogFilter] = useState<
+    'country' | 'status' | 'type' | null
+  >(null);
+  const [selectedCountryGroup, setSelectedCountryGroup] =
+    useState<keyof typeof BLOG_COUNTRY_GROUPS>('유럽권');
   const [reviews, setReviews] = useState<Review[]>(REVIEW_DATA);
   const [, setPopularCountries] = useState([
     { name: '독일', code: 'DE', flag: require('../../../assets/images/flag_germany.png') },
@@ -337,18 +364,6 @@ export default function ExploreScreen() {
     fetchExploreData();
   }, []);
 
-  // 2. 국가 필터
-  const countryFilters = useMemo(
-    () => ['전체', ...Array.from(new Set(reviews.map((review) => review.country).filter(Boolean)))],
-    [reviews],
-  );
-
-  // 3. 정보 유형 필터
-  const typeFilters = useMemo(
-    () => Array.from(new Set(reviews.map((review) => review.type).filter(Boolean))),
-    [reviews],
-  );
-
   // 🔍 실시간 필터링 로직
   const filteredReviews = useMemo(() => {
     return reviews.filter((review) => {
@@ -358,11 +373,21 @@ export default function ExploreScreen() {
         review.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchCountry = selectedCountry === '전체' || review.country === selectedCountry;
-      const matchType = review.type === selectedType;
+      const matchType =
+        selectedType === '전체' ||
+        review.type === selectedType ||
+        (selectedType === '준비' && review.type.includes('준비'));
 
       return matchSearch && matchCountry && matchType;
     });
   }, [reviews, searchQuery, selectedCountry, selectedType]);
+
+  const selectedTypeLabel =
+    BLOG_TYPE_OPTIONS.find((option) => option.value === selectedType)?.label ?? '유형';
+  const countryPillLabel = selectedCountry === '전체' ? '국가' : selectedCountry;
+  const statusPillLabel =
+    selectedDispatchStatus === '전체' ? '파견 상태' : selectedDispatchStatus;
+  const typePillLabel = selectedType === '전체' ? '정보 유형' : selectedTypeLabel;
 
   // 🤍 좋아요 토글 핸들러
   const handleLikeToggle = async (id: string) => {
@@ -669,61 +694,81 @@ export default function ExploreScreen() {
           <Text style={styles.blogMore}>전체보기 &gt;</Text>
         </View>
 
-        {/* 1) 국가 필터 Pill */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScroll}
-          contentContainerStyle={styles.filterContent}
-        >
-          {countryFilters.map((country) => (
+        <View style={styles.blogFilterArea}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.blogConditionScroll}
+            contentContainerStyle={styles.blogConditionRow}
+          >
             <TouchableOpacity
-              key={country}
-              style={[
-                styles.pillBtn,
-                selectedCountry === country ? styles.pillBtnActiveNavy : styles.pillBtnInactive
-              ]}
-              onPress={() => setSelectedCountry(country)}
+              style={styles.conditionPill}
+              onPress={() =>
+                setActiveBlogFilter((prev) => (prev === 'country' ? null : 'country'))
+              }
+              activeOpacity={0.82}
             >
               <Text
                 style={[
-                  styles.pillText,
-                  selectedCountry === country ? styles.pillTextActive : styles.pillTextInactive
+                  styles.conditionText,
+                  selectedCountry === '전체' && styles.conditionTextPlaceholder,
                 ]}
               >
-                {country}
+                {countryPillLabel}
               </Text>
+              <Ionicons name="chevron-down" size={14} color="#64748B" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
 
-        {/* 2) 정보 유형 필터 Pill */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.filterScroll, { marginTop: 8 }]}
-          contentContainerStyle={styles.filterContent}
-        >
-          {typeFilters.map((type) => (
             <TouchableOpacity
-              key={type}
-              style={[
-                styles.typePill,
-                selectedType === type ? styles.typePillActiveNavy : styles.typePillInactive
-              ]}
-              onPress={() => setSelectedType(type)}
+              style={styles.conditionPill}
+              onPress={() =>
+                setActiveBlogFilter((prev) => (prev === 'status' ? null : 'status'))
+              }
+              activeOpacity={0.82}
             >
               <Text
                 style={[
-                  styles.typePillText,
-                  selectedType === type ? styles.typePillTextActive : styles.typePillTextInactive
+                  styles.conditionText,
+                  selectedDispatchStatus === '전체' && styles.conditionTextPlaceholder,
                 ]}
               >
-                {type}
+                {statusPillLabel}
               </Text>
+              <Ionicons name="chevron-down" size={14} color="#64748B" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+
+            <TouchableOpacity
+              style={styles.conditionPill}
+              onPress={() =>
+                setActiveBlogFilter((prev) => (prev === 'type' ? null : 'type'))
+              }
+              activeOpacity={0.82}
+            >
+              <Text
+                style={[
+                  styles.conditionText,
+                  selectedType === '전체' && styles.conditionTextPlaceholder,
+                ]}
+              >
+                {typePillLabel}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color="#64748B" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.conditionIconPill}
+              onPress={() => {
+                setSelectedCountry('전체');
+                setSelectedDispatchStatus('전체');
+                setSelectedType('전체');
+                setActiveBlogFilter(null);
+              }}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="options-outline" size={17} color="#0F2042" />
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
 
         {/* 후기 리스트 */}
         <View style={styles.reviewList}>
@@ -802,6 +847,192 @@ export default function ExploreScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={activeBlogFilter !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActiveBlogFilter(null)}
+      >
+        <TouchableOpacity
+          style={styles.filterSheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setActiveBlogFilter(null)}
+        >
+          <TouchableOpacity
+            style={styles.filterSheet}
+            activeOpacity={1}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.filterSheetHandle} />
+            <View style={styles.filterSheetTabs}>
+              <TouchableOpacity
+                style={styles.filterSheetTab}
+                onPress={() => setActiveBlogFilter('country')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterSheetTabText,
+                    activeBlogFilter === 'country' && styles.filterSheetTabTextActive,
+                  ]}
+                >
+                  국가
+                </Text>
+                {activeBlogFilter === 'country' && <View style={styles.filterTabDot} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.filterSheetTab}
+                onPress={() => setActiveBlogFilter('status')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterSheetTabText,
+                    activeBlogFilter === 'status' && styles.filterSheetTabTextActive,
+                  ]}
+                >
+                  파견 상태
+                </Text>
+                {activeBlogFilter === 'status' && <View style={styles.filterTabDot} />}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.filterSheetTab}
+                onPress={() => setActiveBlogFilter('type')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterSheetTabText,
+                    activeBlogFilter === 'type' && styles.filterSheetTabTextActive,
+                  ]}
+                >
+                  정보 유형
+                </Text>
+                {activeBlogFilter === 'type' && <View style={styles.filterTabDot} />}
+              </TouchableOpacity>
+            </View>
+
+            {activeBlogFilter === 'country' && (
+              <View style={styles.countrySheetBody}>
+                <View style={styles.countryGroupColumn}>
+                  {Object.keys(BLOG_COUNTRY_GROUPS).map((group) => {
+                    const active = selectedCountryGroup === group;
+
+                    return (
+                      <TouchableOpacity
+                        key={group}
+                        style={[
+                          styles.countryGroupItem,
+                          active && styles.countryGroupItemActive,
+                        ]}
+                        onPress={() =>
+                          setSelectedCountryGroup(group as keyof typeof BLOG_COUNTRY_GROUPS)
+                        }
+                        activeOpacity={0.82}
+                      >
+                        <Text
+                          style={[
+                            styles.countryGroupText,
+                            active && styles.countryGroupTextActive,
+                          ]}
+                        >
+                          {group}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.countryDetailColumn}>
+                  {BLOG_COUNTRY_GROUPS[selectedCountryGroup].map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={styles.filterSheetOption}
+                      onPress={() => setSelectedCountry(option)}
+                      activeOpacity={0.78}
+                    >
+                      <Text
+                        style={[
+                          styles.filterSheetOptionText,
+                          selectedCountry === option && styles.filterSheetOptionTextActive,
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                      {selectedCountry === option && (
+                        <Ionicons name="checkmark" size={18} color="#0F2042" />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {activeBlogFilter === 'status' && (
+              <View style={styles.filterSheetOptions}>
+                {BLOG_STATUS_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={styles.filterSheetOption}
+                    onPress={() => setSelectedDispatchStatus(option)}
+                    activeOpacity={0.78}
+                  >
+                    <Text
+                      style={[
+                        styles.filterSheetOptionText,
+                        selectedDispatchStatus === option &&
+                          styles.filterSheetOptionTextActive,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                    {selectedDispatchStatus === option && (
+                      <Ionicons name="checkmark" size={18} color="#0F2042" />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {activeBlogFilter === 'type' && (
+              <View style={styles.filterSheetOptions}>
+                {BLOG_TYPE_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.label}
+                  style={styles.filterSheetOption}
+                  onPress={() => setSelectedType(option.value)}
+                  activeOpacity={0.78}
+                >
+                  <Text
+                    style={[
+                      styles.filterSheetOptionText,
+                      selectedType === option.value &&
+                        styles.filterSheetOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {selectedType === option.value && (
+                    <Ionicons name="checkmark" size={18} color="#0F2042" />
+                  )}
+                </TouchableOpacity>
+              ))}
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.filterApplyButton}
+              onPress={() => setActiveBlogFilter(null)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.filterApplyButtonText}>필터 적용하기</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {/* 📚 블로그 후기 상세 독서 모달 */}
       <Modal
@@ -1348,21 +1579,247 @@ const styles = StyleSheet.create({
   },
   blogHeader: {
     marginTop: 36,
-    marginBottom: 15,
+    marginBottom: 14,
     marginHorizontal: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   blogTitle: {
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111111',
   },
   blogMore: {
-    fontSize: 7,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '500',
     color: '#A8A8A8',
+    lineHeight: 17,
+  },
+  blogFilterArea: {
+    marginHorizontal: -16,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  blogConditionScroll: {
+    marginHorizontal: 0,
+  },
+  blogCategoryTabs: {
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F6',
+  },
+  blogCategoryTab: {
+    flex: 1,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  blogCategoryText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  blogCategoryTextActive: {
+    color: '#111111',
+  },
+  blogCategoryUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    width: 42,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#111111',
+  },
+  blogConditionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 2,
+    paddingBottom: 0,
+  },
+  conditionPill: {
+    minHeight: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  conditionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  conditionTextPlaceholder: {
+    color: '#94A3B8',
+  },
+  conditionIconPill: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterSheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,32,66,0.22)',
+    justifyContent: 'flex-end',
+  },
+  filterSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    maxHeight: '78%',
+    paddingTop: 10,
+    paddingBottom: 22,
+  },
+  filterSheetHandle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D8DEE8',
+    marginBottom: 18,
+  },
+  filterSheetTabs: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F6',
+  },
+  filterSheetTab: {
+    flex: 1,
+    minHeight: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  filterSheetTabText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#B8BDC7',
+  },
+  filterSheetTabTextActive: {
+    color: '#111111',
+  },
+  filterTabDot: {
+    position: 'absolute',
+    top: 3,
+    right: 18,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2F66D0',
+  },
+  filterSheetOptions: {
+    marginTop: 12,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  filterSheetOption: {
+    minHeight: 52,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  filterSheetOptionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  filterSheetOptionTextActive: {
+    color: '#0F2042',
+    fontWeight: '900',
+  },
+  countrySheetBody: {
+    minHeight: 310,
+    flexDirection: 'row',
+  },
+  countryGroupColumn: {
+    width: 112,
+    backgroundColor: '#F8FAFC',
+    borderRightWidth: 1,
+    borderRightColor: '#E2E8F0',
+  },
+  countryGroupItem: {
+    minHeight: 56,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  countryGroupItemActive: {
+    backgroundColor: '#EEF2FF',
+  },
+  countryGroupText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#B8BDC7',
+  },
+  countryGroupTextActive: {
+    color: '#0F2042',
+  },
+  countryDetailColumn: {
+    flex: 1,
+    paddingTop: 8,
+    paddingHorizontal: 16,
+  },
+  filterApplyButton: {
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: '#0F2042',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginTop: 18,
+  },
+  filterApplyButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  dropdownBox: {
+    marginTop: 8,
+    marginHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  dropdownOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  dropdownOptionTextActive: {
+    color: '#0F2042',
+    fontWeight: '900',
   },
 
   // 💬 필터 스크롤
@@ -1426,7 +1883,7 @@ const styles = StyleSheet.create({
 
   // 후기 리스트
   reviewList: {
-    marginTop: 16,
+    marginTop: 8,
     gap: 12,
   },
   reviewCard: {
