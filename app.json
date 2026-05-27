@@ -50,7 +50,7 @@
         {
           "consumerKey": "3jo54WreHzQliJbUhzPo",
           "consumerSecret": "_N6TMAqNu0",
-          "urlScheme": "naverlogin"
+          "serviceUrlSchemeIOS": "naverlogin"
         }
       ],
       "expo-apple-authentication",
