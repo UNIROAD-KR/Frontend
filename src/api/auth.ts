@@ -25,6 +25,7 @@ export interface SignUpRequest {
 
 export interface OnboardingRequest {
   age: number;
+  domesticUniversity: string;
   dispatchedUniversity: string;
   dispatchedCountry: string;
   dispatchedRegion: string;
@@ -33,6 +34,7 @@ export interface OnboardingRequest {
 export interface SocialSignUpRequest {
   username: string;
   password: string;
+  name: string;
   email?: string;
 }
 
@@ -42,6 +44,7 @@ export interface MemberResponse {
   email: string;
   name: string;
   age: number | null;
+  domesticUniversity: string | null;
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;
@@ -98,6 +101,4 @@ export const logout = () => {
 export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };
-
-
 

@@ -32,14 +32,17 @@ export default function UniversityPage() {
 
   const isValid = university !== '' && status !== '';
   const handleNext = async () => {
-    if (!university) {
+    if (!isValid) {
       return;
     }
 
     await AsyncStorage.setItem('university', university);
 
     router.push({
-      pathname: '/onboarding/country',
+      pathname:
+        status === 'dispatched'
+          ? '/onboarding/dispatched-country'
+          : '/onboarding/country',
       params: { nickname },
     });
   };
@@ -111,19 +114,7 @@ export default function UniversityPage() {
       <Pressable
         style={[styles.nextButton, isValid && styles.nextButtonActive]}
         disabled={!isValid}
-        onPress={() => {
-          if (status === 'preparing') {
-            router.push({
-              pathname: '/onboarding/country',
-              params: { nickname },
-            });
-          } else if (status === 'dispatched') {
-            router.push({
-              pathname: '/onboarding/dispatched-country',
-              params: { nickname },
-            });
-          }
-        }}
+        onPress={handleNext}
       >
         <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
           다음 (2/4)

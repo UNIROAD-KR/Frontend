@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.uniroad.mobile"
+      "bundleIdentifier": "com.uniroad.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.uniroad.mobile",
@@ -39,18 +42,18 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.673770846880-49k51s70r23e9b7459v6d7q90r7t8f95"
+          "iosUrlScheme": "com.googleusercontent.apps.803840308244-onouauek1qv66kqirf9hjmqlb96dck2n"
         }
       ],
-      "@react-native-google-signin/google-signin",
       [
         "@react-native-seoul/naver-login",
         {
           "consumerKey": "3jo54WreHzQliJbUhzPo",
           "consumerSecret": "_N6TMAqNu0",
-          "serviceUrlSchemeIOS": "univ"
+          "urlScheme": "naverlogin"
         }
       ],
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {

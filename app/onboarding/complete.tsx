@@ -36,6 +36,7 @@ export default function CompletePage() {
         onPress={async () => {
           try {
             const birthYearStr = await AsyncStorage.getItem('birthYear');
+            const domesticUniversity = await AsyncStorage.getItem('university') || '';
             const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity') || '';
             const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry') || '';
             const dispatchedRegion = await AsyncStorage.getItem('dispatchedRegion') || '';
@@ -49,6 +50,7 @@ export default function CompletePage() {
 
             await onboarding({
               age,
+              domesticUniversity,
               dispatchedUniversity,
               dispatchedCountry,
               dispatchedRegion,
