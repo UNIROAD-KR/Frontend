@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 import NaverLogin from '@react-native-seoul/naver-login';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
@@ -31,7 +32,7 @@ export default function LoginPage() {
       appName: '유니로드',
       consumerKey: '3jo54WreHzQliJbUhzPo',
       consumerSecret: '_N6TMAqNu0',
-      serviceUrlSchemeIOS: 'univ',
+      serviceUrlSchemeIOS: 'naverlogin',
     });
   }, []);
 
@@ -71,30 +72,23 @@ export default function LoginPage() {
       console.log('provider:', provider);
 
       if (provider === 'kakao') {
-        Alert.alert('알림', '카카오 로그인은 현재 비활성화되어 있습니다.');
-        return;
-        // console.log('KakaoLogins:', KakaoLogins);
-        // try {
-        //   await KakaoLogins.unlink();
-        // } catch { }
+        const token = await kakaoLogin();
+        console.log('카카오 로그인:', token);
 
-        // const token = await KakaoLogins.login();
-        // console.log(token);
-
-        // sdkAccessToken = token.accessToken;
+        if (!token.accessToken) {
+          throw new Error('카카오 토큰 없음');
+        }
+        sdkAccessToken = token.accessToken;
       } else if (provider === 'naver') {
-        Alert.alert('알림', '네이버 로그인은 현재 비활성화되어 있습니다.');
-        return;
-        // const response = await NaverLogin.login();
+        const response = await NaverLogin.login();
+        console.log('네이버 로그인:', response);
 
-        // console.log('네이버 로그인:', response);
-
-        // if (!response.isSuccess || !response.successResponse) {
-        //   throw new Error(
-        //     response.failureResponse?.message || '네이버 로그인 실패'
-        //   );
-        // }
-        // sdkAccessToken = response.successResponse.accessToken;
+        if (!response.isSuccess || !response.successResponse) {
+          throw new Error(
+            response.failureResponse?.message || '네이버 로그인 실패'
+          );
+        }
+        sdkAccessToken = response.successResponse.accessToken;
       } else if (provider === 'google') {
         await GoogleSignin.hasPlayServices();
         const userInfo = await GoogleSignin.signIn();
@@ -223,26 +217,26 @@ export default function LoginPage() {
       </View>
 
       <View style={styles.snsRow}>
-        {/* <Pressable onPress={() => handleSocialLogin('kakao')}>
+        <Pressable onPress={() => handleSocialLogin('kakao')}>
           <Image
             source={require('../assets/images/kakao.png')}
             style={styles.snsImage}
           />
-        </Pressable> */}
+        </Pressable>
 
-        {/* <Pressable onPress={() => handleSocialLogin('google')}>
+        <Pressable onPress={() => handleSocialLogin('google')}>
           <Image
             source={require('../assets/images/google.png')}
             style={styles.snsImage}
           />
-        </Pressable> */}
+        </Pressable>
 
-        {/* <Pressable
+        <Pressable
           style={[styles.snsCircle, styles.naver]}
           onPress={() => handleSocialLogin('naver')}
         >
           <Text style={styles.naverText}>N</Text>
-        </Pressable> */}
+        </Pressable>
 
         <Pressable
           style={[styles.snsCircle, styles.apple]}
