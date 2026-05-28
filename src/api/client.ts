@@ -8,7 +8,7 @@ type RetryableRequestConfig = InternalAxiosRequestConfig & {
 };
 
 type FailedQueueItem = {
-  resolve: (value?: string | null) => void;
+  resolve: (value: string | null | PromiseLike<string | null>) => void;
   reject: (reason?: unknown) => void;
 };
 
