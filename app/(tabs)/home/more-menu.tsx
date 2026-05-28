@@ -53,7 +53,10 @@ const serviceGroups = [
       {
         title: '티켓 양도',
         icon: 'ticket-outline',
-        route: '/market/ticket-preview',
+        route: {
+          pathname: '/(tabs)/market',
+          params: { tab: 'ticket' },
+        },
       },
     ],
   },

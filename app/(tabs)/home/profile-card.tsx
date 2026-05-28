@@ -21,6 +21,7 @@ const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
 type RouteTarget = string | null;
+type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
 
 type QuickAction = {
   title: string;
@@ -106,12 +107,6 @@ const tradeItems: MenuItem[] = [
 
 const accountItems: MenuItem[] = [
   {
-    title: '프로필 수정',
-    description: '학교, 국가, 공개 정보를 관리',
-    icon: 'person-circle-outline',
-    route: null,
-  },
-  {
     title: '학교 인증',
     description: '파견교 인증 상태 확인',
     icon: 'shield-checkmark-outline',
@@ -131,6 +126,13 @@ const accountItems: MenuItem[] = [
   },
 ];
 
+const statusDisplayMap: Record<string, LifecycleStatus> = {
+  preparing: '지원 준비 중',
+  accepted: '출국 준비 중',
+  dispatched: '파견 중',
+  returned: '귀국',
+};
+
 export default function ProfileCardScreen() {
   const [profile, setProfile] = useState({
     nickname: '서현',
@@ -138,7 +140,8 @@ export default function ProfileCardScreen() {
     region: '베를린',
     university: '베를린 자유대학교',
     homeUniversity: '서울대학교',
-    status: '파견 준비 중',
+    status: '출국 준비 중',
+    avatarUri: null as string | null,
   });
 
   useFocusEffect(
@@ -150,12 +153,18 @@ export default function ProfileCardScreen() {
           dispatchedRegion,
           dispatchedUniversity,
           homeUniversity,
+          profileStatus,
+          profileAvatarUri,
+          exchangeStatus,
         ] = await Promise.all([
           AsyncStorage.getItem('nickname'),
           AsyncStorage.getItem('dispatchedCountry'),
           AsyncStorage.getItem('dispatchedRegion'),
           AsyncStorage.getItem('dispatchedUniversity'),
           AsyncStorage.getItem('university'),
+          AsyncStorage.getItem('profileStatus'),
+          AsyncStorage.getItem('profileAvatarUri'),
+          AsyncStorage.getItem('exchangeStatus'),
         ]);
 
         setProfile((prev) => ({
@@ -165,6 +174,8 @@ export default function ProfileCardScreen() {
           region: dispatchedRegion || prev.region,
           university: dispatchedUniversity || prev.university,
           homeUniversity: homeUniversity || prev.homeUniversity,
+          status: profileStatus || (exchangeStatus ? statusDisplayMap[exchangeStatus] : null) || prev.status,
+          avatarUri: profileAvatarUri || prev.avatarUri,
         }));
       };
 
@@ -200,10 +211,18 @@ export default function ProfileCardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.profileCard}>
+        <TouchableOpacity
+          style={styles.profileCard}
+          onPress={() => router.push('/(tabs)/home/profile-edit' as any)}
+          activeOpacity={0.86}
+        >
           <View style={styles.avatarWrap}>
             <Image
-              source={require('../../../assets/images/profile.png')}
+              source={
+                profile.avatarUri
+                  ? { uri: profile.avatarUri }
+                  : require('../../../assets/images/profile.png')
+              }
               style={styles.avatar}
             />
           </View>
@@ -218,7 +237,12 @@ export default function ProfileCardScreen() {
               <Text style={styles.statusText}>{profile.status}</Text>
             </View>
           </View>
-        </View>
+
+          <View style={styles.profileManage}>
+            <Text style={styles.profileManageText}>내 정보 관리</Text>
+            <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.quickCard}>
           {quickActions.map((item, index) => (
@@ -386,6 +410,7 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
+    minWidth: 0,
   },
   nickname: {
     fontSize: 20,
@@ -419,6 +444,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     color: BLUE,
+  },
+  profileManage: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+  profileManageText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: MUTED,
   },
   quickCard: {
     flexDirection: 'row',

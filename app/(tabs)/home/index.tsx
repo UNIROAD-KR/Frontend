@@ -10,16 +10,17 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type DimensionValue,
 } from 'react-native';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
 const HERO_BLUE = '#2446B8';
 
-type QuickMenuStage = 'applying' | 'accepted' | 'dispatched';
+type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
 
-const quickActionsByStage = {
-  applying: [
+const quickActionsByStatus = {
+  '지원 준비 중': [
     {
       title: '파견교 정보',
       icon: 'school-outline',
@@ -31,12 +32,12 @@ const quickActionsByStage = {
       route: '/(tabs)/home/scholarship-info',
     },
     {
-      title: '내 학교 지원 기준',
+      title: '지원 기준',
       icon: 'business-outline',
       route: '/(tabs)/home/my-school-info',
     },
   ],
-  accepted: [
+  '출국 준비 중': [
     {
       title: '비자 가이드',
       icon: 'document-text-outline',
@@ -48,16 +49,19 @@ const quickActionsByStage = {
       route: '/(tabs)/home/departure-checklist',
     },
     {
-      title: '중고거래 구매',
+      title: '중고 구매',
       icon: 'cart-outline',
       route: '/market',
     },
   ],
-  dispatched: [
+  '파견 중': [
     {
       title: '동행 구하기',
       icon: 'people-outline',
-      route: '/(tabs)/community',
+      route: {
+        pathname: '/(tabs)/community',
+        params: { tab: 'companion' },
+      },
     },
     {
       title: '지출 관리',
@@ -67,7 +71,27 @@ const quickActionsByStage = {
     {
       title: '티켓 양도하기',
       icon: 'ticket-outline',
-      route: '/market/ticket-preview',
+      route: {
+        pathname: '/(tabs)/market',
+        params: { tab: 'ticket' },
+      },
+    },
+  ],
+  귀국: [
+    {
+      title: '후기 작성',
+      icon: 'create-outline',
+      route: '/(tabs)/community',
+    },
+    {
+      title: '중고 판매',
+      icon: 'storefront-outline',
+      route: '/market',
+    },
+    {
+      title: '후배 질문 답변',
+      icon: 'chatbubbles-outline',
+      route: '/(tabs)/community',
     },
   ],
 } as const;
@@ -172,30 +196,73 @@ const ticketTradeItems = [
   },
 ];
 
-function resolveQuickMenuStage(status: string | null): QuickMenuStage {
-  if (status === 'dispatched') {
-    return 'dispatched';
+const statusDisplayMap: Record<string, LifecycleStatus> = {
+  preparing: '지원 준비 중',
+  applying: '지원 준비 중',
+  beforeAccepted: '지원 준비 중',
+  support: '지원 준비 중',
+  preApply: '지원 준비 중',
+  accepted: '출국 준비 중',
+  dispatched: '파견 중',
+  returned: '귀국',
+};
+
+const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
+const oneDay = 1000 * 60 * 60 * 24;
+
+const normalizeStatus = (
+  profileStatus: string | null,
+  onboardingStatus: string | null,
+  hasDispatchedUniversity: boolean,
+): LifecycleStatus => {
+  if (profileStatus && profileStatus in quickActionsByStatus) {
+    return profileStatus as LifecycleStatus;
   }
 
-  if (
-    status === 'applying' ||
-    status === 'beforeAccepted' ||
-    status === 'support' ||
-    status === 'preApply'
-  ) {
-    return 'applying';
+  if (onboardingStatus && statusDisplayMap[onboardingStatus]) {
+    return statusDisplayMap[onboardingStatus];
   }
 
-  return 'accepted';
-}
+  return hasDispatchedUniversity ? '파견 중' : '지원 준비 중';
+};
+
+const parseDate = (value: string | null, fallback: Date) => {
+  if (!value) return fallback;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? fallback : date;
+};
+
+const diffDays = (target: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const normalizedTarget = new Date(target);
+  normalizedTarget.setHours(0, 0, 0, 0);
+
+  return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
+};
+
+const formatMonthDay = (date: Date) =>
+  `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+
+const getSemesterText = (date: Date) => {
+  const month = date.getMonth() + 1;
+  return `${date.getFullYear()} ${month <= 6 ? '봄학기' : '가을학기'}`;
+};
 
 export default function HomeScreen() {
   const [displayName, setDisplayName] = useState('서현');
-  const [exchangeStatus, setExchangeStatus] = useState<'preparing' | 'dispatched'>('preparing');
-  const [quickMenuStage, setQuickMenuStage] = useState<QuickMenuStage>('accepted');
+  const [lifecycleStatus, setLifecycleStatus] = useState<LifecycleStatus>('지원 준비 중');
   const [dispatchInfo, setDispatchInfo] = useState({
     country: '독일',
     university: '베를린 자유대학교',
+  });
+  const [dashboardDates, setDashboardDates] = useState({
+    applicationDeadline: createDate(2026, 3, 18),
+    departureDate: createDate(2026, 8, 21),
+    dispatchStartDate: createDate(2026, 9, 1),
+    returnDate: createDate(2027, 1, 15),
   });
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
 
@@ -208,10 +275,27 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       const loadNickname = async () => {
-        const savedNickname = await AsyncStorage.getItem('nickname');
-        const savedStatus = await AsyncStorage.getItem('exchangeStatus');
-        const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry');
-        const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity');
+        const [
+          savedNickname,
+          onboardingStatus,
+          profileStatus,
+          dispatchedCountry,
+          dispatchedUniversity,
+          applicationDeadline,
+          departureDate,
+          dispatchStartDate,
+          returnDate,
+        ] = await Promise.all([
+          AsyncStorage.getItem('nickname'),
+          AsyncStorage.getItem('exchangeStatus'),
+          AsyncStorage.getItem('profileStatus'),
+          AsyncStorage.getItem('dispatchedCountry'),
+          AsyncStorage.getItem('dispatchedUniversity'),
+          AsyncStorage.getItem('applicationDeadline'),
+          AsyncStorage.getItem('departureDate'),
+          AsyncStorage.getItem('dispatchStartDate'),
+          AsyncStorage.getItem('returnDate'),
+        ]);
 
         if (savedNickname) {
           setDisplayName(savedNickname);
@@ -224,22 +308,79 @@ export default function HomeScreen() {
           });
         }
 
-        if (savedStatus === 'dispatched' || dispatchedUniversity) {
-          setExchangeStatus('dispatched');
-          setQuickMenuStage('dispatched');
-        } else {
-          setExchangeStatus('preparing');
-          setQuickMenuStage(resolveQuickMenuStage(savedStatus));
-        }
+        setLifecycleStatus(
+          normalizeStatus(profileStatus, onboardingStatus, Boolean(dispatchedUniversity)),
+        );
+        setDashboardDates({
+          applicationDeadline: parseDate(applicationDeadline, createDate(2026, 3, 18)),
+          departureDate: parseDate(departureDate, createDate(2026, 8, 21)),
+          dispatchStartDate: parseDate(dispatchStartDate, createDate(2026, 9, 1)),
+          returnDate: parseDate(returnDate, createDate(2027, 1, 15)),
+        });
       };
 
       loadNickname();
     }, []),
   );
 
-  const isDispatched = exchangeStatus === 'dispatched';
+  const isDispatched = lifecycleStatus === '파견 중';
+  const isReturned = lifecycleStatus === '귀국';
   const tradeItems = isDispatched ? ticketTradeItems : bulkTradeItems;
-  const quickActions = quickActionsByStage[quickMenuStage];
+  const quickActions = quickActionsByStatus[lifecycleStatus];
+  const applicationDday = diffDays(dashboardDates.applicationDeadline);
+  const departureDday = diffDays(dashboardDates.departureDate);
+  const dispatchedDay = Math.max(0, Math.abs(diffDays(dashboardDates.dispatchStartDate)));
+  const returnDday = diffDays(dashboardDates.returnDate);
+  const totalDispatchDays = Math.max(
+    1,
+    Math.ceil(
+      (dashboardDates.returnDate.getTime() - dashboardDates.dispatchStartDate.getTime()) / oneDay,
+    ),
+  );
+  const dispatchProgress = Math.min(100, Math.round((dispatchedDay / totalDispatchDays) * 100));
+  const remainingDispatchDays = Math.max(0, returnDday);
+
+  const heroCopy = {
+    '지원 준비 중': {
+      tag: '정보 탐색 단계',
+      title: `${dispatchInfo.country} 파견 지원 준비 중`,
+      subtitle: `지원 마감까지 D-${Math.max(0, applicationDday)}`,
+      metric: `D-${Math.max(0, applicationDday)}`,
+      progressLabel: '지원 준비 진행률',
+      progressValue: '38%',
+      progressWidth: '38%',
+    },
+    '출국 준비 중': {
+      tag: '출국 준비 단계',
+      title: `${dispatchInfo.country} 출국 준비 중`,
+      subtitle: `출국까지 D-${Math.max(0, departureDday)}`,
+      metric: `D-${Math.max(0, departureDday)}`,
+      progressLabel: '출국 준비 진행률',
+      progressValue: '72%',
+      progressWidth: '72%',
+    },
+    '파견 중': {
+      tag: `${dispatchInfo.university} 파견 중`,
+      title: `${dispatchInfo.country} 교환학생 생활 중`,
+      subtitle:
+        returnDday >= 0
+          ? `귀국까지 ${remainingDispatchDays}일 남았어요`
+          : '파견 생활을 정리하고 있어요',
+      metric: `D+${dispatchedDay}`,
+      progressLabel: `파견 기간 ${dispatchProgress}% 경과`,
+      progressValue: `${dispatchedDay} / ${totalDispatchDays}일`,
+      progressWidth: `${dispatchProgress}%`,
+    },
+    귀국: {
+      tag: '파견 완료',
+      title: `${dispatchInfo.country} 교환학생 수료`,
+      subtitle: `${getSemesterText(dashboardDates.returnDate)} 파견 완료`,
+      metric: '완료',
+      progressLabel: '후기와 정리 단계',
+      progressValue: '100%',
+      progressWidth: '100%',
+    },
+  }[lifecycleStatus];
 
   return (
     <ScrollView
@@ -262,7 +403,11 @@ export default function HomeScreen() {
         <View style={styles.headerTextBox}>
           <Text style={styles.greeting}>안녕하세요, {displayName}님</Text>
           <Text style={styles.headerSub}>
-            {isDispatched ? `${dispatchInfo.country} 파견 중` : '오늘 준비해야 할 일을 확인해보세요'}
+            {isDispatched
+              ? `${dispatchInfo.country} 교환학생 생활 중`
+              : isReturned
+                ? '파견을 마치고 경험을 정리해보세요'
+                : '오늘 준비해야 할 일을 확인해보세요'}
           </Text>
         </View>
 
@@ -281,57 +426,74 @@ export default function HomeScreen() {
           <>
             <View style={styles.heroTopRow}>
               <View style={styles.heroTag}>
-                <Text style={styles.heroTagText}>{dispatchInfo.university} 파견 중</Text>
+                <Text style={styles.heroTagText}>{heroCopy.tag}</Text>
               </View>
-              <Text style={styles.heroSmallMeta}>47 / 180일</Text>
+              <Text style={styles.heroSmallMeta}>{heroCopy.progressValue}</Text>
             </View>
 
             <View style={styles.dispatchedDayRow}>
-              <Text style={styles.dispatchedDay}>47</Text>
+              <Text style={styles.dispatchedDay}>{dispatchedDay}</Text>
               <Text style={styles.dispatchedDayUnit}>일째</Text>
             </View>
-            <Text style={styles.heroSubtitle}>귀국까지 133일 남았어요</Text>
+            <Text style={styles.heroTitle}>{heroCopy.title}</Text>
+            <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
 
             <View style={styles.progressTrack}>
-              <View style={styles.dispatchedProgressFill} />
+              <View
+                style={[
+                  styles.dispatchedProgressFill,
+                  { width: heroCopy.progressWidth as DimensionValue },
+                ]}
+              />
             </View>
 
             <View style={styles.progressInfoRow}>
-              <Text style={styles.progressLabel}>파견 기간 26% 경과</Text>
-              <Text style={styles.progressValue}>47 / 180일</Text>
+              <Text style={styles.progressLabel}>{heroCopy.progressLabel}</Text>
+              <Text style={styles.progressValue}>{heroCopy.progressValue}</Text>
             </View>
 
             <View style={styles.dispatchStatusGrid}>
               <View style={styles.dispatchStatusCard}>
-                <Text style={styles.dispatchStatusLabel}>학점 이수 현황</Text>
-                <Text style={styles.dispatchStatusValue}>12학점</Text>
-                <Text style={styles.dispatchStatusSub}>목표 18학점</Text>
+                <Text style={styles.dispatchStatusLabel}>현재 단계</Text>
+                <Text style={styles.dispatchStatusValue}>생활 중</Text>
+                <Text style={styles.dispatchStatusSub}>커뮤니티와 기록 중심</Text>
               </View>
               <View style={styles.dispatchStatusCard}>
                 <Text style={styles.dispatchStatusLabel}>남은 파견 기간</Text>
-                <Text style={styles.dispatchStatusValue}>133일</Text>
-                <Text style={styles.dispatchStatusSub}>귀국 07/26</Text>
+                <Text style={styles.dispatchStatusValue}>{remainingDispatchDays}일</Text>
+                <Text style={styles.dispatchStatusSub}>
+                  귀국 {formatMonthDay(dashboardDates.returnDate)}
+                </Text>
               </View>
             </View>
+
+            <TouchableOpacity
+              style={styles.heroButton}
+              onPress={() => router.push('/(tabs)/home/profile-card' as any)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.heroButtonText}>내 프로필 보기</Text>
+              <Ionicons name="arrow-forward" size={17} color={NAVY} />
+            </TouchableOpacity>
           </>
         ) : (
           <>
             <View style={styles.heroTopRow}>
               <View style={styles.heroTag}>
-                <Text style={styles.heroTagText}>파견 준비 중</Text>
+                <Text style={styles.heroTagText}>{heroCopy.tag}</Text>
               </View>
-              <Text style={styles.heroDday}>D-58</Text>
+              <Text style={styles.heroDday}>{heroCopy.metric}</Text>
             </View>
 
-            <Text style={styles.heroTitle}>독일 파견 준비 중</Text>
-            <Text style={styles.heroSubtitle}>다음 해야 할 일: 비자 인터뷰 예약하기</Text>
+            <Text style={styles.heroTitle}>{heroCopy.title}</Text>
+            <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
 
             <View style={styles.progressInfoRow}>
-              <Text style={styles.progressLabel}>준비 진행률</Text>
-              <Text style={styles.progressValue}>72%</Text>
+              <Text style={styles.progressLabel}>{heroCopy.progressLabel}</Text>
+              <Text style={styles.progressValue}>{heroCopy.progressValue}</Text>
             </View>
             <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
+              <View style={[styles.progressFill, { width: heroCopy.progressWidth as DimensionValue }]} />
             </View>
 
             <TouchableOpacity
@@ -378,7 +540,15 @@ export default function HomeScreen() {
 
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>실시간 인기 게시글</Text>
+          <Text style={styles.sectionTitle}>
+            {lifecycleStatus === '지원 준비 중'
+              ? '지원 준비 인기 정보'
+              : lifecycleStatus === '출국 준비 중'
+                ? '출국 전 많이 보는 글'
+                : lifecycleStatus === '파견 중'
+                  ? '현지 생활 인기 게시글'
+                  : '귀국 후 정리 팁'}
+          </Text>
           <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
             <Text style={styles.moreText}>전체보기</Text>
           </TouchableOpacity>
@@ -414,8 +584,18 @@ export default function HomeScreen() {
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <View>
-            <Text style={styles.sectionTitle}>지금 모집 중인 동행</Text>
-            <Text style={styles.sectionSub}>출국 전후 일정이 맞는 친구를 찾아보세요</Text>
+            <Text style={styles.sectionTitle}>
+              {isReturned ? '후배들이 기다리는 답변' : '지금 모집 중인 동행'}
+            </Text>
+            <Text style={styles.sectionSub}>
+              {lifecycleStatus === '지원 준비 중'
+                ? '지원 전 궁금한 기준과 학교 경험을 확인해보세요'
+                : lifecycleStatus === '출국 준비 중'
+                  ? '출국 전후 일정이 맞는 친구를 찾아보세요'
+                  : lifecycleStatus === '파견 중'
+                    ? '현지 일정과 여행을 함께할 친구를 찾아보세요'
+                    : '내 경험이 다음 교환학생에게 좋은 길잡이가 돼요'}
+            </Text>
           </View>
           <TouchableOpacity
             onPress={() =>
@@ -481,7 +661,11 @@ export default function HomeScreen() {
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {isDispatched ? '최근 올라온 티켓 양도' : '최근 올라온 일괄거래'}
+            {isReturned
+              ? '귀국 전후 중고 판매'
+              : isDispatched
+                ? '최근 올라온 티켓 양도'
+                : '최근 올라온 일괄거래'}
           </Text>
           <TouchableOpacity onPress={() => router.push('/market' as any)}>
             <Text style={styles.moreText}>전체보기</Text>

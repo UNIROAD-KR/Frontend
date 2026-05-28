@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -115,11 +115,20 @@ const formatPrice = (price: number) => {
 };
 
 export default function MarketPage() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
+
+  useEffect(() => {
+    if (tab === 'ticket') {
+      setSelectedType('ticket');
+    } else {
+      setSelectedType('bulk');
+    }
+  }, [tab]);
 
   const fetchUsedItems = async () => {
     try {
