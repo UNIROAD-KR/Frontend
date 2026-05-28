@@ -9,7 +9,9 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,6 +42,7 @@ const exchangeStatusByProfileStatus: Record<string, string> = {
   '파견 중': 'dispatched',
   귀국: 'returned',
 };
+type DateFieldKey = 'applicationDeadline' | 'departureDate' | 'dispatchStartDate' | 'returnDate';
 
 const parseSelection = (value: string | null, fallback: string[]) => {
   if (!value) return fallback;
@@ -53,14 +56,14 @@ const parseSelection = (value: string | null, fallback: string[]) => {
 };
 
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
-const toDateValue = (value: string | null, fallback: Date) => {
-  if (!value) return fallback;
+const toDateValue = (value: string | null) => {
+  if (!value) return null;
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? fallback : date;
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
-const toStorageDate = (date: Date) => date.toISOString().slice(0, 10);
+const toStorageDate = (date: Date | null) => (date ? date.toISOString().slice(0, 10) : '');
 const formatDate = (date: Date) =>
   `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
     date.getDate(),
@@ -75,11 +78,13 @@ export default function ProfileEditScreen() {
   const [intro, setIntro] = useState('베를린에서 교환학생을 준비하고 있어요.');
   const [interestedCountries, setInterestedCountries] = useState(['독일']);
   const [interestedLanguages, setInterestedLanguages] = useState(['독일어', '영어']);
-  const [applicationDeadline, setApplicationDeadline] = useState(createDate(2026, 3, 18));
-  const [departureDate, setDepartureDate] = useState(createDate(2026, 8, 21));
-  const [dispatchStartDate, setDispatchStartDate] = useState(createDate(2026, 9, 1));
-  const [returnDate, setReturnDate] = useState(createDate(2027, 1, 15));
+  const [applicationDeadline, setApplicationDeadline] = useState<Date | null>(null);
+  const [departureDate, setDepartureDate] = useState<Date | null>(null);
+  const [dispatchStartDate, setDispatchStartDate] = useState<Date | null>(null);
+  const [returnDate, setReturnDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [draftDate, setDraftDate] = useState(createDate(2026, 8, 21));
+  const [activeDateField, setActiveDateField] = useState<DateFieldKey>('departureDate');
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -119,10 +124,10 @@ export default function ProfileEditScreen() {
       if (savedIntro) setIntro(savedIntro);
       setInterestedCountries(parseSelection(savedCountries, ['독일']));
       setInterestedLanguages(parseSelection(savedLanguages, ['독일어', '영어']));
-      setApplicationDeadline(toDateValue(savedApplicationDeadline, createDate(2026, 3, 18)));
-      setDepartureDate(toDateValue(savedDepartureDate, createDate(2026, 8, 21)));
-      setDispatchStartDate(toDateValue(savedDispatchStartDate, createDate(2026, 9, 1)));
-      setReturnDate(toDateValue(savedReturnDate, createDate(2027, 1, 15)));
+      setApplicationDeadline(toDateValue(savedApplicationDeadline));
+      setDepartureDate(toDateValue(savedDepartureDate));
+      setDispatchStartDate(toDateValue(savedDispatchStartDate));
+      setReturnDate(toDateValue(savedReturnDate));
     };
 
     loadProfile();
@@ -141,32 +146,55 @@ export default function ProfileEditScreen() {
     setSelectedValues([...selectedValues, value]);
   };
 
-  const activeDate =
-    status === '지원 준비 중'
-      ? applicationDeadline
-      : status === '출국 준비 중'
-        ? departureDate
-        : status === '파견 중'
-          ? dispatchStartDate
-          : returnDate;
-
   const setActiveDate = (date: Date) => {
-    if (status === '지원 준비 중') {
+    if (activeDateField === 'applicationDeadline') {
       setApplicationDeadline(date);
       return;
     }
 
-    if (status === '출국 준비 중') {
+    if (activeDateField === 'departureDate') {
       setDepartureDate(date);
       return;
     }
 
-    if (status === '파견 중') {
+    if (activeDateField === 'dispatchStartDate') {
       setDispatchStartDate(date);
       return;
     }
 
     setReturnDate(date);
+  };
+
+  const getFallbackDate = () => {
+    if (activeDateField === 'applicationDeadline') return createDate(2026, 3, 18);
+    if (activeDateField === 'departureDate') return createDate(2026, 8, 21);
+    if (activeDateField === 'dispatchStartDate') return createDate(2026, 9, 1);
+    return createDate(2027, 1, 15);
+  };
+
+  const getDateByField = (field: DateFieldKey) => {
+    if (field === 'applicationDeadline') return applicationDeadline;
+    if (field === 'departureDate') return departureDate;
+    if (field === 'dispatchStartDate') return dispatchStartDate;
+    return returnDate;
+  };
+
+  const getDateLabelByField = (field: DateFieldKey) => {
+    if (field === 'applicationDeadline') return '지원 마감일';
+    if (field === 'departureDate') return '출국일';
+    if (field === 'dispatchStartDate') return '파견 시작일';
+    return '귀국일';
+  };
+
+  const openDatePicker = (field: DateFieldKey) => {
+    setActiveDateField(field);
+    setDraftDate(getDateByField(field) || getFallbackDate());
+    setShowPicker(true);
+  };
+
+  const completeDatePicker = () => {
+    setActiveDate(draftDate);
+    setShowPicker(false);
   };
 
   const pickImage = async () => {
@@ -199,10 +227,18 @@ export default function ProfileEditScreen() {
       AsyncStorage.setItem('profileIntro', intro.trim()),
       AsyncStorage.setItem('interestedCountries', JSON.stringify(interestedCountries)),
       AsyncStorage.setItem('interestedLanguages', JSON.stringify(interestedLanguages)),
-      AsyncStorage.setItem('applicationDeadline', toStorageDate(applicationDeadline)),
-      AsyncStorage.setItem('departureDate', toStorageDate(departureDate)),
-      AsyncStorage.setItem('dispatchStartDate', toStorageDate(dispatchStartDate)),
-      AsyncStorage.setItem('returnDate', toStorageDate(returnDate)),
+      applicationDeadline
+        ? AsyncStorage.setItem('applicationDeadline', toStorageDate(applicationDeadline))
+        : AsyncStorage.removeItem('applicationDeadline'),
+      departureDate
+        ? AsyncStorage.setItem('departureDate', toStorageDate(departureDate))
+        : AsyncStorage.removeItem('departureDate'),
+      dispatchStartDate
+        ? AsyncStorage.setItem('dispatchStartDate', toStorageDate(dispatchStartDate))
+        : AsyncStorage.removeItem('dispatchStartDate'),
+      returnDate
+        ? AsyncStorage.setItem('returnDate', toStorageDate(returnDate))
+        : AsyncStorage.removeItem('returnDate'),
       avatarUri
         ? AsyncStorage.setItem('profileAvatarUri', avatarUri)
         : AsyncStorage.removeItem('profileAvatarUri'),
@@ -286,42 +322,43 @@ export default function ProfileEditScreen() {
             })}
           </View>
 
-          <View style={styles.dateField}>
-            <View style={styles.dateLabelRow}>
-              <Text style={styles.fieldLabel}>{dateLabels[status]}</Text>
-              {status === '귀국' && <Text style={styles.optionalText}>선택</Text>}
-            </View>
-
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowPicker((prev) => !prev)}
-              activeOpacity={0.84}
-            >
-              <Ionicons name="calendar-outline" size={18} color={BLUE} />
-              <Text style={styles.dateButtonText}>{formatDate(activeDate)}</Text>
-              <Ionicons name="chevron-down" size={17} color="#A4ADBA" />
-            </TouchableOpacity>
-
-            {showPicker && (
-              <View style={styles.pickerBox}>
-                <DateTimePicker
-                  value={activeDate}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(_, selectedDate) => {
-                    if (Platform.OS !== 'ios') {
-                      setShowPicker(false);
-                    }
-
-                    if (selectedDate) {
-                      setActiveDate(selectedDate);
-                    }
-                  }}
-                  style={styles.datePicker}
-                />
-              </View>
-            )}
-          </View>
+          {status === '파견 중' ? (
+            <>
+              <DateField
+                field="dispatchStartDate"
+                label="파견 시작일"
+                value={dispatchStartDate}
+                onPress={openDatePicker}
+              />
+              <DateField
+                field="returnDate"
+                label="귀국일"
+                value={returnDate}
+                onPress={openDatePicker}
+                optional
+              />
+            </>
+          ) : (
+            <DateField
+              field={
+                status === '지원 준비 중'
+                  ? 'applicationDeadline'
+                  : status === '출국 준비 중'
+                    ? 'departureDate'
+                    : 'returnDate'
+              }
+              label={dateLabels[status]}
+              value={
+                status === '지원 준비 중'
+                  ? applicationDeadline
+                  : status === '출국 준비 중'
+                    ? departureDate
+                    : returnDate
+              }
+              onPress={openDatePicker}
+              optional={status === '귀국'}
+            />
+          )}
         </FormSection>
 
         <FormSection title="소개">
@@ -358,6 +395,52 @@ export default function ProfileEditScreen() {
           <Text style={styles.footerButtonText}>변경사항 저장</Text>
         </TouchableOpacity>
       </View>
+
+      <Modal
+        transparent
+        visible={showPicker}
+        animationType="slide"
+        onRequestClose={() => setShowPicker(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowPicker(false)}>
+          <Pressable style={styles.bottomSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <TouchableOpacity onPress={() => setShowPicker(false)} activeOpacity={0.8}>
+                <Text style={styles.sheetCancelText}>취소</Text>
+              </TouchableOpacity>
+              <Text style={styles.sheetTitle}>{getDateLabelByField(activeDateField)}</Text>
+              <TouchableOpacity onPress={completeDatePicker} activeOpacity={0.8}>
+                <Text style={styles.sheetDoneText}>완료</Text>
+              </TouchableOpacity>
+            </View>
+
+            <DateTimePicker
+              value={draftDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              themeVariant="light"
+              textColor={INK}
+              accentColor={BLUE}
+              onChange={(_, selectedDate) => {
+                if (!selectedDate) {
+                  if (Platform.OS !== 'ios') setShowPicker(false);
+                  return;
+                }
+
+                if (Platform.OS === 'ios') {
+                  setDraftDate(selectedDate);
+                  return;
+                }
+
+                setActiveDate(selectedDate);
+                setShowPicker(false);
+              }}
+              style={styles.sheetDatePicker}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -400,6 +483,44 @@ function Field({
       />
     </View>
   );
+}
+
+function DateField({
+  field,
+  label,
+  value,
+  onPress,
+  optional = false,
+}: {
+  field: DateFieldKey;
+  label: string;
+  value: Date | null;
+  onPress: (field: DateFieldKey) => void;
+  optional?: boolean;
+}) {
+  return (
+    <View style={styles.dateField}>
+      <View style={styles.dateLabelRow}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {optional && <Text style={styles.optionalText}>선택</Text>}
+      </View>
+
+      <TouchableOpacity style={styles.dateButton} onPress={() => onPress(field)} activeOpacity={0.84}>
+        <Ionicons name="calendar-outline" size={18} color={BLUE} />
+        <Text style={[styles.dateButtonText, !value && styles.datePlaceholderText]}>
+          {value ? formatDate(value) : getDateFieldPlaceholder(field)}
+        </Text>
+        <Ionicons name="chevron-forward" size={17} color="#A4ADBA" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function getDateFieldPlaceholder(field: DateFieldKey) {
+  if (field === 'applicationDeadline') return '지원 마감일 선택';
+  if (field === 'departureDate') return '출국일 선택';
+  if (field === 'dispatchStartDate') return '파견 시작일 선택';
+  return '귀국일 선택';
 }
 
 function ChipGroup({
@@ -604,16 +725,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: INK,
   },
-  pickerBox: {
-    marginTop: 10,
-    borderRadius: 16,
-    backgroundColor: '#F8FAFF',
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
-    overflow: 'hidden',
-  },
-  datePicker: {
-    alignSelf: 'stretch',
+  datePlaceholderText: {
+    fontWeight: '800',
+    color: '#A4ADBA',
   },
   statusChip: {
     minHeight: 42,
@@ -685,5 +799,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15,32,66,0.28)',
+  },
+  bottomSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#D8DEE8',
+    marginBottom: 12,
+  },
+  sheetHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F7',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  sheetCancelText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: MUTED,
+  },
+  sheetDoneText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  sheetDatePicker: {
+    alignSelf: 'stretch',
+    height: 216,
+    backgroundColor: '#FFFFFF',
   },
 });
