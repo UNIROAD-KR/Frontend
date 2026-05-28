@@ -36,6 +36,8 @@ export default function CompletePage() {
         onPress={async () => {
           try {
             const birthYearStr = await AsyncStorage.getItem('birthYear');
+            const gender = await AsyncStorage.getItem('gender');
+            const currentSituation = await AsyncStorage.getItem('currentSituation');
             const domesticUniversity = await AsyncStorage.getItem('university') || '';
             const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity') || '';
             const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry') || '';
@@ -47,8 +49,16 @@ export default function CompletePage() {
 
             // auth.ts의 onboarding API 호출을 동적으로 가져옵니다 (상단 import 추가 필요시 활용)
             const { onboarding } = await import('../../src/api/auth');
+            const normalizedGender = gender === 'MALE' || gender === 'male' ? 'MALE' : 'FEMALE';
+            const normalizedCurrentSituation =
+              currentSituation === 'PREPARING_DEPARTURE' || currentSituation === 'DISPATCHED'
+                ? currentSituation
+                : 'PREPARING_APPLICATION';
 
             await onboarding({
+              nickname: displayName,
+              gender: normalizedGender,
+              currentSituation: normalizedCurrentSituation,
               age,
               domesticUniversity,
               dispatchedUniversity,

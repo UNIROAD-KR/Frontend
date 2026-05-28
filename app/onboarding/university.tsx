@@ -11,6 +11,11 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+type CurrentSituation =
+  | 'PREPARING_APPLICATION'
+  | 'PREPARING_DEPARTURE'
+  | 'DISPATCHED';
+
 export default function UniversityPage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
   const [university, setUniversity] = useState('');
@@ -28,7 +33,7 @@ export default function UniversityPage() {
     '이화여자대학교',
     '건국대학교',
   ];
-  const [status, setStatus] = useState<'preparing' | 'dispatched' | ''>('');
+  const [status, setStatus] = useState<CurrentSituation | ''>('');
 
   const isValid = university !== '' && status !== '';
   const handleNext = async () => {
@@ -37,12 +42,13 @@ export default function UniversityPage() {
     }
 
     await AsyncStorage.setItem('university', university);
+    await AsyncStorage.setItem('currentSituation', status);
 
     router.push({
       pathname:
-        status === 'dispatched'
-          ? '/onboarding/dispatched-country'
-          : '/onboarding/country',
+        status === 'PREPARING_APPLICATION'
+          ? '/onboarding/country'
+          : '/onboarding/dispatched-country',
       params: { nickname },
     });
   };
@@ -88,9 +94,9 @@ export default function UniversityPage() {
         <Pressable
           style={[
             styles.statusCard,
-            status === 'preparing' && styles.selectedCard,
+            status === 'PREPARING_APPLICATION' && styles.selectedCard,
           ]}
-          onPress={() => setStatus('preparing')}
+          onPress={() => setStatus('PREPARING_APPLICATION')}
         >
           <Image
             source={require('../../assets/images/ready.png')}
@@ -102,9 +108,20 @@ export default function UniversityPage() {
         <Pressable
           style={[
             styles.statusCard,
-            status === 'dispatched' && styles.selectedCard,
+            status === 'PREPARING_DEPARTURE' && styles.selectedCard,
           ]}
-          onPress={() => setStatus('dispatched')}
+          onPress={() => setStatus('PREPARING_DEPARTURE')}
+        >
+          <Text style={styles.emoji}>✈️</Text>
+          <Text style={styles.statusText}>합격 후 출국 준비 중</Text>
+        </Pressable>
+
+        <Pressable
+          style={[
+            styles.statusCard,
+            status === 'DISPATCHED' && styles.selectedCard,
+          ]}
+          onPress={() => setStatus('DISPATCHED')}
         >
           <Text style={styles.emoji}>🧚</Text>
           <Text style={styles.statusText}>현재 파견 중</Text>
@@ -315,12 +332,13 @@ const styles = StyleSheet.create({
 
   statusCard: {
     flex: 1,
-    height: 78,
+    minHeight: 86,
     borderWidth: 1,
     borderColor: '#D0D0D0',
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
   },
 
   selectedCard: {
@@ -334,8 +352,10 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
     color: '#111',
+    textAlign: 'center',
   },
 
   nextButton: {

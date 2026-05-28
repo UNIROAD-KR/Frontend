@@ -24,6 +24,12 @@ export interface SignUpRequest {
 }
 
 export interface OnboardingRequest {
+  nickname: string;
+  gender: 'MALE' | 'FEMALE';
+  currentSituation:
+    | 'PREPARING_APPLICATION'
+    | 'PREPARING_DEPARTURE'
+    | 'DISPATCHED';
   age: number;
   domesticUniversity: string;
   dispatchedUniversity: string;
@@ -43,6 +49,13 @@ export interface MemberResponse {
   username: string;
   email: string;
   name: string;
+  nickname: string | null;
+  gender: 'MALE' | 'FEMALE' | null;
+  currentSituation:
+    | 'PREPARING_APPLICATION'
+    | 'PREPARING_DEPARTURE'
+    | 'DISPATCHED'
+    | null;
   age: number | null;
   domesticUniversity: string | null;
   dispatchedUniversity: string | null;
@@ -101,4 +114,3 @@ export const logout = () => {
 export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };
-

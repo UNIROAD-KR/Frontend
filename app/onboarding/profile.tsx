@@ -16,7 +16,7 @@ export default function ProfilePage() {
 
   const [birthYear, setBirthYear] = useState('');
   const [yearModalVisible, setYearModalVisible] = useState(false);
-  const [gender, setGender] = useState<'female' | 'male' | ''>('');
+  const [gender, setGender] = useState<'FEMALE' | 'MALE' | ''>('');
 
   const years = Array.from({ length: 60 }, (_, index) =>
     String(new Date().getFullYear() - index),
@@ -73,9 +73,9 @@ export default function ProfilePage() {
         <Pressable
           style={[
             styles.genderCard,
-            gender === 'female' && styles.selectedCard,
+            gender === 'FEMALE' && styles.selectedCard,
           ]}
-          onPress={() => setGender('female')}
+          onPress={() => setGender('FEMALE')}
         >
           <Image
             source={require('../../assets/images/woman.png')}
@@ -85,8 +85,8 @@ export default function ProfilePage() {
         </Pressable>
 
         <Pressable
-          style={[styles.genderCard, gender === 'male' && styles.selectedCard]}
-          onPress={() => setGender('male')}
+          style={[styles.genderCard, gender === 'MALE' && styles.selectedCard]}
+          onPress={() => setGender('MALE')}
         >
           <Image
             source={require('../../assets/images/man.png')}
