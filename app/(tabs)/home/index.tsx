@@ -15,7 +15,6 @@ import {
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
-const HERO_BLUE = '#2446B8';
 
 type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
 
@@ -243,9 +242,6 @@ const diffDays = (target: Date) => {
   return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
 };
 
-const formatMonthDay = (date: Date) =>
-  `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
-
 const getSemesterText = (date: Date) => {
   const month = date.getMonth() + 1;
   return `${date.getFullYear()} ${month <= 6 ? '봄학기' : '가을학기'}`;
@@ -452,28 +448,13 @@ export default function HomeScreen() {
               <Text style={styles.progressValue}>{heroCopy.progressValue}</Text>
             </View>
 
-            <View style={styles.dispatchStatusGrid}>
-              <View style={styles.dispatchStatusCard}>
-                <Text style={styles.dispatchStatusLabel}>현재 단계</Text>
-                <Text style={styles.dispatchStatusValue}>생활 중</Text>
-                <Text style={styles.dispatchStatusSub}>커뮤니티와 기록 중심</Text>
-              </View>
-              <View style={styles.dispatchStatusCard}>
-                <Text style={styles.dispatchStatusLabel}>남은 파견 기간</Text>
-                <Text style={styles.dispatchStatusValue}>{remainingDispatchDays}일</Text>
-                <Text style={styles.dispatchStatusSub}>
-                  귀국 {formatMonthDay(dashboardDates.returnDate)}
-                </Text>
-              </View>
-            </View>
-
             <TouchableOpacity
               style={styles.heroButton}
               onPress={() => router.push('/(tabs)/home/profile-card' as any)}
               activeOpacity={0.9}
             >
               <Text style={styles.heroButtonText}>내 프로필 보기</Text>
-              <Ionicons name="arrow-forward" size={17} color={NAVY} />
+              <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
             </TouchableOpacity>
           </>
         ) : (
@@ -502,7 +483,7 @@ export default function HomeScreen() {
               activeOpacity={0.9}
             >
               <Text style={styles.heroButtonText}>내 프로필 보기</Text>
-              <Ionicons name="arrow-forward" size={17} color={NAVY} />
+              <Ionicons name="arrow-forward" size={17} color="#FFFFFF" />
             </TouchableOpacity>
           </>
         )}
@@ -702,11 +683,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 52,
+    paddingTop: 54,
     paddingBottom: 120,
   },
   header: {
@@ -721,7 +702,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EEF2F6',
+    borderColor: '#EDF1F5',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   profile: {
     width: 46,
@@ -753,19 +739,26 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#EEF2F6',
+    borderColor: '#EDF1F5',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.035,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 1,
   },
   heroCard: {
     marginTop: 24,
-    borderRadius: 20,
-    backgroundColor: HERO_BLUE,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E9EEF5',
     padding: 22,
-    shadowColor: '#2446B8',
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.055,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 2,
   },
   heroTopRow: {
@@ -774,40 +767,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroTag: {
-    borderRadius: 13,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 999,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    backgroundColor: '#EEF4FF',
   },
   heroTagText: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#DDE8FF',
+    color: BLUE,
   },
   heroDday: {
     fontSize: 26,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: BLUE,
   },
   heroSmallMeta: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: BLUE,
   },
   heroTitle: {
     marginTop: 18,
-    fontSize: 24,
+    fontSize: 23,
+    lineHeight: 31,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#111111',
   },
   heroSubtitle: {
-    marginTop: 8,
+    marginTop: 7,
     fontSize: 13,
     fontWeight: '700',
-    color: '#DDE8FF',
+    color: '#64748B',
   },
   progressInfoRow: {
-    marginTop: 24,
+    marginTop: 22,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -815,31 +809,31 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#BFD0EA',
+    color: '#64748B',
   },
   progressValue: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: NAVY,
   },
   progressTrack: {
     marginTop: 10,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: '#E9EEF5',
     overflow: 'hidden',
   },
   progressFill: {
     width: '72%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: BLUE,
   },
   dispatchedProgressFill: {
     width: '26%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: BLUE,
   },
   dispatchedDayRow: {
     flexDirection: 'row',
@@ -850,48 +844,20 @@ const styles = StyleSheet.create({
     fontSize: 52,
     lineHeight: 58,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: BLUE,
   },
   dispatchedDayUnit: {
     marginLeft: 5,
     marginBottom: 9,
     fontSize: 16,
     fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  dispatchStatusGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  dispatchStatusCard: {
-    flex: 1,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    padding: 14,
-  },
-  dispatchStatusLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#64748B',
-  },
-  dispatchStatusValue: {
-    marginTop: 10,
-    fontSize: 19,
-    fontWeight: '900',
-    color: '#111111',
-  },
-  dispatchStatusSub: {
-    marginTop: 6,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#64748B',
+    color: NAVY,
   },
   heroButton: {
-    marginTop: 20,
-    height: 44,
-    borderRadius: 13,
-    backgroundColor: '#FFFFFF',
+    marginTop: 22,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: NAVY,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -900,10 +866,10 @@ const styles = StyleSheet.create({
   heroButtonText: {
     fontSize: 14,
     fontWeight: '900',
-    color: NAVY,
+    color: '#FFFFFF',
   },
   sectionBlock: {
-    marginTop: 30,
+    marginTop: 32,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -936,30 +902,30 @@ const styles = StyleSheet.create({
   quickGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: 12,
   },
   quickCard: {
     flex: 1,
-    minHeight: 104,
-    borderRadius: 16,
+    minHeight: 112,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E9EEF5',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 8,
-    paddingVertical: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: NAVY,
-    shadowOpacity: 0.015,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 1,
   },
   quickIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor: '#F6F8FC',
+    borderRadius: 16,
+    backgroundColor: '#F3F6FA',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 11,
@@ -972,11 +938,16 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   postList: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E9EEF5',
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.035,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 1,
   },
   postItem: {
     paddingHorizontal: 16,
@@ -994,7 +965,7 @@ const styles = StyleSheet.create({
   },
   countryBadge: {
     borderRadius: 8,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EEF4FF',
     paddingHorizontal: 7,
     paddingVertical: 3,
   },
@@ -1035,15 +1006,15 @@ const styles = StyleSheet.create({
   },
   companionCard: {
     width: 236,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E9EEF5',
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    shadowColor: NAVY,
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    padding: 17,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 1,
   },
   companionTop: {
@@ -1054,14 +1025,14 @@ const styles = StyleSheet.create({
   companionPin: {
     width: 34,
     height: 34,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    backgroundColor: '#F3F6FA',
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusBadge: {
     borderRadius: 10,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EEF4FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
@@ -1121,11 +1092,16 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   tradeList: {
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: '#E9EEF5',
     backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.035,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 1,
   },
   tradeItem: {
     minHeight: 86,
@@ -1139,8 +1115,8 @@ const styles = StyleSheet.create({
   tradeThumb: {
     width: 62,
     height: 62,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 16,
+    backgroundColor: '#F3F6FA',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
