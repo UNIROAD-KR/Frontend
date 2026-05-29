@@ -55,8 +55,14 @@ export interface UsedItemResponse extends UsedItemSummaryResponse {
 
 export type UsedItem = UsedItemSummaryResponse;
 
+export interface UsedItemListResponse {
+  items: UsedItemSummaryResponse[];
+  hasNext: boolean;
+  nextCursorId: number | null;
+}
+
 export const getUsedItems = () => {
-  return api.get<BaseResponse<UsedItemSummaryResponse[]>>('/api/used-items');
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items');
 };
 
 export const getUsedItemDetail = (id: number) => {

@@ -134,7 +134,7 @@ export default function MarketPage() {
     try {
       const response = await getUsedItems();
       console.log('중고거래 목록:', response.data);
-      setItems(response.data.data ?? []);
+      setItems(response.data.data.items ?? []);
     } catch (error: any) {
       console.log(
         '중고거래 목록 조회 실패:',

@@ -323,6 +323,7 @@ export default function HomeScreen() {
 
   const isDispatched = lifecycleStatus === '파견 중';
   const isReturned = lifecycleStatus === '귀국';
+  const showTradeBeforeCompanion = !isDispatched && !isReturned;
   const tradeItems = isDispatched ? ticketTradeItems : bulkTradeItems;
   const quickActions = quickActionsByStatus[lifecycleStatus];
   const applicationDday = diffDays(dashboardDates.applicationDeadline);
@@ -563,6 +564,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      <View style={showTradeBeforeCompanion && styles.reorderedContentSections}>
       <View style={styles.sectionBlock}>
         <View style={styles.sectionHeader}>
           <View>
@@ -678,6 +680,7 @@ export default function HomeScreen() {
         </View>
       </View>
       </View>
+      </View>
     </ScrollView>
   );
 }
@@ -689,17 +692,18 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 54,
+    paddingTop: 64,
     paddingBottom: 0,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 4,
   },
   profileWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -712,9 +716,9 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   profile: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   headerTextBox: {
     flex: 1,
@@ -867,17 +871,22 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   contentSurface: {
-    marginTop: 30,
+    marginTop: 34,
     marginHorizontal: -20,
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 32,
     paddingBottom: 120,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderTopColor: '#E8EDF3',
   },
   contentFirstBlock: {
     marginTop: 0,
+  },
+  reorderedContentSections: {
+    flexDirection: 'column-reverse',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -938,9 +947,7 @@ const styles = StyleSheet.create({
   },
   postList: {
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E9EEF5',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
     overflow: 'hidden',
     shadowColor: '#0F172A',
     shadowOpacity: 0.035,
@@ -1006,9 +1013,7 @@ const styles = StyleSheet.create({
   companionCard: {
     width: 236,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E9EEF5',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
     padding: 17,
     shadowColor: '#0F172A',
     shadowOpacity: 0.04,
@@ -1092,9 +1097,7 @@ const styles = StyleSheet.create({
   },
   tradeList: {
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E9EEF5',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
     overflow: 'hidden',
     shadowColor: '#0F172A',
     shadowOpacity: 0.035,
