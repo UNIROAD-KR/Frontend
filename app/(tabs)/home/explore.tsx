@@ -53,8 +53,8 @@ const BANNER_ITEMS = [
 
 const DEPARTURE_BANNER_ITEMS = [
   {
-    title: '비자 가이드',
-    subtitle: '국가별 비자 종류와\n신청 절차 한 눈에 확인',
+    title: '국가별 체크리스트',
+    subtitle: '비자부터 보험까지\n국가별 준비사항 확인',
     route: '/(tabs)/home/visa-guide',
     image: require('../../../assets/images/departure-visa-guide.png'),
     backgroundColor: '#604EB6',
@@ -587,7 +587,7 @@ export default function ExploreScreen() {
                     styles.cardIllustrationImage,
                     item.title === '파견교 정보' && styles.cardIllustrationImagePartner,
                     item.title === '장학금 정보' && styles.cardIllustrationImageScholarship,
-                    item.title === '비자 가이드' && styles.cardIllustrationImageVisa,
+                    item.title === '국가별 체크리스트' && styles.cardIllustrationImageVisa,
                     item.title === '출국 전 체크리스트' && styles.cardIllustrationImageChecklist,
                   ]}
                 />
