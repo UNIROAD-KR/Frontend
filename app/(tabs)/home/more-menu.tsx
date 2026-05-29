@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { SoftServiceIcon } from '@/components/soft-service-icon';
 import { router } from 'expo-router';
 import {
   Dimensions,
@@ -112,9 +113,12 @@ export default function MoreMenuScreen() {
                   onPress={() => router.push(item.route as any)}
                   activeOpacity={0.86}
                 >
-                  <View style={styles.serviceIconBox}>
-                    <Ionicons name={item.icon} size={23} color={NAVY} />
-                  </View>
+                  <SoftServiceIcon
+                    name={item.icon}
+                    iconSize={23}
+                    borderRadius={14}
+                    style={styles.serviceIconBox}
+                  />
                   <Text style={styles.serviceTitle}>{item.title}</Text>
                 </TouchableOpacity>
               ))}

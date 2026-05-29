@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { SoftServiceIcon } from '@/components/soft-service-icon';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -15,6 +16,7 @@ import {
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
+const HERO_BLUE = '#1D4ED8';
 
 type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
 
@@ -510,16 +512,15 @@ export default function HomeScreen() {
               onPress={() => router.push(item.route as any)}
               activeOpacity={0.86}
             >
-              <View style={styles.quickIconBox}>
-                <Ionicons name={item.icon} size={24} color={NAVY} />
-              </View>
+              <SoftServiceIcon name={item.icon} iconSize={24} style={styles.quickIconBox} />
               <Text style={styles.quickTitle}>{item.title}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <View style={styles.sectionBlock}>
+      <View style={styles.contentSurface}>
+      <View style={[styles.sectionBlock, styles.contentFirstBlock]}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
             {lifecycleStatus === '지원 준비 중'
@@ -676,6 +677,7 @@ export default function HomeScreen() {
           ))}
         </View>
       </View>
+      </View>
     </ScrollView>
   );
 }
@@ -683,12 +685,12 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: '#FFFFFF',
   },
   content: {
     paddingHorizontal: 20,
     paddingTop: 54,
-    paddingBottom: 120,
+    paddingBottom: 0,
   },
   header: {
     flexDirection: 'row',
@@ -751,15 +753,8 @@ const styles = StyleSheet.create({
   heroCard: {
     marginTop: 24,
     borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E9EEF5',
+    backgroundColor: '#F2F7FF',
     padding: 22,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.055,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -770,22 +765,22 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 11,
     paddingVertical: 6,
-    backgroundColor: '#EEF4FF',
+    backgroundColor: 'rgba(255, 255, 255, 0.72)',
   },
   heroTagText: {
     fontSize: 11,
     fontWeight: '900',
-    color: BLUE,
+    color: HERO_BLUE,
   },
   heroDday: {
     fontSize: 26,
     fontWeight: '900',
-    color: BLUE,
+    color: HERO_BLUE,
   },
   heroSmallMeta: {
     fontSize: 13,
     fontWeight: '900',
-    color: BLUE,
+    color: HERO_BLUE,
   },
   heroTitle: {
     marginTop: 18,
@@ -820,20 +815,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E9EEF5',
+    backgroundColor: '#DCE8FA',
     overflow: 'hidden',
   },
   progressFill: {
     width: '72%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: BLUE,
+    backgroundColor: HERO_BLUE,
   },
   dispatchedProgressFill: {
     width: '26%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: BLUE,
+    backgroundColor: HERO_BLUE,
   },
   dispatchedDayRow: {
     flexDirection: 'row',
@@ -844,7 +839,7 @@ const styles = StyleSheet.create({
     fontSize: 52,
     lineHeight: 58,
     fontWeight: '900',
-    color: BLUE,
+    color: HERO_BLUE,
   },
   dispatchedDayUnit: {
     marginLeft: 5,
@@ -870,6 +865,19 @@ const styles = StyleSheet.create({
   },
   sectionBlock: {
     marginTop: 32,
+  },
+  contentSurface: {
+    marginTop: 30,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    paddingTop: 30,
+    paddingBottom: 120,
+    backgroundColor: '#F7F8FA',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+  },
+  contentFirstBlock: {
+    marginTop: 0,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -907,19 +915,10 @@ const styles = StyleSheet.create({
   quickCard: {
     flex: 1,
     minHeight: 112,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#E9EEF5',
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 1,
   },
   quickIconBox: {
     width: 44,
