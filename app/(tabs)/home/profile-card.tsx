@@ -217,14 +217,11 @@ export default function ProfileCardScreen() {
           activeOpacity={0.86}
         >
           <View style={styles.avatarWrap}>
-            <Image
-              source={
-                profile.avatarUri
-                  ? { uri: profile.avatarUri }
-                  : require('../../../assets/images/profile.png')
-              }
-              style={styles.avatar}
-            />
+            {profile.avatarUri ? (
+              <Image source={{ uri: profile.avatarUri }} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person" size={30} color={INK} />
+            )}
           </View>
 
           <View style={styles.profileInfo}>
@@ -232,15 +229,10 @@ export default function ProfileCardScreen() {
             <Text style={styles.profileMeta} numberOfLines={1}>
               {profile.homeUniversity} · {profile.country} {profile.region}
             </Text>
-            <View style={styles.statusPill}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>{profile.status}</Text>
-            </View>
           </View>
 
           <View style={styles.profileManage}>
-            <Text style={styles.profileManageText}>내 정보 관리</Text>
-            <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
+            <Text style={styles.profileManageText}>내 정보 수정</Text>
           </View>
         </TouchableOpacity>
 
@@ -256,28 +248,6 @@ export default function ProfileCardScreen() {
               <Text style={styles.quickTitle}>{item.title}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        <View style={styles.hubCard}>
-          <View>
-            <Text style={styles.hubLabel}>교환학생 활동 허브</Text>
-            <Text style={styles.hubTitle}>내가 남긴 글과 관심 정보를 한곳에서 관리해요</Text>
-          </View>
-
-          <View style={styles.hubStats}>
-            <View style={styles.hubStat}>
-              <Text style={styles.hubStatValue}>12</Text>
-              <Text style={styles.hubStatLabel}>작성글</Text>
-            </View>
-            <View style={styles.hubStat}>
-              <Text style={styles.hubStatValue}>8</Text>
-              <Text style={styles.hubStatLabel}>관심</Text>
-            </View>
-            <View style={styles.hubStat}>
-              <Text style={styles.hubStatValue}>3</Text>
-              <Text style={styles.hubStatLabel}>거래</Text>
-            </View>
-          </View>
         </View>
 
         <View style={styles.exchangeCard}>
@@ -380,14 +350,15 @@ const styles = StyleSheet.create({
     paddingBottom: 130,
   },
   profileCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 106,
+    justifyContent: 'center',
+    minHeight: 214,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: LINE,
-    padding: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
     shadowColor: NAVY,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
@@ -398,10 +369,10 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: '#EEF4FF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginBottom: 14,
   },
   avatar: {
     width: 56,
@@ -409,59 +380,43 @@ const styles = StyleSheet.create({
     borderRadius: 28,
   },
   profileInfo: {
-    flex: 1,
+    alignItems: 'center',
     minWidth: 0,
+    width: '100%',
   },
   nickname: {
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: '900',
     color: INK,
+    textAlign: 'center',
   },
   profileMeta: {
-    marginTop: 5,
+    marginTop: 7,
     fontSize: 13,
     fontWeight: '700',
     color: MUTED,
-  },
-  statusPill: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    borderRadius: 999,
-    backgroundColor: '#EEF4FF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: BLUE,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: BLUE,
+    textAlign: 'center',
   },
   profileManage: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    marginLeft: 8,
+    marginTop: 12,
+    borderRadius: 999,
+    backgroundColor: '#F3F6FB',
+    paddingHorizontal: 13,
+    paddingVertical: 7,
   },
   profileManageText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: MUTED,
+    fontWeight: '900',
+    color: NAVY,
   },
   quickCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 12,
     borderRadius: 18,
-    backgroundColor: NAVY,
+    backgroundColor: '#3182F6',
     overflow: 'hidden',
   },
   quickItem: {
@@ -479,52 +434,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
-  },
-  hubCard: {
-    marginTop: 14,
-    borderRadius: 18,
-    backgroundColor: '#F8FAFF',
-    borderWidth: 1,
-    borderColor: '#DCE6F7',
-    padding: 18,
-  },
-  hubLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: BLUE,
-    marginBottom: 6,
-  },
-  hubTitle: {
-    fontSize: 17,
-    lineHeight: 24,
-    fontWeight: '900',
-    color: INK,
-  },
-  hubStats: {
-    flexDirection: 'row',
-    gap: 9,
-    marginTop: 16,
-  },
-  hubStat: {
-    flex: 1,
-    minHeight: 68,
-    borderRadius: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: LINE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hubStatValue: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  hubStatLabel: {
-    marginTop: 3,
-    fontSize: 12,
-    fontWeight: '800',
-    color: MUTED,
   },
   exchangeCard: {
     flexDirection: 'row',

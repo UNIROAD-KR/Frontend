@@ -390,13 +390,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.profileWrap}
-          onPress={() => router.push('/(tabs)/mypage' as any)}
+          onPress={() => router.push('/(tabs)/home/profile-card' as any)}
           activeOpacity={0.82}
         >
-          <Image
-            source={require('../../../assets/images/profile.png')}
-            style={styles.profile}
-          />
+          <Ionicons name="person" size={24} color={NAVY} />
         </TouchableOpacity>
 
         <View style={styles.headerTextBox}>
@@ -826,13 +823,13 @@ const styles = StyleSheet.create({
     width: '72%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: HERO_BLUE,
+    backgroundColor: '#3182F6',
   },
   dispatchedProgressFill: {
     width: '26%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: HERO_BLUE,
+    backgroundColor: '#3182F6',
   },
   dispatchedDayRow: {
     flexDirection: 'row',
@@ -856,7 +853,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
     height: 48,
     borderRadius: 16,
-    backgroundColor: NAVY,
+    backgroundColor: '#3182F6',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

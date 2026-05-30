@@ -28,7 +28,13 @@ const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
 const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중', '귀국'];
-const countryOptions = ['독일', '프랑스', '미국', '일본', '스페인'];
+const countryOptionsByGroup = {
+  유럽: ['독일', '프랑스', '영국', '스페인', '네덜란드', '이탈리아', '스웨덴'],
+  북미: ['미국', '캐나다'],
+  아시아: ['일본', '중국', '싱가포르', '홍콩'],
+  오세아니아: ['호주', '뉴질랜드'],
+};
+const countryGroupOptions = Object.keys(countryOptionsByGroup) as (keyof typeof countryOptionsByGroup)[];
 const languageOptions = ['영어', '독일어', '프랑스어', '일본어', '스페인어'];
 const dateLabels: Record<string, string> = {
   '지원 준비 중': '지원 마감일',
@@ -77,6 +83,7 @@ export default function ProfileEditScreen() {
   const [status, setStatus] = useState('출국 준비 중');
   const [intro, setIntro] = useState('베를린에서 교환학생을 준비하고 있어요.');
   const [interestedCountries, setInterestedCountries] = useState(['독일']);
+  const [activeCountryGroup, setActiveCountryGroup] = useState<keyof typeof countryOptionsByGroup | null>(null);
   const [interestedLanguages, setInterestedLanguages] = useState(['독일어', '영어']);
   const [applicationDeadline, setApplicationDeadline] = useState<Date | null>(null);
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
@@ -192,6 +199,8 @@ export default function ProfileEditScreen() {
     setShowPicker(true);
   };
 
+  const visibleCountryOptions = activeCountryGroup ? countryOptionsByGroup[activeCountryGroup] : [];
+
   const completeDatePicker = () => {
     setActiveDate(draftDate);
     setShowPicker(false);
@@ -274,10 +283,11 @@ export default function ProfileEditScreen() {
       >
         <View style={styles.avatarSection}>
           <View style={styles.avatarFrame}>
-            <Image
-              source={avatarUri ? { uri: avatarUri } : require('../../../assets/images/profile.png')}
-              style={styles.avatar}
-            />
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person" size={44} color={INK} />
+            )}
           </View>
 
           <TouchableOpacity style={styles.imageButton} onPress={pickImage} activeOpacity={0.86}>
@@ -375,11 +385,36 @@ export default function ProfileEditScreen() {
 
         <FormSection title="관심 정보">
           <Text style={styles.fieldLabel}>관심 국가</Text>
-          <ChipGroup
-            options={countryOptions}
-            selected={interestedCountries}
-            onPress={(value) => toggleValue(value, interestedCountries, setInterestedCountries)}
-          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.countryFilterScroll}
+            contentContainerStyle={styles.countryFilterContent}
+          >
+            {countryGroupOptions.map((group) => {
+              const selected = activeCountryGroup === group;
+
+              return (
+                <TouchableOpacity
+                  key={group}
+                  style={[styles.countryGroupChip, selected && styles.countryGroupChipActive]}
+                  onPress={() => setActiveCountryGroup(group)}
+                  activeOpacity={0.84}
+                >
+                  <Text style={[styles.countryGroupText, selected && styles.countryGroupTextActive]}>
+                    {group}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          {activeCountryGroup ? (
+            <ChipGroup
+              options={visibleCountryOptions}
+              selected={interestedCountries}
+              onPress={(value) => toggleValue(value, interestedCountries, setInterestedCountries)}
+            />
+          ) : null}
 
           <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>관심 언어</Text>
           <ChipGroup
@@ -610,9 +645,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   avatarFrame: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -620,9 +655,9 @@ const styles = StyleSheet.create({
     borderColor: LINE,
   },
   avatar: {
-    width: 94,
-    height: 94,
-    borderRadius: 47,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   imageButton: {
     flexDirection: 'row',
@@ -740,8 +775,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   statusChipSelected: {
-    backgroundColor: NAVY,
-    borderColor: NAVY,
+    backgroundColor: '#3182F6',
+    borderColor: '#3182F6',
   },
   statusChipText: {
     fontSize: 13,
@@ -749,6 +784,35 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   statusChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  countryFilterScroll: {
+    marginBottom: 10,
+  },
+  countryFilterContent: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  countryGroupChip: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E7EDF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+  },
+  countryGroupChipActive: {
+    backgroundColor: '#3182F6',
+    borderColor: '#3182F6',
+  },
+  countryGroupText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: MUTED,
+  },
+  countryGroupTextActive: {
     color: '#FFFFFF',
   },
   chipWrap: {
@@ -791,7 +855,7 @@ const styles = StyleSheet.create({
   footerButton: {
     height: 54,
     borderRadius: 16,
-    backgroundColor: NAVY,
+    backgroundColor: '#3182F6',
     alignItems: 'center',
     justifyContent: 'center',
   },

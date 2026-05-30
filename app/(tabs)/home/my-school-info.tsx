@@ -141,11 +141,11 @@ export default function MySchoolInfoScreen() {
           </View>
           <View style={styles.divider} />
           <View style={styles.infoRow}>
-            <Ionicons name="call" size={14} color="#64748B" />
+            <Ionicons name="call" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={styles.infoText}>{myExchangeInfo?.phone ?? '02-970-6892 (유럽/미주 지역 담당)'}</Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="mail" size={14} color="#64748B" />
+            <Ionicons name="mail" size={14} color="rgba(255,255,255,0.9)" />
             <Text style={styles.infoText}>{myExchangeInfo?.email ?? 'studyabroad@seoultech.ac.kr'}</Text>
           </View>
         </View>
@@ -503,10 +503,10 @@ const styles = StyleSheet.create({
 
   // 🏫 학교 프로필 카드
   schoolCard: {
-    backgroundColor: '#0F2042', // Navy Point Color
+    backgroundColor: '#083493', // Navy Point Color
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#0F2042',
+    shadowColor: '#083493',
     shadowOpacity: 0.15,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -535,12 +535,12 @@ const styles = StyleSheet.create({
   },
   departmentName: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: 'rgba(255,255,255,0.82)',
     marginTop: 4,
   },
   divider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
     marginVertical: 16,
   },
   infoRow: {
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 12,
-    color: '#E2E8F0',
+    color: 'rgba(255,255,255,0.92)',
   },
 
   sectionTitle: {
