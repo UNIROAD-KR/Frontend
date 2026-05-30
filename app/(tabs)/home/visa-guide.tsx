@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -15,12 +14,27 @@ import {
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = SCREEN_WIDTH - 40;
-const CARD_GAP = 12;
-const SNAP_INTERVAL = CARD_WIDTH + CARD_GAP;
 const VISA_CAROUSEL_CARD_WIDTH = Math.min(244, SCREEN_WIDTH - 146);
 const VISA_CAROUSEL_GAP = 14;
 const VISA_CAROUSEL_SNAP = VISA_CAROUSEL_CARD_WIDTH + VISA_CAROUSEL_GAP;
+
+const COUNTRY_HEADER_META: Record<string, { flag: string; summary: string }> = {
+  독일: { flag: '🇩🇪', summary: '비자 · 보험 · 유심 · 은행 · 거주지' },
+  프랑스: { flag: '🇫🇷', summary: '비자 · 보험 · 유심 · 은행 · 숙소' },
+  미국: { flag: '🇺🇸', summary: '비자 · 보험 · 유심 · 카드 · 항공' },
+  일본: { flag: '🇯🇵', summary: '비자 · 유심 · 보험 · 생활비 · 등록' },
+  체코: { flag: '🇨🇿', summary: '비자 · 보험 · 숙소 · 유심 · 항공' },
+};
+
+const PREP_CATEGORY_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; desc: string }> = {
+  비자: { icon: 'document-text-outline', desc: '비자' },
+  보험: { icon: 'shield-checkmark-outline', desc: '보험' },
+  '유심/eSIM': { icon: 'phone-portrait-outline', desc: '유심' },
+  '은행/카드': { icon: 'card-outline', desc: '은행' },
+  항공권: { icon: 'airplane-outline', desc: '항공' },
+  숙소: { icon: 'home-outline', desc: '숙소' },
+  '입국 후 등록': { icon: 'location-outline', desc: '입국 후 등록' },
+};
 
 type CountryChecklist = {
   name: string;
@@ -41,7 +55,7 @@ type CountryChecklist = {
 const COUNTRY_CHECKLISTS: CountryChecklist[] = [
   {
     name: '독일',
-    title: '독일 출국 체크리스트',
+    title: '독일 출국 가이드',
     subtitle: '비자, 보험, 슈페어콘토, 거주지 등록까지 한 번에 준비하세요',
     accent: '#2F66D0',
     tint: '#EEF4FF',
@@ -59,7 +73,7 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
   },
   {
     name: '프랑스',
-    title: '프랑스 출국 체크리스트',
+    title: '프랑스 출국 가이드',
     subtitle: '장기 학생비자, 보험, CAF 준비 흐름을 미리 확인하세요',
     accent: '#4569D4',
     tint: '#F0F4FF',
@@ -76,7 +90,7 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
   },
   {
     name: '미국',
-    title: '미국 출국 체크리스트',
+    title: '미국 출국 가이드',
     subtitle: 'F-1/J-1 비자, SEVIS, 캠퍼스 생활 준비를 정리하세요',
     accent: '#1D4ED8',
     tint: '#EDF5FF',
@@ -93,7 +107,7 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
   },
   {
     name: '일본',
-    title: '일본 출국 체크리스트',
+    title: '일본 출국 가이드',
     subtitle: '입국 서류, 재류카드, 생활 준비를 차근차근 챙기세요',
     accent: '#315B9C',
     tint: '#F1F6FF',
@@ -110,7 +124,7 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
   },
   {
     name: '체코',
-    title: '체코 출국 체크리스트',
+    title: '체코 출국 가이드',
     subtitle: '장기비자, 보험 영문증명, 숙소 서류를 미리 준비하세요',
     accent: '#2457C5',
     tint: '#EEF4FF',
@@ -126,109 +140,6 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
     ],
   },
 ];
-
-const SUPPORT_CARDS_BY_COUNTRY = [
-  [
-    {
-      title: '유심/eSIM',
-      desc: '독일 통신사 및 eSIM 준비',
-      icon: 'phone-portrait-outline' as const,
-      color: '#2F66D0',
-    },
-    {
-      title: '보험',
-      desc: '공보험/사보험 확인',
-      icon: 'shield-checkmark-outline' as const,
-      color: '#16A36A',
-    },
-    {
-      title: '은행/카드',
-      desc: '슈페어콘토 및 해외 결제 준비',
-      icon: 'card-outline' as const,
-      color: '#6B55D8',
-    },
-  ],
-  [
-    {
-      title: '유심/eSIM',
-      desc: '프랑스 통신/eSIM 준비',
-      icon: 'phone-portrait-outline' as const,
-      color: '#2F66D0',
-    },
-    {
-      title: '보험',
-      desc: '유학생 보험 및 OFII 관련 확인',
-      icon: 'shield-checkmark-outline' as const,
-      color: '#16A36A',
-    },
-    {
-      title: '은행/카드',
-      desc: '현지 계좌/카드 준비',
-      icon: 'card-outline' as const,
-      color: '#6B55D8',
-    },
-  ],
-  [
-    {
-      title: '유심/eSIM',
-      desc: '미국 통신사/eSIM 준비',
-      icon: 'phone-portrait-outline' as const,
-      color: '#2F66D0',
-    },
-    {
-      title: '보험',
-      desc: '학교 보험/유학생 보험 확인',
-      icon: 'shield-checkmark-outline' as const,
-      color: '#16A36A',
-    },
-    {
-      title: '은행/카드',
-      desc: '해외 결제 카드 및 계좌 준비',
-      icon: 'card-outline' as const,
-      color: '#6B55D8',
-    },
-  ],
-  [
-    {
-      title: '유심/eSIM',
-      desc: '일본 유심/eSIM 준비',
-      icon: 'phone-portrait-outline' as const,
-      color: '#2F66D0',
-    },
-    {
-      title: '보험',
-      desc: '국민건강보험 확인',
-      icon: 'shield-checkmark-outline' as const,
-      color: '#16A36A',
-    },
-    {
-      title: '은행/카드',
-      desc: '현지 결제/은행 준비',
-      icon: 'card-outline' as const,
-      color: '#6B55D8',
-    },
-  ],
-  [
-    {
-      title: '유심/eSIM',
-      desc: '체코 통신/eSIM 준비',
-      icon: 'phone-portrait-outline' as const,
-      color: '#2F66D0',
-    },
-    {
-      title: '보험',
-      desc: '체코 인정 보험 확인',
-      icon: 'shield-checkmark-outline' as const,
-      color: '#16A36A',
-    },
-    {
-      title: '은행/카드',
-      desc: '해외 결제 카드 준비',
-      icon: 'card-outline' as const,
-      color: '#6B55D8',
-    },
-  ],
-] as const;
 
 const visaGuideData = {
   germany: {
@@ -357,60 +268,32 @@ const normalizeCountry = (country: string | null) => {
 export default function VisaGuideScreen() {
   const [screenMode, setScreenMode] = useState<'checklist' | 'visa'>('checklist');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CHECKLISTS[0].name);
-  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [checkedVisaSteps, setCheckedVisaSteps] = useState<Record<number, boolean>>({ 0: true });
   const [checkedDocs, setCheckedDocs] = useState<Record<string, boolean>>({
     여권: true,
     증명사진: true,
   });
-  const scrollRef = useRef<ScrollView>(null);
-  const supportOpacity = useRef(new Animated.Value(1)).current;
 
   const selectedIndex = COUNTRY_CHECKLISTS.findIndex((item) => item.name === selectedCountry);
   const country = useMemo(
     () => COUNTRY_CHECKLISTS[selectedIndex >= 0 ? selectedIndex : 0],
     [selectedIndex],
   );
-  const selectedSupportCards =
-    SUPPORT_CARDS_BY_COUNTRY[selectedIndex >= 0 ? selectedIndex : 0] ?? SUPPORT_CARDS_BY_COUNTRY[0];
-
-  useEffect(() => {
-    supportOpacity.setValue(0.62);
-    Animated.timing(supportOpacity, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
-  }, [selectedCountry, supportOpacity]);
+  const countryMeta = COUNTRY_HEADER_META[country.name] ?? COUNTRY_HEADER_META.독일;
 
   useEffect(() => {
     const loadCountry = async () => {
       const savedCountry = await AsyncStorage.getItem('dispatchedCountry');
       const initialCountry = normalizeCountry(savedCountry);
       setSelectedCountry(initialCountry);
-      const initialIndex = COUNTRY_CHECKLISTS.findIndex((item) => item.name === initialCountry);
-
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({
-          x: Math.max(0, initialIndex) * SNAP_INTERVAL,
-          animated: false,
-        });
-      });
     };
 
     loadCountry();
   }, []);
 
   const selectCountry = (name: string) => {
-    const nextIndex = COUNTRY_CHECKLISTS.findIndex((item) => item.name === name);
     setSelectedCountry(name);
-    scrollRef.current?.scrollTo({
-      x: Math.max(0, nextIndex) * SNAP_INTERVAL,
-      animated: true,
-    });
   };
-
-  const completedCount = country.checklist.filter((item) => checkedItems[item.id]).length;
 
   if (screenMode === 'visa') {
     return (
@@ -434,7 +317,7 @@ export default function VisaGuideScreen() {
           <Ionicons name="arrow-back" size={22} color={NAVY} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>국가별 체크리스트</Text>
+        <Text style={styles.headerTitle}>국가별 출국 가이드</Text>
 
         <View style={styles.headerRight} />
       </View>
@@ -468,135 +351,44 @@ export default function VisaGuideScreen() {
           })}
         </ScrollView>
 
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.heroPager}
-          contentContainerStyle={styles.heroPagerContent}
-          snapToInterval={SNAP_INTERVAL}
-          snapToAlignment="start"
-          decelerationRate="fast"
-          onMomentumScrollEnd={(event) => {
-            const nextIndex = Math.round(event.nativeEvent.contentOffset.x / SNAP_INTERVAL);
-            const nextCountry = COUNTRY_CHECKLISTS[nextIndex];
-            if (nextCountry) setSelectedCountry(nextCountry.name);
-          }}
-        >
-          {COUNTRY_CHECKLISTS.map((item, index) => (
-            <View key={item.name} style={[styles.heroCard, { backgroundColor: item.tint }]}>
-              <View style={styles.heroTopRow}>
-                <View>
-                  <Text style={styles.heroEyebrow}>출국 준비</Text>
-                  <Text style={styles.heroTitle}>{item.title}</Text>
-                  <Text style={styles.heroSubtitle}>{item.subtitle}</Text>
-                </View>
-                <View style={styles.pagerDots}>
-                  {COUNTRY_CHECKLISTS.map((dot, dotIndex) => (
-                    <View
-                      key={dot.name}
-                      style={[
-                        styles.pagerDot,
-                        dotIndex === index && { backgroundColor: item.accent, width: 18 },
-                      ]}
-                    />
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.illustrationWrap}>
-                <View style={[styles.illustrationBlob, { backgroundColor: item.accent }]}>
-                  <Ionicons name={item.icon} size={68} color="#FFFFFF" />
-                </View>
-                <View style={styles.floatBadge}>
-                  <Ionicons name="checkmark-done" size={24} color={item.accent} />
-                </View>
-                <View style={styles.floatPlane}>
-                  <Ionicons name="paper-plane" size={22} color={item.accent} />
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.ctaButton}
-                onPress={() => setScreenMode('visa')}
-                activeOpacity={0.9}
-              >
-                <Text style={styles.ctaButtonText}>비자 발급 바로가기</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
-        </ScrollView>
-
-        <View style={styles.supportSectionHeader}>
-          <Text style={styles.supportSectionLabel}>{country.name} 준비 항목</Text>
-        </View>
-
-        <Animated.View style={[styles.supportGrid, { opacity: supportOpacity }]}>
-          {selectedSupportCards.map((item) => (
-            <TouchableOpacity key={item.title} style={styles.supportCard} activeOpacity={0.86}>
-              <View style={[styles.supportIcon, { backgroundColor: `${item.color}18` }]}>
-                <Ionicons name={item.icon} size={22} color={item.color} />
-              </View>
-              <View style={styles.supportTextBox}>
-                <Text style={styles.supportTitle}>{item.title}</Text>
-                <Text style={styles.supportDesc}>{item.desc}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
-            </TouchableOpacity>
-          ))}
-        </Animated.View>
-
-        <View style={styles.checkHeader}>
-          <View>
-            <Text style={styles.sectionTitle}>{country.name} 준비 체크리스트</Text>
-            <Text style={styles.sectionSubtitle}>
-              {completedCount}/{country.checklist.length}개 완료
-            </Text>
-          </View>
-          <View style={styles.progressPill}>
-            <Text style={styles.progressPillText}>
-              {Math.round((completedCount / country.checklist.length) * 100)}%
-            </Text>
+        <View style={styles.countrySummary}>
+          <Text style={styles.countryFlag}>{countryMeta.flag}</Text>
+          <View style={styles.countrySummaryText}>
+            <Text style={styles.countrySummaryTitle}>{country.name}</Text>
+            <Text style={styles.countrySummaryDesc}>{countryMeta.summary}</Text>
           </View>
         </View>
 
-        <View style={styles.checklistCard}>
-          {country.checklist.map((item, index) => {
-            const checked = checkedItems[item.id];
+        <View style={styles.prepSectionHeader}>
+          <Text style={styles.sectionTitle}>준비 항목</Text>
+        </View>
+
+        <View style={styles.prepGrid}>
+          {country.checklist.map((item) => {
+            const meta = PREP_CATEGORY_META[item.category] ?? {
+              icon: 'checkmark-circle-outline' as const,
+              desc: item.category,
+            };
+            const isVisa = item.category === '비자';
 
             return (
               <TouchableOpacity
                 key={item.id}
-                style={[
-                  styles.checkRow,
-                  index === country.checklist.length - 1 && styles.lastRow,
-                ]}
-                onPress={() =>
-                  setCheckedItems((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
-                }
-                activeOpacity={0.85}
+                style={[styles.prepCard, isVisa && styles.prepCardPrimary]}
+                onPress={() => {
+                  if (isVisa) setScreenMode('visa');
+                }}
+                activeOpacity={0.86}
               >
-                <View style={[styles.checkCircle, checked && styles.checkCircleDone]}>
-                  {checked && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+                <View style={[styles.prepIcon, isVisa && styles.prepIconPrimary]}>
+                  <Ionicons name={meta.icon} size={20} color={isVisa ? NAVY : '#475569'} />
                 </View>
-
-                <View style={styles.checkTextBox}>
-                  <View style={styles.checkTitleRow}>
-                    <Text style={[styles.checkTitle, checked && styles.checkTitleDone]}>
-                      {item.title}
-                    </Text>
-                    {item.required && (
-                      <View style={styles.requiredBadge}>
-                        <Text style={styles.requiredBadgeText}>필수</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.checkCategory}>{item.category}</Text>
-                </View>
+                <Text style={styles.prepTitle}>{item.category}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
+
       </ScrollView>
     </View>
   );
@@ -1034,7 +826,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F8FB',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -1043,7 +835,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 50,
     paddingBottom: 15,
-    backgroundColor: '#F6F8FB',
+    backgroundColor: '#FFFFFF',
   },
   iconBtn: {
     width: 38,
@@ -1066,7 +858,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingTop: 10,
+    paddingTop: 6,
     paddingBottom: 130,
   },
   countryScroll: {
@@ -1080,7 +872,7 @@ const styles = StyleSheet.create({
     height: 36,
     paddingHorizontal: 17,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1095,157 +887,78 @@ const styles = StyleSheet.create({
   countryChipTextActive: {
     color: '#FFFFFF',
   },
-  heroPager: {
-    width: SCREEN_WIDTH,
-  },
-  heroPagerContent: {
-    paddingHorizontal: 20,
-  },
-  heroCard: {
-    width: CARD_WIDTH,
-    minHeight: 420,
-    borderRadius: 24,
-    padding: 22,
-    marginRight: CARD_GAP,
-    justifyContent: 'space-between',
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-  heroEyebrow: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  heroTitle: {
-    marginTop: 12,
-    fontSize: 28,
-    lineHeight: 36,
-    fontWeight: '900',
-    color: '#111111',
-  },
-  heroSubtitle: {
-    marginTop: 10,
-    maxWidth: 230,
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: '700',
-    color: '#64748B',
-  },
-  pagerDots: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingTop: 8,
-  },
-  pagerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D4DAE4',
-  },
-  illustrationWrap: {
-    height: 178,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  illustrationBlob: {
-    width: 132,
-    height: 132,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ rotate: '-8deg' }],
-  },
-  floatBadge: {
-    position: 'absolute',
-    right: 78,
-    top: 20,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  floatPlane: {
-    position: 'absolute',
-    left: 72,
-    bottom: 18,
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaButton: {
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: NAVY,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaButtonText: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  supportSectionHeader: {
-    paddingHorizontal: 20,
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  supportSectionLabel: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#64748B',
-  },
-  supportGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingHorizontal: 20,
-  },
-  supportCard: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    minHeight: 92,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    padding: 15,
+  countrySummary: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 20,
+    backgroundColor: '#F3F6FA',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#EEF2F6',
-    shadowColor: NAVY,
-    shadowOpacity: 0.035,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
   },
-  supportIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
+  countryFlag: {
+    fontSize: 32,
+    marginRight: 14,
   },
-  supportTextBox: {
+  countrySummaryText: {
     flex: 1,
   },
-  supportTitle: {
-    fontSize: 15,
+  countrySummaryTitle: {
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: '900',
-    color: '#111111',
+    color: '#111827',
   },
-  supportDesc: {
-    marginTop: 5,
-    fontSize: 12,
+  countrySummaryDesc: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#64748B',
+  },
+  prepSectionHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  prepGrid: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 14,
+  },
+  prepCard: {
+    width: '31%',
+    height: 96,
+    borderRadius: 14,
+    backgroundColor: '#F7F8FA',
+    paddingHorizontal: 8,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  prepCardPrimary: {
+    backgroundColor: '#EFF4FB',
+  },
+  prepIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 9,
+  },
+  prepIconPrimary: {
+    backgroundColor: '#FFFFFF',
+  },
+  prepTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '900',
+    color: NAVY,
+    textAlign: 'center',
   },
   checkHeader: {
     marginTop: 30,
@@ -1264,17 +977,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#64748B',
-  },
-  progressPill: {
-    borderRadius: 14,
-    backgroundColor: '#EAF1FF',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  progressPillText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: BLUE,
   },
   checklistCard: {
     marginHorizontal: 20,
@@ -1307,6 +1009,15 @@ const styles = StyleSheet.create({
   checkCircleDone: {
     backgroundColor: NAVY,
     borderColor: NAVY,
+  },
+  guideListIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   checkTextBox: {
     flex: 1,

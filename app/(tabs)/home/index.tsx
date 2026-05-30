@@ -40,12 +40,12 @@ const quickActionsByStatus = {
   ],
   '출국 준비 중': [
     {
-      title: '비자 가이드',
+      title: '국가별 출국 가이드',
       icon: 'document-text-outline',
       route: '/(tabs)/home/visa-guide',
     },
     {
-      title: '체크리스트',
+      title: '나의 출국 준비',
       icon: 'checkmark-done-outline',
       route: '/(tabs)/home/departure-checklist',
     },

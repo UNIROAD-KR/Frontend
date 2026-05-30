@@ -53,14 +53,14 @@ const BANNER_ITEMS = [
 
 const DEPARTURE_BANNER_ITEMS = [
   {
-    title: '국가별 체크리스트',
-    subtitle: '비자부터 보험까지\n국가별 준비사항 확인',
+    title: '국가별 출국 가이드',
+    subtitle: '비자부터 보험까지\n국가별 준비정보 탐색',
     route: '/(tabs)/home/visa-guide',
     image: require('../../../assets/images/departure-visa-guide.png'),
     backgroundColor: '#604EB6',
   },
   {
-    title: '출국 전 체크리스트',
+    title: '나의 출국 준비',
     subtitle: '짐싸기부터 보험까지,\n출국 전 필수 체크 리스트',
     route: '/(tabs)/home/departure-checklist',
     image: require('../../../assets/images/departure-checklist.png'),
@@ -587,8 +587,8 @@ export default function ExploreScreen() {
                     styles.cardIllustrationImage,
                     item.title === '파견교 정보' && styles.cardIllustrationImagePartner,
                     item.title === '장학금 정보' && styles.cardIllustrationImageScholarship,
-                    item.title === '국가별 체크리스트' && styles.cardIllustrationImageVisa,
-                    item.title === '출국 전 체크리스트' && styles.cardIllustrationImageChecklist,
+                    item.title === '국가별 출국 가이드' && styles.cardIllustrationImageVisa,
+                    item.title === '나의 출국 준비' && styles.cardIllustrationImageChecklist,
                   ]}
                 />
               </View>

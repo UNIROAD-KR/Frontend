@@ -1,16 +1,24 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
 const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
+const PACKING_DONE_STORAGE_KEY = 'departurePackingDoneState';
+const PACKING_CATEGORIES_STORAGE_KEY = 'departurePackingCategories';
+const oneDay = 1000 * 60 * 60 * 24;
 
 type ChecklistItem = {
   id: string;
@@ -21,63 +29,247 @@ type ChecklistItem = {
   done: boolean;
 };
 
-const CATEGORIES = ['전체', '서류', '비자', '항공', '보험', '숙소', '금융', '짐싸기', '도착 후'];
+type PackingCategory = {
+  id: string;
+  title: string;
+  items: string[];
+};
+
+type SheetMode = 'category' | 'item' | null;
+
+const CATEGORIES = ['비자', '거주', '보험', '은행/재정', '통신', '항공'];
 
 const INITIAL_ITEMS: ChecklistItem[] = [
-  { id: 'doc-1', title: '여권 유효기간 확인', category: '서류', required: true, due: '06.02', done: true },
-  { id: 'doc-2', title: '입학허가서 저장', category: '서류', required: true, due: '06.05', done: true },
-  { id: 'doc-3', title: '증명사진 준비', category: '서류', due: '06.08', done: true },
-  { id: 'visa-1', title: '비자 예약', category: '비자', required: true, due: '06.10', done: true },
-  { id: 'visa-2', title: '재정증명 준비', category: '비자', required: true, due: '06.12', done: true },
-  { id: 'insurance-1', title: '보험 증명서 준비', category: '보험', required: true, due: '06.16', done: true },
-  { id: 'flight-1', title: '항공권 예약', category: '항공', required: true, due: '06.18', done: true },
-  { id: 'housing-1', title: '기숙사 신청 확인', category: '숙소', required: true, due: '06.19', done: true },
-  { id: 'flight-2', title: '도착일 교통편 확인', category: '항공', due: '06.24', done: true },
-  { id: 'money-1', title: '해외 결제 카드 준비', category: '금융', due: '06.27', done: true },
-  { id: 'money-2', title: '환전 또는 계좌 준비', category: '금융', required: true, due: '06.30', done: true },
-  { id: 'life-1', title: '유심/eSIM 준비', category: '짐싸기', due: '07.01', done: true },
-  { id: 'pack-1', title: '상비약과 처방전 챙기기', category: '짐싸기', due: '07.04', done: false },
-  { id: 'pack-2', title: '계절별 옷 압축 정리', category: '짐싸기', due: '07.07', done: false },
-  { id: 'arrival-1', title: '거주지 등록', category: '도착 후', required: true, due: '도착 후 7일', done: false },
-  { id: 'arrival-2', title: '학교 오리엔테이션 확인', category: '도착 후', due: '도착 첫 주', done: false },
-  { id: 'arrival-3', title: '현지 보험/교통카드 확인', category: '도착 후', due: '도착 첫 주', done: false },
-  { id: 'life-2', title: '중요 서류 클라우드 백업', category: '서류', due: '07.09', done: false },
+  { id: 'visa-apply', title: '비자 신청', category: '비자', required: true, due: '06.10', done: true },
+  { id: 'visa-pickup', title: '비자 수령', category: '비자', required: true, due: '07.05', done: false },
+  { id: 'housing-secure', title: '숙소 확보', category: '거주', required: true, due: '06.19', done: true },
+  { id: 'insurance-join', title: '보험 가입', category: '보험', required: true, due: '06.16', done: true },
+  { id: 'blocked-account', title: '슈페어콘토 개설', category: '은행/재정', required: true, due: '06.12', done: true },
+  { id: 'card-ready', title: '해외결제 카드 준비', category: '은행/재정', due: '06.27', done: false },
+  { id: 'esim-ready', title: '유심/eSIM 준비', category: '통신', due: '07.01', done: false },
+  { id: 'flight-booking', title: '항공권 예약', category: '항공', required: true, due: '06.18', done: true },
 ];
 
-export default function DepartureChecklistScreen() {
-  const [selectedCategory, setSelectedCategory] = useState('전체');
-  const [hideDone, setHideDone] = useState(false);
-  const [items, setItems] = useState(INITIAL_ITEMS);
+const DEFAULT_PACKING_CATEGORIES: PackingCategory[] = [
+  {
+    id: 'daily',
+    title: '생활용품',
+    items: ['우산', '작은 우산', '수건', '손톱깎이', '장바구니', '멀티어댑터', '텀블러', '스탠드', '가위', '칼'],
+  },
+  {
+    id: 'bath',
+    title: '욕실용품',
+    items: ['샴푸', '트리트먼트', '샤워타올/볼', '칫솔', '치약', '바디워시', '샤워헤드', '샤워필터'],
+  },
+  {
+    id: 'kitchen',
+    title: '주방용품',
+    items: ['고무장갑', '수세미', '행주', '코인육수', '블럭국'],
+  },
+  {
+    id: 'electronics',
+    title: '전자기기',
+    items: ['휴대폰 충전기', 'C타입 충전기', '워치 충전기', '노트북 충전기', '보조배터리', '에어팟', '노트북', '아이패드', '블루투스 마우스', '건전지', '고데기', '카메라'],
+  },
+  {
+    id: 'travel',
+    title: '여행용품',
+    items: ['도난방지줄', '자물쇠', '자전거 자물쇠', '안대', '마스크', '백팩', '에코백', '크로스백'],
+  },
+  {
+    id: 'clothes',
+    title: '의류',
+    items: ['잠옷', '반팔티', '얇은 긴팔', '바람막이', '후드집업', '후드티', '츄리닝바지', '패딩', '코트', '속옷', '양말', '수면양말'],
+  },
+  {
+    id: 'shoes',
+    title: '신발',
+    items: ['크록스', '운동화', '러닝화'],
+  },
+  {
+    id: 'sports',
+    title: '운동용품',
+    items: ['레깅스', '반바지', '운동 반팔', '수영복'],
+  },
+  {
+    id: 'cosmetics',
+    title: '화장품',
+    items: ['크림', '스킨', '앰플', '콜라겐', '립밤/바세린', '핸드크림', '머리빗', '머리끈', '오일 클렌저', '폼 클렌저', '선크림', '쿠션', '파운데이션', '브로우카라', '틴트', '쉐딩', '블러셔', '마스카라', '아이라이너', '브러쉬', '향수', '화장솜', '면봉'],
+  },
+  {
+    id: 'medicine',
+    title: '상비약',
+    items: ['타이레놀', '종합감기약', '소화제', '배탈약', '인공눈물', '후시딘', '마데카솔', '여드름 패치', '여드름 연고', '파스', '기침약', '밴드', '벌레 물렸을 때 바르는 약', '유산균'],
+  },
+  {
+    id: 'etc',
+    title: '기타',
+    items: ['파일', '다이어리', '필기구', '서류 메일 보내기', '휴대폰 정지', '마스크팩'],
+  },
+];
 
-  const doneCount = items.filter((item) => item.done).length;
-  const progress = Math.round((doneCount / items.length) * 100);
+const defaultOpenCategories = DEFAULT_PACKING_CATEGORIES.reduce<Record<string, boolean>>(
+  (acc, category) => {
+    acc[category.id] = ['daily', 'electronics', 'medicine'].includes(category.id);
+    return acc;
+  },
+  {},
+);
+
+const makePackingId = (categoryId: string, itemIndex: number) => `${categoryId}-${itemIndex}`;
+
+const parseDepartureDate = (value: string | null) => {
+  if (!value) return null;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const diffDays = (target: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const normalizedTarget = new Date(target);
+  normalizedTarget.setHours(0, 0, 0, 0);
+
+  return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
+};
+
+export default function DepartureChecklistScreen() {
+  const [selectedCategory, setSelectedCategory] = useState('비자');
+  const [items, setItems] = useState(INITIAL_ITEMS);
+  const [departureDate, setDepartureDate] = useState<Date | null>(null);
+  const [packingCategories, setPackingCategories] = useState(DEFAULT_PACKING_CATEGORIES);
+  const [packingDone, setPackingDone] = useState<Record<string, boolean>>({});
+  const [openPackingCategories, setOpenPackingCategories] = useState(defaultOpenCategories);
+  const [packingHydrated, setPackingHydrated] = useState(false);
+  const [sheetMode, setSheetMode] = useState<SheetMode>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryItems, setNewCategoryItems] = useState<string[]>([]);
+  const [newItemName, setNewItemName] = useState('');
+  const [targetPackingCategoryId, setTargetPackingCategoryId] = useState(DEFAULT_PACKING_CATEGORIES[0].id);
 
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const matchCategory = selectedCategory === '전체' || item.category === selectedCategory;
-      const matchDone = !hideDone || !item.done;
-      return matchCategory && matchDone;
-    });
-  }, [hideDone, items, selectedCategory]);
+    return items.filter((item) => item.category === selectedCategory);
+  }, [items, selectedCategory]);
 
-  const categoryProgress = useMemo(() => {
-    return CATEGORIES.filter((category) => category !== '전체')
-      .map((category) => {
-        const categoryItems = items.filter((item) => item.category === category);
-        const categoryDone = categoryItems.filter((item) => item.done).length;
-        const percent =
-          categoryItems.length === 0 ? 0 : Math.round((categoryDone / categoryItems.length) * 100);
+  const departureDdayText = useMemo(() => {
+    if (!departureDate) return '출국일을 설정해주세요';
 
-        return { category, done: categoryDone, total: categoryItems.length, percent };
-      })
-      .filter((item) => item.total > 0);
-  }, [items]);
+    return `출국까지 D-${Math.max(0, diffDays(departureDate))}`;
+  }, [departureDate]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadDepartureDate = async () => {
+        const savedDepartureDate = await AsyncStorage.getItem('departureDate');
+        setDepartureDate(parseDepartureDate(savedDepartureDate));
+      };
+
+      loadDepartureDate();
+    }, []),
+  );
+
+  useEffect(() => {
+    const loadPackingState = async () => {
+      try {
+        const [savedDone, savedCategories] = await Promise.all([
+          AsyncStorage.getItem(PACKING_DONE_STORAGE_KEY),
+          AsyncStorage.getItem(PACKING_CATEGORIES_STORAGE_KEY),
+        ]);
+
+        if (savedDone) {
+          setPackingDone(JSON.parse(savedDone));
+        }
+
+        if (savedCategories) {
+          const parsedCategories = JSON.parse(savedCategories) as PackingCategory[];
+          setPackingCategories(parsedCategories);
+          setTargetPackingCategoryId(parsedCategories[0]?.id ?? DEFAULT_PACKING_CATEGORIES[0].id);
+          setOpenPackingCategories((prev) => {
+            const next = { ...prev };
+            parsedCategories.forEach((category) => {
+              if (next[category.id] === undefined) next[category.id] = false;
+            });
+            return next;
+          });
+        }
+      } finally {
+        setPackingHydrated(true);
+      }
+    };
+
+    loadPackingState();
+  }, []);
+
+  useEffect(() => {
+    if (!packingHydrated) return;
+    AsyncStorage.setItem(PACKING_DONE_STORAGE_KEY, JSON.stringify(packingDone));
+  }, [packingDone, packingHydrated]);
+
+  useEffect(() => {
+    if (!packingHydrated) return;
+    AsyncStorage.setItem(PACKING_CATEGORIES_STORAGE_KEY, JSON.stringify(packingCategories));
+  }, [packingCategories, packingHydrated]);
+
+  const closeSheet = () => {
+    setSheetMode(null);
+    setNewCategoryName('');
+    setNewCategoryItems([]);
+    setNewItemName('');
+  };
 
   const toggleItem = (id: string) => {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, done: !item.done } : item)),
     );
   };
+
+  const togglePackingCategory = (id: string) => {
+    setOpenPackingCategories((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const togglePackingItem = (id: string) => {
+    setPackingDone((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const addPackingCategory = () => {
+    const title = newCategoryName.trim();
+    if (!title) return;
+
+    const id = `custom-${Date.now()}`;
+    const items = newCategoryItems.map((item) => item.trim()).filter(Boolean);
+    setPackingCategories((prev) => [...prev, { id, title, items }]);
+    setOpenPackingCategories((prev) => ({ ...prev, [id]: true }));
+    setTargetPackingCategoryId(id);
+    closeSheet();
+  };
+
+  const updateNewCategoryItem = (index: number, value: string) => {
+    setNewCategoryItems((prev) =>
+      prev.map((item, itemIndex) => (itemIndex === index ? value : item)),
+    );
+  };
+
+  const addPackingItem = () => {
+    const title = newItemName.trim();
+    if (!title) return;
+
+    setPackingCategories((prev) =>
+      prev.map((category) =>
+        category.id === targetPackingCategoryId
+          ? { ...category, items: [...category.items, title] }
+          : category,
+      ),
+    );
+    setOpenPackingCategories((prev) => ({ ...prev, [targetPackingCategoryId]: true }));
+    closeSheet();
+  };
+
+  const totalPackingItems = packingCategories.reduce(
+    (sum, category) => sum + category.items.length,
+    0,
+  );
 
   return (
     <View style={styles.container}>
@@ -86,7 +278,7 @@ export default function DepartureChecklistScreen() {
           <Ionicons name="arrow-back" size={22} color={NAVY} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>출국 준비 체크리스트</Text>
+        <Text style={styles.headerTitle}>나의 출국 준비</Text>
 
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn}>
@@ -100,44 +292,9 @@ export default function DepartureChecklistScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTop}>
-            <View>
-              <Text style={styles.dDay}>출국까지 D-43</Text>
-              <Text style={styles.summarySub}>완료한 항목 {doneCount}/{items.length}</Text>
-            </View>
-
-            <View style={styles.progressBadge}>
-              <Text style={styles.progressBadgeText}>{progress}%</Text>
-            </View>
-          </View>
-
-          <View style={styles.progressBarTrack}>
-            <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
-          </View>
-
-          <View style={styles.summaryBottom}>
-            <Text style={styles.summaryCaption}>전체 준비도</Text>
-            <Text style={styles.summaryHint}>비자와 항공은 마감일 기준으로 먼저 확인하세요</Text>
-          </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.addButton} activeOpacity={0.86}>
-            <Ionicons name="add" size={18} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>직접 항목 추가</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.toggleWrap}
-            onPress={() => setHideDone((prev) => !prev)}
-            activeOpacity={0.86}
-          >
-            <View style={[styles.switchTrack, hideDone && styles.switchTrackOn]}>
-              <View style={[styles.switchThumb, hideDone && styles.switchThumbOn]} />
-            </View>
-            <Text style={styles.toggleText}>완료 항목 숨기기</Text>
-          </TouchableOpacity>
+        <View style={styles.dDayCard}>
+          <Text style={styles.dDay}>{departureDdayText}</Text>
+          <Text style={styles.dDayHint}>출국 준비와 짐싸기를 단계별로 관리하세요</Text>
         </View>
 
         <ScrollView
@@ -165,72 +322,13 @@ export default function DepartureChecklistScreen() {
         </ScrollView>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>카테고리별 진행률</Text>
-          <Text style={styles.sectionMeta}>실시간</Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.progressScroll}
-          contentContainerStyle={styles.progressContent}
-        >
-          {categoryProgress.map((item) => (
-            <View key={item.category} style={styles.categoryProgressCard}>
-              <Text style={styles.progressCategory}>{item.category}</Text>
-              <Text style={styles.progressValue}>{item.percent}%</Text>
-              <View style={styles.miniTrack}>
-                <View style={[styles.miniFill, { width: `${item.percent}%` }]} />
-              </View>
-              <Text style={styles.progressSmall}>
-                {item.done}/{item.total} 완료
-              </Text>
-            </View>
-          ))}
-        </ScrollView>
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>준비 항목</Text>
+          <Text style={styles.sectionTitle}>출국 준비 관리</Text>
           <Text style={styles.sectionMeta}>{filteredItems.length}개</Text>
         </View>
 
         <View style={styles.checklistCard}>
           {filteredItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.itemRow, item.done && styles.itemRowDone]}
-              onPress={() => toggleItem(item.id)}
-              activeOpacity={0.86}
-            >
-              <View style={[styles.checkBox, item.done && styles.checkBoxDone]}>
-                {item.done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
-              </View>
-
-              <View style={styles.itemBody}>
-                <View style={styles.itemTitleRow}>
-                  <Text style={[styles.itemTitle, item.done && styles.itemTitleDone]}>
-                    {item.title}
-                  </Text>
-                  {item.required && (
-                    <View style={styles.requiredTag}>
-                      <Text style={styles.requiredText}>필수</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.itemMetaRow}>
-                  <View style={styles.categoryTag}>
-                    <Text style={styles.categoryTagText}>{item.category}</Text>
-                  </View>
-                  {item.due && (
-                    <View style={styles.dueWrap}>
-                      <Ionicons name="calendar-outline" size={12} color="#64748B" />
-                      <Text style={styles.dueText}>{item.due}</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </TouchableOpacity>
+            <ChecklistRow key={item.id} item={item} onToggle={() => toggleItem(item.id)} />
           ))}
 
           {filteredItems.length === 0 && (
@@ -240,8 +338,241 @@ export default function DepartureChecklistScreen() {
             </View>
           )}
         </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>출국 직전 짐싸기</Text>
+          <Text style={styles.sectionMeta}>{totalPackingItems}개</Text>
+        </View>
+
+        <View style={styles.packingList}>
+          {packingCategories.map((category) => {
+            const doneCount = category.items.filter(
+              (_, itemIndex) => packingDone[makePackingId(category.id, itemIndex)],
+            ).length;
+            const open = openPackingCategories[category.id];
+
+            return (
+              <View key={category.id} style={styles.packingCategoryCard}>
+                <TouchableOpacity
+                  style={styles.packingCategoryHeader}
+                  onPress={() => togglePackingCategory(category.id)}
+                  activeOpacity={0.86}
+                >
+                  <View style={styles.packingCategoryTitleWrap}>
+                    <Ionicons
+                      name={open ? 'chevron-down' : 'chevron-forward'}
+                      size={18}
+                      color={NAVY}
+                    />
+                    <Text style={styles.packingCategoryTitle}>{category.title}</Text>
+                  </View>
+                  <Text style={styles.packingCategoryMeta}>
+                    {doneCount}/{category.items.length}
+                  </Text>
+                </TouchableOpacity>
+
+                {open && (
+                  <View style={styles.packingItems}>
+                    {category.items.map((title, itemIndex) => {
+                      const id = makePackingId(category.id, itemIndex);
+
+                      return (
+                        <PackingRow
+                          key={id}
+                          title={title}
+                          done={!!packingDone[id]}
+                          onToggle={() => togglePackingItem(id)}
+                        />
+                      );
+                    })}
+                    {category.items.length === 0 && (
+                      <Text style={styles.packingEmptyText}>아직 추가된 준비물이 없습니다.</Text>
+                    )}
+                    <TouchableOpacity
+                      style={styles.addPackingItemButton}
+                      onPress={() => {
+                        setTargetPackingCategoryId(category.id);
+                        setSheetMode('item');
+                      }}
+                      activeOpacity={0.86}
+                    >
+                      <Ionicons name="add" size={16} color={NAVY} />
+                      <Text style={styles.addPackingItemText}>항목 추가</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
       </ScrollView>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setSheetMode('category')}
+        activeOpacity={0.88}
+      >
+        <Ionicons name="add" size={30} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <Modal
+        visible={sheetMode !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeSheet}
+      >
+        <KeyboardAvoidingView
+          style={styles.sheetOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        >
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeSheet} />
+          <View style={styles.sheet}>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.sheetScrollContent}
+            >
+              {sheetMode === 'category' && (
+                <>
+                  <Text style={styles.sheetTitle}>짐 카테고리 추가</Text>
+                  <Text style={styles.inputLabel}>카테고리명</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder="예: 취미용품"
+                    placeholderTextColor="#94A3B8"
+                  />
+
+                  {newCategoryItems.map((item, index) => (
+                    <View key={index} style={styles.categoryItemInputGroup}>
+                      <Text style={styles.inputLabel}>항목 {index + 1}</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={item}
+                        onChangeText={(value) => updateNewCategoryItem(index, value)}
+                        placeholder={index === 0 ? '예: 카메라' : '예: 삼각대'}
+                        placeholderTextColor="#94A3B8"
+                      />
+                    </View>
+                  ))}
+
+                  <TouchableOpacity
+                    style={styles.addMoreInputButton}
+                    onPress={() => setNewCategoryItems((prev) => [...prev, ''])}
+                    activeOpacity={0.86}
+                  >
+                    <Ionicons name="add" size={16} color={NAVY} />
+                    <Text style={styles.addMoreInputText}>짐 항목 추가</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.submitButton,
+                      !newCategoryName.trim() && styles.submitButtonDisabled,
+                    ]}
+                    onPress={addPackingCategory}
+                    activeOpacity={0.86}
+                  >
+                    <Text style={styles.submitButtonText}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sheetCancel} onPress={closeSheet} activeOpacity={0.86}>
+                    <Text style={styles.sheetCancelText}>취소</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {sheetMode === 'item' && (
+                <>
+                  <Text style={styles.sheetTitle}>짐 항목 추가</Text>
+                  <Text style={styles.inputLabel}>항목명</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={newItemName}
+                    onChangeText={setNewItemName}
+                    placeholder="예: 멀티탭"
+                    placeholderTextColor="#94A3B8"
+                  />
+                  <TouchableOpacity
+                    style={[styles.submitButton, !newItemName.trim() && styles.submitButtonDisabled]}
+                    onPress={addPackingItem}
+                    activeOpacity={0.86}
+                  >
+                    <Text style={styles.submitButtonText}>추가</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.sheetCancel} onPress={closeSheet} activeOpacity={0.86}>
+                    <Text style={styles.sheetCancelText}>취소</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
+  );
+}
+
+function ChecklistRow({
+  item,
+  onToggle,
+}: {
+  item: ChecklistItem;
+  onToggle: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.itemRow, item.done && styles.itemRowDone]}
+      onPress={onToggle}
+      activeOpacity={0.86}
+    >
+      <View style={[styles.checkBox, item.done && styles.checkBoxDone]}>
+        {item.done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+      </View>
+
+      <View style={styles.itemBody}>
+        <View style={styles.itemTitleRow}>
+          <Text style={[styles.itemTitle, item.done && styles.itemTitleDone]}>{item.title}</Text>
+          {item.required && (
+            <View style={styles.requiredTag}>
+              <Text style={styles.requiredText}>필수</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.itemMetaRow}>
+          <View style={styles.categoryTag}>
+            <Text style={styles.categoryTagText}>{item.category}</Text>
+          </View>
+          {item.due && (
+            <View style={styles.dueWrap}>
+              <Ionicons name="calendar-outline" size={12} color="#64748B" />
+              <Text style={styles.dueText}>{item.due}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function PackingRow({
+  title,
+  done,
+  onToggle,
+}: {
+  title: string;
+  done: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.packingRow} onPress={onToggle} activeOpacity={0.86}>
+      <View style={[styles.packingCheckBox, done && styles.checkBoxDone]}>
+        {done && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+      </View>
+      <Text style={[styles.packingItemText, done && styles.itemTitleDone]}>{title}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -284,136 +615,24 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 130,
+    paddingBottom: 150,
   },
-  summaryCard: {
+  dDayCard: {
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F7F8FA',
     padding: 18,
-    shadowColor: NAVY,
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  summaryTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
   dDay: {
     fontSize: 22,
     fontWeight: '900',
     color: NAVY,
   },
-  summarySub: {
-    marginTop: 5,
-    fontSize: 12,
+  dDayHint: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 19,
     fontWeight: '700',
     color: '#64748B',
-  },
-  progressBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#EAF1FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  progressBadgeText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  progressBarTrack: {
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: '#EEF2F6',
-    overflow: 'hidden',
-    marginTop: 18,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 5,
-    backgroundColor: NAVY,
-  },
-  summaryBottom: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  summaryCaption: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  summaryHint: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 16,
-  },
-  addButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: NAVY,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  addButtonText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  toggleWrap: {
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  switchTrack: {
-    width: 34,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#CBD5E1',
-    padding: 2,
-  },
-  switchTrackOn: {
-    backgroundColor: NAVY,
-  },
-  switchThumb: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  switchThumbOn: {
-    transform: [{ translateX: 14 }],
-  },
-  toggleText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: NAVY,
   },
   categoryScroll: {
     marginHorizontal: -20,
@@ -460,50 +679,6 @@ const styles = StyleSheet.create({
   sectionMeta: {
     fontSize: 12,
     fontWeight: '800',
-    color: BLUE,
-  },
-  progressScroll: {
-    marginHorizontal: -20,
-  },
-  progressContent: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  categoryProgressCard: {
-    width: 118,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-    padding: 13,
-  },
-  progressCategory: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  progressValue: {
-    marginTop: 8,
-    fontSize: 20,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  miniTrack: {
-    marginTop: 9,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#EEF2F6',
-    overflow: 'hidden',
-  },
-  miniFill: {
-    height: '100%',
-    borderRadius: 3,
-    backgroundColor: NAVY,
-  },
-  progressSmall: {
-    marginTop: 8,
-    fontSize: 10,
-    fontWeight: '700',
     color: '#64748B',
   },
   checklistCard: {
@@ -566,7 +741,7 @@ const styles = StyleSheet.create({
   requiredText: {
     fontSize: 10,
     fontWeight: '900',
-    color: BLUE,
+    color: '#2F66D0',
   },
   itemMetaRow: {
     flexDirection: 'row',
@@ -594,6 +769,195 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '800',
     color: '#64748B',
+  },
+  packingList: {
+    gap: 10,
+  },
+  packingCategoryCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  packingCategoryHeader: {
+    minHeight: 54,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  packingCategoryTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  packingCategoryTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  packingCategoryMeta: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#64748B',
+  },
+  packingItems: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingVertical: 4,
+  },
+  packingRow: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  packingCheckBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+  packingItemText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  packingEmptyText: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#94A3B8',
+  },
+  addPackingItemButton: {
+    minHeight: 44,
+    marginHorizontal: 12,
+    marginTop: 2,
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  addPackingItemText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  fab: {
+    position: 'absolute',
+    right: 22,
+    bottom: 34,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: NAVY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: NAVY,
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 32, 66, 0.22)',
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheet: {
+    maxHeight: '82%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+  },
+  sheetScrollContent: {
+    paddingBottom: 34,
+  },
+  sheetTitle: {
+    fontSize: 19,
+    fontWeight: '900',
+    color: NAVY,
+    marginBottom: 14,
+  },
+  sheetCancel: {
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  sheetCancelText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#64748B',
+  },
+  inputLabel: {
+    marginTop: 4,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  textInput: {
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    fontSize: 14,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  categoryItemInputGroup: {
+    marginTop: 12,
+  },
+  addMoreInputButton: {
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: '#F8FAFC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 10,
+  },
+  addMoreInputText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  submitButton: {
+    height: 50,
+    borderRadius: 15,
+    backgroundColor: NAVY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  submitButtonDisabled: {
+    opacity: 0.36,
+  },
+  submitButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   emptyState: {
     alignItems: 'center',
