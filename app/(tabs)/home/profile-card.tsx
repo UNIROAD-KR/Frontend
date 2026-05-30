@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
     borderRadius: 18,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     overflow: 'hidden',
   },
   quickItem: {

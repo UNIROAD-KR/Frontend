@@ -771,12 +771,12 @@ const styles = StyleSheet.create({
   heroTagText: {
     fontSize: 11,
     fontWeight: '900',
-    color: HERO_BLUE,
+    color: '#123F9F',
   },
   heroDday: {
     fontSize: 26,
     fontWeight: '900',
-    color: HERO_BLUE,
+    color: '#123F9F',
   },
   heroSmallMeta: {
     fontSize: 13,
@@ -823,13 +823,13 @@ const styles = StyleSheet.create({
     width: '72%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
   },
   dispatchedProgressFill: {
     width: '26%',
     height: '100%',
     borderRadius: 4,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
   },
   dispatchedDayRow: {
     flexDirection: 'row',
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
     marginTop: 22,
     height: 48,
     borderRadius: 16,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

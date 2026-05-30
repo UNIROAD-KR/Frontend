@@ -775,8 +775,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   statusChipSelected: {
-    backgroundColor: '#3182F6',
-    borderColor: '#3182F6',
+    backgroundColor: '#123F9F',
+    borderColor: '#123F9F',
   },
   statusChipText: {
     fontSize: 13,
@@ -804,8 +804,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
   },
   countryGroupChipActive: {
-    backgroundColor: '#3182F6',
-    borderColor: '#3182F6',
+    backgroundColor: '#123F9F',
+    borderColor: '#123F9F',
   },
   countryGroupText: {
     fontSize: 12,
@@ -855,7 +855,7 @@ const styles = StyleSheet.create({
   footerButton: {
     height: 54,
     borderRadius: 16,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',
   },

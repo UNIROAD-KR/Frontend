@@ -871,8 +871,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   categoryChipActive: {
-    backgroundColor: '#3182F6',
-    borderColor: '#3182F6',
+    backgroundColor: '#123F9F',
+    borderColor: '#123F9F',
   },
   categoryText: {
     fontSize: 12,
@@ -932,8 +932,8 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   checkBoxDone: {
-    backgroundColor: '#3182F6',
-    borderColor: '#3182F6',
+    backgroundColor: '#123F9F',
+    borderColor: '#123F9F',
   },
   itemBody: {
     flex: 1,
@@ -1103,10 +1103,10 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#3182F6',
+    shadowColor: '#123F9F',
     shadowOpacity: 0.22,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
   submitButton: {
     height: 50,
     borderRadius: 15,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 16,
@@ -1263,7 +1263,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#3182F6',
+    backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',
   },
