@@ -84,27 +84,6 @@ const savedItems: MenuItem[] = [
   },
 ];
 
-const tradeItems: MenuItem[] = [
-  {
-    title: '구매내역',
-    description: '구매한 물품과 진행 중인 거래',
-    icon: 'receipt-outline',
-    route: '/(tabs)/market',
-  },
-  {
-    title: '판매내역',
-    description: '판매글, 예약, 완료 거래 관리',
-    icon: 'storefront-outline',
-    route: '/(tabs)/market',
-  },
-  {
-    title: '티켓 양도 내역',
-    description: '티켓 거래와 양도 진행 상황',
-    icon: 'ticket-outline',
-    route: '/(tabs)/market/ticket-preview',
-  },
-];
-
 const accountItems: MenuItem[] = [
   {
     title: '학교 인증',
@@ -116,6 +95,12 @@ const accountItems: MenuItem[] = [
     title: '알림 설정',
     description: '관심 글과 거래 알림 관리',
     icon: 'notifications-outline',
+    route: null,
+  },
+  {
+    title: '비밀번호 관리',
+    description: '계정 비밀번호 변경 및 보안 관리',
+    icon: 'lock-closed-outline',
     route: null,
   },
   {
@@ -265,7 +250,6 @@ export default function ProfileCardScreen() {
 
         <MenuSection title="내 활동" items={activityItems} onPressItem={openRoute} />
         <MenuSection title="관심 / 저장" items={savedItems} onPressItem={openRoute} />
-        <MenuSection title="거래 관리" items={tradeItems} onPressItem={openRoute} />
         <MenuSection title="계정 / 설정" items={accountItems} onPressItem={openRoute} />
       </ScrollView>
     </View>

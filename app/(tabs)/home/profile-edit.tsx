@@ -28,14 +28,6 @@ const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
 const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중', '귀국'];
-const countryOptionsByGroup = {
-  유럽: ['독일', '프랑스', '영국', '스페인', '네덜란드', '이탈리아', '스웨덴'],
-  북미: ['미국', '캐나다'],
-  아시아: ['일본', '중국', '싱가포르', '홍콩'],
-  오세아니아: ['호주', '뉴질랜드'],
-};
-const countryGroupOptions = Object.keys(countryOptionsByGroup) as (keyof typeof countryOptionsByGroup)[];
-const languageOptions = ['영어', '독일어', '프랑스어', '일본어', '스페인어'];
 const dateLabels: Record<string, string> = {
   '지원 준비 중': '지원 마감일',
   '출국 준비 중': '출국일',
@@ -49,17 +41,6 @@ const exchangeStatusByProfileStatus: Record<string, string> = {
   귀국: 'returned',
 };
 type DateFieldKey = 'applicationDeadline' | 'departureDate' | 'dispatchStartDate' | 'returnDate';
-
-const parseSelection = (value: string | null, fallback: string[]) => {
-  if (!value) return fallback;
-
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : fallback;
-  } catch {
-    return fallback;
-  }
-};
 
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
 const toDateValue = (value: string | null) => {
@@ -81,10 +62,6 @@ export default function ProfileEditScreen() {
   const [homeUniversity, setHomeUniversity] = useState('서울대학교');
   const [country, setCountry] = useState('독일');
   const [status, setStatus] = useState('출국 준비 중');
-  const [intro, setIntro] = useState('베를린에서 교환학생을 준비하고 있어요.');
-  const [interestedCountries, setInterestedCountries] = useState(['독일']);
-  const [activeCountryGroup, setActiveCountryGroup] = useState<keyof typeof countryOptionsByGroup | null>(null);
-  const [interestedLanguages, setInterestedLanguages] = useState(['독일어', '영어']);
   const [applicationDeadline, setApplicationDeadline] = useState<Date | null>(null);
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
   const [dispatchStartDate, setDispatchStartDate] = useState<Date | null>(null);
@@ -101,9 +78,6 @@ export default function ProfileEditScreen() {
         savedUniversity,
         savedCountry,
         savedStatus,
-        savedIntro,
-        savedCountries,
-        savedLanguages,
         savedApplicationDeadline,
         savedDepartureDate,
         savedDispatchStartDate,
@@ -114,9 +88,6 @@ export default function ProfileEditScreen() {
         AsyncStorage.getItem('university'),
         AsyncStorage.getItem('dispatchedCountry'),
         AsyncStorage.getItem('profileStatus'),
-        AsyncStorage.getItem('profileIntro'),
-        AsyncStorage.getItem('interestedCountries'),
-        AsyncStorage.getItem('interestedLanguages'),
         AsyncStorage.getItem('applicationDeadline'),
         AsyncStorage.getItem('departureDate'),
         AsyncStorage.getItem('dispatchStartDate'),
@@ -128,9 +99,6 @@ export default function ProfileEditScreen() {
       if (savedUniversity) setHomeUniversity(savedUniversity);
       if (savedCountry) setCountry(savedCountry);
       if (savedStatus) setStatus(savedStatus);
-      if (savedIntro) setIntro(savedIntro);
-      setInterestedCountries(parseSelection(savedCountries, ['독일']));
-      setInterestedLanguages(parseSelection(savedLanguages, ['독일어', '영어']));
       setApplicationDeadline(toDateValue(savedApplicationDeadline));
       setDepartureDate(toDateValue(savedDepartureDate));
       setDispatchStartDate(toDateValue(savedDispatchStartDate));
@@ -139,19 +107,6 @@ export default function ProfileEditScreen() {
 
     loadProfile();
   }, []);
-
-  const toggleValue = (
-    value: string,
-    selectedValues: string[],
-    setSelectedValues: (values: string[]) => void,
-  ) => {
-    if (selectedValues.includes(value)) {
-      setSelectedValues(selectedValues.filter((item) => item !== value));
-      return;
-    }
-
-    setSelectedValues([...selectedValues, value]);
-  };
 
   const setActiveDate = (date: Date) => {
     if (activeDateField === 'applicationDeadline') {
@@ -199,8 +154,6 @@ export default function ProfileEditScreen() {
     setShowPicker(true);
   };
 
-  const visibleCountryOptions = activeCountryGroup ? countryOptionsByGroup[activeCountryGroup] : [];
-
   const completeDatePicker = () => {
     setActiveDate(draftDate);
     setShowPicker(false);
@@ -227,15 +180,23 @@ export default function ProfileEditScreen() {
   };
 
   const saveProfile = async () => {
+    const [savedStatus, savedDeparturePrepStartDate] = await Promise.all([
+      AsyncStorage.getItem('profileStatus'),
+      AsyncStorage.getItem('departurePrepStartDate'),
+    ]);
+    const departurePrepStartDateTask =
+      status === '출국 준비 중'
+        ? savedStatus !== status || !savedDeparturePrepStartDate
+          ? AsyncStorage.setItem('departurePrepStartDate', toStorageDate(new Date()))
+          : Promise.resolve()
+        : AsyncStorage.removeItem('departurePrepStartDate');
+
     await Promise.all([
       AsyncStorage.setItem('nickname', name.trim() || '서현'),
       AsyncStorage.setItem('university', homeUniversity.trim() || '서울대학교'),
       AsyncStorage.setItem('dispatchedCountry', country.trim() || '독일'),
       AsyncStorage.setItem('profileStatus', status),
       AsyncStorage.setItem('exchangeStatus', exchangeStatusByProfileStatus[status]),
-      AsyncStorage.setItem('profileIntro', intro.trim()),
-      AsyncStorage.setItem('interestedCountries', JSON.stringify(interestedCountries)),
-      AsyncStorage.setItem('interestedLanguages', JSON.stringify(interestedLanguages)),
       applicationDeadline
         ? AsyncStorage.setItem('applicationDeadline', toStorageDate(applicationDeadline))
         : AsyncStorage.removeItem('applicationDeadline'),
@@ -251,6 +212,7 @@ export default function ProfileEditScreen() {
       avatarUri
         ? AsyncStorage.setItem('profileAvatarUri', avatarUri)
         : AsyncStorage.removeItem('profileAvatarUri'),
+      departurePrepStartDateTask,
     ]);
 
     Alert.alert('저장 완료', '프로필 정보가 저장되었습니다.', [
@@ -371,58 +333,6 @@ export default function ProfileEditScreen() {
           )}
         </FormSection>
 
-        <FormSection title="소개">
-          <Text style={styles.fieldLabel}>자기소개 한 줄</Text>
-          <TextInput
-            style={[styles.input, styles.introInput]}
-            value={intro}
-            onChangeText={setIntro}
-            placeholder="나를 짧게 소개해 주세요"
-            placeholderTextColor="#A4ADBA"
-            maxLength={48}
-          />
-        </FormSection>
-
-        <FormSection title="관심 정보">
-          <Text style={styles.fieldLabel}>관심 국가</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.countryFilterScroll}
-            contentContainerStyle={styles.countryFilterContent}
-          >
-            {countryGroupOptions.map((group) => {
-              const selected = activeCountryGroup === group;
-
-              return (
-                <TouchableOpacity
-                  key={group}
-                  style={[styles.countryGroupChip, selected && styles.countryGroupChipActive]}
-                  onPress={() => setActiveCountryGroup(group)}
-                  activeOpacity={0.84}
-                >
-                  <Text style={[styles.countryGroupText, selected && styles.countryGroupTextActive]}>
-                    {group}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-          {activeCountryGroup ? (
-            <ChipGroup
-              options={visibleCountryOptions}
-              selected={interestedCountries}
-              onPress={(value) => toggleValue(value, interestedCountries, setInterestedCountries)}
-            />
-          ) : null}
-
-          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced]}>관심 언어</Text>
-          <ChipGroup
-            options={languageOptions}
-            selected={interestedLanguages}
-            onPress={(value) => toggleValue(value, interestedLanguages, setInterestedLanguages)}
-          />
-        </FormSection>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -558,37 +468,6 @@ function getDateFieldPlaceholder(field: DateFieldKey) {
   return '귀국일 선택';
 }
 
-function ChipGroup({
-  options,
-  selected,
-  onPress,
-}: {
-  options: string[];
-  selected: string[];
-  onPress: (value: string) => void;
-}) {
-  return (
-    <View style={styles.chipWrap}>
-      {options.map((option) => {
-        const isSelected = selected.includes(option);
-
-        return (
-          <TouchableOpacity
-            key={option}
-            style={[styles.choiceChip, isSelected && styles.choiceChipSelected]}
-            onPress={() => onPress(option)}
-            activeOpacity={0.84}
-          >
-            <Text style={[styles.choiceChipText, isSelected && styles.choiceChipTextSelected]}>
-              {option}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -704,9 +583,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: NAVY,
   },
-  fieldLabelSpaced: {
-    marginTop: 18,
-  },
   input: {
     minHeight: 48,
     borderRadius: 14,
@@ -717,9 +593,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: INK,
-  },
-  introInput: {
-    minHeight: 56,
   },
   optionGrid: {
     flexDirection: 'row',
@@ -785,60 +658,6 @@ const styles = StyleSheet.create({
   },
   statusChipTextSelected: {
     color: '#FFFFFF',
-  },
-  countryFilterScroll: {
-    marginBottom: 10,
-  },
-  countryFilterContent: {
-    gap: 8,
-    paddingRight: 4,
-  },
-  countryGroupChip: {
-    minHeight: 34,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 13,
-  },
-  countryGroupChipActive: {
-    backgroundColor: '#123F9F',
-    borderColor: '#123F9F',
-  },
-  countryGroupText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: MUTED,
-  },
-  countryGroupTextActive: {
-    color: '#FFFFFF',
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  choiceChip: {
-    borderRadius: 999,
-    backgroundColor: SOFT,
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  choiceChipSelected: {
-    backgroundColor: '#EEF4FF',
-    borderColor: '#BFD3FF',
-  },
-  choiceChipText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: MUTED,
-  },
-  choiceChipTextSelected: {
-    color: BLUE,
   },
   footer: {
     position: 'absolute',

@@ -244,6 +244,11 @@ const diffDays = (target: Date) => {
   return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
 };
 
+const formatTimelineDate = (date: Date) =>
+  `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
+
 const getSemesterText = (date: Date) => {
   const month = date.getMonth() + 1;
   return `${date.getFullYear()} ${month <= 6 ? '봄학기' : '가을학기'}`;
@@ -258,6 +263,7 @@ export default function HomeScreen() {
   });
   const [dashboardDates, setDashboardDates] = useState({
     applicationDeadline: createDate(2026, 3, 18),
+    departurePrepStartDate: createDate(2026, 3, 1),
     departureDate: createDate(2026, 8, 21),
     dispatchStartDate: createDate(2026, 9, 1),
     returnDate: createDate(2027, 1, 15),
@@ -280,6 +286,7 @@ export default function HomeScreen() {
           dispatchedCountry,
           dispatchedUniversity,
           applicationDeadline,
+          departurePrepStartDate,
           departureDate,
           dispatchStartDate,
           returnDate,
@@ -290,6 +297,7 @@ export default function HomeScreen() {
           AsyncStorage.getItem('dispatchedCountry'),
           AsyncStorage.getItem('dispatchedUniversity'),
           AsyncStorage.getItem('applicationDeadline'),
+          AsyncStorage.getItem('departurePrepStartDate'),
           AsyncStorage.getItem('departureDate'),
           AsyncStorage.getItem('dispatchStartDate'),
           AsyncStorage.getItem('returnDate'),
@@ -309,9 +317,14 @@ export default function HomeScreen() {
         setLifecycleStatus(
           normalizeStatus(profileStatus, onboardingStatus, Boolean(dispatchedUniversity)),
         );
+        const parsedDepartureDate = parseDate(departureDate, createDate(2026, 8, 21));
         setDashboardDates({
           applicationDeadline: parseDate(applicationDeadline, createDate(2026, 3, 18)),
-          departureDate: parseDate(departureDate, createDate(2026, 8, 21)),
+          departurePrepStartDate: parseDate(
+            departurePrepStartDate,
+            createDate(parsedDepartureDate.getFullYear(), 3, 1),
+          ),
+          departureDate: parsedDepartureDate,
           dispatchStartDate: parseDate(dispatchStartDate, createDate(2026, 9, 1)),
           returnDate: parseDate(returnDate, createDate(2027, 1, 15)),
         });
@@ -338,6 +351,37 @@ export default function HomeScreen() {
   );
   const dispatchProgress = Math.min(100, Math.round((dispatchedDay / totalDispatchDays) * 100));
   const remainingDispatchDays = Math.max(0, returnDday);
+  const isApplicationPreparing = lifecycleStatus === statusDisplayMap.preparing;
+  const isDeparturePreparing = lifecycleStatus === statusDisplayMap.accepted;
+  const normalizedToday = new Date();
+  normalizedToday.setHours(0, 0, 0, 0);
+  const applicationTimelineStartDate = createDate(
+    dashboardDates.applicationDeadline.getFullYear(),
+    1,
+    1,
+  );
+  const applicationTimelineTotal = Math.max(
+    oneDay,
+    dashboardDates.applicationDeadline.getTime() - applicationTimelineStartDate.getTime(),
+  );
+  const applicationTimelineElapsed = Math.min(
+    Math.max(normalizedToday.getTime() - applicationTimelineStartDate.getTime(), 0),
+    applicationTimelineTotal,
+  );
+  const applicationTimelinePercent = Math.round(
+    (applicationTimelineElapsed / applicationTimelineTotal) * 100,
+  );
+  const departureTimelineTotal = Math.max(
+    oneDay,
+    dashboardDates.departureDate.getTime() - dashboardDates.departurePrepStartDate.getTime(),
+  );
+  const departureTimelineElapsed = Math.min(
+    Math.max(normalizedToday.getTime() - dashboardDates.departurePrepStartDate.getTime(), 0),
+    departureTimelineTotal,
+  );
+  const departureTimelinePercent = Math.round(
+    (departureTimelineElapsed / departureTimelineTotal) * 100,
+  );
 
   const heroCopy = {
     '지원 준비 중': {
@@ -467,15 +511,76 @@ export default function HomeScreen() {
             </View>
 
             <Text style={styles.heroTitle}>{heroCopy.title}</Text>
-            <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
+            {!isDeparturePreparing ? (
+              <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
+            ) : null}
 
-            <View style={styles.progressInfoRow}>
-              <Text style={styles.progressLabel}>{heroCopy.progressLabel}</Text>
-              <Text style={styles.progressValue}>{heroCopy.progressValue}</Text>
-            </View>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: heroCopy.progressWidth as DimensionValue }]} />
-            </View>
+            {isApplicationPreparing ? (
+              <View style={styles.applicationTimeline}>
+                <View style={styles.timelineTrack}>
+                  <View style={styles.timelineTrackBase} />
+                  <View
+                    style={[
+                      styles.timelineFill,
+                      { width: `${applicationTimelinePercent}%` as DimensionValue },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      { left: `${applicationTimelinePercent}%` as DimensionValue },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.timelineDateRow}>
+                  <Text style={styles.timelineDate}>지원 기간 진행 중</Text>
+                  <Text style={styles.timelineDate}>
+                    {formatTimelineDate(dashboardDates.applicationDeadline)} 마감
+                  </Text>
+                </View>
+              </View>
+            ) : isDeparturePreparing ? (
+              <View style={styles.departureTimeline}>
+                <View style={styles.timelineLabelRow}>
+                  <Text style={styles.timelineLabel}>출국 준비 시작</Text>
+                  <Text style={styles.timelineLabel}>출국</Text>
+                </View>
+
+                <View style={styles.timelineTrack}>
+                  <View style={styles.timelineTrackBase} />
+                  <View
+                    style={[
+                      styles.timelineFill,
+                      { width: `${departureTimelinePercent}%` as DimensionValue },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      { left: `${departureTimelinePercent}%` as DimensionValue },
+                    ]}
+                  />
+                </View>
+
+                <View style={styles.timelineDateRow}>
+                  <Text style={styles.timelineDate}>
+                    {formatTimelineDate(dashboardDates.departurePrepStartDate)}
+                  </Text>
+                  <Text style={styles.timelineDate}>{formatTimelineDate(dashboardDates.departureDate)}</Text>
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={styles.progressInfoRow}>
+                  <Text style={styles.progressLabel}>{heroCopy.progressLabel}</Text>
+                  <Text style={styles.progressValue}>{heroCopy.progressValue}</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, { width: heroCopy.progressWidth as DimensionValue }]} />
+                </View>
+              </>
+            )}
 
             <TouchableOpacity
               style={styles.heroButton}
@@ -824,6 +929,61 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 4,
     backgroundColor: '#123F9F',
+  },
+  applicationTimeline: {
+    marginTop: 18,
+  },
+  departureTimeline: {
+    marginTop: 20,
+  },
+  timelineLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timelineLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  timelineTrack: {
+    position: 'relative',
+    height: 18,
+    marginTop: 12,
+    justifyContent: 'center',
+  },
+  timelineTrackBase: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DCE3ED',
+  },
+  timelineFill: {
+    position: 'absolute',
+    left: 0,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#123F9F',
+  },
+  timelineDot: {
+    position: 'absolute',
+    width: 16,
+    height: 16,
+    marginLeft: -8,
+    borderRadius: 8,
+    backgroundColor: '#123F9F',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  timelineDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  timelineDate: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
   },
   dispatchedProgressFill: {
     width: '26%',
