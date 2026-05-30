@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -5,6 +6,8 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Keyboard,
+  LayoutAnimation,
   Modal,
   Platform,
   ScrollView,
@@ -13,9 +16,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  type KeyboardEvent,
 } from 'react-native';
 
 const NAVY = '#0F2042';
+const PREP_DATES_STORAGE_KEY = 'departurePrepDueDates';
 const PACKING_DONE_STORAGE_KEY = 'departurePackingDoneState';
 const PACKING_CATEGORIES_STORAGE_KEY = 'departurePackingCategories';
 const oneDay = 1000 * 60 * 60 * 24;
@@ -39,15 +44,21 @@ type SheetMode = 'category' | 'item' | null;
 
 const CATEGORIES = ['비자', '거주', '보험', '은행/재정', '통신', '항공'];
 
+const DOCUMENT_PACKING_CATEGORY: PackingCategory = {
+  id: 'documents',
+  title: '서류',
+  items: ['여권', '여권 사본', '입학허가서', '항공 예매 확인서', '호텔 예약 확인서', '여권용 증사', '비자', '영문 재적증명서', '신분증', '운전면허증'],
+};
+
 const INITIAL_ITEMS: ChecklistItem[] = [
-  { id: 'visa-apply', title: '비자 신청', category: '비자', required: true, due: '06.10', done: true },
-  { id: 'visa-pickup', title: '비자 수령', category: '비자', required: true, due: '07.05', done: false },
-  { id: 'housing-secure', title: '숙소 확보', category: '거주', required: true, due: '06.19', done: true },
-  { id: 'insurance-join', title: '보험 가입', category: '보험', required: true, due: '06.16', done: true },
-  { id: 'blocked-account', title: '슈페어콘토 개설', category: '은행/재정', required: true, due: '06.12', done: true },
-  { id: 'card-ready', title: '해외결제 카드 준비', category: '은행/재정', due: '06.27', done: false },
-  { id: 'esim-ready', title: '유심/eSIM 준비', category: '통신', due: '07.01', done: false },
-  { id: 'flight-booking', title: '항공권 예약', category: '항공', required: true, due: '06.18', done: true },
+  { id: 'visa-apply', title: '비자 신청', category: '비자', required: true, done: true },
+  { id: 'visa-pickup', title: '비자 수령', category: '비자', required: true, done: false },
+  { id: 'housing-secure', title: '숙소 확보', category: '거주', required: true, done: true },
+  { id: 'insurance-join', title: '보험 가입', category: '보험', required: true, done: true },
+  { id: 'blocked-account', title: '슈페어콘토 개설', category: '은행/재정', required: true, done: true },
+  { id: 'card-ready', title: '해외결제 카드 준비', category: '은행/재정', done: false },
+  { id: 'esim-ready', title: '유심/eSIM 준비', category: '통신', done: false },
+  { id: 'flight-booking', title: '항공권 예약', category: '항공', required: true, done: true },
 ];
 
 const DEFAULT_PACKING_CATEGORIES: PackingCategory[] = [
@@ -102,15 +113,13 @@ const DEFAULT_PACKING_CATEGORIES: PackingCategory[] = [
     items: ['타이레놀', '종합감기약', '소화제', '배탈약', '인공눈물', '후시딘', '마데카솔', '여드름 패치', '여드름 연고', '파스', '기침약', '밴드', '벌레 물렸을 때 바르는 약', '유산균'],
   },
   {
-    id: 'etc',
-    title: '기타',
-    items: ['파일', '다이어리', '필기구', '서류 메일 보내기', '휴대폰 정지', '마스크팩'],
+    ...DOCUMENT_PACKING_CATEGORY,
   },
 ];
 
 const defaultOpenCategories = DEFAULT_PACKING_CATEGORIES.reduce<Record<string, boolean>>(
   (acc, category) => {
-    acc[category.id] = ['daily', 'electronics', 'medicine'].includes(category.id);
+    acc[category.id] = false;
     return acc;
   },
   {},
@@ -135,15 +144,37 @@ const diffDays = (target: Date) => {
   return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
 };
 
+const formatDueDate = (date: Date) => {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${month}.${day}`;
+};
+
+const parseDueDate = (value?: string) => {
+  if (!value) return new Date();
+
+  const [month, day] = value.split('.').map(Number);
+  if (!month || !day) return new Date();
+
+  const date = new Date();
+  date.setMonth(month - 1, day);
+  return date;
+};
+
 export default function DepartureChecklistScreen() {
   const [selectedCategory, setSelectedCategory] = useState('비자');
   const [items, setItems] = useState(INITIAL_ITEMS);
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
+  const [prepDueDates, setPrepDueDates] = useState<Record<string, string>>({});
+  const [prepDatesHydrated, setPrepDatesHydrated] = useState(false);
+  const [datePickerItemId, setDatePickerItemId] = useState<string | null>(null);
+  const [datePickerValue, setDatePickerValue] = useState(new Date());
   const [packingCategories, setPackingCategories] = useState(DEFAULT_PACKING_CATEGORIES);
   const [packingDone, setPackingDone] = useState<Record<string, boolean>>({});
   const [openPackingCategories, setOpenPackingCategories] = useState(defaultOpenCategories);
   const [packingHydrated, setPackingHydrated] = useState(false);
   const [sheetMode, setSheetMode] = useState<SheetMode>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newCategoryItems, setNewCategoryItems] = useState<string[]>([]);
   const [newItemName, setNewItemName] = useState('');
@@ -184,11 +215,19 @@ export default function DepartureChecklistScreen() {
 
         if (savedCategories) {
           const parsedCategories = JSON.parse(savedCategories) as PackingCategory[];
-          setPackingCategories(parsedCategories);
-          setTargetPackingCategoryId(parsedCategories[0]?.id ?? DEFAULT_PACKING_CATEGORIES[0].id);
+          const normalizedCategories = parsedCategories
+            .filter((category) => category.id !== 'etc' && category.title !== '기타')
+            .map((category) =>
+              category.id === DOCUMENT_PACKING_CATEGORY.id ? DOCUMENT_PACKING_CATEGORY : category,
+            );
+          if (!normalizedCategories.some((category) => category.id === DOCUMENT_PACKING_CATEGORY.id)) {
+            normalizedCategories.push(DOCUMENT_PACKING_CATEGORY);
+          }
+          setPackingCategories(normalizedCategories);
+          setTargetPackingCategoryId(normalizedCategories[0]?.id ?? DEFAULT_PACKING_CATEGORIES[0].id);
           setOpenPackingCategories((prev) => {
             const next = { ...prev };
-            parsedCategories.forEach((category) => {
+            normalizedCategories.forEach((category) => {
               if (next[category.id] === undefined) next[category.id] = false;
             });
             return next;
@@ -212,6 +251,51 @@ export default function DepartureChecklistScreen() {
     AsyncStorage.setItem(PACKING_CATEGORIES_STORAGE_KEY, JSON.stringify(packingCategories));
   }, [packingCategories, packingHydrated]);
 
+  useEffect(() => {
+    const loadPrepDueDates = async () => {
+      try {
+        const savedDates = await AsyncStorage.getItem(PREP_DATES_STORAGE_KEY);
+        if (savedDates) {
+          setPrepDueDates(JSON.parse(savedDates));
+        }
+      } finally {
+        setPrepDatesHydrated(true);
+      }
+    };
+
+    loadPrepDueDates();
+  }, []);
+
+  useEffect(() => {
+    if (!prepDatesHydrated) return;
+    AsyncStorage.setItem(PREP_DATES_STORAGE_KEY, JSON.stringify(prepDueDates));
+  }, [prepDueDates, prepDatesHydrated]);
+
+  useEffect(() => {
+    const syncKeyboardAnimation = (event: KeyboardEvent) => {
+      Keyboard.scheduleLayoutAnimation(event);
+    };
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillChangeFrame' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSubscription = Keyboard.addListener(showEvent, (event) => {
+      syncKeyboardAnimation(event);
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener(hideEvent, (event) => {
+      if (Platform.OS === 'ios') {
+        syncKeyboardAnimation(event);
+      } else {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
   const closeSheet = () => {
     setSheetMode(null);
     setNewCategoryName('');
@@ -225,12 +309,62 @@ export default function DepartureChecklistScreen() {
     );
   };
 
+  const updatePrepDueDate = (itemId: string, date: Date) => {
+    setPrepDueDates((prev) => ({ ...prev, [itemId]: formatDueDate(date) }));
+  };
+
+  const openDatePicker = (itemId: string) => {
+    setDatePickerValue(parseDueDate(prepDueDates[itemId]));
+    setDatePickerItemId(itemId);
+  };
+
+  const closeDatePicker = () => {
+    setDatePickerItemId(null);
+  };
+
+  const confirmDatePicker = () => {
+    if (datePickerItemId) {
+      updatePrepDueDate(datePickerItemId, datePickerValue);
+    }
+
+    closeDatePicker();
+  };
+
   const togglePackingCategory = (id: string) => {
     setOpenPackingCategories((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const togglePackingItem = (id: string) => {
     setPackingDone((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const deletePackingItem = (categoryId: string, itemIndex: number) => {
+    setPackingCategories((prev) =>
+      prev.map((category) =>
+        category.id === categoryId
+          ? { ...category, items: category.items.filter((_, index) => index !== itemIndex) }
+          : category,
+      ),
+    );
+
+    setPackingDone((prev) => {
+      const next: Record<string, boolean> = {};
+
+      Object.entries(prev).forEach(([id, done]) => {
+        const prefix = `${categoryId}-`;
+        if (!id.startsWith(prefix)) {
+          next[id] = done;
+          return;
+        }
+
+        const index = Number(id.slice(prefix.length));
+        if (Number.isNaN(index) || index === itemIndex) return;
+
+        next[makePackingId(categoryId, index > itemIndex ? index - 1 : index)] = done;
+      });
+
+      return next;
+    });
   };
 
   const addPackingCategory = () => {
@@ -265,11 +399,6 @@ export default function DepartureChecklistScreen() {
     setOpenPackingCategories((prev) => ({ ...prev, [targetPackingCategoryId]: true }));
     closeSheet();
   };
-
-  const totalPackingItems = packingCategories.reduce(
-    (sum, category) => sum + category.items.length,
-    0,
-  );
 
   return (
     <View style={styles.container}>
@@ -328,7 +457,13 @@ export default function DepartureChecklistScreen() {
 
         <View style={styles.checklistCard}>
           {filteredItems.map((item) => (
-            <ChecklistRow key={item.id} item={item} onToggle={() => toggleItem(item.id)} />
+            <ChecklistRow
+              key={item.id}
+              item={item}
+              dueDate={prepDueDates[item.id]}
+              onToggle={() => toggleItem(item.id)}
+              onDatePress={() => openDatePicker(item.id)}
+            />
           ))}
 
           {filteredItems.length === 0 && (
@@ -341,7 +476,6 @@ export default function DepartureChecklistScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>출국 직전 짐싸기</Text>
-          <Text style={styles.sectionMeta}>{totalPackingItems}개</Text>
         </View>
 
         <View style={styles.packingList}>
@@ -382,6 +516,7 @@ export default function DepartureChecklistScreen() {
                           title={title}
                           done={!!packingDone[id]}
                           onToggle={() => togglePackingItem(id)}
+                          onDelete={() => deletePackingItem(category.id, itemIndex)}
                         />
                       );
                     })}
@@ -407,13 +542,15 @@ export default function DepartureChecklistScreen() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setSheetMode('category')}
-        activeOpacity={0.88}
-      >
-        <Ionicons name="add" size={30} color="#FFFFFF" />
-      </TouchableOpacity>
+      {sheetMode === null && datePickerItemId === null && (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => setSheetMode('category')}
+          activeOpacity={0.88}
+        >
+          <Ionicons name="add" size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
 
       <Modal
         visible={sheetMode !== null}
@@ -423,15 +560,19 @@ export default function DepartureChecklistScreen() {
       >
         <KeyboardAvoidingView
           style={styles.sheetOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+          behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+          contentContainerStyle={styles.sheetKeyboardContainer}
+          keyboardVerticalOffset={0}
         >
           <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeSheet} />
           <View style={styles.sheet}>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.sheetScrollContent}
+              contentContainerStyle={[
+                styles.sheetScrollContent,
+                keyboardVisible && styles.sheetScrollContentKeyboard,
+              ]}
             >
               {sheetMode === 'category' && (
                 <>
@@ -510,26 +651,88 @@ export default function DepartureChecklistScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        visible={datePickerItemId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDatePicker}
+      >
+        <View style={styles.datePickerOverlay}>
+          <TouchableOpacity
+            style={styles.datePickerBackdrop}
+            activeOpacity={1}
+            onPress={closeDatePicker}
+          />
+          <View style={styles.datePickerSheet}>
+            <View style={styles.datePickerHeader}>
+              <Text style={styles.datePickerTitle}>날짜 설정</Text>
+              <TouchableOpacity onPress={closeDatePicker} activeOpacity={0.78}>
+                <Ionicons name="close" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.datePickerFrame}>
+              <DateTimePicker
+                value={datePickerValue}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                style={styles.datePicker}
+                textColor={NAVY}
+                accentColor={NAVY}
+                themeVariant="light"
+                onChange={(event, selectedDate) => {
+                  if (event.type === 'dismissed') {
+                    closeDatePicker();
+                    return;
+                  }
+
+                  if (selectedDate) {
+                    setDatePickerValue(selectedDate);
+                  }
+                }}
+              />
+            </View>
+            <View style={styles.datePickerActions}>
+              <TouchableOpacity
+                style={styles.datePickerCancelButton}
+                onPress={closeDatePicker}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.datePickerCancelText}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.datePickerConfirmButton}
+                onPress={confirmDatePicker}
+                activeOpacity={0.86}
+              >
+                <Text style={styles.datePickerConfirmText}>확인</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 function ChecklistRow({
   item,
+  dueDate,
   onToggle,
+  onDatePress,
 }: {
   item: ChecklistItem;
+  dueDate?: string;
   onToggle: () => void;
+  onDatePress: () => void;
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.itemRow, item.done && styles.itemRowDone]}
-      onPress={onToggle}
-      activeOpacity={0.86}
-    >
-      <View style={[styles.checkBox, item.done && styles.checkBoxDone]}>
-        {item.done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
-      </View>
+    <View style={[styles.itemRow, item.done && styles.itemRowDone]}>
+      <TouchableOpacity style={styles.itemCheckArea} onPress={onToggle} activeOpacity={0.86}>
+        <View style={[styles.checkBox, item.done && styles.checkBoxDone]}>
+          {item.done && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+        </View>
+      </TouchableOpacity>
 
       <View style={styles.itemBody}>
         <View style={styles.itemTitleRow}>
@@ -545,15 +748,22 @@ function ChecklistRow({
           <View style={styles.categoryTag}>
             <Text style={styles.categoryTagText}>{item.category}</Text>
           </View>
-          {item.due && (
-            <View style={styles.dueWrap}>
-              <Ionicons name="calendar-outline" size={12} color="#64748B" />
-              <Text style={styles.dueText}>{item.due}</Text>
-            </View>
-          )}
+          <TouchableOpacity style={styles.dueWrap} onPress={onDatePress} activeOpacity={0.82}>
+            {dueDate ? (
+              <>
+                <Ionicons name="calendar-outline" size={12} color="#64748B" />
+                <Text style={styles.dueText}>{dueDate}</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="calendar-outline" size={12} color="#94A3B8" />
+                <Text style={styles.addDateText}>날짜 설정</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -561,18 +771,26 @@ function PackingRow({
   title,
   done,
   onToggle,
+  onDelete,
 }: {
   title: string;
   done: boolean;
   onToggle: () => void;
+  onDelete: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.packingRow} onPress={onToggle} activeOpacity={0.86}>
-      <View style={[styles.packingCheckBox, done && styles.checkBoxDone]}>
-        {done && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-      </View>
-      <Text style={[styles.packingItemText, done && styles.itemTitleDone]}>{title}</Text>
-    </TouchableOpacity>
+    <View style={styles.packingRow}>
+      <TouchableOpacity style={styles.packingToggleArea} onPress={onToggle} activeOpacity={0.86}>
+        <View style={[styles.packingCheckBox, done && styles.checkBoxDone]}>
+          {done && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+        </View>
+        <Text style={[styles.packingItemText, done && styles.itemTitleDone]}>{title}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.deletePackingButton} onPress={onDelete} activeOpacity={0.65}>
+        <Ionicons name="close" size={13} color="#CBD5E1" />
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -699,6 +917,10 @@ const styles = StyleSheet.create({
   itemRowDone: {
     backgroundColor: '#FBFDFF',
   },
+  itemCheckArea: {
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+  },
   checkBox: {
     width: 26,
     height: 26,
@@ -764,11 +986,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    minHeight: 24,
   },
   dueText: {
     fontSize: 10,
     fontWeight: '800',
     color: '#64748B',
+  },
+  addDateText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94A3B8',
   },
   packingList: {
     gap: 10,
@@ -813,6 +1041,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  packingToggleArea: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   packingCheckBox: {
     width: 24,
     height: 24,
@@ -829,6 +1063,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '800',
     color: NAVY,
+  },
+  deletePackingButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
   packingEmptyText: {
     paddingHorizontal: 16,
@@ -875,6 +1117,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(15, 32, 66, 0.22)',
   },
+  sheetKeyboardContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   sheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -887,7 +1133,10 @@ const styles = StyleSheet.create({
     paddingTop: 18,
   },
   sheetScrollContent: {
-    paddingBottom: 34,
+    paddingBottom: 20,
+  },
+  sheetScrollContentKeyboard: {
+    paddingBottom: 6,
   },
   sheetTitle: {
     fontSize: 19,
@@ -956,6 +1205,75 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 15,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  datePickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 32, 66, 0.24)',
+  },
+  datePickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  datePickerSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 24,
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  datePickerFrame: {
+    minHeight: 226,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  datePicker: {
+    width: '100%',
+    height: 226,
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  datePickerCancelButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datePickerConfirmButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: NAVY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  datePickerCancelText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#64748B',
+  },
+  datePickerConfirmText: {
+    fontSize: 14,
     fontWeight: '900',
     color: '#FFFFFF',
   },
