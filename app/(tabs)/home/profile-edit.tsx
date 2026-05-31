@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
     color: '#A4ADBA',
   },
   statusChip: {
-    minHeight: 42,
+    minHeight: 38,
     borderRadius: 10,
     backgroundColor: SOFT,
     borderWidth: 1,

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Dimensions,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,17 +13,33 @@ import {
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const VISA_CAROUSEL_CARD_WIDTH = Math.min(244, SCREEN_WIDTH - 146);
-const VISA_CAROUSEL_GAP = 14;
-const VISA_CAROUSEL_SNAP = VISA_CAROUSEL_CARD_WIDTH + VISA_CAROUSEL_GAP;
 
-const COUNTRY_HEADER_META: Record<string, { flag: string; summary: string }> = {
-  독일: { flag: '🇩🇪', summary: '비자 · 보험 · 유심 · 은행 · 숙소 · 항공권 · 입국 후 등록' },
-  프랑스: { flag: '🇫🇷', summary: '비자 · 보험 · 유심 · 은행 · 숙소' },
-  미국: { flag: '🇺🇸', summary: '비자 · 보험 · 은행 · 항공권' },
-  일본: { flag: '🇯🇵', summary: '비자 · 보험 · 유심 · 은행 · 입국 후 등록' },
-  체코: { flag: '🇨🇿', summary: '비자 · 보험 · 유심 · 숙소 · 항공권' },
+const COUNTRY_HEADER_META: Record<string, { flag: string; title: string; desc: string }> = {
+  독일: {
+    flag: '🇩🇪',
+    title: '독일 교환학생 출국 준비 가이드',
+    desc: '출국 전 필요한 정보를 한 곳에서 확인하세요.',
+  },
+  프랑스: {
+    flag: '🇫🇷',
+    title: '프랑스 교환학생 출국 준비 가이드',
+    desc: '출국 전 필요한 정보를 한 곳에서 확인하세요.',
+  },
+  미국: {
+    flag: '🇺🇸',
+    title: '미국 교환학생 출국 준비 가이드',
+    desc: '출국 전 필요한 정보를 한 곳에서 확인하세요.',
+  },
+  일본: {
+    flag: '🇯🇵',
+    title: '일본 교환학생 출국 준비 가이드',
+    desc: '출국 전 필요한 정보를 한 곳에서 확인하세요.',
+  },
+  체코: {
+    flag: '🇨🇿',
+    title: '체코 교환학생 출국 준비 가이드',
+    desc: '출국 전 필요한 정보를 한 곳에서 확인하세요.',
+  },
 };
 
 const GUIDE_CATEGORY_ORDER = [
@@ -183,18 +199,18 @@ const visaGuideData = {
   germany: {
     countryName: '독일',
     visaName: '학생비자',
-    timeline: ['온라인 비자 신청', '영사과 방문 예약', '대사관 방문 및 서류 제출', '비자 수령'],
+    timeline: ['온라인 비자 신청', '대사관 방문 및 서류 제출', '비자 수령'],
     sections: [
       {
         id: 'prep',
         title: '비자 신청 준비 절차',
-        desc: '온라인 비자 신청부터 대사관 예약 전까지 진행하는 단계',
+        desc: '비자 신청 및 예약 전 준비 과정',
         icon: 'create-outline' as const,
       },
       {
         id: 'issue',
         title: '비자 발급 절차',
-        desc: '대사관 방문 예약 이후 실제 비자를 수령하기까지의 단계',
+        desc: '예약부터 비자 수령까지',
         icon: 'business-outline' as const,
       },
     ],
@@ -396,19 +412,13 @@ export default function VisaGuideScreen() {
         <View style={styles.countrySummary}>
           <Text style={styles.countryFlag}>{countryMeta.flag}</Text>
           <View style={styles.countrySummaryText}>
-            <Text style={styles.countrySummaryTitle}>{country.name}</Text>
-            <Text style={styles.countrySummaryDesc}>{countryMeta.summary}</Text>
+            <Text style={styles.countrySummaryGuideTitle}>{countryMeta.title}</Text>
+            <Text style={styles.countrySummaryDesc}>{countryMeta.desc}</Text>
           </View>
         </View>
 
-        <View style={styles.guideIntro}>
-          <Text style={styles.sectionTitle}>출국 준비 가이드</Text>
-          <Text style={styles.sectionSubtitle}>
-            {country.name} 출국 전 꼭 확인해야 할 정보를 확인하세요.
-          </Text>
-        </View>
-
         <View style={styles.guideList}>
+          <Text style={styles.guideListHeaderTitle}>출국 준비 가이드</Text>
           {guideCategories.map((category, index) => {
             const meta = PREP_CATEGORY_META[category] ?? {
               emoji: '✅',
@@ -463,10 +473,23 @@ function VisaApplicationGuide({
   onToggleDoc: (doc: string) => void;
 }) {
   const [activeSection, setActiveSection] = useState<'overview' | 'prep' | 'issue'>('overview');
-  const [activeGuideIndex, setActiveGuideIndex] = useState(0);
   const [openQuestion, setOpenQuestion] = useState<string | null>('입학허가서를 받을 예정인가요?');
   const [openVidexItem, setOpenVidexItem] = useState<string | null>('개인정보 입력');
   const guide = visaGuideData.germany;
+  const blogLinks = [
+    {
+      id: 'visa-blog',
+      title: '독일 학생비자 후기',
+      desc: '신청 흐름과 준비 팁을 블로그에서 더 찾아보기',
+      url: `https://search.naver.com/search.naver?where=blog&query=${encodeURIComponent('독일 학생비자 교환학생 후기')}`,
+    },
+    {
+      id: 'documents-blog',
+      title: '비자 서류 준비 후기',
+      desc: '슈페어콘토, 보험, 입학허가서 준비 사례 보기',
+      url: `https://search.naver.com/search.naver?where=blog&query=${encodeURIComponent('독일 학생비자 서류 준비 후기')}`,
+    },
+  ];
   void _countryName;
   void _checkedVisaSteps;
   void _onToggleStep;
@@ -717,104 +740,63 @@ function VisaApplicationGuide({
       >
         {activeSection === 'overview' && (
           <View style={styles.guideCarouselSection}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={VISA_CAROUSEL_SNAP}
-              snapToAlignment="start"
-              decelerationRate="fast"
-              contentContainerStyle={styles.guideCarouselContent}
-              onMomentumScrollEnd={(event) => {
-                const nextIndex = Math.round(
-                  event.nativeEvent.contentOffset.x / VISA_CAROUSEL_SNAP,
-                );
-                setActiveGuideIndex(Math.max(0, Math.min(nextIndex, guide.sections.length - 1)));
-              }}
-            >
-            {guide.sections.map((section) => (
-              <TouchableOpacity
-                key={section.id}
-                style={[
-                  styles.bigGuideCard,
-                  section.id === guide.sections[activeGuideIndex]?.id
-                    ? styles.bigGuideCardActive
-                    : styles.bigGuideCardInactive,
-                ]}
-                onPress={() => setActiveSection(section.id)}
-                activeOpacity={0.9}
-              >
-                <View
-                  style={[
-                    styles.bigGuideIcon,
-                    section.id === guide.sections[activeGuideIndex]?.id
-                      ? styles.bigGuideIconActive
-                      : styles.bigGuideIconInactive,
-                  ]}
+            <View style={styles.guideCardRow}>
+              {guide.sections.map((section) => (
+                <TouchableOpacity
+                  key={section.id}
+                  style={styles.bigGuideCard}
+                  onPress={() => setActiveSection(section.id)}
+                  activeOpacity={0.9}
                 >
-                  <Ionicons name={section.icon} size={24} color={NAVY} />
-                </View>
-                <View style={styles.bigGuideText}>
-                  <Text
-                    style={[
-                      styles.bigGuideTitle,
-                      section.id === guide.sections[activeGuideIndex]?.id &&
-                        styles.bigGuideTitleActive,
-                    ]}
-                  >
-                    {section.title}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.bigGuideDesc,
-                      section.id === guide.sections[activeGuideIndex]?.id &&
-                        styles.bigGuideDescActive,
-                    ]}
-                  >
+                  <View style={styles.bigGuideIcon}>
+                    <Ionicons
+                      name={section.id === 'prep' ? 'document-text-outline' : 'shield-checkmark-outline'}
+                      size={19}
+                      color={BLUE}
+                    />
+                  </View>
+                  <Text style={styles.bigGuideTitle}>{section.title}</Text>
+                  <Text style={styles.bigGuideDesc} numberOfLines={2}>
                     {section.desc}
                   </Text>
-                </View>
-                <View
-                  style={[
-                    styles.bigGuideArrow,
-                    section.id === guide.sections[activeGuideIndex]?.id &&
-                      styles.bigGuideArrowActive,
-                  ]}
-                >
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={section.id === guide.sections[activeGuideIndex]?.id ? NAVY : '#FFFFFF'}
-                  />
-                </View>
-              </TouchableOpacity>
-            ))}
-            </ScrollView>
-
-            <View style={styles.timelineListHeader}>
-              <Text style={styles.overviewSectionTitle}>타임라인</Text>
-            </View>
-            <View style={styles.timelineListCard}>
-              {guide.timeline.map((item, index) => (
-                <View
-                  key={item}
-                  style={[
-                    styles.timelineListRow,
-                    index === guide.timeline.length - 1 && styles.timelineListRowLast,
-                  ]}
-                >
-                  <View style={styles.timelineNumberBox}>
-                    <Text style={styles.timelineNumberText}>{index + 1}</Text>
+                  <View style={styles.bigGuideArrow}>
+                    <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
                   </View>
-                  <Text style={styles.timelineListText}>{item}</Text>
-                  <View style={styles.timelineEndDot} />
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
+
           </View>
         )}
 
         {activeSection === 'prep' && renderPrepGuide()}
         {activeSection === 'issue' && renderIssueGuide()}
+
+        <View style={styles.blogLinkSection}>
+          <Text style={styles.blogLinkTitle}>블로그 후기 모아보기</Text>
+          <View style={styles.blogLinkList}>
+            {blogLinks.map((link, index) => (
+              <TouchableOpacity
+                key={link.id}
+                style={[
+                  styles.blogLinkItem,
+                  index === blogLinks.length - 1 && styles.blogLinkItemLast,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => Linking.openURL(link.url)}
+              >
+                <View style={styles.blogLinkIcon}>
+                  <Ionicons name="reader-outline" size={18} color={BLUE} />
+                </View>
+                <View style={styles.blogLinkTextBox}>
+                  <Text style={styles.blogLinkItemTitle}>{link.title}</Text>
+                  <Text style={styles.blogLinkDesc}>{link.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -946,7 +928,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#F3F6FA',
     paddingHorizontal: 18,
-    paddingVertical: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -970,6 +952,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#64748B',
   },
+  countrySummaryGuideTitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: NAVY,
+  },
   guideIntro: {
     paddingHorizontal: 20,
     marginBottom: 14,
@@ -979,11 +967,18 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 18,
+    paddingTop: 18,
     shadowColor: NAVY,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
     shadowRadius: 18,
     elevation: 2,
+  },
+  guideListHeaderTitle: {
+    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
   },
   guideListItem: {
     minHeight: 88,
@@ -1013,8 +1008,8 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   guideListTitle: {
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '900',
     color: '#111827',
   },
@@ -1200,97 +1195,70 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#2D3138',
   },
-  guideCarouselContent: {
-    paddingLeft: 28,
-    paddingRight: 96,
-    gap: VISA_CAROUSEL_GAP,
+  guideCardRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
   },
   bigGuideCard: {
-    width: VISA_CAROUSEL_CARD_WIDTH,
-    height: 214,
-    borderRadius: 26,
-    padding: 18,
-    borderWidth: 1,
-    justifyContent: 'space-between',
-    shadowColor: NAVY,
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    flex: 1,
+    minHeight: 150,
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#EEF3FA',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 2,
-  },
-  bigGuideCardActive: {
-    backgroundColor: NAVY,
-    borderColor: NAVY,
-    transform: [{ scale: 1 }],
-  },
-  bigGuideCardInactive: {
-    backgroundColor: '#EFF4FC',
-    borderColor: '#E3EAF5',
-    transform: [{ scale: 0.94 }],
+    justifyContent: 'space-between',
   },
   bigGuideIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#EEF4FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bigGuideIconActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  bigGuideIconInactive: {
-    backgroundColor: '#DDE8F8',
-  },
-  bigGuideText: {
-    marginTop: 16,
-    paddingBottom: 42,
-  },
   bigGuideTitle: {
-    fontSize: 18,
-    lineHeight: 25,
+    marginTop: 28,
+    paddingRight: 18,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '900',
     color: NAVY,
   },
-  bigGuideTitleActive: {
-    color: '#FFFFFF',
-  },
   bigGuideDesc: {
-    marginTop: 11,
-    fontSize: 13,
-    lineHeight: 20,
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '700',
     color: '#536277',
   },
-  bigGuideDescActive: {
-    color: '#DDE7F7',
-  },
   bigGuideArrow: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: NAVY,
+    right: 12,
+    top: 14,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bigGuideArrowActive: {
-    backgroundColor: '#FFFFFF',
-  },
   timelineListHeader: {
-    marginTop: 24,
-    marginHorizontal: 28,
-    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 18,
   },
   timelineListCard: {
-    marginHorizontal: 28,
+    marginHorizontal: 20,
+    marginTop: 24,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
+    padding: 18,
     shadowColor: NAVY,
     shadowOpacity: 0.04,
     shadowRadius: 10,
@@ -1298,43 +1266,100 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   timelineListRow: {
-    minHeight: 54,
-    paddingHorizontal: 12,
+    minHeight: 70,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  timelineListRowLast: {
+    minHeight: 0,
+  },
+  timelineNumberBox: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#D8E8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 13,
+    marginTop: 2,
+  },
+  timelineNumberText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#2F66D0',
+  },
+  timelineListTextBox: {
+    flex: 1,
+  },
+  timelineListText: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  timelineListDesc: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#7A8494',
+  },
+  blogLinkSection: {
+    marginHorizontal: 20,
+    marginTop: 28,
+  },
+  blogLinkTitle: {
+    marginBottom: 10,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  blogLinkList: {
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    shadowColor: NAVY,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  blogLinkItem: {
+    minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F4F8',
+    borderBottomColor: '#F1F5F9',
   },
-  timelineListRowLast: {
+  blogLinkItemLast: {
     borderBottomWidth: 0,
   },
-  timelineNumberBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
-    backgroundColor: NAVY,
+  blogLinkIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    backgroundColor: '#EEF4FF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  timelineNumberText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  timelineListText: {
+  blogLinkTextBox: {
     flex: 1,
+    paddingRight: 10,
+  },
+  blogLinkItemTitle: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '800',
-    color: '#5F6673',
+    fontWeight: '900',
+    color: NAVY,
   },
-  timelineEndDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#20242A',
-    marginLeft: 10,
+  blogLinkDesc: {
+    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#64748B',
   },
   detailHero: {
     marginHorizontal: 20,
