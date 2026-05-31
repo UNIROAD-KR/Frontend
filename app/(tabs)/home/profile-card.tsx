@@ -207,6 +207,9 @@ export default function ProfileCardScreen() {
             ) : (
               <Ionicons name="person" size={30} color={INK} />
             )}
+            <View style={styles.exchangeBadge}>
+              <Ionicons name="shield-checkmark" size={14} color={BLUE} />
+            </View>
           </View>
 
           <View style={styles.profileInfo}>
@@ -233,19 +236,6 @@ export default function ProfileCardScreen() {
               <Text style={styles.quickTitle}>{item.title}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-
-        <View style={styles.exchangeCard}>
-          <View style={styles.exchangeIcon}>
-            <Ionicons name="shield-checkmark" size={20} color={BLUE} />
-          </View>
-          <View style={styles.exchangeText}>
-            <Text style={styles.exchangeTitle}>교환학생 인증 완료</Text>
-            <Text style={styles.exchangeDesc} numberOfLines={2}>
-              {profile.university} 파견 정보가 프로필에 표시됩니다.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
         </View>
 
         <MenuSection title="내 활동" items={activityItems} onPressItem={openRoute} />
@@ -357,11 +347,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+    position: 'relative',
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
+  },
+  exchangeBadge: {
+    position: 'absolute',
+    right: -3,
+    bottom: -1,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   profileInfo: {
     alignItems: 'center',
@@ -418,43 +422,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '900',
     color: '#FFFFFF',
-  },
-  exchangeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 74,
-    marginTop: 14,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: LINE,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  exchangeIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: '#EEF4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  exchangeText: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  exchangeTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  exchangeDesc: {
-    marginTop: 4,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '700',
-    color: MUTED,
   },
   section: {
     marginTop: 24,

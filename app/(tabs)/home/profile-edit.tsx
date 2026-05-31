@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { getMemberMe } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -27,7 +28,7 @@ const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
-const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중', '귀국'];
+const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중'];
 const dateLabels: Record<string, string> = {
   '지원 준비 중': '지원 마감일',
   '출국 준비 중': '출국일',
@@ -59,6 +60,7 @@ const formatDate = (date: Date) =>
 export default function ProfileEditScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [name, setName] = useState('서현');
+  const [nickname, setNickname] = useState('교환학생꿈나무');
   const [homeUniversity, setHomeUniversity] = useState('서울대학교');
   const [country, setCountry] = useState('독일');
   const [status, setStatus] = useState('출국 준비 중');
@@ -74,7 +76,7 @@ export default function ProfileEditScreen() {
     const loadProfile = async () => {
       const [
         savedAvatar,
-        savedName,
+        savedNickname,
         savedUniversity,
         savedCountry,
         savedStatus,
@@ -95,14 +97,22 @@ export default function ProfileEditScreen() {
       ]);
 
       if (savedAvatar) setAvatarUri(savedAvatar);
-      if (savedName) setName(savedName);
+      if (savedNickname) setNickname(savedNickname);
       if (savedUniversity) setHomeUniversity(savedUniversity);
       if (savedCountry) setCountry(savedCountry);
-      if (savedStatus) setStatus(savedStatus);
+      if (savedStatus && statusOptions.includes(savedStatus)) setStatus(savedStatus);
       setApplicationDeadline(toDateValue(savedApplicationDeadline));
       setDepartureDate(toDateValue(savedDepartureDate));
       setDispatchStartDate(toDateValue(savedDispatchStartDate));
       setReturnDate(toDateValue(savedReturnDate));
+
+      try {
+        const memberRes = await getMemberMe();
+        const memberName = memberRes.data?.data?.name;
+        if (memberName) setName(memberName);
+      } catch (error) {
+        console.log('내 정보 조회 실패:', error);
+      }
     };
 
     loadProfile();
@@ -192,7 +202,7 @@ export default function ProfileEditScreen() {
         : AsyncStorage.removeItem('departurePrepStartDate');
 
     await Promise.all([
-      AsyncStorage.setItem('nickname', name.trim() || '서현'),
+      AsyncStorage.setItem('nickname', nickname.trim() || '교환학생꿈나무'),
       AsyncStorage.setItem('university', homeUniversity.trim() || '서울대학교'),
       AsyncStorage.setItem('dispatchedCountry', country.trim() || '독일'),
       AsyncStorage.setItem('profileStatus', status),
@@ -232,9 +242,7 @@ export default function ProfileEditScreen() {
 
         <Text style={styles.headerTitle}>프로필 수정</Text>
 
-        <TouchableOpacity style={styles.headerSaveBtn} onPress={saveProfile} activeOpacity={0.86}>
-          <Text style={styles.headerSaveText}>저장</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -256,10 +264,19 @@ export default function ProfileEditScreen() {
             <Ionicons name="camera-outline" size={18} color={BLUE} />
             <Text style={styles.imageButtonText}>프로필 이미지 변경</Text>
           </TouchableOpacity>
+
+          <View style={styles.profileNameField}>
+            <DisabledField label="이름" value={name} />
+          </View>
         </View>
 
-        <FormSection title="기본 정보">
-          <Field label="이름" value={name} onChangeText={setName} placeholder="이름을 입력하세요" />
+        <FormSection title="프로필 정보">
+          <Field
+            label="닉네임"
+            value={nickname}
+            onChangeText={setNickname}
+            placeholder="닉네임을 입력하세요"
+          />
           <Field
             label="학교"
             value={homeUniversity}
@@ -405,6 +422,21 @@ function FormSection({
   );
 }
 
+function DisabledField({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <TextInput
+        style={[styles.input, styles.disabledInput]}
+        value={value}
+        editable={false}
+        selectTextOnFocus={false}
+        showSoftInputOnFocus={false}
+      />
+    </View>
+  );
+}
+
 function Field({
   label,
   value,
@@ -497,19 +529,9 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: NAVY,
   },
-  headerSaveBtn: {
-    minWidth: 48,
+  headerSpacer: {
+    width: 38,
     height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EEF4FF',
-    paddingHorizontal: 14,
-  },
-  headerSaveText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: BLUE,
   },
   scroll: {
     flex: 1,
@@ -521,7 +543,7 @@ const styles = StyleSheet.create({
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 18,
   },
   avatarFrame: {
     width: 88,
@@ -553,8 +575,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: BLUE,
   },
+  profileNameField: {
+    alignSelf: 'stretch',
+    marginTop: 18,
+  },
   section: {
-    marginBottom: 18,
+    marginBottom: 32,
   },
   sectionTitle: {
     marginBottom: 10,
@@ -584,15 +610,19 @@ const styles = StyleSheet.create({
     color: NAVY,
   },
   input: {
-    minHeight: 48,
-    borderRadius: 14,
+    minHeight: 42,
+    borderRadius: 10,
     backgroundColor: SOFT,
     borderWidth: 1,
     borderColor: '#E7EDF6',
     paddingHorizontal: 14,
+    paddingVertical: 0,
     fontSize: 15,
     fontWeight: '700',
     color: INK,
+  },
+  disabledInput: {
+    backgroundColor: '#FFFFFF',
   },
   optionGrid: {
     flexDirection: 'row',
@@ -617,8 +647,8 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
   },
   dateButton: {
-    minHeight: 50,
-    borderRadius: 14,
+    minHeight: 42,
+    borderRadius: 10,
     backgroundColor: SOFT,
     borderWidth: 1,
     borderColor: '#E7EDF6',
@@ -639,7 +669,7 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     minHeight: 42,
-    borderRadius: 14,
+    borderRadius: 10,
     backgroundColor: SOFT,
     borderWidth: 1,
     borderColor: '#E7EDF6',
@@ -672,8 +702,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#EEF2F7',
   },
   footerButton: {
-    height: 54,
-    borderRadius: 16,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',

@@ -19,21 +19,59 @@ const VISA_CAROUSEL_GAP = 14;
 const VISA_CAROUSEL_SNAP = VISA_CAROUSEL_CARD_WIDTH + VISA_CAROUSEL_GAP;
 
 const COUNTRY_HEADER_META: Record<string, { flag: string; summary: string }> = {
-  독일: { flag: '🇩🇪', summary: '비자 · 보험 · 유심 · 은행 · 거주지' },
+  독일: { flag: '🇩🇪', summary: '비자 · 보험 · 유심 · 은행 · 숙소 · 항공권 · 입국 후 등록' },
   프랑스: { flag: '🇫🇷', summary: '비자 · 보험 · 유심 · 은행 · 숙소' },
-  미국: { flag: '🇺🇸', summary: '비자 · 보험 · 유심 · 카드 · 항공' },
-  일본: { flag: '🇯🇵', summary: '비자 · 유심 · 보험 · 생활비 · 등록' },
-  체코: { flag: '🇨🇿', summary: '비자 · 보험 · 숙소 · 유심 · 항공' },
+  미국: { flag: '🇺🇸', summary: '비자 · 보험 · 은행 · 항공권' },
+  일본: { flag: '🇯🇵', summary: '비자 · 보험 · 유심 · 은행 · 입국 후 등록' },
+  체코: { flag: '🇨🇿', summary: '비자 · 보험 · 유심 · 숙소 · 항공권' },
 };
 
-const PREP_CATEGORY_META: Record<string, { icon: keyof typeof Ionicons.glyphMap; desc: string }> = {
-  비자: { icon: 'document-text-outline', desc: '비자' },
-  보험: { icon: 'shield-checkmark-outline', desc: '보험' },
-  '유심/eSIM': { icon: 'phone-portrait-outline', desc: '유심' },
-  '은행/카드': { icon: 'card-outline', desc: '은행' },
-  항공권: { icon: 'airplane-outline', desc: '항공' },
-  숙소: { icon: 'home-outline', desc: '숙소' },
-  '입국 후 등록': { icon: 'location-outline', desc: '입국 후 등록' },
+const GUIDE_CATEGORY_ORDER = [
+  '비자',
+  '은행/카드',
+  '보험',
+  '유심/eSIM',
+  '항공권',
+  '숙소',
+  '입국 후 등록',
+];
+
+const PREP_CATEGORY_META: Record<string, { emoji: string; title: string; desc: string }> = {
+  비자: {
+    emoji: '🛂',
+    title: '비자',
+    desc: '비자 신청 절차 및 준비 서류 확인하기',
+  },
+  '은행/카드': {
+    emoji: '💳',
+    title: '은행/카드',
+    desc: '해외 결제 카드 및 계좌 정보 확인하기',
+  },
+  보험: {
+    emoji: '🛡️',
+    title: '보험',
+    desc: '필수 보험 가입 가이드 확인하기',
+  },
+  '유심/eSIM': {
+    emoji: '📱',
+    title: '유심/eSIM',
+    desc: '현지 통신사 및 유심 정보 확인하기',
+  },
+  항공권: {
+    emoji: '✈️',
+    title: '항공권',
+    desc: '항공권 예약 및 이동 정보 확인하기',
+  },
+  숙소: {
+    emoji: '🏠',
+    title: '숙소',
+    desc: '기숙사 및 거주지 관련 정보 확인하기',
+  },
+  '입국 후 등록': {
+    emoji: '📍',
+    title: '입국 후 등록',
+    desc: '거주지 등록 및 체류 관련 절차 확인하기',
+  },
 };
 
 type CountryChecklist = {
@@ -280,6 +318,10 @@ export default function VisaGuideScreen() {
     [selectedIndex],
   );
   const countryMeta = COUNTRY_HEADER_META[country.name] ?? COUNTRY_HEADER_META.독일;
+  const guideCategories = useMemo(() => {
+    const availableCategories = new Set(country.checklist.map((item) => item.category));
+    return GUIDE_CATEGORY_ORDER.filter((category) => availableCategories.has(category));
+  }, [country.checklist]);
 
   useEffect(() => {
     const loadCountry = async () => {
@@ -359,31 +401,42 @@ export default function VisaGuideScreen() {
           </View>
         </View>
 
-        <View style={styles.prepSectionHeader}>
-          <Text style={styles.sectionTitle}>준비 항목</Text>
+        <View style={styles.guideIntro}>
+          <Text style={styles.sectionTitle}>출국 준비 가이드</Text>
+          <Text style={styles.sectionSubtitle}>
+            {country.name} 출국 전 꼭 확인해야 할 정보를 확인하세요.
+          </Text>
         </View>
 
-        <View style={styles.prepGrid}>
-          {country.checklist.map((item) => {
-            const meta = PREP_CATEGORY_META[item.category] ?? {
-              icon: 'checkmark-circle-outline' as const,
-              desc: item.category,
+        <View style={styles.guideList}>
+          {guideCategories.map((category, index) => {
+            const meta = PREP_CATEGORY_META[category] ?? {
+              emoji: '✅',
+              title: category,
+              desc: `${category} 정보 확인하기`,
             };
-            const isVisa = item.category === '비자';
+            const isVisa = category === '비자';
 
             return (
               <TouchableOpacity
-                key={item.id}
-                style={[styles.prepCard, isVisa && styles.prepCardPrimary]}
+                key={category}
+                style={[
+                  styles.guideListItem,
+                  index === guideCategories.length - 1 && styles.guideListItemLast,
+                ]}
                 onPress={() => {
                   if (isVisa) setScreenMode('visa');
                 }}
                 activeOpacity={0.86}
               >
-                <View style={[styles.prepIcon, isVisa && styles.prepIconPrimary]}>
-                  <Ionicons name={meta.icon} size={20} color={isVisa ? NAVY : '#475569'} />
+                <View style={styles.guideListIconBox}>
+                  <Text style={styles.guideListEmoji}>{meta.emoji}</Text>
                 </View>
-                <Text style={styles.prepTitle}>{item.category}</Text>
+                <View style={styles.guideListText}>
+                  <Text style={styles.guideListTitle}>{meta.title}</Text>
+                  <Text style={styles.guideListDesc}>{meta.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
               </TouchableOpacity>
             );
           })}
@@ -889,7 +942,7 @@ const styles = StyleSheet.create({
   },
   countrySummary: {
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 24,
     borderRadius: 20,
     backgroundColor: '#F3F6FA',
     paddingHorizontal: 18,
@@ -917,48 +970,60 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#64748B',
   },
-  prepSectionHeader: {
+  guideIntro: {
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  prepGrid: {
-    paddingHorizontal: 20,
+  guideList: {
+    marginHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  guideListItem: {
+    minHeight: 88,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 14,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  prepCard: {
-    width: '31%',
-    height: 96,
-    borderRadius: 14,
-    backgroundColor: '#F7F8FA',
-    paddingHorizontal: 8,
-    paddingVertical: 11,
+  guideListItemLast: {
+    borderBottomWidth: 0,
+  },
+  guideListIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: '#F6F8FC',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
-  prepCardPrimary: {
-    backgroundColor: '#EFF4FB',
+  guideListEmoji: {
+    fontSize: 24,
+    lineHeight: 30,
   },
-  prepIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 9,
+  guideListText: {
+    flex: 1,
+    paddingRight: 10,
   },
-  prepIconPrimary: {
-    backgroundColor: '#FFFFFF',
-  },
-  prepTitle: {
-    fontSize: 12,
-    lineHeight: 16,
+  guideListTitle: {
+    fontSize: 17,
+    lineHeight: 23,
     fontWeight: '900',
-    color: NAVY,
-    textAlign: 'center',
+    color: '#111827',
+  },
+  guideListDesc: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+    color: '#7A8494',
   },
   checkHeader: {
     marginTop: 30,

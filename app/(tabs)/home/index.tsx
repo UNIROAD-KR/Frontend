@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   greeting: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
   },
