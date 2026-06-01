@@ -1,10 +1,104 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState } from 'react';
+
+import { onboarding, OnboardingRequest } from '../../src/api/auth';
+
+const calculateAge = (birthYear: string | null) => {
+  if (!birthYear) {
+    return undefined;
+  }
+
+  const parsedBirthYear = Number(birthYear);
+
+  if (!Number.isInteger(parsedBirthYear) || parsedBirthYear <= 0) {
+    return undefined;
+  }
+
+  return new Date().getFullYear() - parsedBirthYear + 1;
+};
+
+const mapGender = (gender: string | null): OnboardingRequest['gender'] | null => {
+  if (gender === 'female') {
+    return 'FEMALE';
+  }
+
+  if (gender === 'male') {
+    return 'MALE';
+  }
+
+  return null;
+};
+
+const mapCurrentSituation = (
+  exchangeStatus: string | null,
+): OnboardingRequest['currentSituation'] =>
+  exchangeStatus === 'dispatched' ? 'DISPATCHED' : 'PREPARING_APPLICATION';
 
 export default function CompletePage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
-  const displayName = nickname || 'OO';
+  const [submitting, setSubmitting] = useState(false);
+  const displayName = nickname?.trim() || 'OO';
+
+  const handleStart = async () => {
+    if (submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const [
+        birthYear,
+        storedGender,
+        domesticUniversity,
+        dispatchedUniversity,
+        dispatchedCountry,
+        dispatchedRegion,
+        exchangeStatus,
+      ] = await AsyncStorage.multiGet([
+        'birthYear',
+        'gender',
+        'university',
+        'dispatchedUniversity',
+        'dispatchedCountry',
+        'dispatchedRegion',
+        'exchangeStatus',
+      ]);
+
+      const gender = mapGender(storedGender[1]);
+      const domesticUniversityValue = domesticUniversity[1]?.trim() ?? '';
+
+      if (!displayName || displayName === 'OO' || !gender || !domesticUniversityValue) {
+        Alert.alert('온보딩 정보 확인', '닉네임, 성별, 소속대학 정보를 다시 확인해주세요.');
+        return;
+      }
+
+      const request: OnboardingRequest = {
+        nickname: displayName,
+        gender,
+        currentSituation: mapCurrentSituation(exchangeStatus[1]),
+        domesticUniversity: domesticUniversityValue,
+        age: calculateAge(birthYear[1]),
+        dispatchedUniversity: dispatchedUniversity[1]?.trim() || undefined,
+        dispatchedCountry: dispatchedCountry[1]?.trim() || undefined,
+        dispatchedRegion: dispatchedRegion[1]?.trim() || undefined,
+      };
+
+      await onboarding(request);
+      await AsyncStorage.setItem('nickname', displayName);
+      router.replace('/home');
+    } catch (error: any) {
+      console.log('온보딩 정보 전송 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '온보딩 실패',
+        error.response?.data?.message ?? '온보딩 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -32,40 +126,13 @@ export default function CompletePage() {
       </View>
 
       <Pressable
-        style={styles.startButton}
-        onPress={async () => {
-          try {
-            const birthYearStr = await AsyncStorage.getItem('birthYear');
-            const domesticUniversity = await AsyncStorage.getItem('university') || '';
-            const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity') || '';
-            const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry') || '';
-            const dispatchedRegion = await AsyncStorage.getItem('dispatchedRegion') || '';
-
-            // 나이 계산 로직 (출생년도 기반, 예시: 현재연도 - 출생년도 + 1)
-            const currentYear = new Date().getFullYear();
-            const age = birthYearStr ? currentYear - parseInt(birthYearStr, 10) + 1 : 20;
-
-            // auth.ts의 onboarding API 호출을 동적으로 가져옵니다 (상단 import 추가 필요시 활용)
-            const { onboarding } = await import('../../src/api/auth');
-
-            await onboarding({
-              age,
-              domesticUniversity,
-              dispatchedUniversity,
-              dispatchedCountry,
-              dispatchedRegion,
-            });
-
-            await AsyncStorage.setItem('nickname', displayName);
-            router.replace('/home');
-          } catch (error: any) {
-            console.log('온보딩 정보 전송 실패:', error.response?.data || error.message);
-            // 에러 처리: Alert 또는 그냥 진행
-            // router.replace('/home');
-          }
-        }}
+        style={[styles.startButton, submitting && styles.startButtonDisabled]}
+        disabled={submitting}
+        onPress={handleStart}
       >
-        <Text style={styles.startButtonText}>시작하기</Text>
+        <Text style={styles.startButtonText}>
+          {submitting ? '저장 중...' : '시작하기'}
+        </Text>
       </Pressable>
     </View>
   );
@@ -139,6 +206,10 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  startButtonDisabled: {
+    opacity: 0.6,
   },
 
   startButtonText: {

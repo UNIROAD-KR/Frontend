@@ -20,11 +20,14 @@ export interface SignUpRequest {
 }
 
 export interface OnboardingRequest {
-  age: number;
+  age?: number;
+  nickname: string;
+  gender: 'MALE' | 'FEMALE';
+  currentSituation: 'PREPARING_APPLICATION' | 'PREPARING_DEPARTURE' | 'DISPATCHED';
   domesticUniversity: string;
-  dispatchedUniversity: string;
-  dispatchedCountry: string;
-  dispatchedRegion: string;
+  dispatchedUniversity?: string;
+  dispatchedCountry?: string;
+  dispatchedRegion?: string;
 }
 
 export interface SocialSignUpRequest {
@@ -39,8 +42,13 @@ export interface MemberResponse {
   username: string;
   email: string;
   name: string;
+  nickname: string | null;
+  gender: 'MALE' | 'FEMALE' | null;
+  currentSituation: OnboardingRequest['currentSituation'] | null;
   age: number | null;
+  domesticUniversityId?: number | null;
   domesticUniversity: string | null;
+  homeUniversity?: string | null;
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;

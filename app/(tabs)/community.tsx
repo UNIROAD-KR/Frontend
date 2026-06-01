@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,6 +104,7 @@ const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
 
 export default function CommunityScreen() {
   const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string | string[] }>();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -241,11 +242,13 @@ export default function CommunityScreen() {
     [companionPosts],
   );
 
+  const initialTab = Array.isArray(tab) ? tab[0] : tab;
+
   useEffect(() => {
-    if (tab === 'companion') {
+    if (initialTab === 'companion') {
       setActiveTab('동행 구하기');
     }
-  }, [tab]);
+  }, [initialTab]);
 
   const filteredBoardPosts = useMemo(
     () => {
