@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   Modal,
   Pressable,
@@ -14,17 +16,24 @@ import {
   View,
 } from 'react-native';
 
-const BLUE = '#102BE0';
-const GREEN = '#40A66A';
+import {
+  CompanionPostResponse,
+  getCompanionPosts,
+} from '../../src/api/companion';
+import {
+  FreePostSummaryResponse,
+  getFreePosts,
+} from '../../src/api/freePosts';
+import { BLUE, GREEN } from '../../src/data/community';
 
 const communityTabs = ['자유 게시판', '동행 구하기'] as const;
-const boardFilters = ['전체', '파견 전', '파견 중', '귀국 후'];
 const countryFilters = ['전체 국가', '프랑스', '독일', '스페인', '네덜란드'];
 const companionStatusFilters = ['전체', '모집중', '모집완료'];
 const sortFilters = ['최신순', '마감임박순'];
+const COMMUNITY_PAGE_SIZE = 10;
 
 type CommunityTab = (typeof communityTabs)[number];
-type DropdownKey = 'boardCountry' | 'status' | 'country' | 'sort' | null;
+type DropdownKey = 'status' | 'country' | 'sort' | null;
 type DatePickerTarget = 'start' | 'end' | null;
 
 const formatDate = (date: Date) => {
@@ -59,154 +68,192 @@ const parseDate = (dateText: string) => {
   return date;
 };
 
-const boardPosts = [
-  {
-    id: 1,
-    status: '파견 중',
-    title: '아우크스부르크 근처 가성비 맛집 리스트 공유',
-    preview:
-      '한 학기 동안 찾아낸 찐 맛집 리스트입니다. 현지인들도 자주 가는 곳 위주로 정리했어요.',
-    author: '김서현',
-    country: '독일',
-    stage: '파견',
-    time: '방금 전',
-    likes: 57,
-    comments: 7,
-    color: '#DDF4E4',
-    textColor: '#238451',
-  },
-  {
-    id: 2,
-    status: '파견 전',
-    title: '독일 비자 신청 후기 - 서울 영사관 직접 방문',
-    preview:
-      '비자 신청 준비하시는 분들 참고하세요. 예약부터 서류 준비까지 제가 겪은 것들 정리했어요.',
-    author: '이민준',
-    country: '독일',
-    stage: '파견 예정',
-    time: '1시간 전',
-    likes: 43,
-    comments: 12,
-    color: '#EAF1FF',
-    textColor: '#2F66D0',
-  },
-  {
-    id: 3,
-    status: '귀국 후',
-    title: '귀국하고 나서 학점 인정 받을 때 체크할 것',
-    preview:
-      '성적표 원본, 수강계획서, 실라버스는 미리 챙겨두면 훨씬 편합니다. 놓치기 쉬운 부분만 모았어요.',
-    author: '박하린',
-    country: '프랑스',
-    stage: '귀국',
-    time: '3시간 전',
-    likes: 31,
-    comments: 5,
-    color: '#FFF1DF',
-    textColor: '#F28A2E',
-  },
-  {
-    id: 4,
-    status: '파견 중',
-    title: '파리 Navigo 학생권 신청 성공한 분 계신가요?',
-    preview:
-      '학교 메일 인증에서 계속 막히는데 혹시 최근에 신청해보신 분 있으면 절차 공유 부탁드려요.',
-    author: '최유진',
-    country: '프랑스',
-    stage: '파견',
-    time: '어제',
-    likes: 18,
-    comments: 16,
-    color: '#DDF4E4',
-    textColor: '#238451',
-  },
-];
+const formatDateText = (value?: string) => {
+  if (!value) {
+    return '';
+  }
 
-const companionPosts = [
-  {
-    id: 1,
-    icon: 'map-outline' as const,
-    title: '뮌헨 맥주 축제 같이 가요',
-    country: '독일',
-    cityName: '뮌헨',
-    period: '04/01 - 04/02',
-    dateValue: '2026-04-01',
-    tags: ['축제', '맥주', '감성'],
-    status: '모집중',
-    current: 2,
-    total: 4,
-    verified: true,
-    tint: '#EAF1FF',
-    iconColor: '#2F66D0',
-  },
-  {
-    id: 2,
-    icon: 'airplane-outline' as const,
-    title: '암스테르담 당일치기',
-    country: '네덜란드',
-    cityName: '암스테르담',
-    period: '04/06',
-    dateValue: '2026-04-06',
-    tags: ['당일치기', '미술관'],
-    status: '모집중',
-    current: 1,
-    total: 3,
-    verified: true,
-    tint: '#FFF4E7',
-    iconColor: '#E8872F',
-  },
-  {
-    id: 3,
-    icon: 'cafe-outline' as const,
-    title: '파리 카페 투어 같이 해요',
-    country: '프랑스',
-    cityName: '파리',
-    period: '04/12 - 04/13',
-    dateValue: '2026-04-12',
-    tags: ['카페', '사진', '주말'],
-    status: '모집완료',
-    current: 4,
-    total: 4,
-    verified: false,
-    tint: '#EAF7EF',
-    iconColor: '#40A66A',
-  },
-];
+  return value.slice(0, 10).replaceAll('-', '.');
+};
+
+const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
+  const start = startDate?.slice(5).replace('-', '/') || '';
+  const end = endDate?.slice(5).replace('-', '/') || '';
+
+  if (!start) {
+    return '';
+  }
+
+  return start === end || !end ? start : `${start} - ${end}`;
+};
+
+const getBoardStatusColors = (status: string) => {
+  if (status === '파견 중') {
+    return { backgroundColor: '#DDF4E4', color: '#238451' };
+  }
+
+  if (status === '파견 전') {
+    return { backgroundColor: '#EAF1FF', color: '#2F66D0' };
+  }
+
+  return { backgroundColor: '#FFF1DF', color: '#F28A2E' };
+};
+
+const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
+  status === 'RECRUITING' ? '모집중' : '모집완료';
 
 export default function CommunityScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
-  const [selectedBoardFilter, setSelectedBoardFilter] = useState('전체');
-  const [selectedBoardCountry, setSelectedBoardCountry] = useState('전체 국가');
   const [boardKeyword, setBoardKeyword] = useState('');
-  const [selectedCompanionStatus, setSelectedCompanionStatus] = useState('모집중');
+  const [selectedCompanionStatus, setSelectedCompanionStatus] = useState('전체');
   const [selectedCompanionCountry, setSelectedCompanionCountry] = useState('전체 국가');
   const [companionStartDate, setCompanionStartDate] = useState('');
   const [companionEndDate, setCompanionEndDate] = useState('');
   const [selectedCompanionSort, setSelectedCompanionSort] = useState('최신순');
+  const [draftCompanionStatus, setDraftCompanionStatus] = useState('전체');
+  const [draftCompanionCountry, setDraftCompanionCountry] = useState('전체 국가');
+  const [draftCompanionStartDate, setDraftCompanionStartDate] = useState('');
+  const [draftCompanionEndDate, setDraftCompanionEndDate] = useState('');
+  const [draftCompanionSort, setDraftCompanionSort] = useState('최신순');
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
   const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget>(null);
   const [draftDate, setDraftDate] = useState(new Date());
+  const [boardPosts, setBoardPosts] = useState<FreePostSummaryResponse[]>([]);
+  const [companionPosts, setCompanionPosts] = useState<CompanionPostResponse[]>([]);
+  const [boardNextCursorId, setBoardNextCursorId] = useState<number | null>(null);
+  const [companionNextCursorId, setCompanionNextCursorId] = useState<number | null>(null);
+  const [boardHasNext, setBoardHasNext] = useState(false);
+  const [companionHasNext, setCompanionHasNext] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
+  const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
+  const didMountRef = useRef(false);
+  const boardKeywordRef = useRef('');
   const isWide = width >= 768;
+
+  const loadFreePosts = useCallback(async (
+    cursorId?: number,
+    append = false,
+    keywordText = boardKeywordRef.current,
+  ) => {
+    const keyword = keywordText.trim();
+    try {
+      const freeResponse = await getFreePosts({
+        cursorId,
+        keyword: keyword.length > 0 ? keyword : undefined,
+        size: COMMUNITY_PAGE_SIZE,
+      });
+      const cursorData = freeResponse.data.data;
+      const nextItems = cursorData?.items ?? [];
+
+      setBoardPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
+      setBoardNextCursorId(cursorData?.nextCursorId ?? null);
+      setBoardHasNext(cursorData?.hasNext ?? false);
+    } catch (error: any) {
+      console.log('자유게시판 목록 조회 실패:', error.response?.data || error.message);
+    }
+  }, []);
+
+  const loadCompanionPosts = useCallback(async (cursorId?: number, append = false) => {
+    try {
+      const companionResponse = await getCompanionPosts({
+        cursorId,
+        size: COMMUNITY_PAGE_SIZE,
+      });
+      const cursorData = companionResponse.data.data;
+      const nextItems = cursorData?.items ?? [];
+
+      setCompanionPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
+      setCompanionNextCursorId(cursorData?.nextCursorId ?? null);
+      setCompanionHasNext(cursorData?.hasNext ?? false);
+    } catch (error: any) {
+      console.log('동행 구하기 목록 조회 실패:', error.response?.data || error.message);
+    }
+  }, []);
+
+  const loadCommunityPosts = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      await Promise.all([
+        loadFreePosts(),
+        loadCompanionPosts(),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadCompanionPosts, loadFreePosts]);
+
+  const handleLoadMoreBoard = async () => {
+    if (!boardHasNext || boardNextCursorId == null || loadingMoreBoard) {
+      return;
+    }
+
+    setLoadingMoreBoard(true);
+    try {
+      await loadFreePosts(boardNextCursorId, true);
+    } finally {
+      setLoadingMoreBoard(false);
+    }
+  };
+
+  const handleLoadMoreCompanion = async () => {
+    if (!companionHasNext || companionNextCursorId == null || loadingMoreCompanion) {
+      return;
+    }
+
+    setLoadingMoreCompanion(true);
+    try {
+      await loadCompanionPosts(companionNextCursorId, true);
+    } finally {
+      setLoadingMoreCompanion(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCommunityPosts();
+    }, [loadCommunityPosts]),
+  );
+
+  useEffect(() => {
+    boardKeywordRef.current = boardKeyword.trim();
+
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      loadFreePosts(undefined, false, boardKeyword);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [boardKeyword, loadFreePosts]);
+
+  const companionCountryFilterItems = useMemo(
+    () => [
+      '전체 국가',
+      ...Array.from(new Set(companionPosts.map((post) => post.country).filter(Boolean))),
+    ],
+    [companionPosts],
+  );
 
   const filteredBoardPosts = useMemo(
     () => {
       const keyword = boardKeyword.trim().toLowerCase();
 
       return boardPosts.filter((post) => {
-        const matchesStatus =
-          selectedBoardFilter === '전체' || post.status === selectedBoardFilter;
-        const matchesCountry =
-          selectedBoardCountry === '전체 국가' || post.country === selectedBoardCountry;
         const matchesKeyword =
           keyword.length === 0 ||
           `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
 
-        return matchesStatus && matchesCountry && matchesKeyword;
+        return matchesKeyword;
       });
     },
-    [boardKeyword, selectedBoardCountry, selectedBoardFilter],
+    [boardKeyword, boardPosts],
   );
 
   const filteredCompanions = useMemo(
@@ -214,21 +261,21 @@ export default function CommunityScreen() {
       const filtered = companionPosts.filter((post) => {
         const matchesStatus =
           selectedCompanionStatus === '전체' ||
-          post.status === selectedCompanionStatus;
+          getCompanionStatusText(post.status) === selectedCompanionStatus;
         const matchesCountry =
           selectedCompanionCountry === '전체 국가' ||
           post.country === selectedCompanionCountry;
         const matchesDate =
-          (!companionStartDate || post.dateValue >= companionStartDate) &&
-          (!companionEndDate || post.dateValue <= companionEndDate);
+          (!companionStartDate || post.startDate >= companionStartDate) &&
+          (!companionEndDate || post.startDate <= companionEndDate);
 
         return matchesStatus && matchesCountry && matchesDate;
       });
 
       return [...filtered].sort((a, b) =>
-        selectedCompanionSort === '마감임박순'
-          ? a.dateValue.localeCompare(b.dateValue)
-          : b.id - a.id,
+          selectedCompanionSort === '마감임박순'
+          ? a.startDate.localeCompare(b.startDate)
+          : b.createdAt.localeCompare(a.createdAt),
       );
     },
     [
@@ -237,11 +284,12 @@ export default function CommunityScreen() {
       selectedCompanionCountry,
       selectedCompanionSort,
       selectedCompanionStatus,
+      companionPosts,
     ],
   );
 
   const openCompanionDatePicker = (target: Exclude<DatePickerTarget, null>) => {
-    const currentValue = target === 'start' ? companionStartDate : companionEndDate;
+    const currentValue = target === 'start' ? draftCompanionStartDate : draftCompanionEndDate;
     setDraftDate(parseDate(currentValue) || new Date());
     setDatePickerTarget(target);
   };
@@ -250,20 +298,29 @@ export default function CommunityScreen() {
     const nextDate = formatDate(draftDate);
 
     if (datePickerTarget === 'start') {
-      setCompanionStartDate(nextDate);
-      if (companionEndDate && companionEndDate < nextDate) {
-        setCompanionEndDate('');
+      setDraftCompanionStartDate(nextDate);
+      if (draftCompanionEndDate && draftCompanionEndDate < nextDate) {
+        setDraftCompanionEndDate('');
       }
     }
 
     if (datePickerTarget === 'end') {
-      setCompanionEndDate(nextDate);
-      if (companionStartDate && companionStartDate > nextDate) {
-        setCompanionStartDate('');
+      setDraftCompanionEndDate(nextDate);
+      if (draftCompanionStartDate && draftCompanionStartDate > nextDate) {
+        setDraftCompanionStartDate('');
       }
     }
 
     setDatePickerTarget(null);
+  };
+
+  const handleApplyCompanionFilters = () => {
+    setSelectedCompanionStatus(draftCompanionStatus);
+    setSelectedCompanionCountry(draftCompanionCountry);
+    setCompanionStartDate(draftCompanionStartDate);
+    setCompanionEndDate(draftCompanionEndDate);
+    setSelectedCompanionSort(draftCompanionSort);
+    setOpenDropdown(null);
   };
 
   const handleFabPress = () => {
@@ -272,6 +329,14 @@ export default function CommunityScreen() {
       params: { type: activeTab === '자유 게시판' ? 'free' : 'companion' },
     } as never);
   };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator color={BLUE} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -338,35 +403,31 @@ export default function CommunityScreen() {
               />
             </View>
 
-            <DropdownFilter
-              label={selectedBoardCountry}
-              items={countryFilters}
-              selected={selectedBoardCountry}
-              open={openDropdown === 'boardCountry'}
-              onToggle={() =>
-                setOpenDropdown(openDropdown === 'boardCountry' ? null : 'boardCountry')
-              }
-              onSelect={(item) => {
-                setSelectedBoardCountry(item);
-                setOpenDropdown(null);
-              }}
-            />
-
-            <FilterChips
-              items={boardFilters}
-              selected={selectedBoardFilter}
-              onSelect={setSelectedBoardFilter}
-            />
-
             <View style={[styles.boardList, isWide && styles.gridList]}>
               {filteredBoardPosts.map((post) => (
                 <Pressable
                   key={post.id}
                   style={[styles.boardCard, isWide && styles.gridCard]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/community-detail',
+                      params: { type: 'free', id: String(post.id) },
+                    } as never)
+                  }
                 >
                   <View style={styles.boardTopRow}>
-                    <View style={[styles.statusBadge, { backgroundColor: post.color }]}>
-                      <Text style={[styles.statusBadgeText, { color: post.textColor }]}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getBoardStatusColors(post.status).backgroundColor },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: getBoardStatusColors(post.status).color },
+                        ]}
+                      >
                         {post.status}
                       </Text>
                     </View>
@@ -389,18 +450,32 @@ export default function CommunityScreen() {
                     <View style={styles.statsRow}>
                       <View style={styles.statItem}>
                         <Ionicons name="thumbs-up-outline" size={13} color="#A5A5A5" />
-                        <Text style={styles.statText}>{post.likes}</Text>
+                        <Text style={styles.statText}>{post.likeCount}</Text>
                       </View>
                       <View style={styles.statItem}>
                         <Ionicons name="chatbubble-outline" size={13} color="#A5A5A5" />
-                        <Text style={styles.statText}>{post.comments}</Text>
+                        <Text style={styles.statText}>{post.commentCount}</Text>
                       </View>
-                      <Text style={styles.timeText}>{post.time}</Text>
+                      <Text style={styles.timeText}>{formatDateText(post.createdAt)}</Text>
                     </View>
                   </View>
                 </Pressable>
               ))}
             </View>
+
+            {boardHasNext && (
+              <Pressable
+                style={styles.loadMoreButton}
+                onPress={handleLoadMoreBoard}
+                disabled={loadingMoreBoard}
+              >
+                {loadingMoreBoard ? (
+                  <ActivityIndicator color={BLUE} />
+                ) : (
+                  <Text style={styles.loadMoreText}>더보기</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         ) : (
           <View>
@@ -411,12 +486,12 @@ export default function CommunityScreen() {
                   <Text style={styles.filterPanelTitle}>필터</Text>
                 </View>
 
-                {(companionStartDate || companionEndDate) && (
+                {(draftCompanionStartDate || draftCompanionEndDate) && (
                   <Pressable
                     style={styles.clearDateButton}
                     onPress={() => {
-                      setCompanionStartDate('');
-                      setCompanionEndDate('');
+                      setDraftCompanionStartDate('');
+                      setDraftCompanionEndDate('');
                     }}
                   >
                     <Ionicons name="refresh" size={13} color="#666666" />
@@ -428,39 +503,43 @@ export default function CommunityScreen() {
               <View style={styles.compactFilterBar}>
                 <DropdownFilter
                   compact
-                  label={selectedCompanionStatus}
+                  label={draftCompanionStatus}
                   items={companionStatusFilters}
-                  selected={selectedCompanionStatus}
+                  selected={draftCompanionStatus}
                   open={openDropdown === 'status'}
                   onToggle={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
                   onSelect={(item) => {
-                    setSelectedCompanionStatus(item);
+                    setDraftCompanionStatus(item);
                     setOpenDropdown(null);
                   }}
                 />
                 <DropdownFilter
                   compact
-                  label={selectedCompanionCountry}
-                  items={countryFilters}
-                  selected={selectedCompanionCountry}
+                  label={draftCompanionCountry}
+                  items={
+                    companionCountryFilterItems.length > 1
+                      ? companionCountryFilterItems
+                      : countryFilters
+                  }
+                  selected={draftCompanionCountry}
                   open={openDropdown === 'country'}
                   onToggle={() =>
                     setOpenDropdown(openDropdown === 'country' ? null : 'country')
                   }
                   onSelect={(item) => {
-                    setSelectedCompanionCountry(item);
+                    setDraftCompanionCountry(item);
                     setOpenDropdown(null);
                   }}
                 />
                 <DropdownFilter
                   compact
-                  label={selectedCompanionSort}
+                  label={draftCompanionSort}
                   items={sortFilters}
-                  selected={selectedCompanionSort}
+                  selected={draftCompanionSort}
                   open={openDropdown === 'sort'}
                   onToggle={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
                   onSelect={(item) => {
-                    setSelectedCompanionSort(item);
+                    setDraftCompanionSort(item);
                     setOpenDropdown(null);
                   }}
                 />
@@ -469,16 +548,23 @@ export default function CommunityScreen() {
               <View style={styles.dateRangeRow}>
                 <DateRangeButton
                   label="시작일"
-                  value={companionStartDate}
+                  value={draftCompanionStartDate}
                   onPress={() => openCompanionDatePicker('start')}
                 />
                 <View style={styles.dateRangeDivider} />
                 <DateRangeButton
                   label="종료일"
-                  value={companionEndDate}
+                  value={draftCompanionEndDate}
                   onPress={() => openCompanionDatePicker('end')}
                 />
               </View>
+
+              <Pressable
+                style={styles.applyFilterButton}
+                onPress={handleApplyCompanionFilters}
+              >
+                <Text style={styles.applyFilterText}>적용</Text>
+              </Pressable>
             </View>
 
             <View style={styles.nowHeader}>
@@ -490,9 +576,15 @@ export default function CommunityScreen() {
                 <Pressable
                   key={post.id}
                   style={[styles.companionCard, isWide && styles.gridCard]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/community-detail',
+                      params: { type: 'companion', id: String(post.id) },
+                    } as never)
+                  }
                 >
-                  <View style={[styles.companionThumb, { backgroundColor: post.tint }]}>
-                    <Ionicons name={post.icon} size={23} color={post.iconColor} />
+                  <View style={[styles.companionThumb, { backgroundColor: '#EAF1FF' }]}>
+                    <Ionicons name="map-outline" size={23} color="#2F66D0" />
                   </View>
 
                   <View style={styles.companionBody}>
@@ -503,43 +595,39 @@ export default function CommunityScreen() {
                       <View
                         style={[
                           styles.smallStatus,
-                          post.status === '모집완료' && styles.smallStatusDone,
+                          post.status === 'COMPLETED' && styles.smallStatusDone,
                         ]}
                       >
                         <Text
                           style={[
                             styles.smallStatusText,
-                            post.status === '모집완료' && styles.smallStatusDoneText,
+                            post.status === 'COMPLETED' && styles.smallStatusDoneText,
                           ]}
                         >
-                          {post.status}
+                          {getCompanionStatusText(post.status)}
                         </Text>
                       </View>
                     </View>
 
                     <Text style={styles.companionMeta}>
-                      {post.country} · {post.cityName} · {post.period}
+                      {post.country} · {post.region} ·{' '}
+                      {formatCompanionPeriod(post.startDate, post.endDate)}
                     </Text>
 
                     <View style={styles.companionFooter}>
                       <View style={styles.peopleRow}>
                         <Ionicons name="people-outline" size={14} color="#777777" />
                         <Text style={styles.peopleText}>
-                          {post.current}/{post.total}명
+                          {post.currentParticipants}/{post.capacity}명
                         </Text>
                       </View>
                       <View style={styles.verifyRow}>
                         <Ionicons
-                          name={post.verified ? 'checkmark-circle' : 'ellipse-outline'}
+                          name="checkmark-circle"
                           size={14}
-                          color={post.verified ? GREEN : '#B7B7B7'}
+                          color={GREEN}
                         />
-                        <Text
-                          style={[
-                            styles.verifyText,
-                            !post.verified && styles.verifyTextInactive,
-                          ]}
-                        >
+                        <Text style={styles.verifyText}>
                           학교인증
                         </Text>
                       </View>
@@ -548,6 +636,20 @@ export default function CommunityScreen() {
                 </Pressable>
               ))}
             </View>
+
+            {companionHasNext && (
+              <Pressable
+                style={styles.loadMoreButton}
+                onPress={handleLoadMoreCompanion}
+                disabled={loadingMoreCompanion}
+              >
+                {loadingMoreCompanion ? (
+                  <ActivityIndicator color={BLUE} />
+                ) : (
+                  <Text style={styles.loadMoreText}>더보기</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
@@ -703,44 +805,15 @@ function DateRangeButton({
   );
 }
 
-function FilterChips({
-  items,
-  selected,
-  onSelect,
-}: {
-  items: string[];
-  selected: string;
-  onSelect: (item: string) => void;
-}) {
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterScroll}
-      contentContainerStyle={styles.filterContent}
-    >
-      {items.map((item) => {
-        const active = selected === item;
-
-        return (
-          <Pressable
-            key={item}
-            style={[styles.filterChip, active && styles.filterChipActive]}
-            onPress={() => onSelect(item)}
-          >
-            <Text style={[styles.filterText, active && styles.filterTextActive]}>
-              {item}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
   header: {
@@ -831,38 +904,6 @@ const styles = StyleSheet.create({
     color: '#111111',
     paddingVertical: 0,
   },
-  filterScroll: {
-    marginHorizontal: -23,
-    marginBottom: 15,
-  },
-  filterContent: {
-    paddingHorizontal: 23,
-    gap: 9,
-  },
-  filterChip: {
-    minWidth: 63,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 17,
-  },
-  filterChipActive: {
-    backgroundColor: '#111111',
-    borderColor: '#111111',
-  },
-  filterText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#555555',
-  },
-  filterTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
   dropdownWrap: {
     position: 'relative',
     zIndex: 20,
@@ -936,6 +977,21 @@ const styles = StyleSheet.create({
   },
   boardList: {
     gap: 12,
+  },
+  loadMoreButton: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DDE4F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: BLUE,
   },
   gridList: {
     flexDirection: 'row',
@@ -1120,6 +1176,19 @@ const styles = StyleSheet.create({
     height: 1,
     borderRadius: 1,
     backgroundColor: '#B9C0CC',
+  },
+  applyFilterButton: {
+    height: 43,
+    borderRadius: 13,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  applyFilterText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   sectionTitle: {
     fontSize: 18,
