@@ -1,6 +1,8 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -9,76 +11,231 @@ import {
   View,
 } from 'react-native';
 
+import {
+  getLocalMarketPost,
+  LocalMarketPost,
+} from '../../../src/storage/marketPosts';
+import { AppBackButton } from '@/components/ui/app-back-button';
+
+const BLUE = '#123F9F';
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const DETAIL_IMAGE_HEIGHT = 290;
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+
+const parseDate = (value: string) => {
+  if (!value) return null;
+
+  const date = new Date(`${value}T00:00:00`);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatReturnDate = (value: string) => {
+  const date = parseDate(value);
+
+  if (!date) return '미정';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const weekday = WEEKDAYS[date.getDay()];
+
+  return `${year}. ${month}. ${day} (${weekday})`;
+};
+
+const getDdayText = (value: string) => {
+  const date = parseDate(value);
+
+  if (!date) return '귀국 D-?';
+
+  const today = new Date();
+  const todayStart = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const diff = Math.ceil(
+    (date.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return diff >= 0 ? `귀국 D-${diff}` : '귀국 완료';
+};
+
+const formatPrice = (post: LocalMarketPost) => {
+  if (post.priceText) return post.priceText;
+  if (!post.price) return '가격 미정';
+
+  return `${post.price.toLocaleString()}원`;
+};
+
 export default function MarketDetailPage() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
   const [liked, setLiked] = useState(false);
+  const [post, setPost] = useState<LocalMarketPost | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const currentScrollY = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const loadPost = async () => {
+        setLoading(true);
+
+        if (!id) {
+          setPost(null);
+          setLoading(false);
+          return;
+        }
+
+        const nextPost = await getLocalMarketPost(id);
+
+        if (active) {
+          setPost(nextPost);
+          setLoading(false);
+        }
+      };
+
+      loadPost();
+
+      return () => {
+        active = false;
+      };
+    }, [id]),
+  );
+
+  const tags = useMemo(() => {
+    if (!post) return [];
+
+    return [
+      post.region || '지역 미정',
+      post.semester || '학기 미정',
+      getDdayText(post.returnDate),
+    ];
+  }, [post]);
+
+  const handleChangeTab = (nextTab: 'trade' | 'items' | 'seller') => {
+    const currentY = currentScrollY.current;
+
+    setTab(nextTab);
+
+    requestAnimationFrame(() => {
+      const nextY = nextTab === 'seller' ? Math.min(currentY, 430) : currentY;
+
+      scrollRef.current?.scrollTo({
+        y: nextY,
+        animated: false,
+      });
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <HeaderBack />
+
+        <View style={styles.centerState}>
+          <Text style={styles.centerText}>게시글을 불러오는 중이에요</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (!post) {
+    return (
+      <View style={styles.container}>
+        <HeaderBack />
+
+        <View style={styles.centerState}>
+          <Text style={styles.centerTitle}>게시글을 찾을 수 없어요</Text>
+          <Pressable
+            style={styles.centerButton}
+            onPress={() => router.replace('/market' as any)}
+          >
+            <Text style={styles.centerButtonText}>목록으로 돌아가기</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
-        </View>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        onScroll={(event) => {
+          currentScrollY.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
+        <HeaderBack />
 
-        <View style={styles.imageArea}>
-          <View style={styles.dots}>
-            <Text style={styles.dot}>• • •</Text>
-          </View>
-        </View>
+        <ImageCarousel photos={post.photos} />
 
         <View style={styles.body}>
           <View style={styles.tagRow}>
-            <Text style={styles.tag}>독일</Text>
-            <Text style={styles.tag}>26-2학기</Text>
-            <Text style={styles.tag}>귀국 D-18</Text>
+            {tags.map((tag) => (
+              <Text key={tag} style={styles.tag}>
+                {tag}
+              </Text>
+            ))}
           </View>
 
           <View style={styles.titleRow}>
-            <Text style={styles.title}>독일 아샤펜부르크 중고 물품</Text>
+            <Text style={styles.title}>{post.title}</Text>
             <Image
               source={require('../../../assets/images/share.png')}
               style={styles.shareIcon}
             />
           </View>
 
-          <Text style={styles.price}>21만 원</Text>
+          <Text style={styles.price}>{formatPrice(post)}</Text>
 
           <View style={styles.tabRow}>
-            <Pressable style={styles.tabButton} onPress={() => setTab('trade')}>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => handleChangeTab('trade')}
+            >
               <Text style={styles.tabText}>거래 정보</Text>
               {tab === 'trade' && <View style={styles.activeLine} />}
             </Pressable>
 
-            <Pressable style={styles.tabButton} onPress={() => setTab('items')}>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => handleChangeTab('items')}
+            >
               <Text style={styles.tabText}>물품 목록</Text>
               {tab === 'items' && <View style={styles.activeLine} />}
             </Pressable>
 
             <Pressable
               style={styles.tabButton}
-              onPress={() => setTab('seller')}
+              onPress={() => handleChangeTab('seller')}
             >
               <Text style={styles.tabText}>판매자 정보</Text>
               {tab === 'seller' && <View style={styles.activeLine} />}
             </Pressable>
           </View>
 
-          {tab === 'trade' && <TradeInfo />}
-          {tab === 'items' && <ItemList />}
-          {tab === 'seller' && <SellerInfo />}
+          {tab === 'trade' && <TradeInfo post={post} />}
+          {tab === 'items' && <ItemList post={post} />}
+          {tab === 'seller' && <SellerInfo post={post} />}
         </View>
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <Pressable onPress={() => setLiked((prev) => !prev)}>
+        <Pressable onPress={() => setLiked(!liked)}>
           <Image
-            source={require('../../../assets/images/heart.png')}
-            style={[
-              styles.bottomHeartImage,
-              liked && styles.bottomHeartImageActive,
-            ]}
+            source={
+              liked
+                ? require('../../../assets/images/filled_heart.png')
+                : require('../../../assets/images/heart.png')
+            }
+            style={liked ? styles.filledHeartIcon : styles.heartIcon}
           />
         </Pressable>
 
@@ -90,7 +247,47 @@ export default function MarketDetailPage() {
   );
 }
 
-function TradeInfo() {
+function HeaderBack() {
+  return (
+    <View style={styles.top}>
+      <AppBackButton />
+    </View>
+  );
+}
+
+function ImageCarousel({ photos }: { photos: string[] }) {
+  if (photos.length === 0) {
+    return (
+      <View style={[styles.imageArea, styles.emptyImageArea]}>
+        <Text style={styles.emptyImageText}>등록된 사진 없음</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.imageArea}>
+      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+        {photos.map((photo, index) => (
+          <Image
+            key={`${photo}-${index}`}
+            source={{ uri: photo }}
+            style={styles.heroImage}
+          />
+        ))}
+      </ScrollView>
+
+      {photos.length > 1 && (
+        <View style={styles.dots}>
+          {photos.map((_, index) => (
+            <View key={index} style={styles.dot} />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function TradeInfo({ post }: { post: LocalMarketPost }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>거래 정보</Text>
@@ -109,9 +306,7 @@ function TradeInfo() {
             />
             <Text style={styles.conditionLabel}>거래 장소</Text>
           </View>
-          <Text style={styles.conditionValue}>
-            쏜트룸{'\n'}(Bessenbacher Weg 10)
-          </Text>
+          <Text style={styles.conditionValue}>{post.region || '미정'}</Text>
         </View>
 
         <View style={styles.conditionCard}>
@@ -122,85 +317,93 @@ function TradeInfo() {
             />
             <Text style={styles.conditionLabel}>귀국일</Text>
           </View>
-          <Text style={styles.conditionValue}>2026. 02. 25 (수)</Text>
+          <Text style={styles.conditionValue}>
+            {formatReturnDate(post.returnDate)}
+          </Text>
         </View>
       </View>
 
       <Text style={styles.subTitle}>판매자 글</Text>
 
       <View style={styles.descriptionBox}>
-        <Text style={styles.descriptionText}>
-          안녕하세요, 새해 복 많이 받으세요~{'\n\n'}
-          25-02학기 아샤펜부르크 교환 학생 생활 동안 사용하던 물품들을 일괄
-          17만원(100유로)에 양도합니다!{'\n\n'}
-          전체 제가 직접 구매한 물품들이고 최대한 깨끗하게 사용했습니다. 친구의
-          경우 전부 새로 세탁할 예정이며, 다른 물품들도 최대한 깨끗하게 세척 및
-          정리하여 전달해 드리겠습니다.{'\n\n'}
-          일괄 판매만 가능하며 중고 물품 특성상 상태는 어렵습니다. 물건의 상세한
-          상태가 궁금하신 분들은 연락 주시면 자세하게 안내 도와드리겠습니다 :)
-          {'\n\n'}
-          2월 24일까지 대면 거래 가능하며, 그 이후에 오시는 경우에는 배정 받으신
-          버디가 지인, 물품 보관할 등으로 전달 가능합니다.{'\n\n'}
-          거래 장소는 쏜트룸(Bessenbacher Weg 10)입니다.{'\n\n'}더 궁금하신 사항
-          있으시면 채팅으로 연락 주세요!
-        </Text>
+        <Text style={styles.descriptionText}>{post.content}</Text>
       </View>
     </View>
   );
 }
 
-function ItemList() {
+function ItemList({ post }: { post: LocalMarketPost }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>물품 목록</Text>
       <Text style={styles.sectionDesc}>판매 물품 리스트예요</Text>
 
-      <Text style={styles.subTitle}>보유 카테고리</Text>
+      {post.itemGroups.length > 0 ? (
+        <>
+          <Text style={styles.subTitle}>보유 카테고리</Text>
 
-      <View style={styles.categoryPillRow}>
-        {['주방 용품', '욕실/청소 용품', '침구 용품', '생활 용품'].map(
-          (item) => (
-            <Text key={item} style={styles.categoryPill}>
-              {item}
-            </Text>
-          ),
-        )}
-      </View>
+          <View style={styles.categoryPillRow}>
+            {post.itemGroups.map((group) => (
+              <Text key={group.category} style={styles.categoryPill}>
+                {group.category}
+              </Text>
+            ))}
+          </View>
 
-      <Text style={styles.subTitle}>주방 용품</Text>
+          {post.itemGroups.map((group) => (
+            <View key={group.category} style={styles.itemGroup}>
+              <Text style={styles.subTitle}>{group.category}</Text>
 
-      <View style={styles.photoPlaceholder}>
-        <Text style={styles.photoText}>사진</Text>
-        <Text style={styles.dotText}>• • •</Text>
-      </View>
+              {group.photos && group.photos.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.itemPhotoRow}
+                >
+                  {group.photos.map((photo, index) => (
+                    <Image
+                      key={`${group.category}-${photo}-${index}`}
+                      source={{ uri: photo }}
+                      style={styles.itemPhoto}
+                    />
+                  ))}
+                </ScrollView>
+              )}
 
-      <View style={styles.itemGrid}>
-        {[
-          '냄비 2개',
-          '브리타 + 필터 1개',
-          '프라이팬 1개',
-          '주방 소도구(주걱·집게)',
-          '밥솥 (1인용) 1개',
-          '주방 칼 1개',
-          '밥·국 그릇 2개',
-          '락앤락 통 2개',
-          '접시 2개',
-          '수저세트 1개',
-          '컵 2개',
-          '식기 건조대 1개',
-        ].map((item) => (
-          <Text key={item} style={styles.itemText}>
-            • {item}
-          </Text>
-        ))}
-      </View>
+              {group.description && group.description.length > 0 && (
+                <View style={styles.itemDescriptionBox}>
+                  <Text style={styles.itemDescriptionText}>
+                    {group.description}
+                  </Text>
+                </View>
+              )}
 
-      <Text style={styles.subTitle}>욕실/청소 용품</Text>
+              <View style={styles.itemGrid}>
+                {group.items.map((item, index) => (
+                  <Text
+                    key={`${group.category}-${item.name}-${index}`}
+                    style={styles.itemText}
+                  >
+                    • {item.name} {item.quantity}개
+                  </Text>
+                ))}
+              </View>
+            </View>
+          ))}
+        </>
+      ) : (
+        <View style={styles.emptyListBox}>
+          <Text style={styles.emptyListText}>등록된 물품이 없어요</Text>
+        </View>
+      )}
     </View>
   );
 }
 
-function SellerInfo() {
+function SellerInfo({ post }: { post: LocalMarketPost }) {
+  const authorName = post.authorName || '나';
+  const initial = authorName.trim().charAt(0) || '나';
+
   return (
     <View>
       <Text style={styles.sectionTitle}>판매자 정보</Text>
@@ -208,15 +411,17 @@ function SellerInfo() {
         교환학생 선배 판매자의 기본 정보예요
       </Text>
 
-      <Text style={styles.nickname}>may.be</Text>
+      <Text style={styles.nickname}>{authorName}</Text>
 
       <View style={styles.profileCard}>
-        <View style={styles.profileImage} />
+        <View style={styles.profileImage}>
+          <Text style={styles.profileInitial}>{initial}</Text>
+        </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>may.be</Text>
+          <Text style={styles.profileName}>{authorName}</Text>
           <Text style={styles.profileMeta}>
-            독일　아샤펜부르크　26-2학기 파견생
+            {post.region || '지역 미정'}　{post.semester || '학기 미정'} 파견생
           </Text>
         </View>
 
@@ -226,46 +431,8 @@ function SellerInfo() {
   );
 }
 
-const BLUE = '#123F9F';
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  shareIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-  },
-
-  conditionLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-
-  conditionIcon: {
-    width: 13,
-    height: 13,
-    resizeMode: 'contain',
-    marginRight: 5,
-  },
-
-  conditionLabel: {
-    fontSize: 10,
-    color: '#555',
-    fontWeight: '700',
-  },
-
-  bottomHeartImage: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-    tintColor: '#111111',
-    marginTop: 10,
-  },
-
-  bottomHeartImageActive: {
-    tintColor: '#FF4F7B',
-  },
 
   top: {
     height: 70,
@@ -273,26 +440,79 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
 
-  back: {
-    fontSize: 36,
-    color: '#111',
+  centerState: {
+    flex: 1,
+    minHeight: 360,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+
+  centerTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 18,
+  },
+
+  centerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#777777',
+  },
+
+  centerButton: {
+    height: 44,
+    borderRadius: 5,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+
+  centerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 
   imageArea: {
-    height: 250,
+    height: DETAIL_IMAGE_HEIGHT,
     backgroundColor: '#F2F2F2',
-    justifyContent: 'flex-end',
+  },
+
+  emptyImageArea: {
     alignItems: 'center',
-    paddingBottom: 12,
+    justifyContent: 'center',
+  },
+
+  emptyImageText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#888888',
+  },
+
+  heroImage: {
+    width: SCREEN_WIDTH,
+    height: DETAIL_IMAGE_HEIGHT,
+    resizeMode: 'cover',
   },
 
   dots: {
-    alignItems: 'center',
+    position: 'absolute',
+    bottom: 14,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
 
   dot: {
-    color: '#C4C4C4',
-    fontSize: 22,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
 
   body: {
@@ -303,6 +523,7 @@ const styles = StyleSheet.create({
 
   tagRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
   },
@@ -313,7 +534,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     fontSize: 11,
-    color: '#555',
+    color: '#555555',
     fontWeight: '700',
   },
 
@@ -324,19 +545,22 @@ const styles = StyleSheet.create({
 
   title: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 23,
+    lineHeight: 30,
     fontWeight: '900',
-    color: '#111',
+    color: '#111111',
+    marginRight: 10,
   },
 
-  share: {
-    fontSize: 25,
-    color: '#111',
+  shareIcon: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
   },
 
   price: {
     marginTop: 8,
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '900',
     color: BLUE,
   },
@@ -359,7 +583,7 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#111',
+    color: '#111111',
   },
 
   activeLine: {
@@ -374,20 +598,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#111',
+    color: '#111111',
     marginBottom: 7,
   },
 
   sectionDesc: {
     fontSize: 11,
-    color: '#777',
+    color: '#777777',
     marginBottom: 24,
   },
 
   subTitle: {
     fontSize: 14,
     fontWeight: '900',
-    color: '#111',
+    color: '#111111',
     marginBottom: 12,
     marginTop: 8,
   },
@@ -400,17 +624,38 @@ const styles = StyleSheet.create({
 
   conditionCard: {
     flex: 1,
-    height: 82,
+    minHeight: 92,
     backgroundColor: '#FAFAFA',
     borderRadius: 4,
-    padding: 11,
+    paddingHorizontal: 11,
+    paddingVertical: 12,
+  },
+
+  conditionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
+  conditionIcon: {
+    width: 13,
+    height: 13,
+    resizeMode: 'contain',
+    marginRight: 5,
+  },
+
+  conditionLabel: {
+    fontSize: 12,
+    color: '#555555',
+    fontWeight: '700',
   },
 
   conditionValue: {
-    fontSize: 11,
-    color: '#111',
+    fontSize: 15,
+    color: '#111111',
     fontWeight: '800',
-    lineHeight: 17,
+    lineHeight: 18,
+    flexWrap: 'wrap',
   },
 
   descriptionBox: {
@@ -421,46 +666,60 @@ const styles = StyleSheet.create({
   },
 
   descriptionText: {
-    fontSize: 11,
+    fontSize: 15,
     lineHeight: 22,
-    textAlign: 'center',
-    color: '#111',
+    color: '#111111',
     fontWeight: '600',
   },
 
   categoryPillRow: {
     flexDirection: 'row',
-    gap: 9,
-    marginBottom: 28,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 22,
   },
 
   categoryPill: {
-    flex: 1,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 4,
-    paddingVertical: 14,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#111',
+    backgroundColor: '#F2F2F2',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    fontSize: 15,
+    color: '#111111',
+    fontWeight: '700',
+    overflow: 'hidden',
   },
 
-  photoPlaceholder: {
-    height: 145,
-    backgroundColor: '#FAFAFA',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 30,
+  itemGroup: {
+    marginBottom: 22,
   },
 
-  photoText: {
-    fontSize: 12,
-    color: '#777',
+  itemPhotoRow: {
+    marginBottom: 12,
   },
 
-  dotText: {
-    marginTop: 45,
-    color: '#C4C4C4',
+  itemPhoto: {
+    width: 96,
+    height: 96,
+    borderRadius: 10,
+    resizeMode: 'cover',
+    marginRight: 9,
+  },
+
+  itemDescriptionBox: {
+    borderRadius: 8,
+    backgroundColor: '#F7F7F7',
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+
+  itemDescriptionText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#333333',
+    fontWeight: '600',
   },
 
   itemGrid: {
@@ -471,9 +730,23 @@ const styles = StyleSheet.create({
 
   itemText: {
     width: '50%',
-    fontSize: 11,
+    fontSize: 14,
     lineHeight: 21,
-    color: '#111',
+    color: '#111111',
+  },
+
+  emptyListBox: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 4,
+    backgroundColor: '#FAFAFA',
+  },
+
+  emptyListText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#777777',
   },
 
   nickname: {
@@ -495,26 +768,34 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#D9E5FF',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 14,
+  },
+
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: BLUE,
   },
 
   profileName: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#333',
+    color: '#333333',
   },
 
   profileMeta: {
     marginTop: 5,
     fontSize: 10,
-    color: '#555',
+    color: '#555555',
     fontWeight: '600',
   },
 
   profileArrow: {
     fontSize: 30,
-    color: '#111',
+    color: '#111111',
   },
 
   bottomBar: {
@@ -530,28 +811,32 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  bottomHeart: {
-    width: 48,
-    fontSize: 32,
-    color: '#111',
-    lineHeight: 48,
+  heartIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+    top: 6,
   },
 
-  bottomHeartActive: {
-    color: '#FF4F7B',
+  filledHeartIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+    top: 6,
   },
 
   chatButton: {
-    flex: 1,
     height: 48,
     borderRadius: 4,
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+    width: '85%',
+    left: 15,
   },
 
   chatText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '900',
     color: '#FFFFFF',
   },

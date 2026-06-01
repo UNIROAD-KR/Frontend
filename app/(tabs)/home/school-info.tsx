@@ -128,7 +128,7 @@ const SCHOOL_DATA: PartnerSchool[] = [
 
 export default function SchoolInfoScreen() {
   const { initCountry } = useLocalSearchParams<{ initCountry?: string }>();
-  
+
   // 상태 관리
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,7 +136,10 @@ export default function SchoolInfoScreen() {
 
   // 메인 explore 화면 등에서 특정 국가를 선택해서 넘어왔을 때 자동 필터링
   useEffect(() => {
-    if (initCountry && ['독일', '프랑스', '일본', '미국'].includes(initCountry)) {
+    if (
+      initCountry &&
+      ['독일', '프랑스', '일본', '미국'].includes(initCountry)
+    ) {
       setSelectedCountry(initCountry);
     }
   }, [initCountry]);
@@ -161,7 +164,10 @@ export default function SchoolInfoScreen() {
           setSchools(apiSchools);
         }
       } catch (error: any) {
-        console.log('파견교 목록 API 조회 실패:', error.response?.data || error.message);
+        console.log(
+          '파견교 목록 API 조회 실패:',
+          error.response?.data || error.message,
+        );
       }
     };
 
@@ -170,18 +176,26 @@ export default function SchoolInfoScreen() {
 
   // 국가 목록 필터
   const countries = useMemo(
-    () => ['전체', ...Array.from(new Set(schools.map((school) => school.country).filter(Boolean)))],
+    () => [
+      '전체',
+      ...Array.from(
+        new Set(schools.map((school) => school.country).filter(Boolean)),
+      ),
+    ],
     [schools],
   );
 
   // 🔍 검색 & 필터 적용된 결과 리스트
   const filteredSchools = useMemo(() => {
     return schools.filter((school) => {
-      const matchCountry = selectedCountry === '전체' || school.country === selectedCountry;
+      const matchCountry =
+        selectedCountry === '전체' || school.country === selectedCountry;
       const matchSearch =
         school.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         school.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        school.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+        school.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
       return matchCountry && matchSearch;
     });
   }, [schools, selectedCountry, searchQuery]);
@@ -195,10 +209,7 @@ export default function SchoolInfoScreen() {
     <View style={styles.container}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#0F2042" />
         </TouchableOpacity>
 
@@ -230,14 +241,18 @@ export default function SchoolInfoScreen() {
               key={c}
               style={[
                 styles.countryPill,
-                selectedCountry === c ? styles.countryPillActive : styles.countryPillInactive,
+                selectedCountry === c
+                  ? styles.countryPillActive
+                  : styles.countryPillInactive,
               ]}
               onPress={() => handleCountrySelect(c)}
             >
               <Text
                 style={[
                   styles.countryPillText,
-                  selectedCountry === c ? styles.countryPillTextActive : styles.countryPillTextInactive,
+                  selectedCountry === c
+                    ? styles.countryPillTextActive
+                    : styles.countryPillTextInactive,
                 ]}
               >
                 {c}
@@ -248,7 +263,12 @@ export default function SchoolInfoScreen() {
 
         {/* 학교명 검색 바 */}
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+          <Ionicons
+            name="search"
+            size={20}
+            color="#94A3B8"
+            style={styles.searchIcon}
+          />
           <TextInput
             placeholder="학교명, 도시 또는 키워드를 입력하세요"
             placeholderTextColor="#94A3B8"
@@ -271,15 +291,20 @@ export default function SchoolInfoScreen() {
       >
         <View style={styles.listHeader}>
           <Text style={styles.listCountText}>
-            검색 결과 <Text style={styles.countNumber}>{filteredSchools.length}</Text>건
+            검색 결과{' '}
+            <Text style={styles.countNumber}>{filteredSchools.length}</Text>건
           </Text>
         </View>
 
         {filteredSchools.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="school-outline" size={48} color="#CBD5E1" />
-            <Text style={styles.emptyText}>조건에 부합하는 파견 대학이 없습니다.</Text>
-            <Text style={styles.emptySubText}>검색어나 국가 필터를 다시 설정해보세요.</Text>
+            <Text style={styles.emptyText}>
+              조건에 부합하는 파견 대학이 없습니다.
+            </Text>
+            <Text style={styles.emptySubText}>
+              검색어나 국가 필터를 다시 설정해보세요.
+            </Text>
           </View>
         ) : (
           filteredSchools.map((school) => (
@@ -300,7 +325,7 @@ export default function SchoolInfoScreen() {
                 <Text style={styles.schoolName} numberOfLines={1}>
                   {school.name}
                 </Text>
-                
+
                 <Text style={styles.schoolLocation}>
                   {school.country} / {school.city}
                 </Text>
@@ -352,9 +377,10 @@ const styles = StyleSheet.create({
     color: '#0F2042',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
@@ -402,13 +428,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F2042',
     borderColor: '#0F2042',
   },
-  countryPillInactive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
+  icon: { width: 22, height: 22, resizeMode: 'contain' },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '800',
   },
-  countryPillText: {
-    fontSize: 12,
-    fontWeight: '700',
+  headerRight: { flexDirection: 'row', gap: 10 },
+
+  sectionTitle: {
+    marginTop: 34,
+    marginBottom: 18,
+    fontSize: 20,
+    fontWeight: '800',
   },
   countryPillTextActive: {
     color: '#FFFFFF',

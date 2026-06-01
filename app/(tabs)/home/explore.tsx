@@ -277,7 +277,9 @@ const REVIEW_DATA: Review[] = [
 
 export default function ExploreScreen() {
   const [searchQuery] = useState('');
-  const [activePrepTab, setActivePrepTab] = useState<'support' | 'dispatch'>('support');
+  const [activePrepTab, setActivePrepTab] = useState<'support' | 'dispatch'>(
+    'support',
+  );
   const [activeInfoCardIndex, setActiveInfoCardIndex] = useState(0);
   const bannerScrollRef = useRef<ScrollView>(null);
   const [selectedCountry, setSelectedCountry] = useState('전체');
@@ -290,27 +292,62 @@ export default function ExploreScreen() {
     useState<keyof typeof BLOG_COUNTRY_GROUPS>('유럽권');
   const [reviews, setReviews] = useState<Review[]>(REVIEW_DATA);
   const [, setPopularCountries] = useState([
-    { name: '독일', code: 'DE', flag: require('../../../assets/images/flag_germany.png') },
-    { name: '프랑스', code: 'FR', flag: require('../../../assets/images/flag_france.png') },
-    { name: '일본', code: 'JP', flag: require('../../../assets/images/japan.png') },
-    { name: '미국', code: 'US', flag: require('../../../assets/images/flag_USA.png') },
+    {
+      name: '독일',
+      code: 'DE',
+      flag: require('../../../assets/images/flag_germany.png'),
+    },
+    {
+      name: '프랑스',
+      code: 'FR',
+      flag: require('../../../assets/images/flag_france.png'),
+    },
+    {
+      name: '일본',
+      code: 'JP',
+      flag: require('../../../assets/images/japan.png'),
+    },
+    {
+      name: '미국',
+      code: 'US',
+      flag: require('../../../assets/images/flag_USA.png'),
+    },
   ]);
-  
+
   // 💬 상세 모달 관련 상태
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [likedReviews, setLikedReviews] = useState<Record<string, boolean>>({});
-  const [comments, setComments] = useState<Record<string, { id: string; user: string; text: string; time: string }[]>>({
+  const [comments, setComments] = useState<
+    Record<string, { id: string; user: string; text: string; time: string }[]>
+  >({
     '1': [
-      { id: '1-1', user: '코코아', text: '기숙사 신청 타이밍이 진짜 중요하군요 ㅠㅠ 정보 감사합니다!', time: '10분 전' },
-      { id: '1-2', user: '독일러브', text: '독일 건강보험료가 생각보다 꽤 나오네요. 좋은 정보예요!', time: '3분 전' },
+      {
+        id: '1-1',
+        user: '코코아',
+        text: '기숙사 신청 타이밍이 진짜 중요하군요 ㅠㅠ 정보 감사합니다!',
+        time: '10분 전',
+      },
+      {
+        id: '1-2',
+        user: '독일러브',
+        text: '독일 건강보험료가 생각보다 꽤 나오네요. 좋은 정보예요!',
+        time: '3분 전',
+      },
     ],
     '4': [
-      { id: '4-1', user: '미국희망', text: '잔고 증명 서류 발급받을 때 원화로 떼어가도 괜찮을까요?', time: '20분 전' },
-    ]
+      {
+        id: '4-1',
+        user: '미국희망',
+        text: '잔고 증명 서류 발급받을 때 원화로 떼어가도 괜찮을까요?',
+        time: '20분 전',
+      },
+    ],
   });
   const [newCommentText, setNewCommentText] = useState('');
-  const activeBannerItems = activePrepTab === 'support' ? BANNER_ITEMS : DEPARTURE_BANNER_ITEMS;
-  const activeHotNewsItems = activePrepTab === 'support' ? HOT_NEWS_ITEMS : DEPARTURE_HOT_NEWS_ITEMS;
+  const activeBannerItems =
+    activePrepTab === 'support' ? BANNER_ITEMS : DEPARTURE_BANNER_ITEMS;
+  const activeHotNewsItems =
+    activePrepTab === 'support' ? HOT_NEWS_ITEMS : DEPARTURE_HOT_NEWS_ITEMS;
 
   useEffect(() => {
     const fetchExploreData = async () => {
@@ -350,14 +387,19 @@ export default function ExploreScreen() {
         const apiCountries = countryResponse.data.data.map((country) => ({
           name: country.name,
           code: country.code,
-          flag: flagByCode[country.code] ?? require('../../../assets/images/etc.png'),
+          flag:
+            flagByCode[country.code] ??
+            require('../../../assets/images/etc.png'),
         }));
 
         if (apiCountries.length > 0) {
           setPopularCountries(apiCountries);
         }
       } catch (error: any) {
-        console.log('정보 탐색 API 조회 실패:', error.response?.data || error.message);
+        console.log(
+          '정보 탐색 API 조회 실패:',
+          error.response?.data || error.message,
+        );
       }
     };
 
@@ -370,9 +412,12 @@ export default function ExploreScreen() {
       const matchSearch =
         review.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         review.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        review.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchCountry = selectedCountry === '전체' || review.country === selectedCountry;
+        review.tags.some((tag) =>
+          tag.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
+
+      const matchCountry =
+        selectedCountry === '전체' || review.country === selectedCountry;
       const matchType =
         selectedType === '전체' ||
         review.type === selectedType ||
@@ -383,11 +428,14 @@ export default function ExploreScreen() {
   }, [reviews, searchQuery, selectedCountry, selectedType]);
 
   const selectedTypeLabel =
-    BLOG_TYPE_OPTIONS.find((option) => option.value === selectedType)?.label ?? '유형';
-  const countryPillLabel = selectedCountry === '전체' ? '국가' : selectedCountry;
+    BLOG_TYPE_OPTIONS.find((option) => option.value === selectedType)?.label ??
+    '유형';
+  const countryPillLabel =
+    selectedCountry === '전체' ? '국가' : selectedCountry;
   const statusPillLabel =
     selectedDispatchStatus === '전체' ? '파견 상태' : selectedDispatchStatus;
-  const typePillLabel = selectedType === '전체' ? '정보 유형' : selectedTypeLabel;
+  const typePillLabel =
+    selectedType === '전체' ? '정보 유형' : selectedTypeLabel;
 
   // 🤍 좋아요 토글 핸들러
   const handleLikeToggle = async (id: string) => {
@@ -404,7 +452,10 @@ export default function ExploreScreen() {
         await unlikeExchangeReview(Number(id));
       }
     } catch (error: any) {
-      console.log('후기 좋아요 API 실패:', error.response?.data || error.message);
+      console.log(
+        '후기 좋아요 API 실패:',
+        error.response?.data || error.message,
+      );
     }
   };
 
@@ -421,7 +472,10 @@ export default function ExploreScreen() {
 
     const submitComment = async () => {
       try {
-        const response = await createExchangeReviewComment(Number(reviewId), newCommentText);
+        const response = await createExchangeReviewComment(
+          Number(reviewId),
+          newCommentText,
+        );
         const apiComment = response.data.data;
 
         setComments((prev) => ({
@@ -437,7 +491,10 @@ export default function ExploreScreen() {
           ],
         }));
       } catch (error: any) {
-        console.log('후기 댓글 작성 API 실패:', error.response?.data || error.message);
+        console.log(
+          '후기 댓글 작성 API 실패:',
+          error.response?.data || error.message,
+        );
         setComments((prev) => ({
           ...prev,
           [reviewId]: [...(prev[reviewId] || []), newComment],
@@ -465,7 +522,10 @@ export default function ExploreScreen() {
         })),
       }));
     } catch (error: any) {
-      console.log('후기 댓글 조회 API 실패:', error.response?.data || error.message);
+      console.log(
+        '후기 댓글 조회 API 실패:',
+        error.response?.data || error.message,
+      );
     }
   };
 
@@ -493,7 +553,10 @@ export default function ExploreScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.prepTabs}>
           <TouchableOpacity
             style={[
@@ -556,15 +619,21 @@ export default function ExploreScreen() {
           decelerationRate="fast"
           onMomentumScrollEnd={(event) => {
             const nextIndex = Math.round(
-              event.nativeEvent.contentOffset.x / (INFO_CARD_WIDTH + INFO_CARD_GAP),
+              event.nativeEvent.contentOffset.x /
+                (INFO_CARD_WIDTH + INFO_CARD_GAP),
             );
-            setActiveInfoCardIndex(Math.min(Math.max(nextIndex, 0), activeBannerItems.length - 1));
+            setActiveInfoCardIndex(
+              Math.min(Math.max(nextIndex, 0), activeBannerItems.length - 1),
+            );
           }}
         >
           {activeBannerItems.map((item) => (
             <TouchableOpacity
               key={item.title}
-              style={[styles.menuCard, { backgroundColor: item.backgroundColor }]}
+              style={[
+                styles.menuCard,
+                { backgroundColor: item.backgroundColor },
+              ]}
               onPress={() => router.push(item.route as any)}
               activeOpacity={0.9}
             >
@@ -576,19 +645,21 @@ export default function ExploreScreen() {
                     style={styles.cardArrowIcon}
                   />
                 </View>
-                <Text style={styles.cardDesc}>
-                  {item.subtitle}
-                </Text>
+                <Text style={styles.cardDesc}>{item.subtitle}</Text>
               </View>
               <View style={styles.cardIllustration}>
                 <Image
                   source={item.image}
                   style={[
                     styles.cardIllustrationImage,
-                    item.title === '파견교 정보' && styles.cardIllustrationImagePartner,
-                    item.title === '장학금 정보' && styles.cardIllustrationImageScholarship,
-                    item.title === '국가별 출국 가이드' && styles.cardIllustrationImageVisa,
-                    item.title === '나의 출국 준비' && styles.cardIllustrationImageChecklist,
+                    item.title === '파견교 정보' &&
+                      styles.cardIllustrationImagePartner,
+                    item.title === '장학금 정보' &&
+                      styles.cardIllustrationImageScholarship,
+                    item.title === '국가별 출국 가이드' &&
+                      styles.cardIllustrationImageVisa,
+                    item.title === '나의 출국 준비' &&
+                      styles.cardIllustrationImageChecklist,
                   ]}
                 />
               </View>
@@ -637,7 +708,11 @@ export default function ExploreScreen() {
             contentContainerStyle={styles.hotContent}
           >
             {activeHotNewsItems.map((item) => (
-              <TouchableOpacity key={item.title} style={styles.hotCard} activeOpacity={0.86}>
+              <TouchableOpacity
+                key={item.title}
+                style={styles.hotCard}
+                activeOpacity={0.86}
+              >
                 <Image source={item.image} style={styles.hotImage} />
                 <LinearGradient
                   colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.72)']}
@@ -645,7 +720,11 @@ export default function ExploreScreen() {
                   style={styles.hotOverlay}
                 />
                 <View style={styles.hotBookmark}>
-                  <Ionicons name="bookmark" size={10} color="rgba(0,0,0,0.34)" />
+                  <Ionicons
+                    name="bookmark"
+                    size={10}
+                    color="rgba(0,0,0,0.34)"
+                  />
                 </View>
                 <View style={styles.hotCardBody}>
                   <Text style={styles.hotCategory}>{item.category}</Text>
@@ -676,7 +755,7 @@ export default function ExploreScreen() {
                 onPress={() => {
                   router.push({
                     pathname: '/(tabs)/home/school-info',
-                    params: { initCountry: c.name }
+                    params: { initCountry: c.name },
                   });
                 }}
               >
@@ -704,7 +783,9 @@ export default function ExploreScreen() {
             <TouchableOpacity
               style={styles.conditionPill}
               onPress={() =>
-                setActiveBlogFilter((prev) => (prev === 'country' ? null : 'country'))
+                setActiveBlogFilter((prev) =>
+                  prev === 'country' ? null : 'country',
+                )
               }
               activeOpacity={0.82}
             >
@@ -722,14 +803,17 @@ export default function ExploreScreen() {
             <TouchableOpacity
               style={styles.conditionPill}
               onPress={() =>
-                setActiveBlogFilter((prev) => (prev === 'status' ? null : 'status'))
+                setActiveBlogFilter((prev) =>
+                  prev === 'status' ? null : 'status',
+                )
               }
               activeOpacity={0.82}
             >
               <Text
                 style={[
                   styles.conditionText,
-                  selectedDispatchStatus === '전체' && styles.conditionTextPlaceholder,
+                  selectedDispatchStatus === '전체' &&
+                    styles.conditionTextPlaceholder,
                 ]}
               >
                 {statusPillLabel}
@@ -775,15 +859,22 @@ export default function ExploreScreen() {
           {filteredReviews.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="chatbubbles-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyText}>해당 필터에 부합하는 후기가 없습니다.</Text>
-              <Text style={styles.emptySubText}>다른 조건의 필터나 검색어를 조합해보세요.</Text>
+              <Text style={styles.emptyText}>
+                해당 필터에 부합하는 후기가 없습니다.
+              </Text>
+              <Text style={styles.emptySubText}>
+                다른 조건의 필터나 검색어를 조합해보세요.
+              </Text>
             </View>
           ) : (
             filteredReviews.map((item) => {
               const isLiked = likedReviews[item.id] || false;
               const currentLikes = item.likes + (isLiked ? 1 : 0);
               const postComments = comments[item.id] || [];
-              const currentCommentsCount = Math.max(item.commentsCount, postComments.length);
+              const currentCommentsCount = Math.max(
+                item.commentsCount,
+                postComments.length,
+              );
 
               return (
                 <TouchableOpacity
@@ -798,11 +889,11 @@ export default function ExploreScreen() {
                       </View>
                       <Text style={styles.countryLabel}>{item.country}</Text>
                     </View>
-                    
+
                     <Text style={styles.reviewTitleText} numberOfLines={2}>
                       {item.title}
                     </Text>
-                    
+
                     <Text style={styles.reviewExcerpt} numberOfLines={2}>
                       {item.content.replace(/\n/g, ' ')}
                     </Text>
@@ -817,27 +908,40 @@ export default function ExploreScreen() {
                   <View style={styles.reviewFooter}>
                     <View style={styles.tagsRow}>
                       {item.tags.slice(0, 2).map((tag, idx) => (
-                        <Text key={idx} style={styles.tagText}>{tag}</Text>
+                        <Text key={idx} style={styles.tagText}>
+                          {tag}
+                        </Text>
                       ))}
                     </View>
 
                     <View style={styles.statsRow}>
-                      <TouchableOpacity 
-                        style={styles.statItem} 
+                      <TouchableOpacity
+                        style={styles.statItem}
                         onPress={() => handleLikeToggle(item.id)}
                       >
-                        <Ionicons 
-                          name={isLiked ? "heart" : "heart-outline"} 
-                          size={15} 
-                          color={isLiked ? "#EF4444" : "#64748B"} 
+                        <Ionicons
+                          name={isLiked ? 'heart' : 'heart-outline'}
+                          size={15}
+                          color={isLiked ? '#EF4444' : '#64748B'}
                         />
-                        <Text style={[styles.statText, isLiked && { color: '#EF4444' }]}>
+                        <Text
+                          style={[
+                            styles.statText,
+                            isLiked && { color: '#EF4444' },
+                          ]}
+                        >
                           {currentLikes}
                         </Text>
                       </TouchableOpacity>
                       <View style={styles.statItem}>
-                        <Ionicons name="chatbubble-outline" size={14} color="#64748B" />
-                        <Text style={styles.statText}>{currentCommentsCount}</Text>
+                        <Ionicons
+                          name="chatbubble-outline"
+                          size={14}
+                          color="#64748B"
+                        />
+                        <Text style={styles.statText}>
+                          {currentCommentsCount}
+                        </Text>
                       </View>
                     </View>
                   </View>
@@ -874,12 +978,15 @@ export default function ExploreScreen() {
                 <Text
                   style={[
                     styles.filterSheetTabText,
-                    activeBlogFilter === 'country' && styles.filterSheetTabTextActive,
+                    activeBlogFilter === 'country' &&
+                      styles.filterSheetTabTextActive,
                   ]}
                 >
                   국가
                 </Text>
-                {activeBlogFilter === 'country' && <View style={styles.filterTabDot} />}
+                {activeBlogFilter === 'country' && (
+                  <View style={styles.filterTabDot} />
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -890,12 +997,15 @@ export default function ExploreScreen() {
                 <Text
                   style={[
                     styles.filterSheetTabText,
-                    activeBlogFilter === 'status' && styles.filterSheetTabTextActive,
+                    activeBlogFilter === 'status' &&
+                      styles.filterSheetTabTextActive,
                   ]}
                 >
                   파견 상태
                 </Text>
-                {activeBlogFilter === 'status' && <View style={styles.filterTabDot} />}
+                {activeBlogFilter === 'status' && (
+                  <View style={styles.filterTabDot} />
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -906,12 +1016,15 @@ export default function ExploreScreen() {
                 <Text
                   style={[
                     styles.filterSheetTabText,
-                    activeBlogFilter === 'type' && styles.filterSheetTabTextActive,
+                    activeBlogFilter === 'type' &&
+                      styles.filterSheetTabTextActive,
                   ]}
                 >
                   정보 유형
                 </Text>
-                {activeBlogFilter === 'type' && <View style={styles.filterTabDot} />}
+                {activeBlogFilter === 'type' && (
+                  <View style={styles.filterTabDot} />
+                )}
               </TouchableOpacity>
             </View>
 
@@ -929,7 +1042,9 @@ export default function ExploreScreen() {
                           active && styles.countryGroupItemActive,
                         ]}
                         onPress={() =>
-                          setSelectedCountryGroup(group as keyof typeof BLOG_COUNTRY_GROUPS)
+                          setSelectedCountryGroup(
+                            group as keyof typeof BLOG_COUNTRY_GROUPS,
+                          )
                         }
                         activeOpacity={0.82}
                       >
@@ -957,7 +1072,8 @@ export default function ExploreScreen() {
                       <Text
                         style={[
                           styles.filterSheetOptionText,
-                          selectedCountry === option && styles.filterSheetOptionTextActive,
+                          selectedCountry === option &&
+                            styles.filterSheetOptionTextActive,
                         ]}
                       >
                         {option}
@@ -1000,26 +1116,26 @@ export default function ExploreScreen() {
             {activeBlogFilter === 'type' && (
               <View style={styles.filterSheetOptions}>
                 {BLOG_TYPE_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.label}
-                  style={styles.filterSheetOption}
-                  onPress={() => setSelectedType(option.value)}
-                  activeOpacity={0.78}
-                >
-                  <Text
-                    style={[
-                      styles.filterSheetOptionText,
-                      selectedType === option.value &&
-                        styles.filterSheetOptionTextActive,
-                    ]}
+                  <TouchableOpacity
+                    key={option.label}
+                    style={styles.filterSheetOption}
+                    onPress={() => setSelectedType(option.value)}
+                    activeOpacity={0.78}
                   >
-                    {option.label}
-                  </Text>
-                  {selectedType === option.value && (
-                    <Ionicons name="checkmark" size={18} color="#0F2042" />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.filterSheetOptionText,
+                        selectedType === option.value &&
+                          styles.filterSheetOptionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    {selectedType === option.value && (
+                      <Ionicons name="checkmark" size={18} color="#0F2042" />
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
 
@@ -1054,19 +1170,23 @@ export default function ExploreScreen() {
               <Text style={styles.modalHeaderTitle} numberOfLines={1}>
                 {selectedReview.country} {selectedReview.type}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalHeartBtn}
                 onPress={() => handleLikeToggle(selectedReview.id)}
               >
-                <Ionicons 
-                  name={likedReviews[selectedReview.id] ? "heart" : "heart-outline"} 
-                  size={24} 
-                  color={likedReviews[selectedReview.id] ? "#EF4444" : "#0F2042"} 
+                <Ionicons
+                  name={
+                    likedReviews[selectedReview.id] ? 'heart' : 'heart-outline'
+                  }
+                  size={24}
+                  color={
+                    likedReviews[selectedReview.id] ? '#EF4444' : '#0F2042'
+                  }
                 />
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
               style={styles.modalScroll}
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
@@ -1074,17 +1194,27 @@ export default function ExploreScreen() {
               {/* 타이틀 및 작성자 정보 */}
               <View style={styles.modalTitleBlock}>
                 <View style={styles.typeBadgeLarge}>
-                  <Text style={styles.typeBadgeLargeText}>{selectedReview.type}</Text>
+                  <Text style={styles.typeBadgeLargeText}>
+                    {selectedReview.type}
+                  </Text>
                 </View>
-                <Text style={styles.modalMainTitle}>{selectedReview.title}</Text>
-                
+                <Text style={styles.modalMainTitle}>
+                  {selectedReview.title}
+                </Text>
+
                 <View style={styles.modalMetaRow}>
                   <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>{selectedReview.author[0]}</Text>
+                    <Text style={styles.avatarText}>
+                      {selectedReview.author[0]}
+                    </Text>
                   </View>
                   <View>
-                    <Text style={styles.modalAuthorName}>{selectedReview.author}</Text>
-                    <Text style={styles.modalDateText}>{selectedReview.date} • 조회 182회</Text>
+                    <Text style={styles.modalAuthorName}>
+                      {selectedReview.author}
+                    </Text>
+                    <Text style={styles.modalDateText}>
+                      {selectedReview.date} • 조회 182회
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -1100,7 +1230,9 @@ export default function ExploreScreen() {
 
               {/* 본문 텍스트 */}
               <View style={styles.modalBody}>
-                <Text style={styles.modalBodyText}>{selectedReview.content}</Text>
+                <Text style={styles.modalBodyText}>
+                  {selectedReview.content}
+                </Text>
               </View>
 
               {/* 구분선 */}
@@ -1124,8 +1256,11 @@ export default function ExploreScreen() {
                 ))}
 
                 {/* 댓글이 없을 때 */}
-                {(!comments[selectedReview.id] || comments[selectedReview.id].length === 0) && (
-                  <Text style={styles.noCommentsText}>첫 댓글을 작성해보세요!</Text>
+                {(!comments[selectedReview.id] ||
+                  comments[selectedReview.id].length === 0) && (
+                  <Text style={styles.noCommentsText}>
+                    첫 댓글을 작성해보세요!
+                  </Text>
                 )}
               </View>
             </ScrollView>
@@ -1187,8 +1322,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   icon: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     resizeMode: 'contain',
   },
   headerRight: {
@@ -1233,87 +1368,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     position: 'relative',
   },
-  prepTabActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  prepTabLabelWrap: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    justifyContent: 'center',
-  },
-  prepTabText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#8F8F8F',
-    textAlign: 'center',
-    letterSpacing: 0,
-    lineHeight: 24,
-    paddingBottom: 0,
-  },
-  prepTabTextActive: {
-    color: '#111111',
-    fontWeight: '900',
-  },
-  prepTabUnderline: {
-    position: 'absolute',
-    bottom: 0,
-    width: 181,
-    height: 2,
-    backgroundColor: '#000000',
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    paddingHorizontal: 14,
+  headerRight: { flexDirection: 'row', gap: 10 },
+  iconBtn: {
+    width: 44,
     height: 44,
-    marginTop: 0,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F2042',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F2042',
-    fontWeight: '500',
-  },
-
-  // 📌 카드 섹션
-  cardSection: {
-    marginTop: 0,
-    marginHorizontal: -16,
-    overflow: 'visible',
-  },
-  cardSectionContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 0,
-    gap: INFO_CARD_GAP,
-  },
-  menuCard: {
-    width: INFO_CARD_WIDTH,
-    height: 160,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    backgroundColor: '#2B3FA0',
-    borderRadius: 10,
-    paddingLeft: 24,
-    paddingBottom: 20,
-  },
-  cardTextBox: {
-    width: INFO_CARD_WIDTH - 176,
-    zIndex: 2,
-    alignSelf: 'flex-start',
-  },
-  cardTitleRow: {
-    flexDirection: 'row',
+    borderRadius: 22,
     alignItems: 'center',
   },
   cardTitle: {

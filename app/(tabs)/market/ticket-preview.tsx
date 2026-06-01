@@ -1,9 +1,18 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { createOrGetChatRoom } from '../../../src/api/chat';
 
 export default function TicketPreviewPage() {
+  const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState<'ticket' | 'seller'>('ticket');
 
   return (
@@ -12,9 +21,7 @@ export default function TicketPreviewPage() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton style={styles.backButton} />
 
         <View style={styles.tagRow}>
           <View style={styles.tag}>
@@ -27,7 +34,10 @@ export default function TicketPreviewPage() {
 
         <View style={styles.titleRow}>
           <Text style={styles.title}>사그라다 파밀리아 표 양도</Text>
-          <Text style={styles.share}>↥</Text>
+          <Image
+            source={require('../../../assets/images/share.png')}
+            style={styles.shareIcon}
+          />
         </View>
 
         <View style={styles.priceRow}>
@@ -57,22 +67,48 @@ export default function TicketPreviewPage() {
 
             <View style={styles.infoGrid}>
               <View style={styles.infoCard}>
-                <Text style={styles.infoLabel}>● 날짜</Text>
-                <Text style={styles.infoValue}>2026년 5월 9일 (목)</Text>
+                <View style={styles.infoLabelRow}>
+                  <Image
+                    source={require('../../../assets/images/ticket_date_place.png')}
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>날짜</Text>
+                </View>
+                <Text style={styles.infoValue}>2026. 05. 09 (목)</Text>
               </View>
 
               <View style={styles.infoCard}>
-                <Text style={styles.infoLabel}>▣ 시간</Text>
-                <Text style={styles.infoValue}>16:15</Text>
+                <View style={styles.infoLabelRow}>
+                  <Image
+                    source={require('../../../assets/images/ticket_time_count.png')}
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>시간</Text>
+                </View>
+                <Text style={styles.infoValue}>오전 10:00</Text>
               </View>
 
               <View style={styles.infoCard}>
-                <Text style={styles.infoLabel}>● 장소</Text>
-                <Text style={styles.infoValue}>스페인 바르셀로나</Text>
+                <View style={styles.infoLabelRow}>
+                  <Image
+                    source={require('../../../assets/images/ticket_date_place.png')}
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>장소</Text>
+                </View>
+                <Text style={styles.infoValue}>
+                  사그라다 파밀리아 성당 앞 정문
+                </Text>
               </View>
 
               <View style={styles.infoCard}>
-                <Text style={styles.infoLabel}>▣ 양도 매수</Text>
+                <View style={styles.infoLabelRow}>
+                  <Image
+                    source={require('../../../assets/images/ticket_time_count.png')}
+                    style={styles.infoIcon}
+                  />
+                  <Text style={styles.infoLabel}>양도 매수</Text>
+                </View>
                 <Text style={styles.infoValue}>1매</Text>
               </View>
             </View>
@@ -98,7 +134,10 @@ export default function TicketPreviewPage() {
             <Text style={styles.nickname}>may.be</Text>
 
             <View style={styles.profileCard}>
-              <View style={styles.profileCircle} />
+              <Image
+                source={require('../../../assets/images/ticket_profile.png')}
+                style={styles.profileImage}
+              />
 
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>may.be</Text>
@@ -114,10 +153,16 @@ export default function TicketPreviewPage() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <Pressable style={styles.heartButton}>
-          <Text style={styles.heart}>♡</Text>
+        <Pressable onPress={() => setLiked(!liked)} style={styles.heartButton}>
+          <Image
+            source={
+              liked
+                ? require('../../../assets/images/filled_heart.png')
+                : require('../../../assets/images/heart.png')
+            }
+            style={liked ? styles.filledHeartIcon : styles.heartIcon}
+          />
         </Pressable>
-
         <Pressable style={styles.chatButton} onPress={handleStartChat}>
           <Text style={styles.chatText}>채팅 시작하기</Text>
         </Pressable>
@@ -133,7 +178,7 @@ const handleStartChat = async () => {
       targetMemberId: 1,
     });
 
-    const roomId = response.data.roomId;
+    const roomId = response.data.data?.roomId ?? response.data.roomId;
 
     router.push({
       pathname: '/chat/[roomId]',
@@ -160,18 +205,39 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    width: 32,
-    height: 38,
-    justifyContent: 'center',
     marginBottom: 18,
   },
-
-  back: {
-    fontSize: 38,
-    lineHeight: 38,
-    color: '#111111',
+  shareIcon: {
+    width: 27,
+    height: 27,
+    resizeMode: 'contain',
   },
 
+  infoLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 9,
+  },
+
+  infoIcon: {
+    width: 14,
+    height: 14,
+    resizeMode: 'contain',
+    marginRight: 5,
+  },
+
+  profileImage: {
+    width: 51,
+    height: 51,
+    borderRadius: 25.5,
+    marginRight: 17,
+  },
+
+  bookmarkIcon: {
+    width: 28,
+    height: 28,
+    resizeMode: 'contain',
+  },
   tagRow: {
     flexDirection: 'row',
     gap: 8,
@@ -286,32 +352,34 @@ const styles = StyleSheet.create({
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 8,
-    marginBottom: 48,
+    gap: 12,
+    marginBottom: 28,
   },
 
   infoCard: {
-    width: '48.5%',
-    height: 65,
-    borderRadius: 4,
+    flexGrow: 1,
+    flexBasis: '47%',
+    minWidth: '47%',
+    maxWidth: '100%',
+    minHeight: 82,
     backgroundColor: '#FAFAFA',
-    paddingHorizontal: 11,
-    paddingTop: 10,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-
   infoLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#555555',
-    marginBottom: 12,
   },
 
   infoValue: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: '#111111',
+    lineHeight: 19,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
 
   sellerTitle: {
@@ -330,7 +398,7 @@ const styles = StyleSheet.create({
   },
 
   contentText: {
-    fontSize: 12,
+    fontSize: 15,
     lineHeight: 20,
     fontWeight: '600',
     color: '#111111',
@@ -396,17 +464,26 @@ const styles = StyleSheet.create({
   },
 
   heartButton: {
-    width: 50,
-    height: 55,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 10,
   },
-
   heart: {
     fontSize: 35,
     color: '#000000',
     lineHeight: 38,
+  },
+  heartIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  filledHeartIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
 
   chatButton: {

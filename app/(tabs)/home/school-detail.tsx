@@ -23,33 +23,36 @@ import { getReviews } from '../../../src/api/reviews';
 const { width } = Dimensions.get('window');
 
 // 🏫 대학교별 맞춤 상세 데이터베이스
-const UNIVERSITY_DETAILS: Record<string, {
-  name: string;
-  country: string;
-  city: string;
-  rating: number;
-  tags: string[];
-  images: any[];
-  basicInfo: {
-    language: string;
-    departments: string;
-    semesterSystem: string;
-    website: string;
-    contact: string;
-  };
-  livingInfo: {
-    dorm: string;
-    transport: string;
-    costLevel: '낮음' | '보통' | '높음';
-    costDescription: string;
-    environment: string;
-  };
-  reviews: {
-    oneLiners: { user: string; rating: number; text: string }[];
-    blogs: { title: string; views: number }[];
-    photos: { title: string; image: any }[];
-  };
-}> = {
+const UNIVERSITY_DETAILS: Record<
+  string,
+  {
+    name: string;
+    country: string;
+    city: string;
+    rating: number;
+    tags: string[];
+    images: any[];
+    basicInfo: {
+      language: string;
+      departments: string;
+      semesterSystem: string;
+      website: string;
+      contact: string;
+    };
+    livingInfo: {
+      dorm: string;
+      transport: string;
+      costLevel: '낮음' | '보통' | '높음';
+      costDescription: string;
+      environment: string;
+    };
+    reviews: {
+      oneLiners: { user: string; rating: number; text: string }[];
+      blogs: { title: string; views: number }[];
+      photos: { title: string; image: any }[];
+    };
+  }
+> = {
   '뮌헨 공과대학교 (TUM)': {
     name: '뮌헨 공과대학교 (TUM)',
     country: '독일',
@@ -70,26 +73,60 @@ const UNIVERSITY_DETAILS: Record<string, {
     },
     livingInfo: {
       dorm: '학생처(Studierendenwerk) 주관 기숙사 매칭 신청 가능. 대기 시간이 길어 합격 즉시 신청 권장 (월 380~480유로).',
-      transport: '독일티켓(D-Ticket) 활용 시 월 49유로로 전국 전철, 버스, 트램 무제한 탑승 가능.',
+      transport:
+        '독일티켓(D-Ticket) 활용 시 월 49유로로 전국 전철, 버스, 트램 무제한 탑승 가능.',
       costLevel: '높음',
-      costDescription: '외식비가 비싸나 마트(Lidl, Aldi) 식재료 물가는 한국보다 저렴함.',
-      environment: '바이에른 주 특유의 평화롭고 안전한 치안. 잉글리시 가든과 알프스 산맥 인접으로 자연 친화적.',
+      costDescription:
+        '외식비가 비싸나 마트(Lidl, Aldi) 식재료 물가는 한국보다 저렴함.',
+      environment:
+        '바이에른 주 특유의 평화롭고 안전한 치안. 잉글리시 가든과 알프스 산맥 인접으로 자연 친화적.',
     },
     reviews: {
       oneLiners: [
-        { user: 'Lumy_TUM', rating: 5, text: '수업 퀄리티가 정말 높고, 다양한 국가에서 온 유학생들과의 교류가 활발합니다!' },
-        { user: '컴공생A', rating: 4, text: '기숙사 구하는 게 제일 힘든 것 빼곤 완벽한 교환생활이었습니다.' },
-        { user: '방랑자', rating: 5, text: '뮌헨 지리적 이점이 좋아 매주 오스트리아, 스위스로 여행 다녔네요!' },
+        {
+          user: 'Lumy_TUM',
+          rating: 5,
+          text: '수업 퀄리티가 정말 높고, 다양한 국가에서 온 유학생들과의 교류가 활발합니다!',
+        },
+        {
+          user: '컴공생A',
+          rating: 4,
+          text: '기숙사 구하는 게 제일 힘든 것 빼곤 완벽한 교환생활이었습니다.',
+        },
+        {
+          user: '방랑자',
+          rating: 5,
+          text: '뮌헨 지리적 이점이 좋아 매주 오스트리아, 스위스로 여행 다녔네요!',
+        },
       ],
       blogs: [
-        { title: '[독일] 뮌헨 공대 파견 첫 주 안멜둥(거주지 등록) 및 계좌 개설 가이드', views: 342 },
-        { title: 'TUM 컴퓨터학부 수강신청 팁 및 시험 통과 전략 정리', views: 289 },
-        { title: '독일 교환학생 필수 준비 보험 TK 가입부터 활성화까지', views: 412 },
+        {
+          title:
+            '[독일] 뮌헨 공대 파견 첫 주 안멜둥(거주지 등록) 및 계좌 개설 가이드',
+          views: 342,
+        },
+        {
+          title: 'TUM 컴퓨터학부 수강신청 팁 및 시험 통과 전략 정리',
+          views: 289,
+        },
+        {
+          title: '독일 교환학생 필수 준비 보험 TK 가입부터 활성화까지',
+          views: 412,
+        },
       ],
       photos: [
-        { title: '메인 캠퍼스 전경', image: require('../../../assets/images/Munich.png') },
-        { title: '기숙사 내부 방 구조', image: require('../../../assets/images/freepass.png') },
-        { title: '뮌헨 마리엔 광장', image: require('../../../assets/images/travel_holy.png') },
+        {
+          title: '메인 캠퍼스 전경',
+          image: require('../../../assets/images/Munich.png'),
+        },
+        {
+          title: '기숙사 내부 방 구조',
+          image: require('../../../assets/images/freepass.png'),
+        },
+        {
+          title: '뮌헨 마리엔 광장',
+          image: require('../../../assets/images/travel_holy.png'),
+        },
       ],
     },
   },
@@ -113,23 +150,43 @@ const UNIVERSITY_DETAILS: Record<string, {
     },
     livingInfo: {
       dorm: '온캠퍼스 기숙사(On-campus Housing) 신청 시 높은 확률로 배정. 식사 옵션(Meal Plan)이 매우 훌륭하기로 유명함.',
-      transport: 'LA 특성상 대중교통이 다소 불편하나 브루인 버스(BruinBus) 이용이 가능하며 우버나 렌트를 주로 사용.',
+      transport:
+        'LA 특성상 대중교통이 다소 불편하나 브루인 버스(BruinBus) 이용이 가능하며 우버나 렌트를 주로 사용.',
       costLevel: '높음',
-      costDescription: '캘리포니아의 높은 텍스(tax)와 팁(tip) 문화로 매달 최소 1500~2000달러 지출 발생.',
-      environment: '산타모니카 해변과 비버리 힐즈가 차로 20분 거리. 1년 내내 따뜻하고 쾌적한 캘리포니아 기후.',
+      costDescription:
+        '캘리포니아의 높은 텍스(tax)와 팁(tip) 문화로 매달 최소 1500~2000달러 지출 발생.',
+      environment:
+        '산타모니카 해변과 비버리 힐즈가 차로 20분 거리. 1년 내내 따뜻하고 쾌적한 캘리포니아 기후.',
     },
     reviews: {
       oneLiners: [
-        { user: 'LA드림', rating: 5, text: '학교 급식이 천국입니다. 날씨도 매일이 축복 같아요.' },
-        { user: 'BruinLove', rating: 5, text: '학비는 좀 들지만 평생 잊지 못할 추억을 선사해 주는 캠퍼스입니다.' },
+        {
+          user: 'LA드림',
+          rating: 5,
+          text: '학교 급식이 천국입니다. 날씨도 매일이 축복 같아요.',
+        },
+        {
+          user: 'BruinLove',
+          rating: 5,
+          text: '학비는 좀 들지만 평생 잊지 못할 추억을 선사해 주는 캠퍼스입니다.',
+        },
       ],
       blogs: [
         { title: 'UCLA 교환학생 F-1 비자 대사관 면접 원패스 후기', views: 512 },
-        { title: '기숙사 밀플랜(Meal Plan) 19R vs 14P 전격 비교 요령', views: 403 },
+        {
+          title: '기숙사 밀플랜(Meal Plan) 19R vs 14P 전격 비교 요령',
+          views: 403,
+        },
       ],
       photos: [
-        { title: '로이스 홀 전경', image: require('../../../assets/images/UCLA.png') },
-        { title: '산타모니카 해변 풍경', image: require('../../../assets/images/travel_holy.png') },
+        {
+          title: '로이스 홀 전경',
+          image: require('../../../assets/images/UCLA.png'),
+        },
+        {
+          title: '산타모니카 해변 풍경',
+          image: require('../../../assets/images/travel_holy.png'),
+        },
       ],
     },
   },
@@ -146,29 +203,47 @@ const UNIVERSITY_DETAILS: Record<string, {
     ],
     basicInfo: {
       language: '일본어 / 영어 (국제학부의 경우 영어 수업 다수 개설)',
-      departments: '정치경제학부, 법학부, 문학부, 이공학부, 국제교양학부(SILS) 등',
+      departments:
+        '정치경제학부, 법학부, 문학부, 이공학부, 국제교양학부(SILS) 등',
       semesterSystem: '2학기제 (봄학기: 4월-7월 / 가을학기: 9월-1월)',
       website: 'https://www.waseda.jp/top/en/',
       contact: 'in-cie@list.waseda.jp / +81-3-3203-7747',
     },
     livingInfo: {
       dorm: '국제 기숙사 WISH 배정 가능. 입실 경쟁이 치열하지만 합격 시 도쿄 한복판에서 쾌적한 주거 해결.',
-      transport: '지하철 도자이선 와세다역 인근. 도쿄 메트로 학생 정기권(통학정기권) 구매 시 교통비 절감.',
+      transport:
+        '지하철 도자이선 와세다역 인근. 도쿄 메트로 학생 정기권(통학정기권) 구매 시 교통비 절감.',
       costLevel: '보통',
-      costDescription: '식료품 물가는 한국과 비슷하거나 저렴하지만 교통비와 기숙사비는 비싼 편.',
-      environment: '도쿄 신주쿠, 다카다노바바와 도보 이동 가능. 대학 주변 저렴하고 맛있는 라멘집 및 밥집이 많음.',
+      costDescription:
+        '식료품 물가는 한국과 비슷하거나 저렴하지만 교통비와 기숙사비는 비싼 편.',
+      environment:
+        '도쿄 신주쿠, 다카다노바바와 도보 이동 가능. 대학 주변 저렴하고 맛있는 라멘집 및 밥집이 많음.',
     },
     reviews: {
       oneLiners: [
-        { user: '도쿄로간서현', rating: 5, text: 'WISH 기숙사 시설이 진짜 호텔 같아요. 유학생 커뮤니티가 끈끈합니다!' },
-        { user: '와세다이공', rating: 4, text: '학교 주변이 한인 친화적이라 외롭지 않게 적응 가능합니다.' },
+        {
+          user: '도쿄로간서현',
+          rating: 5,
+          text: 'WISH 기숙사 시설이 진짜 호텔 같아요. 유학생 커뮤니티가 끈끈합니다!',
+        },
+        {
+          user: '와세다이공',
+          rating: 4,
+          text: '학교 주변이 한인 친화적이라 외롭지 않게 적응 가능합니다.',
+        },
       ],
       blogs: [
-        { title: '도쿄 와세다 기숙사 WISH 입소 절차 및 필수 규칙 아웃라인', views: 245 },
+        {
+          title: '도쿄 와세다 기숙사 WISH 입소 절차 및 필수 규칙 아웃라인',
+          views: 245,
+        },
         { title: '일본 통장 개설하기 (우체국 유초은행 개설 꿀팁)', views: 320 },
       ],
       photos: [
-        { title: '오쿠마 강당', image: require('../../../assets/images/japan.png') },
+        {
+          title: '오쿠마 강당',
+          image: require('../../../assets/images/japan.png'),
+        },
       ],
     },
   },
@@ -176,13 +251,18 @@ const UNIVERSITY_DETAILS: Record<string, {
 
 export default function SchoolDetailScreen() {
   const { id, name } = useLocalSearchParams<{ id?: string; name?: string }>();
-  const [apiSchool, setApiSchool] = useState<PartnerSchoolDetailResponse | null>(null);
-  const [apiBlogs, setApiBlogs] = useState<{ title: string; views: number }[]>([]);
-  
+  const [apiSchool, setApiSchool] =
+    useState<PartnerSchoolDetailResponse | null>(null);
+  const [apiBlogs, setApiBlogs] = useState<{ title: string; views: number }[]>(
+    [],
+  );
+
   // 🏫 기본 대학교 설정 (TUM)
   const schoolName = name || '뮌헨 공과대학교 (TUM)';
   // DB에서 데이터 조회, 없으면 기본값인 TUM 데이터 사용
-  const fallbackSchoolData = UNIVERSITY_DETAILS[schoolName] || UNIVERSITY_DETAILS['뮌헨 공과대학교 (TUM)'];
+  const fallbackSchoolData =
+    UNIVERSITY_DETAILS[schoolName] ||
+    UNIVERSITY_DETAILS['뮌헨 공과대학교 (TUM)'];
   const schoolData = useMemo(() => {
     if (!apiSchool) return fallbackSchoolData;
 
@@ -198,7 +278,7 @@ export default function SchoolDetailScreen() {
           ? '보통'
           : apiSchool.livingInfo?.costLevel === 'HIGH'
             ? '높음'
-            : apiSchool.livingInfo?.costLevel ?? '보통';
+            : (apiSchool.livingInfo?.costLevel ?? '보통');
 
     return {
       name: apiSchool.name,
@@ -219,11 +299,15 @@ export default function SchoolDetailScreen() {
         transport: apiSchool.livingInfo?.transport ?? '-',
         costLevel,
         costDescription: apiSchool.livingInfo?.costDescription ?? '-',
-        environment: apiSchool.livingInfo?.environment ?? apiSchool.livingInfo?.safetyDescription ?? '-',
+        environment:
+          apiSchool.livingInfo?.environment ??
+          apiSchool.livingInfo?.safetyDescription ??
+          '-',
       },
       reviews: {
         ...fallbackSchoolData.reviews,
-        blogs: apiBlogs.length > 0 ? apiBlogs : fallbackSchoolData.reviews.blogs,
+        blogs:
+          apiBlogs.length > 0 ? apiBlogs : fallbackSchoolData.reviews.blogs,
       },
     };
   }, [apiBlogs, apiSchool, fallbackSchoolData]);
@@ -234,7 +318,9 @@ export default function SchoolDetailScreen() {
   const toastTimeoutRef = useRef<any>(null);
 
   // 💬 후기 섹션 서브 탭 상태
-  const [activeTab, setActiveTab] = useState<'oneLiner' | 'blog' | 'photo'>('oneLiner');
+  const [activeTab, setActiveTab] = useState<'oneLiner' | 'blog' | 'photo'>(
+    'oneLiner',
+  );
 
   // 캐러셀 페이지 인덱스용 스크롤 트래킹
   const scrollX = useRef(new Animated.Value(0)).current;
@@ -260,7 +346,10 @@ export default function SchoolDetailScreen() {
           })),
         );
       } catch (error: any) {
-        console.log('파견교 상세 API 조회 실패:', error.response?.data || error.message);
+        console.log(
+          '파견교 상세 API 조회 실패:',
+          error.response?.data || error.message,
+        );
       }
     };
 
@@ -275,22 +364,22 @@ export default function SchoolDetailScreen() {
         const index = Math.round(event.nativeEvent.contentOffset.x / width);
         setCurrentSlideIndex(index);
       },
-    }
+    },
   );
 
   // 북마크 토글 및 토스트 알림
   const toggleBookmark = async () => {
     const nextState = !isBookmarked;
     setIsBookmarked(nextState);
-    
+
     if (toastTimeoutRef.current) {
       clearTimeout(toastTimeoutRef.current);
     }
 
     setToastMessage(
-      nextState 
-        ? '관심 대학에 등록되었습니다. ⭐️' 
-        : '관심 대학 등록이 취소되었습니다.'
+      nextState
+        ? '관심 대학에 등록되었습니다. ⭐️'
+        : '관심 대학 등록이 취소되었습니다.',
     );
 
     if (id) {
@@ -301,7 +390,10 @@ export default function SchoolDetailScreen() {
           await unbookmarkPartnerSchool(Number(id));
         }
       } catch (error: any) {
-        console.log('파견교 북마크 API 실패:', error.response?.data || error.message);
+        console.log(
+          '파견교 북마크 API 실패:',
+          error.response?.data || error.message,
+        );
       }
     }
 
@@ -314,14 +406,13 @@ export default function SchoolDetailScreen() {
     <View style={styles.container}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#0F2042" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle} numberOfLines={1}>상세 정보</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          상세 정보
+        </Text>
 
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn} onPress={toggleBookmark}>
@@ -331,14 +422,19 @@ export default function SchoolDetailScreen() {
               color={isBookmarked ? '#EF4444' : '#0F2042'}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => alert('공유하기 링크가 복사되었습니다.')}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => alert('공유하기 링크가 복사되었습니다.')}
+          >
             <Ionicons name="share-social-outline" size={20} color="#0F2042" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
         {/* 1. 상단 대표 사진 캐러셀 */}
         <View style={styles.carouselContainer}>
           <ScrollView
@@ -371,7 +467,9 @@ export default function SchoolDetailScreen() {
                 key={index}
                 style={[
                   styles.indicatorDot,
-                  currentSlideIndex === index ? styles.indicatorDotActive : styles.indicatorDotInactive,
+                  currentSlideIndex === index
+                    ? styles.indicatorDotActive
+                    : styles.indicatorDotInactive,
                 ]}
               />
             ))}
@@ -393,26 +491,34 @@ export default function SchoolDetailScreen() {
             <Ionicons name="information-circle" size={20} color="#0F2042" />
             <Text style={styles.sectionTitle}>학교 기본 정보</Text>
           </View>
-          
+
           <View style={styles.infoTable}>
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>수업 언어</Text>
-              <Text style={styles.tableValue}>{schoolData.basicInfo.language}</Text>
+              <Text style={styles.tableValue}>
+                {schoolData.basicInfo.language}
+              </Text>
             </View>
-            
+
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>지원 학과</Text>
-              <Text style={styles.tableValue}>{schoolData.basicInfo.departments}</Text>
+              <Text style={styles.tableValue}>
+                {schoolData.basicInfo.departments}
+              </Text>
             </View>
-            
+
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>학기제</Text>
-              <Text style={styles.tableValue}>{schoolData.basicInfo.semesterSystem}</Text>
+              <Text style={styles.tableValue}>
+                {schoolData.basicInfo.semesterSystem}
+              </Text>
             </View>
-            
+
             <View style={styles.tableRow}>
               <Text style={styles.tableLabel}>국제교류처</Text>
-              <Text style={styles.tableValue}>{schoolData.basicInfo.contact}</Text>
+              <Text style={styles.tableValue}>
+                {schoolData.basicInfo.contact}
+              </Text>
             </View>
 
             <TouchableOpacity
@@ -435,13 +541,17 @@ export default function SchoolDetailScreen() {
           {/* 기숙사 */}
           <View style={styles.lifeItem}>
             <Text style={styles.lifeLabel}>🏠 기숙사 현황</Text>
-            <Text style={styles.lifeValueText}>{schoolData.livingInfo.dorm}</Text>
+            <Text style={styles.lifeValueText}>
+              {schoolData.livingInfo.dorm}
+            </Text>
           </View>
 
           {/* 교통 */}
           <View style={styles.lifeItem}>
             <Text style={styles.lifeLabel}>🚇 교통 편의성</Text>
-            <Text style={styles.lifeValueText}>{schoolData.livingInfo.transport}</Text>
+            <Text style={styles.lifeValueText}>
+              {schoolData.livingInfo.transport}
+            </Text>
           </View>
 
           {/* 체감 물가 (슬라이더 바 UI) */}
@@ -449,19 +559,25 @@ export default function SchoolDetailScreen() {
             <Text style={styles.lifeLabel}>💰 체감 물가 레벨</Text>
             <View style={styles.sliderContainer}>
               <View style={styles.sliderTrack} />
-              
+
               {/* 슬라이더 채워짐 표시 */}
-              <View 
+              <View
                 style={[
-                  styles.sliderFill, 
-                  schoolData.livingInfo.costLevel === '낮음' && { width: '15%' },
-                  schoolData.livingInfo.costLevel === '보통' && { width: '50%' },
-                  schoolData.livingInfo.costLevel === '높음' && { width: '85%' },
+                  styles.sliderFill,
+                  schoolData.livingInfo.costLevel === '낮음' && {
+                    width: '15%',
+                  },
+                  schoolData.livingInfo.costLevel === '보통' && {
+                    width: '50%',
+                  },
+                  schoolData.livingInfo.costLevel === '높음' && {
+                    width: '85%',
+                  },
                 ]}
               />
 
               {/* 슬라이더 노드 포인터 */}
-              <View 
+              <View
                 style={[
                   styles.sliderNode,
                   schoolData.livingInfo.costLevel === '낮음' && { left: '15%' },
@@ -472,17 +588,45 @@ export default function SchoolDetailScreen() {
             </View>
 
             <View style={styles.sliderLabelRow}>
-              <Text style={[styles.sliderLabel, schoolData.livingInfo.costLevel === '낮음' && styles.sliderLabelActive]}>낮음</Text>
-              <Text style={[styles.sliderLabel, schoolData.livingInfo.costLevel === '보통' && styles.sliderLabelActive]}>보통</Text>
-              <Text style={[styles.sliderLabel, schoolData.livingInfo.costLevel === '높음' && styles.sliderLabelActive]}>높음</Text>
+              <Text
+                style={[
+                  styles.sliderLabel,
+                  schoolData.livingInfo.costLevel === '낮음' &&
+                    styles.sliderLabelActive,
+                ]}
+              >
+                낮음
+              </Text>
+              <Text
+                style={[
+                  styles.sliderLabel,
+                  schoolData.livingInfo.costLevel === '보통' &&
+                    styles.sliderLabelActive,
+                ]}
+              >
+                보통
+              </Text>
+              <Text
+                style={[
+                  styles.sliderLabel,
+                  schoolData.livingInfo.costLevel === '높음' &&
+                    styles.sliderLabelActive,
+                ]}
+              >
+                높음
+              </Text>
             </View>
-            <Text style={styles.costTipText}>💡 {schoolData.livingInfo.costDescription}</Text>
+            <Text style={styles.costTipText}>
+              💡 {schoolData.livingInfo.costDescription}
+            </Text>
           </View>
 
           {/* 주변 환경 */}
           <View style={styles.lifeItem}>
             <Text style={styles.lifeLabel}>🌳 주변 환경 및 치안</Text>
-            <Text style={styles.lifeValueText}>{schoolData.livingInfo.environment}</Text>
+            <Text style={styles.lifeValueText}>
+              {schoolData.livingInfo.environment}
+            </Text>
           </View>
         </View>
 
@@ -496,30 +640,59 @@ export default function SchoolDetailScreen() {
           {/* 후기 서브 탭 헤더 */}
           <View style={styles.tabHeader}>
             <TouchableOpacity
-              style={[styles.tabBtn, activeTab === 'oneLiner' && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                activeTab === 'oneLiner' && styles.tabBtnActive,
+              ]}
               onPress={() => setActiveTab('oneLiner')}
             >
-              <Text style={[styles.tabBtnText, activeTab === 'oneLiner' && styles.tabBtnTextActive]}>한줄평</Text>
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  activeTab === 'oneLiner' && styles.tabBtnTextActive,
+                ]}
+              >
+                한줄평
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tabBtn, activeTab === 'blog' && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                activeTab === 'blog' && styles.tabBtnActive,
+              ]}
               onPress={() => setActiveTab('blog')}
             >
-              <Text style={[styles.tabBtnText, activeTab === 'blog' && styles.tabBtnTextActive]}>블로그 후기</Text>
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  activeTab === 'blog' && styles.tabBtnTextActive,
+                ]}
+              >
+                블로그 후기
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.tabBtn, activeTab === 'photo' && styles.tabBtnActive]}
+              style={[
+                styles.tabBtn,
+                activeTab === 'photo' && styles.tabBtnActive,
+              ]}
               onPress={() => setActiveTab('photo')}
             >
-              <Text style={[styles.tabBtnText, activeTab === 'photo' && styles.tabBtnTextActive]}>사진 후기</Text>
+              <Text
+                style={[
+                  styles.tabBtnText,
+                  activeTab === 'photo' && styles.tabBtnTextActive,
+                ]}
+              >
+                사진 후기
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* 후기 탭 콘텐츠 */}
           <View style={styles.tabContent}>
-            
             {/* 1) 한줄평 리스트 */}
             {activeTab === 'oneLiner' && (
               <View style={styles.oneLinerList}>
@@ -554,15 +727,25 @@ export default function SchoolDetailScreen() {
                     onPress={() => router.push('/(tabs)/explore')} // 메인 후기 탐색으로 리다이렉트
                   >
                     <View style={styles.blogIconCircle}>
-                      <Ionicons name="document-text" size={16} color="#0F2042" />
+                      <Ionicons
+                        name="document-text"
+                        size={16}
+                        color="#0F2042"
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.blogItemTitle} numberOfLines={1}>
                         {blog.title}
                       </Text>
-                      <Text style={styles.blogItemViews}>조회수 {blog.views}회</Text>
+                      <Text style={styles.blogItemViews}>
+                        조회수 {blog.views}회
+                      </Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={16}
+                      color="#CBD5E1"
+                    />
                   </TouchableOpacity>
                 ))}
               </View>
@@ -575,7 +758,9 @@ export default function SchoolDetailScreen() {
                   <View key={index} style={styles.photoGridCard}>
                     <Image source={item.image} style={styles.gridImage} />
                     <View style={styles.gridLabelBox}>
-                      <Text style={styles.gridLabelText} numberOfLines={1}>{item.title}</Text>
+                      <Text style={styles.gridLabelText} numberOfLines={1}>
+                        {item.title}
+                      </Text>
                     </View>
                   </View>
                 ))}
@@ -618,49 +803,24 @@ const styles = StyleSheet.create({
     maxWidth: '50%',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
   },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 8,
+  icon: { width: 22, height: 22, resizeMode: 'contain' },
+  headerTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 21,
+    fontWeight: '800',
   },
+  headerRight: { flexDirection: 'row', gap: 8 },
 
-  content: {
-    paddingBottom: 130,
-  },
-
-  // 1. 캐러셀 디자인
-  carouselContainer: {
-    width: width,
-    height: 240,
-    position: 'relative',
-  },
-  slideFrame: {
-    width: width,
-    height: 240,
-  },
-  slideImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 32, 66, 0.45)', // Navy Gradation Overlay
-  },
-  carouselTitleContainer: {
-    position: 'absolute',
-    left: 20,
-    bottom: 24,
-    zIndex: 2,
-  },
-  carouselSchoolName: {
-    color: '#FFFFFF',
+  schoolTitle: {
+    marginTop: 28,
     fontSize: 18,
     fontWeight: '800',
     textShadowColor: 'rgba(0, 0, 0, 0.3)',

@@ -13,56 +13,8 @@ import {
 } from 'react-native';
 
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
-import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
-
-const dummyItems = [
-  {
-    id: 1,
-    title: '독일 아샤펜부르크\n중고 물품 양도',
-    region: '독일',
-    semester: '2026-1학기',
-    time: '41분 전',
-    priceText: '21만 원',
-    likes: 3,
-    chats: 1,
-    imageUrl: '',
-  },
-  {
-    id: 2,
-    title: '체코 오스트라바\n교환학생 중고 거래',
-    region: '프라하',
-    semester: '2026-1학기',
-    time: '7시간 전',
-    priceText: '17만 원',
-    likes: 7,
-    chats: 2,
-    imageUrl: '',
-  },
-  {
-    id: 3,
-    title: '26-1 베를린 자유대\n교환학생 물품 판매',
-    region: '독일',
-    semester: '2026-1학기',
-    time: '12시간 전',
-    priceText: '28만 원',
-    likes: 9,
-    chats: 5,
-    imageUrl: '',
-  },
-  {
-    id: 4,
-    title: '바르셀로나\n교환학생 중고 물품',
-    region: '스페인',
-    semester: '2026-1학기',
-    time: '하루 전',
-    priceText: '25만 원',
-    likes: 5,
-    chats: 1,
-    imageUrl: '',
-  },
-];
 
 const ticketItems = [
   {
@@ -114,8 +66,24 @@ const formatPrice = (price: number) => {
   return `${price.toLocaleString()}원`;
 };
 
+const formatRelativeTime = (createdAt: string) => {
+  const createdTime = new Date(createdAt).getTime();
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - createdTime) / (1000 * 60)),
+  );
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}일 전`;
+};
+
 export default function MarketPage() {
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
@@ -134,7 +102,7 @@ export default function MarketPage() {
     try {
       const response = await getUsedItems();
       console.log('중고거래 목록:', response.data);
-      setItems(response.data.data.items ?? []);
+      setItems(response.data.data ?? []);
     } catch (error: any) {
       console.log(
         '중고거래 목록 조회 실패:',
@@ -179,30 +147,28 @@ export default function MarketPage() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchUsedItems();
+      fetchMyItems();
       checkVerificationStatus();
     }, []),
   );
 
-  const toggleLike = (id: number) => {
+  const toggleLike = (id: string) => {
     setLikedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
-  const apiItems = items.map((item) => ({
+  const displayItems = items.map((item) => ({
     id: item.id,
     title: item.title,
-    region: item.region,
-    semester: item.semester,
-    time: '방금 전',
-    priceText: formatPrice(item.price),
+    region: item.region || '지역 미정',
+    semester: item.semester || '학기 미정',
+    time: formatRelativeTime(item.createdAt),
+    priceText: item.priceText || formatPrice(item.price),
     likes: 0,
     chats: 0,
-    imageUrl: item.thumbnailImageUrl ?? '',
+    imageUrl: typeof item.imageUrls?.[0] === 'string' ? item.imageUrls[0] : '',
   }));
-
-  const displayItems = apiItems.length > 0 ? apiItems : dummyItems;
 
   const filteredItems =
     selectedCountry === '전체'
@@ -311,80 +277,87 @@ export default function MarketPage() {
         </View>
 
         {selectedType === 'bulk' ? (
-          <View style={styles.postList}>
-            {filteredItems.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.postCard}
-                onPress={() =>
-                  router.push({
-                    pathname: '/market/[id]',
-                    params: { id: String(item.id) },
-                  } as any)
-                }
-              >
-                <View style={styles.thumbnail}>
-                  {item.imageUrl.length > 0 && (
-                    <Image
-                      source={{ uri: item.imageUrl }}
-                      style={styles.thumbnailImage}
-                    />
-                  )}
+          filteredItems.length > 0 ? (
+            <View style={styles.postList}>
+              {filteredItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={styles.postCard}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/market/[id]',
+                      params: { id: item.id },
+                    } as any)
+                  }
+                >
+                  <View style={styles.thumbnail}>
+                    {item.imageUrl.length > 0 && (
+                      <Image
+                        source={{ uri: item.imageUrl }}
+                        style={styles.thumbnailImage}
+                      />
+                    )}
 
-                  <Pressable
-                    style={[
-                      styles.heartCircle,
-                      likedIds.includes(item.id) && styles.heartCircleActive,
-                    ]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      toggleLike(item.id);
-                    }}
-                  >
-                    <Text
+                    <Pressable
                       style={[
-                        styles.heart,
-                        likedIds.includes(item.id) && styles.heartActive,
+                        styles.heartCircle,
+                        likedIds.includes(item.id) && styles.heartCircleActive,
                       ]}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleLike(item.id);
+                      }}
                     >
-                      ♥
+                      <Text
+                        style={[
+                          styles.heart,
+                          likedIds.includes(item.id) && styles.heartActive,
+                        ]}
+                      >
+                        ♥
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.postInfo}>
+                    <View style={styles.postTop}>
+                      <Text style={styles.postTitle}>{item.title}</Text>
+                      <Text style={styles.arrow}>›</Text>
+                    </View>
+
+                    <Text style={styles.meta}>
+                      {item.region} · {item.semester} · {item.time}
                     </Text>
-                  </Pressable>
-                </View>
 
-                <View style={styles.postInfo}>
-                  <View style={styles.postTop}>
-                    <Text style={styles.postTitle}>{item.title}</Text>
-                    <Text style={styles.arrow}>›</Text>
-                  </View>
+                    <Text style={styles.price}>{item.priceText}</Text>
 
-                  <Text style={styles.meta}>
-                    {item.region} · {item.semester} · {item.time}
-                  </Text>
+                    <View style={styles.reactionRow}>
+                      <View style={styles.reactionItem}>
+                        <Image
+                          source={require('../../../assets/images/good.png')}
+                          style={styles.reactionIcon}
+                        />
+                        <Text style={styles.reactionText}>{item.likes}</Text>
+                      </View>
 
-                  <Text style={styles.price}>{item.priceText}</Text>
-
-                  <View style={styles.reactionRow}>
-                    <View style={styles.reactionItem}>
-                      <Image
-                        source={require('../../../assets/images/good.png')}
-                        style={styles.reactionIcon}
-                      />
-                      <Text style={styles.reactionText}>{item.likes}</Text>
-                    </View>
-
-                    <View style={styles.reactionItem}>
-                      <Image
-                        source={require('../../../assets/images/comment.png')}
-                        style={styles.reactionIcon}
-                      />
-                      <Text style={styles.reactionText}>{item.chats}</Text>
+                      <View style={styles.reactionItem}>
+                        <Image
+                          source={require('../../../assets/images/comment.png')}
+                          style={styles.reactionIcon}
+                        />
+                        <Text style={styles.reactionText}>{item.chats}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              </Pressable>
-            ))}
-          </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>등록한 거래글이 아직 없어요</Text>
+              <Text style={styles.emptyText}>첫 거래글을 기다리고 있어요.</Text>
+            </View>
+          )
         ) : (
           <View style={styles.ticketList}>
             {filteredTickets.map((item) => (
@@ -394,9 +367,10 @@ export default function MarketPage() {
                 onPress={() => router.push('/market/ticket-preview' as any)}
               >
                 <View style={styles.ticketMetaRow}>
-                  <View style={styles.userCircle}>
-                    <Text style={styles.userIcon}>●</Text>
-                  </View>
+                  <Image
+                    source={require('../../../assets/images/ticket_profile.png')}
+                    style={styles.ticketProfileIcon}
+                  />
 
                   <Text style={styles.ticketMeta}>
                     {item.country} · {item.semester} 파견생 · {item.time}
@@ -413,12 +387,42 @@ export default function MarketPage() {
 
                 <View style={styles.ticketTitleRow}>
                   <Text style={styles.ticketTitle}>{item.title}</Text>
-                  <Text style={styles.bookmark}>▱</Text>
+                  <Pressable
+                    style={styles.bookmarkButton}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleBookmark(item.id);
+                    }}
+                  >
+                    <View style={styles.bookmarkIconWrapper}>
+                      <Image
+                        source={
+                          bookmarkedIds.includes(item.id)
+                            ? require('../../../assets/images/filled_book_mark.png')
+                            : require('../../../assets/images/book_mark.png')
+                        }
+                        style={styles.bookmarkIcon}
+                      />
+                    </View>
+                  </Pressable>
                 </View>
 
                 <View style={styles.ticketInfoRow}>
-                  <Text style={styles.ticketInfo}>▣ {item.date}</Text>
-                  <Text style={styles.ticketInfo}>🎟 {item.count}</Text>
+                  <View style={styles.ticketInfoItem}>
+                    <Image
+                      source={require('../../../assets/images/ticket_date.png')}
+                      style={styles.ticketInfoIcon}
+                    />
+                    <Text style={styles.ticketInfo}>{item.date}</Text>
+                  </View>
+
+                  <View style={styles.ticketInfoItem}>
+                    <Image
+                      source={require('../../../assets/images/count_ticket.png')}
+                      style={styles.ticketInfoIcon}
+                    />
+                    <Text style={styles.ticketInfo}>{item.count}</Text>
+                  </View>
                 </View>
 
                 <View style={styles.ticketPriceRow}>
@@ -444,12 +448,7 @@ export default function MarketPage() {
         <View style={styles.fabMenu}>
           <Pressable
             style={styles.fabMenuItem}
-            onPress={() =>
-              router.push({
-                pathname: '/market/write',
-                params: { type: 'all' },
-              } as any)
-            }
+            onPress={() => requireVerificationBefore('/market/write')}
           >
             <Image
               source={require('../../../assets/images/used_all.png')}
@@ -462,11 +461,7 @@ export default function MarketPage() {
 
           <Pressable
             style={styles.fabMenuItem}
-            onPress={() =>
-              router.push({
-                pathname: '/market/ticket-preview',
-              } as any)
-            }
+            onPress={() => requireVerificationBefore('/market/ticket-preview')}
           >
             <Image
               source={require('../../../assets/images/used_each.png')}
@@ -504,7 +499,45 @@ const styles = StyleSheet.create({
     paddingTop: 84,
     paddingBottom: 120,
   },
+  ticketProfileIcon: {
+    width: 25,
+    height: 25,
+    borderRadius: 13,
+    resizeMode: 'cover',
+    marginRight: 7,
+  },
+  bookmarkButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
+  bookmarkIconWrapper: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  bookmarkIcon: {
+    width: 30,
+    height: 30,
+    resizeMode: 'contain',
+    position: 'absolute',
+  },
+
+  ticketInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  ticketInfoIcon: {
+    width: 14,
+    height: 14,
+    resizeMode: 'contain',
+    marginRight: 5,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -617,6 +650,27 @@ const styles = StyleSheet.create({
 
   postList: {
     gap: 20,
+  },
+
+  emptyState: {
+    minHeight: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 8,
+  },
+
+  emptyText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#777777',
+    textAlign: 'center',
   },
 
   postCard: {
@@ -843,7 +897,7 @@ const styles = StyleSheet.create({
   fabButton: {
     position: 'absolute',
     right: 22,
-    bottom: 76,
+    bottom: 40,
     width: 58,
     height: 58,
     borderRadius: 29,
@@ -866,7 +920,7 @@ const styles = StyleSheet.create({
   fabMenu: {
     position: 'absolute',
     right: 24,
-    bottom: 142,
+    bottom: 104,
     width: 270,
     backgroundColor: '#4A4A4A',
     borderRadius: 8,

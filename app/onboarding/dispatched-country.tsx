@@ -244,7 +244,8 @@ const styles = StyleSheet.create({
   },
 
   back: {
-    fontSize: 38,
+    fontSize: 30,
+    lineHeight: 32,
     color: '#000000',
     marginBottom: 36,
   },

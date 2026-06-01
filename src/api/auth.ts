@@ -1,18 +1,7 @@
+import axios from 'axios';
 import { api } from './client';
-import { BaseResponse } from './types';
 
-export type AuthStatus = 'NEED_SIGNUP' | 'NEED_ONBOARDING' | 'ACTIVE';
-
-export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
-  tokenType?: string;
-  accessTokenExpiresIn?: number;
-  status: AuthStatus;
-}
-
-// 백엔드 공통 응답 구조 (data 안에 실제 내용이 들어있는 형태)
-export interface SignUpRequest {
+export const signUp = (data: {
   username: string;
   email?: string;
   password: string;
@@ -61,28 +50,17 @@ export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
 };
 
-export const socialSignUp = (data: SocialSignUpRequest) => {
-  return api.post<BaseResponse<void>>('/api/auth/social-sign-up', data);
-};
-
-export const onboarding = (data: OnboardingRequest) => {
-  return api.post('/api/auth/onboarding', data);
-};
-
 export const login = (data: { username: string; password: string }) => {
-  return api.post<BaseResponse<LoginResponse>>('/api/auth/login', data);
-};
-
-export const checkUsername = (username: string) => {
-  return api.get('/api/auth/check-username', {
-    params: { username },
-  });
+  return api.post('/api/auth/login', data);
 };
 
 export const checkEmail = (email: string) => {
-  return api.get('/api/auth/check-email', {
+  return axios.get(`${BASE_URL}/api/auth/check-email`, {
     params: { email },
   });
+};
+export const login = (data: { username: string; password: string }) => {
+  return api.post('/api/auth/login', data);
 };
 
 export const reissueToken = (refreshToken: string) => {

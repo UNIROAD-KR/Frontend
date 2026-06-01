@@ -3,10 +3,10 @@ import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { submitVerification } from '../src/api/verification';
+import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 
 export default function VerificationPage() {
   const [method, setMethod] = useState<'camera' | 'pdf' | ''>('');
-
   const handleSubmit = async () => {
     if (!method) {
       Alert.alert('인증 방식 선택', '인증 방식을 선택해주세요.');
@@ -16,16 +16,23 @@ export default function VerificationPage() {
     try {
       await submitVerification({
         imageUrl: 'https://example.com/verification-file.png',
+        university: '소속대학',
+        country: '파견국가',
+        region: '파견지역',
       });
 
-      Alert.alert(
-        '제출 완료',
-        '서류 검토가 완료되면 판매글을 작성할 수 있어요.',
-      );
-      router.replace('/verification-complete' as any);
+      await AsyncStorage.setItem('isVerified', 'true');
+
+      Alert.alert('제출 완료', '인증 요청이 제출되었습니다.', [
+        {
+          text: '확인',
+          onPress: () => router.replace('/verification-complete' as any),
+        },
+      ]);
     } catch (error: any) {
-      console.log('인증 요청 실패:', error.response?.data || error.message);
-      Alert.alert('제출 실패', '인증 요청에 실패했습니다.');
+      console.log('인증 요청 실패:', error);
+
+      Alert.alert('제출 실패', '다시 시도해주세요.');
     }
   };
 
@@ -62,7 +69,7 @@ export default function VerificationPage() {
         onPress={() => setMethod('pdf')}
       >
         <Image
-          source={require('../assets/images/pdf.png')}
+          source={require('../assets/images/upload_PDF.png')}
           style={styles.methodImage}
         />
 
@@ -149,8 +156,8 @@ const styles = StyleSheet.create({
   },
 
   methodImage: {
-    width: 46,
-    height: 46,
+    width: 26,
+    height: 26,
     resizeMode: 'contain',
     marginRight: 20,
   },

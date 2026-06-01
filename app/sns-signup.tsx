@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
+import { checkUsername } from '../src/api/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SnsSignupPage() {
   const [username, setUsername] = useState('');
@@ -26,7 +28,8 @@ export default function SnsSignupPage() {
 
   const fullEmail = emailId && emailDomain ? `${emailId}@${emailDomain}` : '';
 
-  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/;
+  const passwordRegex =
+    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/;
   const isPasswordValid = passwordRegex.test(password);
 
   const canSubmit =
@@ -48,26 +51,19 @@ export default function SnsSignupPage() {
     '직접 입력',
   ];
 
-  const handleCheckUsername = async () => {
-    const cleanedUsername = username.trim();
-    if (!cleanedUsername) {
-      Alert.alert('입력 오류', '아이디를 입력해주세요.');
-      return;
-    }
-
-    try {
-      await checkUsername(cleanedUsername);
-      Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
-    } catch (error: any) {
-      Alert.alert('중복 확인 실패', '이미 사용 중인 아이디입니다.');
-    }
-  };
-
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!canSubmit) {
       Alert.alert('입력 확인', '아이디, 이름, 비밀번호를 확인해주세요.');
       return;
     }
+
+    await AsyncStorage.multiRemove([
+      'accessToken',
+      'refreshToken',
+      'isVerified',
+    ]);
+
+    await AsyncStorage.setItem('isVerified', 'false');
 
     try {
       const signUpData: {
@@ -103,7 +99,10 @@ export default function SnsSignupPage() {
       ]);
     } catch (error: any) {
       console.log('소셜 회원가입 실패:', error.response?.data || error.message);
-      Alert.alert('회원가입 실패', error.response?.data?.message || '입력 정보를 다시 확인해주세요.');
+      Alert.alert(
+        '회원가입 실패',
+        error.response?.data?.message || '입력 정보를 다시 확인해주세요.',
+      );
     }
   };
 
@@ -215,9 +214,7 @@ export default function SnsSignupPage() {
         </Text>
       )}
 
-      <Text style={styles.helpText}>
-        8~20자/영문, 숫자, 특수문자 필수 조합
-      </Text>
+      <Text style={styles.helpText}>8~20자/영문, 숫자, 특수문자 필수 조합</Text>
 
       <Text style={[styles.label, styles.emailLabel]}>이메일 (선택)</Text>
 

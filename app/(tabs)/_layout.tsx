@@ -1,26 +1,34 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router, usePathname } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Pressable } from 'react-native';
+import { Image, StyleSheet, Pressable } from 'react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+const VISIBLE_TAB_BAR_STYLE = {
+  height: 92,
+  paddingTop: 10,
+  paddingBottom: 18,
+  backgroundColor: '#FAFAFA',
+  borderTopWidth: 0,
+};
+
+const HIDDEN_TAB_BAR_STYLE = {
+  display: 'none' as const,
+};
+
+const MARKET_ROUTES_WITH_TABS = new Set([
+  '/market',
+  '/market/write',
+  '/market/category',
+  '/market/preview',
+  '/market/verify',
+]);
 
 export default function TabLayout() {
   const pathname = usePathname();
 
   const isMarketActive =
     pathname.startsWith('/market') || pathname.includes('/home/market');
-  const isExploreActive =
-    pathname.startsWith('/explore') || pathname.includes('/home/explore');
-  const isCommunityActive = pathname.startsWith('/community');
-  const isMyPageActive = pathname.startsWith('/mypage');
-  const isHomeActive =
-    (pathname === '/home' || pathname === '/') &&
-    !isExploreActive &&
-    !isMarketActive &&
-    !isCommunityActive &&
-    !isMyPageActive;
+  const isHomeActive = pathname === '/home' || pathname === '/';
   return (
     <Tabs
       screenOptions={{
@@ -28,12 +36,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#111111',
         tabBarInactiveTintColor: '#777',
         tabBarStyle: {
-          height: 86,
-          paddingTop: 6,
-          paddingBottom: 22,
+          height: 92,
+          paddingTop: 10,
+          paddingBottom: 18,
           backgroundColor: '#FAFAFA',
-          borderTopWidth: StyleSheet.hairlineWidth,
-          borderTopColor: '#E6E6E6',
+          borderTopWidth: 0,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -179,3 +186,11 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIcon: {
+    width: 34,
+    height: 34,
+    resizeMode: 'contain',
+  },
+});

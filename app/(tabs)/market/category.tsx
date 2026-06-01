@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Image,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
+import { saveMarketDraft } from '../../../src/storage/marketDraft';
 
 type CategoryName =
   | '주방 용품'
@@ -21,11 +24,14 @@ type CategoryName =
 
 type ItemState = {
   name: string;
+  originalName: string;
   checked: boolean;
   quantity: number;
   editable?: boolean;
   editing?: boolean;
 };
+
+type RawItemState = Omit<ItemState, 'originalName'>;
 
 const BLUE = '#123F9F';
 
@@ -38,7 +44,7 @@ const categories: CategoryName[] = [
   '기타',
 ];
 
-const initialItems: Record<CategoryName, ItemState[]> = {
+const rawInitialItems: Record<CategoryName, RawItemState[]> = {
   '주방 용품': [
     { name: '냄비', checked: false, quantity: 1 },
     { name: '브리타 정수기', checked: false, quantity: 1 },
@@ -99,26 +105,88 @@ const initialItems: Record<CategoryName, ItemState[]> = {
   ],
 };
 
+const makeInitialItems = (): Record<CategoryName, ItemState[]> => {
+  return Object.fromEntries(
+    Object.entries(rawInitialItems).map(([category, list]) => [
+      category,
+      list.map((item) => ({
+        ...item,
+        originalName: item.name,
+      })),
+    ]),
+  ) as Record<CategoryName, ItemState[]>;
+};
+
+const parseJsonArray = <T,>(value?: string): T[] => {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseDraftItems = (
+  value?: string,
+): Record<CategoryName, ItemState[]> | null => {
+  if (!value) return null;
+
+  try {
+    const parsed = JSON.parse(value) as Record<CategoryName, ItemState[]>;
+
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const fallback = makeInitialItems();
+
+    return Object.fromEntries(
+      categories.map((category) => [
+        category,
+        Array.isArray(parsed[category])
+          ? parsed[category].map((item) => ({
+              ...item,
+              originalName: item.originalName ?? item.name,
+            }))
+          : fallback[category],
+      ]),
+    ) as Record<CategoryName, ItemState[]>;
+  } catch {
+    return null;
+  }
+};
+
 export default function MarketCategoryPage() {
   const params = useLocalSearchParams<{
+    type?: string;
     title?: string;
     content?: string;
     price?: string;
     region?: string;
     returnDate?: string;
+    semester?: string;
     photoUrl?: string;
     photos?: string;
+    allowOffer?: string;
+    draftSelectedCategories?: string;
+    draftItemsByCategory?: string;
   }>();
 
   const [selectedCategories, setSelectedCategories] = useState<CategoryName[]>(
-    [],
+    () => parseJsonArray<CategoryName>(params.draftSelectedCategories),
   );
-  const [itemsByCategory, setItemsByCategory] =
-    useState<Record<CategoryName, ItemState[]>>(initialItems);
 
-  const hasSelectedItem = selectedCategories.some((category) =>
-    itemsByCategory[category].some((item) => item.checked),
-  );
+  const [itemsByCategory, setItemsByCategory] = useState<
+    Record<CategoryName, ItemState[]>
+  >(() => parseDraftItems(params.draftItemsByCategory) ?? makeInitialItems());
+
+  const hasSelectedItem = useMemo(() => {
+    return categories.some((category) =>
+      itemsByCategory[category].some(
+        (item) => item.checked && item.name.trim().length > 0,
+      ),
+    );
+  }, [itemsByCategory]);
 
   const toggleCategory = (category: CategoryName) => {
     setSelectedCategories((prev) =>
@@ -132,7 +200,14 @@ export default function MarketCategoryPage() {
     setItemsByCategory((prev) => ({
       ...prev,
       [category]: prev[category].map((item, itemIndex) =>
-        itemIndex === index ? { ...item, checked: !item.checked } : item,
+        itemIndex === index
+          ? {
+              ...item,
+              checked: !item.checked,
+              quantity:
+                !item.checked && item.quantity === 0 ? 1 : item.quantity,
+            }
+          : item,
       ),
     }));
   };
@@ -140,7 +215,7 @@ export default function MarketCategoryPage() {
   const changeQuantity = (
     category: CategoryName,
     index: number,
-    direction: 'plus' | 'minus',
+    type: 'minus' | 'plus',
   ) => {
     setItemsByCategory((prev) => ({
       ...prev,
@@ -150,7 +225,7 @@ export default function MarketCategoryPage() {
         return {
           ...item,
           quantity:
-            direction === 'plus'
+            type === 'plus'
               ? item.quantity + 1
               : Math.max(0, item.quantity - 1),
         };
@@ -171,12 +246,28 @@ export default function MarketCategoryPage() {
     }));
   };
 
-  const toggleEditItem = (category: CategoryName, index: number) => {
+  const startEditItem = (category: CategoryName, index: number) => {
     setItemsByCategory((prev) => ({
       ...prev,
       [category]: prev[category].map((item, itemIndex) =>
-        itemIndex === index ? { ...item, editing: !item.editing } : item,
+        itemIndex === index ? { ...item, editing: true } : item,
       ),
+    }));
+  };
+
+  const finishEditItem = (category: CategoryName, index: number) => {
+    setItemsByCategory((prev) => ({
+      ...prev,
+      [category]: prev[category].map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        return {
+          ...item,
+          name:
+            item.name.trim().length > 0 ? item.name.trim() : item.originalName,
+          editing: false,
+        };
+      }),
     }));
   };
 
@@ -187,100 +278,121 @@ export default function MarketCategoryPage() {
         ...prev[category],
         {
           name: '',
-          checked: false,
+          originalName: '새 물품',
+          checked: true,
           quantity: 1,
           editable: true,
           editing: true,
         },
       ],
     }));
+
+    if (!selectedCategories.includes(category)) {
+      setSelectedCategories((prev) => [...prev, category]);
+    }
   };
 
-  const removeCustomItem = (category: CategoryName, index: number) => {
-    setItemsByCategory((prev) => ({
-      ...prev,
-      [category]: prev[category].filter((_, itemIndex) => itemIndex !== index),
-    }));
+  const getSelectedGroups = () => {
+    return categories
+      .map((category) => ({
+        category,
+        items: itemsByCategory[category]
+          .filter((item) => item.checked && item.name.trim().length > 0)
+          .map((item) => ({
+            name: item.name.trim(),
+            quantity: item.quantity,
+          })),
+      }))
+      .filter((group) => group.items.length > 0);
   };
 
-  const handleSubmit = () => {
-    if (!hasSelectedItem) {
-      Alert.alert('입력 오류', '판매할 물품을 하나 이상 선택해주세요.');
+  const handleNext = () => {
+    const selectedGroups = getSelectedGroups();
+
+    if (selectedGroups.length === 0) {
+      Alert.alert('선택 필요', '판매할 물품을 1개 이상 선택해주세요.');
       return;
     }
-
-    const selectedItemsData = selectedCategories
-      .map((category) => {
-        const selectedItems = itemsByCategory[category]
-          .filter((item) => item.checked)
-          .map((item) => ({
-            name: item.name || '이름 없음',
-            quantity: item.quantity,
-          }));
-
-        return {
-          category,
-          items: selectedItems,
-        };
-      })
-      .filter((group) => group.items.length > 0);
 
     router.push({
       pathname: '/market/preview',
       params: {
-        photos: params.photos || '',
-        title: params.title || '',
-        content: params.content || '',
-        price: params.price || '',
-        region: params.region || '',
-        returnDate: params.returnDate || '',
-        photoUrl: params.photoUrl || '',
-        selectedItems: JSON.stringify(selectedItemsData),
+        title: params.title ?? '',
+        content: params.content ?? '',
+        price: params.price ?? '',
+        region: params.region ?? '',
+        returnDate: params.returnDate ?? '',
+        semester: params.semester ?? '',
+        photoUrl: params.photoUrl ?? '',
+        photos: params.photos ?? '[]',
+        type: params.type ?? 'all',
+        allowOffer: params.allowOffer ?? 'false',
+        selectedItems: JSON.stringify(selectedGroups),
       },
     } as any);
   };
 
+  const handleTempSave = async () => {
+    await saveMarketDraft({
+      step: 'category',
+      write: {
+        type: params.type ?? 'all',
+        title: params.title ?? '',
+        content: params.content ?? '',
+        price: params.price ?? '',
+        region: params.region ?? '',
+        returnDate: params.returnDate ?? '',
+        semester: params.semester ?? '',
+        photos: parseJsonArray<string>(params.photos),
+        allowOffer: params.allowOffer === 'true',
+      },
+      category: {
+        selectedCategories,
+        itemsByCategory,
+      },
+    });
+
+    Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
+  };
+
   return (
     <View style={styles.container}>
+      <View style={styles.header}>
+        <AppBackButton />
+
+        <Text style={styles.headerTitle}>물품 카테고리 선택</Text>
+
+        <Pressable onPress={handleTempSave}>
+          <Text style={styles.tempSave}>임시저장</Text>
+        </Pressable>
+      </View>
+
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
       >
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
-
-          <Text style={styles.headerTitle}>다음 교환학생에게 넘기기</Text>
-
-          <Text style={styles.tempSave}>임시저장</Text>
-        </View>
-
-        <View style={styles.progressRow}>
-          <View style={styles.progressActive} />
-          <View style={styles.progressActive} />
-        </View>
-
-        <Text style={styles.sectionTitle}>카테고리 선택</Text>
+        <Text style={styles.sectionTitle}>보유 카테고리</Text>
 
         <View style={styles.categoryGrid}>
           {categories.map((category) => {
-            const active = selectedCategories.includes(category);
+            const selected = selectedCategories.includes(category);
 
             return (
               <Pressable
                 key={category}
                 style={[
-                  styles.categoryButton,
-                  active && styles.categoryButtonActive,
+                  styles.categoryChip,
+                  selected && styles.categoryChipSelected,
                 ]}
                 onPress={() => toggleCategory(category)}
               >
                 <Text
                   style={[
-                    styles.categoryText,
-                    active && styles.categoryTextActive,
+                    styles.categoryChipText,
+                    selected && styles.categoryChipTextSelected,
                   ]}
                 >
                   {category}
@@ -290,104 +402,101 @@ export default function MarketCategoryPage() {
           })}
         </View>
 
-        {selectedCategories.length > 0 && (
-          <View style={styles.itemSectionHeader}>
-            <Text style={styles.sectionTitle}>물품 목록</Text>
-            <View style={styles.sectionLine} />
-          </View>
-        )}
+        <View style={styles.titleRow}>
+          <Text style={styles.mainTitle}>물품 목록</Text>
+          <View style={styles.titleLine} />
+        </View>
 
-        {selectedCategories.map((category) => (
-          <View key={category} style={styles.itemCard}>
-            <Text style={styles.itemCardTitle}>{category}</Text>
+        {categories.map((category) => (
+          <View key={category} style={styles.categoryBox}>
+            <Text style={styles.categoryTitle}>{category}</Text>
 
             <View style={styles.itemGrid}>
-              {itemsByCategory[category].map((item, index) => (
-                <View
-                  key={`${category}-${index}`}
-                  style={[
-                    styles.itemRow,
-                    item.checked && styles.itemRowSelected,
-                  ]}
-                >
-                  <View style={styles.itemTopRow}>
-                    <Pressable
-                      style={[
-                        styles.checkbox,
-                        item.checked && styles.checkboxActive,
-                      ]}
-                      onPress={() => toggleItem(category, index)}
-                    >
-                      {item.checked && <Text style={styles.checkMark}>✓</Text>}
-                    </Pressable>
+              {itemsByCategory[category].map((item, index) => {
+                const selected = item.checked;
 
-                    {item.editable || item.editing ? (
-                      <TextInput
-                        style={styles.itemInput}
-                        placeholder="품목 입력"
-                        placeholderTextColor="#A6A6A6"
-                        value={item.name}
-                        onChangeText={(value) =>
-                          changeItemName(category, index, value)
-                        }
-                        onSubmitEditing={() => toggleEditItem(category, index)}
-                      />
-                    ) : (
-                      <Text style={styles.itemName}>{item.name}</Text>
-                    )}
-
-                    {item.checked && !item.editable && (
+                return (
+                  <View
+                    key={`${category}-${index}`}
+                    style={[styles.itemRow, selected && styles.itemRowSelected]}
+                  >
+                    <View style={styles.itemTopRow}>
                       <Pressable
-                        onPress={() => toggleEditItem(category, index)}
+                        style={[
+                          styles.checkBox,
+                          selected && styles.checkBoxSelected,
+                        ]}
+                        onPress={() => toggleItem(category, index)}
                       >
-                        <Image
-                          source={require('../../../assets/images/pen.png')}
-                          style={styles.penImage}
+                        {selected && <Text style={styles.checkText}>✓</Text>}
+                      </Pressable>
+
+                      {item.editing ? (
+                        <TextInput
+                          style={styles.itemNameInput}
+                          value={item.name}
+                          placeholder="물품명"
+                          placeholderTextColor="#999999"
+                          autoFocus
+                          onChangeText={(value) =>
+                            changeItemName(category, index, value)
+                          }
+                          onSubmitEditing={() =>
+                            finishEditItem(category, index)
+                          }
+                          onBlur={() => finishEditItem(category, index)}
                         />
-                      </Pressable>
-                    )}
+                      ) : (
+                        <Text style={styles.itemName} numberOfLines={2}>
+                          {item.name}
+                        </Text>
+                      )}
 
-                    {item.editable && (
-                      <Pressable
-                        style={styles.removeButton}
-                        onPress={() => removeCustomItem(category, index)}
-                      >
-                        <Text style={styles.removeText}>×</Text>
-                      </Pressable>
+                      {selected && !item.editing && (
+                        <Pressable
+                          onPress={() => startEditItem(category, index)}
+                          hitSlop={8}
+                        >
+                          <Image
+                            source={require('../../../assets/images/pen.png')}
+                            style={styles.penIcon}
+                          />
+                        </Pressable>
+                      )}
+                    </View>
+
+                    {selected && (
+                      <View style={styles.quantityRow}>
+                        <Text style={styles.quantityLabel}>수량</Text>
+
+                        <View style={styles.quantityBox}>
+                          <Pressable
+                            style={styles.quantityButton}
+                            onPress={() =>
+                              changeQuantity(category, index, 'minus')
+                            }
+                          >
+                            <Text style={styles.quantityText}>−</Text>
+                          </Pressable>
+
+                          <Text style={styles.quantityNumber}>
+                            {item.quantity}
+                          </Text>
+
+                          <Pressable
+                            style={styles.quantityButton}
+                            onPress={() =>
+                              changeQuantity(category, index, 'plus')
+                            }
+                          >
+                            <Text style={styles.quantityText}>＋</Text>
+                          </Pressable>
+                        </View>
+                      </View>
                     )}
                   </View>
-
-                  {item.checked && (
-                    <View style={styles.quantityRow}>
-                      <Text style={styles.quantityLabel}>수량</Text>
-
-                      <View style={styles.quantityBox}>
-                        <Pressable
-                          style={styles.quantityButton}
-                          onPress={() =>
-                            changeQuantity(category, index, 'minus')
-                          }
-                        >
-                          <Text style={styles.quantityText}>−</Text>
-                        </Pressable>
-
-                        <Text style={styles.quantityNumber}>
-                          {item.quantity}
-                        </Text>
-
-                        <Pressable
-                          style={styles.quantityButton}
-                          onPress={() =>
-                            changeQuantity(category, index, 'plus')
-                          }
-                        >
-                          <Text style={styles.quantityText}>＋</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             <Pressable
@@ -398,17 +507,19 @@ export default function MarketCategoryPage() {
             </Pressable>
           </View>
         ))}
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
       <Pressable
         style={[styles.nextButton, hasSelectedItem && styles.nextButtonActive]}
         disabled={!hasSelectedItem}
-        onPress={handleSubmit}
+        onPress={handleNext}
       >
         <Text
           style={[styles.nextText, hasSelectedItem && styles.nextTextActive]}
         >
-          다음 (2/2)
+          다음
         </Text>
       </Pressable>
     </View>
@@ -421,208 +532,206 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  content: {
-    paddingHorizontal: 22,
-    paddingTop: 52,
-    paddingBottom: 120,
-  },
-
   header: {
-    height: 42,
+    height: 102,
+    paddingTop: 46,
+    paddingHorizontal: 22,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-
-  back: {
-    fontSize: 38,
-    color: '#111111',
-    lineHeight: 38,
   },
 
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#111111',
-  },
-
-  tempSave: {
-    fontSize: 14,
-    color: '#C5C5C5',
-    fontWeight: '600',
-  },
-
-  progressRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 38,
-  },
-
-  progressActive: {
-    flex: 1,
-    height: 7,
-    borderRadius: 10,
-    backgroundColor: '#666666',
-  },
-
-  sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: '#111111',
   },
 
+  headerBlank: {
+    width: 38,
+  },
+
+  tempSave: {
+    fontSize: 14,
+    color: '#C5C5C5',
+    fontWeight: '700',
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  content: {
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 120,
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 14,
+  },
+
   categoryGrid: {
-    marginTop: 22,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: 14,
+    gap: 9,
+    marginBottom: 32,
   },
 
-  categoryButton: {
-    width: '48%',
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F0F0F0',
-    alignItems: 'center',
-    justifyContent: 'center',
+  categoryChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 6,
+    backgroundColor: '#F4F4F4',
   },
 
-  categoryButtonActive: {
+  categoryChipSelected: {
     backgroundColor: BLUE,
   },
 
-  categoryText: {
+  categoryChipText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#333333',
   },
 
-  categoryTextActive: {
+  categoryChipTextSelected: {
     color: '#FFFFFF',
   },
 
-  itemSectionHeader: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 36,
-    marginBottom: 16,
+    marginBottom: 22,
   },
 
-  sectionLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E1E1E1',
-    marginLeft: 12,
-  },
-
-  itemCard: {
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingTop: 15,
-    paddingBottom: 18,
-    marginBottom: 28,
-  },
-
-  itemCardTitle: {
-    fontSize: 15,
+  mainTitle: {
+    fontSize: 23,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 12,
+    marginRight: 16,
+  },
+
+  titleLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#DADADA',
+  },
+
+  categoryBox: {
+    borderWidth: 1,
+    borderColor: '#D4D4D4',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 16,
+    marginBottom: 22,
+  },
+
+  categoryTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 18,
   },
 
   itemGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
 
   itemRow: {
     width: '48%',
-    minHeight: 31,
-    marginBottom: 9,
+    minHeight: 40,
+    marginBottom: 12,
   },
 
   itemRowSelected: {
-    width: '100%',
-    backgroundColor: '#F5F5F5',
+    width: '48%',
+    backgroundColor: '#F7F7F7',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 7,
     marginBottom: 12,
   },
 
   itemTopRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    minHeight: 30,
   },
 
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#CFCFCF',
-    marginRight: 8,
+  checkBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#C9C9C9',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 7,
+    marginTop: 1,
   },
-
-  checkboxActive: {
+  checkBoxSelected: {
     backgroundColor: BLUE,
     borderColor: BLUE,
   },
 
-  checkMark: {
+  checkText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
+    lineHeight: 18,
   },
 
   itemName: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 20,
+    fontWeight: '500',
     color: '#111111',
-    flexShrink: 1,
-    marginRight: 8,
+    marginTop: 2,
   },
 
-  itemInput: {
+  itemNameInput: {
     flex: 1,
-    height: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D0D0D0',
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 22,
     color: '#111111',
     paddingVertical: 0,
-    marginRight: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BBBBBB',
   },
 
-  penImage: {
-    width: 18,
-    height: 18,
+  penIcon: {
+    width: 17,
+    height: 17,
     resizeMode: 'contain',
+    marginLeft: 5,
   },
 
   quantityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 9,
   },
 
   quantityLabel: {
-    fontSize: 20,
+    fontSize: 13,
     fontWeight: '700',
     color: '#555555',
-    marginRight: 14,
+    marginRight: 6,
   },
 
   quantityBox: {
     flex: 1,
-    height: 42,
-    borderRadius: 21,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#D9D9D9',
     flexDirection: 'row',
     alignItems: 'center',
@@ -630,62 +739,50 @@ const styles = StyleSheet.create({
   },
 
   quantityButton: {
-    width: 42,
-    height: 42,
+    width: 22,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   quantityText: {
-    fontSize: 25,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: '#111111',
   },
 
   quantityNumber: {
-    fontSize: 24,
+    fontSize: 14,
+    fontWeight: '700',
     color: '#777777',
   },
 
-  removeButton: {
-    marginLeft: 6,
-    width: 17,
-    height: 17,
-    borderRadius: 9,
-    backgroundColor: '#CFCFCF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  removeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '900',
-    lineHeight: 14,
-  },
-
   addButton: {
-    height: 29,
+    height: 43,
+    borderRadius: 7,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 4,
+    borderColor: '#DDDDDD',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 6,
   },
 
   addButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
     color: BLUE,
+  },
+
+  bottomSpacer: {
+    height: 20,
   },
 
   nextButton: {
     position: 'absolute',
     left: 22,
     right: 22,
-    bottom: 36,
-    height: 52,
+    bottom: 34,
+    height: 53,
     borderRadius: 5,
     backgroundColor: '#D5D5D5',
     alignItems: 'center',
@@ -697,9 +794,9 @@ const styles = StyleSheet.create({
   },
 
   nextText: {
-    color: '#9A9A9A',
     fontSize: 16,
     fontWeight: '800',
+    color: '#999999',
   },
 
   nextTextActive: {
