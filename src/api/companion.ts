@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse } from './types';
+import { BaseResponse, CursorRequest, CursorResponse } from './types';
 
 export interface CompanionPostRequest {
   title: string;
@@ -34,8 +34,28 @@ export interface CompanionPostResponse {
 }
 
 // 동행 구하기 목록 조회
-export const getCompanionPosts = () => {
-  return api.get<BaseResponse<CompanionPostResponse[]>>('/api/companions');
+export const getCompanionPosts = async (params: CursorRequest = { size: 10 }) => {
+  console.log('[동행 구하기 목록 조회 API] 요청 시작: GET /api/companions', params);
+
+  try {
+    const response = await api.get<BaseResponse<CursorResponse<CompanionPostResponse>>>(
+      '/api/companions',
+      { params },
+    );
+    console.log('[동행 구하기 목록 조회 API] 응답:', response.data);
+    console.log(
+      '[동행 구하기 목록 조회 API] 게시글 수:',
+      response.data.data?.items?.length ?? 0,
+    );
+
+    return response;
+  } catch (error: any) {
+    console.log(
+      '[동행 구하기 목록 조회 API] 실패:',
+      error.response?.data || error.message,
+    );
+    throw error;
+  }
 };
 
 // 동행 구하기 게시글 작성

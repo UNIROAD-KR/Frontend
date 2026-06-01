@@ -20,16 +20,17 @@ export interface SignUpRequest {
 }
 
 export interface OnboardingRequest {
-  age?: number;
+  age: number;
   domesticUniversity: string;
-  dispatchedUniversity?: string;
-  dispatchedCountry?: string;
-  dispatchedRegion?: string;
+  dispatchedUniversity: string;
+  dispatchedCountry: string;
+  dispatchedRegion: string;
 }
 
 export interface SocialSignUpRequest {
   username: string;
   password: string;
+  name: string;
   email?: string;
 }
 
@@ -39,9 +40,7 @@ export interface MemberResponse {
   email: string;
   name: string;
   age: number | null;
-  domesticUniversityId: number | null;
   domesticUniversity: string | null;
-  homeUniversity: string | null;
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;

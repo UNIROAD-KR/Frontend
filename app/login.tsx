@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { GoogleSignin } from '@react-native-google-signin/google-signin';
-// import * as KakaoLogins from '@react-native-seoul/kakao-login';
-// import NaverLogin from '@react-native-seoul/naver-login';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
+import NaverLogin from '@react-native-seoul/naver-login';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,15 +23,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   useEffect(() => {
-    // GoogleSignin.configure({
-    //   webClientId: '803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com',
-    // });
+    GoogleSignin.configure({
+      webClientId: '803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com',
+      iosClientId: '803840308244-onouauek1qv66kqirf9hjmqlb96dck2n.apps.googleusercontent.com',
+    });
 
-    // NaverLogin.initialize({
-    //   appName: '유니로드',
-    //   consumerKey: '3jo54WreHzQliJbUhzPo',
-    //   consumerSecret: '_N6TMAqNu0',
-    // });
+    NaverLogin.initialize({
+      appName: '유니로드',
+      consumerKey: '3jo54WreHzQliJbUhzPo',
+      consumerSecret: '_N6TMAqNu0',
+      serviceUrlSchemeIOS: 'naverlogin',
+    });
   }, []);
 
   const handleLogin = async () => {
@@ -68,41 +72,58 @@ export default function LoginPage() {
       console.log('provider:', provider);
 
       if (provider === 'kakao') {
-        Alert.alert('알림', '카카오 로그인은 현재 비활성화되어 있습니다.');
-        return;
-        // console.log('KakaoLogins:', KakaoLogins);
-        // try {
-        //   await KakaoLogins.unlink();
-        // } catch { }
+        const token = await kakaoLogin();
+        console.log('카카오 로그인:', token);
 
-        // const token = await KakaoLogins.login();
-        // console.log(token);
-
-        // sdkAccessToken = token.accessToken;
+        if (!token.accessToken) {
+          throw new Error('카카오 토큰 없음');
+        }
+        sdkAccessToken = token.accessToken;
       } else if (provider === 'naver') {
-        Alert.alert('알림', '네이버 로그인은 현재 비활성화되어 있습니다.');
-        return;
-        // const response = await NaverLogin.login();
+        const response = await NaverLogin.login();
+        console.log('네이버 로그인:', response);
 
-        // console.log('네이버 로그인:', response);
-
-        // if (!response.isSuccess || !response.successResponse) {
-        //   throw new Error(
-        //     response.failureResponse?.message || '네이버 로그인 실패'
-        //   );
-        // }
-        // sdkAccessToken = response.successResponse.accessToken;
+        if (!response.isSuccess || !response.successResponse) {
+          throw new Error(
+            response.failureResponse?.message || '네이버 로그인 실패'
+          );
+        }
+        sdkAccessToken = response.successResponse.accessToken;
       } else if (provider === 'google') {
-        Alert.alert('알림', '구글 로그인은 현재 비활성화되어 있습니다.');
-        return;
-        // await GoogleSignin.hasPlayServices();
-        // const userInfo = await GoogleSignin.signIn();
-        // console.log('구글 로그인:', userInfo);
-        // const idToken = userInfo.data?.idToken;
-        // if (!idToken) {
-        //   throw new Error('구글 토큰 없음');
-        // }
-        // sdkAccessToken = idToken;
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        console.log('구글 로그인:', userInfo);
+        const idToken = userInfo.data?.idToken;
+        if (!idToken) {
+          throw new Error('구글 토큰 없음');
+        }
+        sdkAccessToken = idToken;
+      } else if (provider === 'apple') {
+        if (Platform.OS !== 'ios') {
+          Alert.alert('지원 불가', 'Apple 로그인은 iOS에서만 사용할 수 있습니다.');
+          return;
+        }
+
+        const isAvailable = await AppleAuthentication.isAvailableAsync();
+        if (!isAvailable) {
+          Alert.alert('지원 불가', '이 기기에서는 Apple 로그인을 사용할 수 없습니다.');
+          return;
+        }
+
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        console.log('애플 로그인:', credential);
+
+        if (!credential.identityToken) {
+          throw new Error('애플 identityToken 없음');
+        }
+
+        sdkAccessToken = credential.identityToken;
       }
       else {
         Alert.alert('준비 중', `${provider} 로그인은 아직 구현되지 않았습니다.`);
@@ -130,6 +151,9 @@ export default function LoginPage() {
       }
     } catch (error: any) {
       console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
       Alert.alert('소셜 로그인 실패', '로그인 처리 중 문제가 발생했습니다.');
     }
   };
@@ -193,26 +217,26 @@ export default function LoginPage() {
       </View>
 
       <View style={styles.snsRow}>
-        {/* <Pressable onPress={() => handleSocialLogin('kakao')}>
+        <Pressable onPress={() => handleSocialLogin('kakao')}>
           <Image
             source={require('../assets/images/kakao.png')}
             style={styles.snsImage}
           />
-        </Pressable> */}
+        </Pressable>
 
-        {/* <Pressable onPress={() => handleSocialLogin('google')}>
+        <Pressable onPress={() => handleSocialLogin('google')}>
           <Image
             source={require('../assets/images/google.png')}
             style={styles.snsImage}
           />
-        </Pressable> */}
+        </Pressable>
 
-        {/* <Pressable
+        <Pressable
           style={[styles.snsCircle, styles.naver]}
           onPress={() => handleSocialLogin('naver')}
         >
           <Text style={styles.naverText}>N</Text>
-        </Pressable> */}
+        </Pressable>
 
         <Pressable
           style={[styles.snsCircle, styles.apple]}

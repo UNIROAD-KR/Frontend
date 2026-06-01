@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -16,6 +15,7 @@ import { signupStyles as styles } from '../src/styles/signupStyles';
 
 export default function SnsSignupPage() {
   const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [passwordCheck, setPasswordCheck] = useState('');
   const [emailId, setEmailId] = useState('');
@@ -31,6 +31,7 @@ export default function SnsSignupPage() {
 
   const canSubmit =
     username.trim().length >= 4 &&
+    name.trim().length > 0 &&
     isPasswordValid &&
     password === passwordCheck;
 
@@ -64,14 +65,20 @@ export default function SnsSignupPage() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      Alert.alert('입력 확인', '아이디와 비밀번호를 확인해주세요.');
+      Alert.alert('입력 확인', '아이디, 이름, 비밀번호를 확인해주세요.');
       return;
     }
 
     try {
-      const signUpData: { username: string; password: string; email?: string } = {
+      const signUpData: {
+        username: string;
+        password: string;
+        name: string;
+        email?: string;
+      } = {
         username: username.trim(),
         password,
+        name: name.trim(),
       };
 
       if (fullEmail.trim()) {
@@ -135,6 +142,18 @@ export default function SnsSignupPage() {
       </View>
 
       <Text style={styles.helpText}>4~12자/영문 소문자(숫자 조합 가능)</Text>
+
+      <Text style={[styles.label, styles.emailSection]}>이름</Text>
+
+      <View style={styles.row}>
+        <TextInput
+          style={[styles.input, styles.flexInput]}
+          placeholder="이름 (실명)"
+          placeholderTextColor="#9A9A9A"
+          value={name}
+          onChangeText={setName}
+        />
+      </View>
 
       <Text style={[styles.label, styles.passwordLabel]}>비밀번호</Text>
 
@@ -289,5 +308,3 @@ export default function SnsSignupPage() {
     </ScrollView>
   );
 }
-
-const BLUE = '#123F9F';

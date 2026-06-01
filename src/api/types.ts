@@ -41,3 +41,15 @@ export interface PageResponse<T> {
   last: boolean;
   empty: boolean;
 }
+
+export interface CursorRequest {
+  cursorId?: number;
+  keyword?: string;
+  size?: number;
+}
+
+export interface CursorResponse<T> {
+  items: T[];
+  nextCursorId?: number | null;
+  hasNext: boolean;
+}

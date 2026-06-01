@@ -1,195 +1,245 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Dimensions,
+  ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-const BLUE = '#102BE0';
-const GREEN = '#40A66A';
-const CARD_WIDTH = Math.min(214, SCREEN_WIDTH * 0.55);
+import {
+  CompanionPostResponse,
+  getCompanionPosts,
+} from '../../src/api/companion';
+import {
+  FreePostSummaryResponse,
+  getFreePosts,
+} from '../../src/api/freePosts';
+import { BLUE, GREEN } from '../../src/data/community';
 
 const communityTabs = ['자유 게시판', '동행 구하기'] as const;
-const boardFilters = ['전체', '파견 전', '파견 중', '귀국 후'];
-const companionFilters = ['전체', '모집중', '모집완료'];
+const countryFilters = ['전체 국가', '프랑스', '독일', '스페인', '네덜란드'];
+const companionStatusFilters = ['전체', '모집중', '모집완료'];
+const sortFilters = ['최신순', '마감임박순'];
+const COMMUNITY_PAGE_SIZE = 10;
 
 type CommunityTab = (typeof communityTabs)[number];
+type DropdownKey = 'status' | 'country' | 'sort' | null;
+type DatePickerTarget = 'start' | 'end' | null;
 
-const boardPosts = [
-  {
-    id: 1,
-    status: '파견 중',
-    title: '아우크스부르크 근처 가성비 맛집 리스트 공유',
-    preview:
-      '한 학기 동안 찾아낸 찐 맛집 리스트입니다. 현지인들도 자주 가는 곳 위주로 정리했어요.',
-    author: '김서현',
-    country: '독일',
-    stage: '파견',
-    time: '방금 전',
-    likes: 57,
-    comments: 7,
-    color: '#DDF4E4',
-    textColor: '#238451',
-  },
-  {
-    id: 2,
-    status: '파견 전',
-    title: '독일 비자 신청 후기 - 서울 영사관 직접 방문',
-    preview:
-      '비자 신청 준비하시는 분들 참고하세요. 예약부터 서류 준비까지 제가 겪은 것들 정리했어요.',
-    author: '이민준',
-    country: '독일',
-    stage: '파견 예정',
-    time: '1시간 전',
-    likes: 43,
-    comments: 12,
-    color: '#EAF1FF',
-    textColor: '#2F66D0',
-  },
-  {
-    id: 3,
-    status: '귀국 후',
-    title: '귀국하고 나서 학점 인정 받을 때 체크할 것',
-    preview:
-      '성적표 원본, 수강계획서, 실라버스는 미리 챙겨두면 훨씬 편합니다. 놓치기 쉬운 부분만 모았어요.',
-    author: '박하린',
-    country: '프랑스',
-    stage: '귀국',
-    time: '3시간 전',
-    likes: 31,
-    comments: 5,
-    color: '#FFF1DF',
-    textColor: '#F28A2E',
-  },
-  {
-    id: 4,
-    status: '파견 중',
-    title: '파리 Navigo 학생권 신청 성공한 분 계신가요?',
-    preview:
-      '학교 메일 인증에서 계속 막히는데 혹시 최근에 신청해보신 분 있으면 절차 공유 부탁드려요.',
-    author: '최유진',
-    country: '프랑스',
-    stage: '파견',
-    time: '어제',
-    likes: 18,
-    comments: 16,
-    color: '#DDF4E4',
-    textColor: '#238451',
-  },
-];
+const formatDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
 
-const topCompanions = [
-  {
-    id: 1,
-    status: '모집중',
-    city: '베를린, 독일',
-    title: '박물관 섬 같이 가실 분?',
-    date: '03/15',
-    people: '2명',
-    likes: 24,
-    background: '#243C7A',
-  },
-  {
-    id: 2,
-    status: '모집중',
-    city: '파리, 프랑스',
-    title: '루브르 박물관 같이 가요',
-    date: '03/20',
-    people: '1명',
-    likes: 18,
-    background: '#2F6F5E',
-  },
-  {
-    id: 3,
-    status: '모집완료',
-    city: '바르셀로나, 스페인',
-    title: '가우디 투어 동행 구해요',
-    date: '03/22',
-    people: '4명',
-    likes: 16,
-    background: '#315B73',
-  },
-  {
-    id: 4,
-    status: '모집중',
-    city: '프라하, 체코',
-    title: '야경 산책 같이 하실 분',
-    date: '03/28',
-    people: '3명',
-    likes: 15,
-    background: '#2D6965',
-  },
-  {
-    id: 5,
-    status: '모집중',
-    city: '뮌헨, 독일',
-    title: '주말 근교 여행 팀원 모집',
-    date: '04/02',
-    people: '2명',
-    likes: 13,
-    background: '#344B78',
-  },
-];
+  return `${year}-${month}-${day}`;
+};
 
-const companionPosts = [
-  {
-    id: 1,
-    icon: 'map-outline' as const,
-    title: '뮌헨 맥주 축제 같이 가요',
-    city: '뮌헨, 독일',
-    period: '04/01 - 04/02',
-    tags: ['축제', '맥주', '감성'],
-    status: '모집중',
-    current: 2,
-    total: 4,
-    verified: true,
-    tint: '#EAF1FF',
-    iconColor: '#2F66D0',
-  },
-  {
-    id: 2,
-    icon: 'airplane-outline' as const,
-    title: '암스테르담 당일치기',
-    city: '암스테르담, 네덜란드',
-    period: '04/06',
-    tags: ['당일치기', '미술관'],
-    status: '모집중',
-    current: 1,
-    total: 3,
-    verified: true,
-    tint: '#FFF4E7',
-    iconColor: '#E8872F',
-  },
-  {
-    id: 3,
-    icon: 'cafe-outline' as const,
-    title: '파리 카페 투어 같이 해요',
-    city: '파리, 프랑스',
-    period: '04/12 - 04/13',
-    tags: ['카페', '사진', '주말'],
-    status: '모집완료',
-    current: 4,
-    total: 4,
-    verified: false,
-    tint: '#EAF7EF',
-    iconColor: '#40A66A',
-  },
-];
+const parseDate = (dateText: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateText);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+};
+
+const formatDateText = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+
+  return value.slice(0, 10).replaceAll('-', '.');
+};
+
+const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
+  const start = startDate?.slice(5).replace('-', '/') || '';
+  const end = endDate?.slice(5).replace('-', '/') || '';
+
+  if (!start) {
+    return '';
+  }
+
+  return start === end || !end ? start : `${start} - ${end}`;
+};
+
+const getBoardStatusColors = (status: string) => {
+  if (status === '파견 중') {
+    return { backgroundColor: '#DDF4E4', color: '#238451' };
+  }
+
+  if (status === '파견 전') {
+    return { backgroundColor: '#EAF1FF', color: '#2F66D0' };
+  }
+
+  return { backgroundColor: '#FFF1DF', color: '#F28A2E' };
+};
+
+const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
+  status === 'RECRUITING' ? '모집중' : '모집완료';
 
 export default function CommunityScreen() {
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const router = useRouter();
+  const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
-  const [selectedBoardFilter, setSelectedBoardFilter] = useState('전체');
-  const [selectedCompanionFilter, setSelectedCompanionFilter] = useState('전체');
+  const [boardKeyword, setBoardKeyword] = useState('');
+  const [selectedCompanionStatus, setSelectedCompanionStatus] = useState('전체');
+  const [selectedCompanionCountry, setSelectedCompanionCountry] = useState('전체 국가');
+  const [companionStartDate, setCompanionStartDate] = useState('');
+  const [companionEndDate, setCompanionEndDate] = useState('');
+  const [selectedCompanionSort, setSelectedCompanionSort] = useState('최신순');
+  const [draftCompanionStatus, setDraftCompanionStatus] = useState('전체');
+  const [draftCompanionCountry, setDraftCompanionCountry] = useState('전체 국가');
+  const [draftCompanionStartDate, setDraftCompanionStartDate] = useState('');
+  const [draftCompanionEndDate, setDraftCompanionEndDate] = useState('');
+  const [draftCompanionSort, setDraftCompanionSort] = useState('최신순');
+  const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
+  const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget>(null);
+  const [draftDate, setDraftDate] = useState(new Date());
+  const [boardPosts, setBoardPosts] = useState<FreePostSummaryResponse[]>([]);
+  const [companionPosts, setCompanionPosts] = useState<CompanionPostResponse[]>([]);
+  const [boardNextCursorId, setBoardNextCursorId] = useState<number | null>(null);
+  const [companionNextCursorId, setCompanionNextCursorId] = useState<number | null>(null);
+  const [boardHasNext, setBoardHasNext] = useState(false);
+  const [companionHasNext, setCompanionHasNext] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
+  const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
+  const didMountRef = useRef(false);
+  const boardKeywordRef = useRef('');
+  const isWide = width >= 768;
+
+  const loadFreePosts = useCallback(async (
+    cursorId?: number,
+    append = false,
+    keywordText = boardKeywordRef.current,
+  ) => {
+    const keyword = keywordText.trim();
+    try {
+      const freeResponse = await getFreePosts({
+        cursorId,
+        keyword: keyword.length > 0 ? keyword : undefined,
+        size: COMMUNITY_PAGE_SIZE,
+      });
+      const cursorData = freeResponse.data.data;
+      const nextItems = cursorData?.items ?? [];
+
+      setBoardPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
+      setBoardNextCursorId(cursorData?.nextCursorId ?? null);
+      setBoardHasNext(cursorData?.hasNext ?? false);
+    } catch (error: any) {
+      console.log('자유게시판 목록 조회 실패:', error.response?.data || error.message);
+    }
+  }, []);
+
+  const loadCompanionPosts = useCallback(async (cursorId?: number, append = false) => {
+    try {
+      const companionResponse = await getCompanionPosts({
+        cursorId,
+        size: COMMUNITY_PAGE_SIZE,
+      });
+      const cursorData = companionResponse.data.data;
+      const nextItems = cursorData?.items ?? [];
+
+      setCompanionPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
+      setCompanionNextCursorId(cursorData?.nextCursorId ?? null);
+      setCompanionHasNext(cursorData?.hasNext ?? false);
+    } catch (error: any) {
+      console.log('동행 구하기 목록 조회 실패:', error.response?.data || error.message);
+    }
+  }, []);
+
+  const loadCommunityPosts = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      await Promise.all([
+        loadFreePosts(),
+        loadCompanionPosts(),
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadCompanionPosts, loadFreePosts]);
+
+  const handleLoadMoreBoard = async () => {
+    if (!boardHasNext || boardNextCursorId == null || loadingMoreBoard) {
+      return;
+    }
+
+    setLoadingMoreBoard(true);
+    try {
+      await loadFreePosts(boardNextCursorId, true);
+    } finally {
+      setLoadingMoreBoard(false);
+    }
+  };
+
+  const handleLoadMoreCompanion = async () => {
+    if (!companionHasNext || companionNextCursorId == null || loadingMoreCompanion) {
+      return;
+    }
+
+    setLoadingMoreCompanion(true);
+    try {
+      await loadCompanionPosts(companionNextCursorId, true);
+    } finally {
+      setLoadingMoreCompanion(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadCommunityPosts();
+    }, [loadCommunityPosts]),
+  );
+
+  useEffect(() => {
+    boardKeywordRef.current = boardKeyword.trim();
+
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      loadFreePosts(undefined, false, boardKeyword);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [boardKeyword, loadFreePosts]);
+
+  const companionCountryFilterItems = useMemo(
+    () => [
+      '전체 국가',
+      ...Array.from(new Set(companionPosts.map((post) => post.country).filter(Boolean))),
+    ],
+    [companionPosts],
+  );
 
   useEffect(() => {
     if (tab === 'companion') {
@@ -198,20 +248,101 @@ export default function CommunityScreen() {
   }, [tab]);
 
   const filteredBoardPosts = useMemo(
-    () =>
-      selectedBoardFilter === '전체'
-        ? boardPosts
-        : boardPosts.filter((post) => post.status === selectedBoardFilter),
-    [selectedBoardFilter],
+    () => {
+      const keyword = boardKeyword.trim().toLowerCase();
+
+      return boardPosts.filter((post) => {
+        const matchesKeyword =
+          keyword.length === 0 ||
+          `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
+
+        return matchesKeyword;
+      });
+    },
+    [boardKeyword, boardPosts],
   );
 
   const filteredCompanions = useMemo(
-    () =>
-      selectedCompanionFilter === '전체'
-        ? companionPosts
-        : companionPosts.filter((post) => post.status === selectedCompanionFilter),
-    [selectedCompanionFilter],
+    () => {
+      const filtered = companionPosts.filter((post) => {
+        const matchesStatus =
+          selectedCompanionStatus === '전체' ||
+          getCompanionStatusText(post.status) === selectedCompanionStatus;
+        const matchesCountry =
+          selectedCompanionCountry === '전체 국가' ||
+          post.country === selectedCompanionCountry;
+        const matchesDate =
+          (!companionStartDate || post.startDate >= companionStartDate) &&
+          (!companionEndDate || post.startDate <= companionEndDate);
+
+        return matchesStatus && matchesCountry && matchesDate;
+      });
+
+      return [...filtered].sort((a, b) =>
+          selectedCompanionSort === '마감임박순'
+          ? a.startDate.localeCompare(b.startDate)
+          : b.createdAt.localeCompare(a.createdAt),
+      );
+    },
+    [
+      companionEndDate,
+      companionStartDate,
+      selectedCompanionCountry,
+      selectedCompanionSort,
+      selectedCompanionStatus,
+      companionPosts,
+    ],
   );
+
+  const openCompanionDatePicker = (target: Exclude<DatePickerTarget, null>) => {
+    const currentValue = target === 'start' ? draftCompanionStartDate : draftCompanionEndDate;
+    setDraftDate(parseDate(currentValue) || new Date());
+    setDatePickerTarget(target);
+  };
+
+  const handleConfirmDate = () => {
+    const nextDate = formatDate(draftDate);
+
+    if (datePickerTarget === 'start') {
+      setDraftCompanionStartDate(nextDate);
+      if (draftCompanionEndDate && draftCompanionEndDate < nextDate) {
+        setDraftCompanionEndDate('');
+      }
+    }
+
+    if (datePickerTarget === 'end') {
+      setDraftCompanionEndDate(nextDate);
+      if (draftCompanionStartDate && draftCompanionStartDate > nextDate) {
+        setDraftCompanionStartDate('');
+      }
+    }
+
+    setDatePickerTarget(null);
+  };
+
+  const handleApplyCompanionFilters = () => {
+    setSelectedCompanionStatus(draftCompanionStatus);
+    setSelectedCompanionCountry(draftCompanionCountry);
+    setCompanionStartDate(draftCompanionStartDate);
+    setCompanionEndDate(draftCompanionEndDate);
+    setSelectedCompanionSort(draftCompanionSort);
+    setOpenDropdown(null);
+  };
+
+  const handleFabPress = () => {
+    router.push({
+      pathname: '/community-write',
+      params: { type: activeTab === '자유 게시판' ? 'free' : 'companion' },
+    } as never);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator color={BLUE} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -236,7 +367,10 @@ export default function CommunityScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          isWide && styles.contentWide,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.tradeTypeBox}>
@@ -268,118 +402,195 @@ export default function CommunityScreen() {
               <Ionicons name="search" size={19} color="#9A9A9A" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="글 제목, 내용, 해시태그"
+                placeholder="글 제목, 내용 검색"
                 placeholderTextColor="#9A9A9A"
+                value={boardKeyword}
+                onChangeText={setBoardKeyword}
               />
             </View>
 
-            <FilterChips
-              items={boardFilters}
-              selected={selectedBoardFilter}
-              onSelect={setSelectedBoardFilter}
-            />
-
-            <View style={styles.boardList}>
+            <View style={[styles.boardList, isWide && styles.gridList]}>
               {filteredBoardPosts.map((post) => (
-                <Pressable key={post.id} style={styles.boardCard}>
+                <Pressable
+                  key={post.id}
+                  style={[styles.boardCard, isWide && styles.gridCard]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/community-detail',
+                      params: { type: 'free', id: String(post.id) },
+                    } as never)
+                  }
+                >
                   <View style={styles.boardTopRow}>
-                    <View style={[styles.statusBadge, { backgroundColor: post.color }]}>
-                      <Text style={[styles.statusBadgeText, { color: post.textColor }]}>
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: getBoardStatusColors(post.status).backgroundColor },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: getBoardStatusColors(post.status).color },
+                        ]}
+                      >
                         {post.status}
                       </Text>
                     </View>
-                    <Text style={styles.timeText}>{post.time}</Text>
                   </View>
 
                   <Text style={styles.boardTitle} numberOfLines={2}>
                     {post.title}
                   </Text>
-                  <Text style={styles.boardPreview} numberOfLines={2}>
+                  <Text style={styles.boardPreview} numberOfLines={1}>
                     {post.preview}
                   </Text>
 
                   <View style={styles.boardFooter}>
                     <View style={styles.authorRow}>
-                      <View style={[styles.avatar, { backgroundColor: post.color }]}>
-                        <Text style={[styles.avatarText, { color: post.textColor }]}>
-                          {post.author.slice(0, 1)}
-                        </Text>
-                      </View>
                       <Text style={styles.metaText}>
-                        {post.author} · {post.country} {post.stage}
+                        익명 · {post.country} {post.status}
                       </Text>
                     </View>
 
                     <View style={styles.statsRow}>
                       <View style={styles.statItem}>
                         <Ionicons name="thumbs-up-outline" size={13} color="#A5A5A5" />
-                        <Text style={styles.statText}>{post.likes}</Text>
+                        <Text style={styles.statText}>{post.likeCount}</Text>
                       </View>
                       <View style={styles.statItem}>
                         <Ionicons name="chatbubble-outline" size={13} color="#A5A5A5" />
-                        <Text style={styles.statText}>{post.comments}</Text>
+                        <Text style={styles.statText}>{post.commentCount}</Text>
                       </View>
+                      <Text style={styles.timeText}>{formatDateText(post.createdAt)}</Text>
                     </View>
                   </View>
                 </Pressable>
               ))}
             </View>
+
+            {boardHasNext && (
+              <Pressable
+                style={styles.loadMoreButton}
+                onPress={handleLoadMoreBoard}
+                disabled={loadingMoreBoard}
+              >
+                {loadingMoreBoard ? (
+                  <ActivityIndicator color={BLUE} />
+                ) : (
+                  <Text style={styles.loadMoreText}>더보기</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         ) : (
           <View>
-            <FilterChips
-              items={companionFilters}
-              selected={selectedCompanionFilter}
-              onSelect={setSelectedCompanionFilter}
-            />
+            <View style={styles.companionFilterPanel}>
+              <View style={styles.filterTopRow}>
+                <View style={styles.filterTitleRow}>
+                  <Ionicons name="options-outline" size={16} color={BLUE} />
+                  <Text style={styles.filterPanelTitle}>필터</Text>
+                </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>인기 Top 5</Text>
+                {(draftCompanionStartDate || draftCompanionEndDate) && (
+                  <Pressable
+                    style={styles.clearDateButton}
+                    onPress={() => {
+                      setDraftCompanionStartDate('');
+                      setDraftCompanionEndDate('');
+                    }}
+                  >
+                    <Ionicons name="refresh" size={13} color="#666666" />
+                    <Text style={styles.clearDateText}>날짜 초기화</Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <View style={styles.compactFilterBar}>
+                <DropdownFilter
+                  compact
+                  label={draftCompanionStatus}
+                  items={companionStatusFilters}
+                  selected={draftCompanionStatus}
+                  open={openDropdown === 'status'}
+                  onToggle={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                  onSelect={(item) => {
+                    setDraftCompanionStatus(item);
+                    setOpenDropdown(null);
+                  }}
+                />
+                <DropdownFilter
+                  compact
+                  label={draftCompanionCountry}
+                  items={
+                    companionCountryFilterItems.length > 1
+                      ? companionCountryFilterItems
+                      : countryFilters
+                  }
+                  selected={draftCompanionCountry}
+                  open={openDropdown === 'country'}
+                  onToggle={() =>
+                    setOpenDropdown(openDropdown === 'country' ? null : 'country')
+                  }
+                  onSelect={(item) => {
+                    setDraftCompanionCountry(item);
+                    setOpenDropdown(null);
+                  }}
+                />
+                <DropdownFilter
+                  compact
+                  label={draftCompanionSort}
+                  items={sortFilters}
+                  selected={draftCompanionSort}
+                  open={openDropdown === 'sort'}
+                  onToggle={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
+                  onSelect={(item) => {
+                    setDraftCompanionSort(item);
+                    setOpenDropdown(null);
+                  }}
+                />
+              </View>
+
+              <View style={styles.dateRangeRow}>
+                <DateRangeButton
+                  label="시작일"
+                  value={draftCompanionStartDate}
+                  onPress={() => openCompanionDatePicker('start')}
+                />
+                <View style={styles.dateRangeDivider} />
+                <DateRangeButton
+                  label="종료일"
+                  value={draftCompanionEndDate}
+                  onPress={() => openCompanionDatePicker('end')}
+                />
+              </View>
+
+              <Pressable
+                style={styles.applyFilterButton}
+                onPress={handleApplyCompanionFilters}
+              >
+                <Text style={styles.applyFilterText}>적용</Text>
+              </Pressable>
             </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.topScroll}
-              contentContainerStyle={styles.topContent}
-            >
-              {topCompanions.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={[styles.topCard, { backgroundColor: item.background }]}
-                >
-                  <View style={styles.topStatusBadge}>
-                    <Text style={styles.topStatusText}>{item.status}</Text>
-                  </View>
-                  <Text style={styles.topCity}>{item.city}</Text>
-                  <Text style={styles.topTitle}>{item.title}</Text>
-                  <View style={styles.topBottom}>
-                    <View style={styles.topMetaItem}>
-                      <Ionicons name="calendar-outline" size={13} color="#FFFFFF" />
-                      <Text style={styles.topMeta}>{item.date}</Text>
-                    </View>
-                    <View style={styles.topMetaItem}>
-                      <Ionicons name="people-outline" size={13} color="#FFFFFF" />
-                      <Text style={styles.topMeta}>{item.people}</Text>
-                    </View>
-                    <View style={styles.topMetaItem}>
-                      <Ionicons name="heart-outline" size={13} color="#FFFFFF" />
-                      <Text style={styles.topMeta}>{item.likes}</Text>
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
 
             <View style={styles.nowHeader}>
-              <Text style={styles.sectionTitle}>지금 올라온 동행</Text>
+              <Text style={styles.sectionTitle}>조건에 맞는 동행</Text>
             </View>
 
-            <View style={styles.companionList}>
+            <View style={[styles.companionList, isWide && styles.gridList]}>
               {filteredCompanions.map((post) => (
-                <Pressable key={post.id} style={styles.companionCard}>
-                  <View style={[styles.companionThumb, { backgroundColor: post.tint }]}>
-                    <Ionicons name={post.icon} size={29} color={post.iconColor} />
+                <Pressable
+                  key={post.id}
+                  style={[styles.companionCard, isWide && styles.gridCard]}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/community-detail',
+                      params: { type: 'companion', id: String(post.id) },
+                    } as never)
+                  }
+                >
+                  <View style={[styles.companionThumb, { backgroundColor: '#EAF1FF' }]}>
+                    <Ionicons name="map-outline" size={23} color="#2F66D0" />
                   </View>
 
                   <View style={styles.companionBody}>
@@ -390,51 +601,39 @@ export default function CommunityScreen() {
                       <View
                         style={[
                           styles.smallStatus,
-                          post.status === '모집완료' && styles.smallStatusDone,
+                          post.status === 'COMPLETED' && styles.smallStatusDone,
                         ]}
                       >
                         <Text
                           style={[
                             styles.smallStatusText,
-                            post.status === '모집완료' && styles.smallStatusDoneText,
+                            post.status === 'COMPLETED' && styles.smallStatusDoneText,
                           ]}
                         >
-                          {post.status}
+                          {getCompanionStatusText(post.status)}
                         </Text>
                       </View>
                     </View>
 
                     <Text style={styles.companionMeta}>
-                      {post.city} · {post.period}
+                      {post.country} · {post.region} ·{' '}
+                      {formatCompanionPeriod(post.startDate, post.endDate)}
                     </Text>
-
-                    <View style={styles.tagRow}>
-                      {post.tags.map((tag) => (
-                        <View key={tag} style={styles.tagChip}>
-                          <Text style={styles.tagText}>#{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
 
                     <View style={styles.companionFooter}>
                       <View style={styles.peopleRow}>
                         <Ionicons name="people-outline" size={14} color="#777777" />
                         <Text style={styles.peopleText}>
-                          {post.current}/{post.total}명
+                          {post.currentParticipants}/{post.capacity}명
                         </Text>
                       </View>
                       <View style={styles.verifyRow}>
                         <Ionicons
-                          name={post.verified ? 'checkmark-circle' : 'ellipse-outline'}
+                          name="checkmark-circle"
                           size={14}
-                          color={post.verified ? GREEN : '#B7B7B7'}
+                          color={GREEN}
                         />
-                        <Text
-                          style={[
-                            styles.verifyText,
-                            !post.verified && styles.verifyTextInactive,
-                          ]}
-                        >
+                        <Text style={styles.verifyText}>
                           학교인증
                         </Text>
                       </View>
@@ -443,51 +642,184 @@ export default function CommunityScreen() {
                 </Pressable>
               ))}
             </View>
+
+            {companionHasNext && (
+              <Pressable
+                style={styles.loadMoreButton}
+                onPress={handleLoadMoreCompanion}
+                disabled={loadingMoreCompanion}
+              >
+                {loadingMoreCompanion ? (
+                  <ActivityIndicator color={BLUE} />
+                ) : (
+                  <Text style={styles.loadMoreText}>더보기</Text>
+                )}
+              </Pressable>
+            )}
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={datePickerTarget !== null}
+        animationType="slide"
+        onRequestClose={() => setDatePickerTarget(null)}
+      >
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={styles.pickerBackdrop}
+            onPress={() => setDatePickerTarget(null)}
+          />
+
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <Pressable onPress={() => setDatePickerTarget(null)}>
+                <Text style={styles.pickerCancel}>취소</Text>
+              </Pressable>
+
+              <Text style={styles.pickerTitle}>
+                {datePickerTarget === 'start' ? '시작일 선택' : '종료일 선택'}
+              </Text>
+
+              <Pressable onPress={handleConfirmDate}>
+                <Text style={styles.pickerDone}>완료</Text>
+              </Pressable>
+            </View>
+
+            <DateTimePicker
+              value={draftDate}
+              mode="date"
+              display="spinner"
+              locale="ko-KR"
+              textColor="#111111"
+              themeVariant="light"
+              style={styles.iosPicker}
+              onChange={(event, date) => {
+                if (date) {
+                  setDraftDate(date);
+                }
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <Pressable style={styles.fab} onPress={handleFabPress}>
+        <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+        <Text style={styles.fabText}>
+          {activeTab === '자유 게시판' ? '글쓰기' : '동행 모집'}
+        </Text>
+      </Pressable>
     </View>
   );
 }
 
-function FilterChips({
+function DropdownFilter({
+  label,
   items,
   selected,
+  open,
+  onToggle,
   onSelect,
+  compact = false,
 }: {
+  label: string;
   items: string[];
   selected: string;
+  open: boolean;
+  onToggle: () => void;
   onSelect: (item: string) => void;
+  compact?: boolean;
 }) {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterScroll}
-      contentContainerStyle={styles.filterContent}
-    >
-      {items.map((item) => {
-        const active = selected === item;
+    <View style={[styles.dropdownWrap, compact && styles.dropdownWrapCompact]}>
+      <Pressable
+        style={[styles.dropdownButton, compact && styles.dropdownButtonCompact]}
+        onPress={onToggle}
+      >
+        <Text style={styles.dropdownText} numberOfLines={1}>
+          {label}
+        </Text>
+        <Ionicons
+          name={open ? 'chevron-up' : 'chevron-down'}
+          size={15}
+          color="#555555"
+        />
+      </Pressable>
+      {open && (
+        <View style={styles.dropdownMenu}>
+          {items.map((item) => {
+            const active = selected === item;
 
-        return (
-          <Pressable
-            key={item}
-            style={[styles.filterChip, active && styles.filterChipActive]}
-            onPress={() => onSelect(item)}
-          >
-            <Text style={[styles.filterText, active && styles.filterTextActive]}>
-              {item}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+            return (
+              <Pressable
+                key={item}
+                style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                onPress={() => onSelect(item)}
+              >
+                <Text
+                  style={[
+                    styles.dropdownItemText,
+                    active && styles.dropdownItemTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function DateRangeButton({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress: () => void;
+}) {
+  const active = value.length > 0;
+
+  return (
+    <Pressable
+      style={[styles.dateRangeButton, active && styles.dateRangeButtonActive]}
+      onPress={onPress}
+    >
+      <View style={styles.dateRangeLabelRow}>
+        <Ionicons
+          name="calendar-outline"
+          size={14}
+          color={active ? BLUE : '#8A8A8A'}
+        />
+        <Text style={[styles.dateRangeLabel, active && styles.dateRangeLabelActive]}>
+          {label}
+        </Text>
+      </View>
+      <Text
+        style={[styles.dateRangeValue, active && styles.dateRangeValueActive]}
+        numberOfLines={1}
+      >
+        {active ? value : '날짜 선택'}
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
   header: {
@@ -529,6 +861,11 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 23,
     paddingBottom: 120,
+  },
+  contentWide: {
+    width: '100%',
+    maxWidth: 980,
+    alignSelf: 'center',
   },
   tradeTypeBox: {
     height: 55,
@@ -573,53 +910,115 @@ const styles = StyleSheet.create({
     color: '#111111',
     paddingVertical: 0,
   },
-  filterScroll: {
-    marginHorizontal: -23,
-    marginBottom: 15,
+  dropdownWrap: {
+    position: 'relative',
+    zIndex: 20,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
-  filterContent: {
-    paddingHorizontal: 23,
-    gap: 9,
+  dropdownWrapCompact: {
+    marginBottom: 0,
+    flexShrink: 0,
   },
-  filterChip: {
-    minWidth: 63,
+  dropdownButton: {
+    minWidth: 128,
     height: 38,
     borderRadius: 19,
     borderWidth: 1,
     borderColor: '#DDDDDD',
     backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 17,
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingHorizontal: 14,
   },
-  filterChipActive: {
-    backgroundColor: '#111111',
-    borderColor: '#111111',
+  dropdownButtonCompact: {
+    minWidth: 98,
+    maxWidth: 150,
+    height: 40,
+    borderRadius: 12,
+    borderColor: '#E6EAF2',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 13,
   },
-  filterText: {
-    fontSize: 14,
+  dropdownText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#333333',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    minWidth: 132,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E7EAF0',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 6,
+    zIndex: 50,
+  },
+  dropdownItem: {
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  dropdownItemActive: {
+    backgroundColor: '#F0F3F7',
+  },
+  dropdownItemText: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#555555',
   },
-  filterTextActive: {
-    color: '#FFFFFF',
+  dropdownItemTextActive: {
     fontWeight: '900',
+    color: '#111111',
   },
   boardList: {
     gap: 12,
+  },
+  loadMoreButton: {
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DDE4F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  gridList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'stretch',
   },
   boardCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E8E8E8',
-    padding: 16,
+    padding: 13,
+  },
+  gridCard: {
+    width: '48.7%',
   },
   boardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   statusBadge: {
     borderRadius: 5,
@@ -631,25 +1030,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#B4B4B4',
   },
   boardTitle: {
     fontSize: 15,
-    lineHeight: 21,
+    lineHeight: 20,
     fontWeight: '900',
     color: '#111111',
   },
   boardPreview: {
-    marginTop: 7,
+    marginTop: 4,
     fontSize: 13,
-    lineHeight: 20,
+    lineHeight: 18,
     fontWeight: '500',
     color: '#777777',
   },
   boardFooter: {
-    marginTop: 13,
+    marginTop: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -660,18 +1059,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatar: {
-    width: 23,
-    height: 23,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  avatarText: {
-    fontSize: 11,
-    fontWeight: '900',
-  },
   metaText: {
     flex: 1,
     fontSize: 12,
@@ -681,7 +1068,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   statItem: {
     flexDirection: 'row',
@@ -693,69 +1080,129 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#A5A5A5',
   },
-  sectionHeader: {
+  compactFilterBar: {
+    position: 'relative',
+    zIndex: 30,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 12,
+  },
+  companionFilterPanel: {
+    position: 'relative',
+    zIndex: 30,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E8ECF3',
+    backgroundColor: '#F8FAFD',
+    padding: 13,
+    marginBottom: 18,
+    shadowColor: '#1B2A4A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 2,
+  },
+  filterTopRow: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 11,
+  },
+  filterTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterPanelTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  clearDateButton: {
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#EEF1F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+  },
+  clearDateText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#666666',
+  },
+  dateRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  dateRangeButton: {
+    flex: 1,
+    minHeight: 64,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5EAF2',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'space-between',
+  },
+  dateRangeButtonActive: {
+    borderColor: '#C9D4FF',
+    backgroundColor: '#F4F7FF',
+  },
+  dateRangeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  dateRangeLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#8A8A8A',
+  },
+  dateRangeLabelActive: {
+    color: BLUE,
+  },
+  dateRangeValue: {
+    marginTop: 8,
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#A0A0A0',
+  },
+  dateRangeValueActive: {
+    color: '#111111',
+  },
+  dateRangeDivider: {
+    width: 10,
+    height: 1,
+    borderRadius: 1,
+    backgroundColor: '#B9C0CC',
+  },
+  applyFilterButton: {
+    height: 43,
+    borderRadius: 13,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  applyFilterText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
     color: '#111111',
   },
-  topScroll: {
-    marginHorizontal: -23,
-  },
-  topContent: {
-    paddingHorizontal: 23,
-    gap: 12,
-  },
-  topCard: {
-    width: CARD_WIDTH,
-    height: 208,
-    borderRadius: 16,
-    padding: 16,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  topStatusBadge: {
-    alignSelf: 'flex-start',
-    borderRadius: 9,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-  topStatusText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  topCity: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: 'rgba(255,255,255,0.76)',
-  },
-  topTitle: {
-    fontSize: 20,
-    lineHeight: 27,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  topBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  topMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  topMeta: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#FFFFFF',
-  },
   nowHeader: {
-    marginTop: 25,
+    marginTop: 0,
     marginBottom: 12,
   },
   companionList: {
@@ -767,15 +1214,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E9E9E9',
-    padding: 14,
+    padding: 12,
   },
   companionThumb: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 13,
+    marginRight: 11,
   },
   companionBody: {
     flex: 1,
@@ -810,7 +1257,7 @@ const styles = StyleSheet.create({
     color: '#777777',
   },
   companionMeta: {
-    marginTop: 6,
+    marginTop: 5,
     fontSize: 12,
     fontWeight: '600',
     color: '#777777',
@@ -833,7 +1280,7 @@ const styles = StyleSheet.create({
     color: '#777777',
   },
   companionFooter: {
-    marginTop: 11,
+    marginTop: 9,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -860,5 +1307,71 @@ const styles = StyleSheet.create({
   },
   verifyTextInactive: {
     color: '#A5A5A5',
+  },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 17, 17, 0.32)',
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  pickerSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 28,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    height: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F4',
+  },
+  pickerCancel: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#777777',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  pickerDone: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  iosPicker: {
+    height: 210,
+    backgroundColor: '#FFFFFF',
+  },
+  fab: {
+    position: 'absolute',
+    right: 23,
+    bottom: 30,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: BLUE,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 5,
+  },
+  fabText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
 });

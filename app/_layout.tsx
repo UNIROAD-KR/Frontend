@@ -5,7 +5,6 @@ import {
 } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -28,6 +27,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/dispatched-country" />
         <Stack.Screen name="onboarding/dispatched-interests" />
         <Stack.Screen name="onboarding/complete" />
+        <Stack.Screen name="community-write" />
+        <Stack.Screen name="community-detail" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="sns-signup" />
@@ -37,9 +38,3 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
