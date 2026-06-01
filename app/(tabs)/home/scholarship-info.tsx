@@ -380,10 +380,10 @@ const styles = StyleSheet.create({
   bannerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E3A8A', // Deep Navy color
+    backgroundColor: '#3988D8', // Deep Navy color
     borderRadius: 20,
     padding: 20,
-    shadowColor: '#1E3A8A',
+    shadowColor: '#3988D8',
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 3,

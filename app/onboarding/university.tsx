@@ -31,22 +31,6 @@ export default function UniversityPage() {
   const [status, setStatus] = useState<'preparing' | 'dispatched' | ''>('');
 
   const isValid = university !== '' && status !== '';
-  const handleNext = async () => {
-    if (!isValid) {
-      return;
-    }
-
-    await AsyncStorage.setItem('university', university);
-
-    router.push({
-      pathname:
-        status === 'dispatched'
-          ? '/onboarding/dispatched-country'
-          : '/onboarding/country',
-      params: { nickname },
-    });
-  };
-
   return (
     <View style={styles.container}>
       <Pressable onPress={() => router.back()}>
@@ -114,7 +98,25 @@ export default function UniversityPage() {
       <Pressable
         style={[styles.nextButton, isValid && styles.nextButtonActive]}
         disabled={!isValid}
-        onPress={handleNext}
+        onPress={async () => {
+          await AsyncStorage.setItem('university', university);
+
+          if (status === 'preparing') {
+            await AsyncStorage.setItem('exchangeStatus', 'preparing');
+            await AsyncStorage.setItem('profileStatus', '지원 준비 중');
+            router.push({
+              pathname: '/onboarding/country',
+              params: { nickname },
+            });
+          } else if (status === 'dispatched') {
+            await AsyncStorage.setItem('exchangeStatus', 'dispatched');
+            await AsyncStorage.setItem('profileStatus', '파견 중');
+            router.push({
+              pathname: '/onboarding/dispatched-country',
+              params: { nickname },
+            });
+          }
+        }}
       >
         <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
           다음 (2/4)

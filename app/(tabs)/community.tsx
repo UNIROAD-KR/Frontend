@@ -241,6 +241,12 @@ export default function CommunityScreen() {
     [companionPosts],
   );
 
+  useEffect(() => {
+    if (tab === 'companion') {
+      setActiveTab('동행 구하기');
+    }
+  }, [tab]);
+
   const filteredBoardPosts = useMemo(
     () => {
       const keyword = boardKeyword.trim().toLowerCase();
