@@ -5,7 +5,6 @@ import {
 } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -15,36 +14,25 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="signup" />
-          <Stack.Screen name="verification" />
-          <Stack.Screen name="verification-complete" />
-          <Stack.Screen name="onboarding/nickname" />
-          <Stack.Screen name="onboarding/profile" />
-          <Stack.Screen name="onboarding/university" />
-          <Stack.Screen name="onboarding/country" />
-          <Stack.Screen name="onboarding/interests" />
-          <Stack.Screen name="onboarding/dispatched-country" />
-          <Stack.Screen name="onboarding/dispatched-interests" />
-          <Stack.Screen name="onboarding/complete" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-          <Stack.Screen name="sns-signup" />
-        </Stack>
-      </KeyboardAvoidingView>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="signup" />
+        <Stack.Screen name="verification" />
+        <Stack.Screen name="verification-complete" />
+        <Stack.Screen name="onboarding/nickname" />
+        <Stack.Screen name="onboarding/profile" />
+        <Stack.Screen name="onboarding/university" />
+        <Stack.Screen name="onboarding/country" />
+        <Stack.Screen name="onboarding/interests" />
+        <Stack.Screen name="onboarding/dispatched-country" />
+        <Stack.Screen name="onboarding/dispatched-interests" />
+        <Stack.Screen name="onboarding/complete" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="sns-signup" />
+      </Stack>
 
       <StatusBar style="auto" />
     </ThemeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

@@ -26,11 +26,6 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
 import { createUsedItem } from '../../../src/api/usedItems';
-import {
-  clearMarketDraft,
-  saveMarketDraft,
-} from '../../../src/storage/marketDraft';
-import { saveLocalMarketPost } from '../../../src/storage/marketPosts';
 
 type CategoryName =
   | '주방 용품'
@@ -70,12 +65,12 @@ type DraggableSheetProps = {
 const BLUE = '#102BE0';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const categoryCodeMap: Record<CategoryName, string> = {
+const categoryCodeMap: Record<CategoryName, TradeCategory> = {
   '주방 용품': 'KITCHEN',
-  '욕실 / 청소 용품': 'BATHROOM',
-  '생활 용품': 'LIVING',
+  '욕실 / 청소 용품': 'BATH',
+  '생활 용품': 'LIFE',
   침구류: 'BEDDING',
-  '각종 소스류': 'SAUCE',
+  '각종 소스류': 'ETC',
   기타: 'ETC',
 };
 
@@ -568,40 +563,47 @@ export default function MarketPreviewPage() {
     return fileUrl;
   };
 
-  const syncPostToServer = async (data: {
-    title: string;
-    content: string;
-    price: number;
-  }) => {
+  const handleUpload = async () => {
     const uploadedImageUrls = await Promise.all(
       photoList.map((photo, index) => uploadImage(photo, index)),
     );
-
     const thumbnailImageUrl = uploadedImageUrls[0];
 
-    if (!thumbnailImageUrl) {
+    if (photoList.length === 0) {
+      Alert.alert('대표 이미지 필요', '대표 사진을 1장 이상 추가해주세요.');
       return;
     }
 
-    const requestBody = {
-      title: data.title,
-      content: data.content,
-      price: data.price,
-      region: regionText,
-      semester: semesterText,
-      thumbnailImageUrl,
-      items: selectedGroups.flatMap((group) =>
-        group.items.map((item) => ({
+    if (!title.trim() || !content.trim() || !price.trim()) {
+      Alert.alert('입력 오류', '제목, 설명, 가격을 모두 입력해주세요.');
+      return;
+    }
+
+    if (selectedGroups.length === 0) {
+      Alert.alert('입력 오류', '물품을 1개 이상 선택해주세요.');
+      return;
+    }
+
+    try {
+      const requestBody = {
+        title: title.trim(),
+        content: content.trim(),
+        price: Number(price.replace(/[^0-9]/g, '')) || 0,
+        region: regionText,
+        semester: semesterText,
+        thumbnailImageUrl,
+        items: selectedGroups.flatMap((group) =>
+          group.items.map((item) => ({
+            category: categoryCodeMap[group.category],
+            name: item.name,
+            quantity: item.quantity,
+          })),
+        ),
+        categoryImages: selectedGroups.map((group, index) => ({
           category: categoryCodeMap[group.category],
-          name: item.name,
-          quantity: item.quantity,
+          imageUrl: uploadedImageUrls[index] ?? thumbnailImageUrl,
         })),
-      ),
-      categoryImages: selectedGroups.map((group, index) => ({
-        category: categoryCodeMap[group.category],
-        imageUrl: uploadedImageUrls[index] ?? thumbnailImageUrl,
-      })),
-    };
+      };
 
     console.log('중고거래 서버 업로드 요청:', requestBody);
 

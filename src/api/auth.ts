@@ -1,31 +1,49 @@
 import axios from 'axios';
 import { api } from './client';
+
 export const signUp = (data: {
   username: string;
-  email: string;
+  email?: string;
   password: string;
   name: string;
+}
+
+export interface OnboardingRequest {
   age: number;
+  domesticUniversity: string;
   dispatchedUniversity: string;
   dispatchedCountry: string;
   dispatchedRegion: string;
-}) => {
+}
+
+export interface SocialSignUpRequest {
+  username: string;
+  password: string;
+  name: string;
+  email?: string;
+}
+
+export interface MemberResponse {
+  id: number;
+  username: string;
+  email: string;
+  name: string;
+  age: number | null;
+  domesticUniversity: string | null;
+  dispatchedUniversity: string | null;
+  dispatchedCountry: string | null;
+  dispatchedRegion: string | null;
+  role: string;
+  status: AuthStatus;
+  balance: number;
+}
+
+export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
 };
-const BASE_URL = 'https://api.uniroad-kr.store';
 
-export const checkUsername = (username: string) => {
-  console.log('아이디 중복확인 요청:', {
-    url: 'https://api.uniroad-kr.store/api/auth/check-username',
-    username,
-  });
-
-  return axios.get('https://api.uniroad-kr.store/api/auth/check-username', {
-    params: { username },
-    headers: {
-      Authorization: undefined,
-    },
-  });
+export const login = (data: { username: string; password: string }) => {
+  return api.post('/api/auth/login', data);
 };
 
 export const checkEmail = (email: string) => {
@@ -38,13 +56,13 @@ export const login = (data: { username: string; password: string }) => {
 };
 
 export const reissueToken = (refreshToken: string) => {
-  return api.post('/api/auth/reissue', {
+  return api.post<BaseResponse<LoginResponse>>('/api/auth/reissue', {
     refreshToken,
   });
 };
 
 export const socialLogin = (provider: string, accessToken: string) => {
-  return api.post('/api/auth/social-login', {
+  return api.post<BaseResponse<LoginResponse>>('/api/auth/social-login', {
     provider,
     accessToken,
   });
@@ -52,4 +70,8 @@ export const socialLogin = (provider: string, accessToken: string) => {
 
 export const logout = () => {
   return api.post('/api/auth/logout');
+};
+
+export const getMemberMe = () => {
+  return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };

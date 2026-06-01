@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -38,6 +37,8 @@ const parseDate = (value?: string) => {
 
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
+
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 export default function MarketWritePage() {
   const handlePickImages = async () => {
@@ -124,9 +125,14 @@ export default function MarketWritePage() {
   }, []);
 
   const checkVerification = async () => {
-    const isVerified = await AsyncStorage.getItem('isVerified');
+    try {
+      const canUseMarket = await canUseMarketWithoutVerification();
 
-    if (isVerified !== 'true') {
+      if (!canUseMarket) {
+        setVerificationModalVisible(true);
+      }
+    } catch (error: any) {
+      console.log('내 정보 조회 실패:', error.response?.data || error.message);
       setVerificationModalVisible(true);
     }
   };

@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -13,15 +12,7 @@ import {
   View,
 } from 'react-native';
 
-import {
-  getLocalMarketPosts,
-  LocalMarketPost,
-} from '../../../src/storage/marketPosts';
-import {
-  clearMarketDraft,
-  getMarketDraft,
-  MarketDraft,
-} from '../../../src/storage/marketDraft';
+import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 
@@ -93,135 +84,35 @@ const formatRelativeTime = (createdAt: string) => {
 };
 
 export default function MarketPage() {
-  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
-  const toggleBookmark = (id: number) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id)
-        ? prev.filter((itemId) => itemId !== id)
-        : [...prev, id],
-    );
-  };
-  const openDraft = (draft: MarketDraft) => {
-    const baseParams = {
-      type: draft.write.type ?? 'all',
-      title: draft.write.title,
-      content: draft.write.content,
-      price: draft.write.price,
-      region: draft.write.region,
-      returnDate: draft.write.returnDate,
-      semester: draft.write.semester ?? '',
-      photos: JSON.stringify(draft.write.photos),
-      allowOffer: draft.write.allowOffer ? 'true' : 'false',
-    };
-
-    if (draft.step === 'preview' && draft.preview) {
-      router.push({
-        pathname: '/market/preview',
-        params: {
-          ...baseParams,
-          selectedItems: draft.preview.selectedItems,
-          draftItemsByCategory: JSON.stringify(draft.preview.itemsByCategory),
-          draftCategoryDetails: JSON.stringify(draft.preview.categoryDetails),
-        },
-      } as any);
-      return;
-    }
-
-    if (draft.step === 'category' && draft.category) {
-      router.push({
-        pathname: '/market/category',
-        params: {
-          ...baseParams,
-          draftSelectedCategories: JSON.stringify(
-            draft.category.selectedCategories,
-          ),
-          draftItemsByCategory: JSON.stringify(draft.category.itemsByCategory),
-        },
-      } as any);
-      return;
-    }
-
-    router.push({
-      pathname: '/market/write',
-      params: baseParams,
-    } as any);
-  };
-
-  const requireVerificationBefore = async (nextPath: string) => {
-    const verified = await AsyncStorage.getItem('isVerified');
-
-    console.log('작성 전 인증 상태:', verified);
-
-    if (verified !== 'true') {
-      Alert.alert(
-        '교환학생 인증 필요',
-        '중고거래 글을 작성하려면 교환학생 신원 인증이 필요해요.',
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '신원 인증하기',
-            onPress: () => router.push('/verification' as any),
-          },
-        ],
-      );
-      return;
-    }
-
-    if (nextPath === '/market/write') {
-      const draft = await getMarketDraft();
-
-      if (draft) {
-        Alert.alert(
-          '임시저장된 글',
-          '임시저장된 거래글이 있어요. 이어서 작성할까요?',
-          [
-            {
-              text: '취소',
-              style: 'cancel',
-            },
-            {
-              text: '새로 작성',
-              style: 'destructive',
-              onPress: async () => {
-                await clearMarketDraft();
-                router.push(nextPath as any);
-              },
-            },
-            {
-              text: '이어쓰기',
-              onPress: () => openDraft(draft),
-            },
-          ],
-        );
-        return;
-      }
-    }
-
-    router.push(nextPath as any);
-  };
-  const [likedIds, setLikedIds] = useState<string[]>([]);
-  const [items, setItems] = useState<LocalMarketPost[]>([]);
+  const [likedIds, setLikedIds] = useState<number[]>([]);
+  const [items, setItems] = useState<UsedItem[]>([]);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
 
-  const fetchMyItems = async () => {
-    const myPosts = await getLocalMarketPosts();
-    setItems(myPosts);
+  useEffect(() => {
+    if (tab === 'ticket') {
+      setSelectedType('ticket');
+    } else {
+      setSelectedType('bulk');
+    }
+  }, [tab]);
+
+  const fetchUsedItems = async () => {
+    try {
+      const response = await getUsedItems();
+      console.log('중고거래 목록:', response.data);
+      setItems(response.data.data ?? []);
+    } catch (error: any) {
+      console.log(
+        '중고거래 목록 조회 실패:',
+        error.response?.data || error.message,
+      );
+    }
   };
 
   const checkVerificationStatus = async () => {
-    /**
-     * 테스트 중 인증 알림이 계속 안 뜨면 아래 줄 주석 해제.
-     * 테스트 끝나면 반드시 다시 주석 처리해야 함.
-     */
-    // await AsyncStorage.removeItem('isVerified');
-
-    const verified = await AsyncStorage.getItem('isVerified');
-
-    console.log('현재 인증 상태:', verified);
-
-    if (verified !== 'true') {
+    const showVerificationAlert = () => {
       Alert.alert(
         '교환학생 인증',
         '중고거래를 이용하려면 교환학생 신원 인증이 필요해요.',
@@ -236,6 +127,21 @@ export default function MarketPage() {
           },
         ],
       );
+    };
+
+    try {
+      const canUseMarket = await canUseMarketWithoutVerification();
+
+      console.log('현재 마켓 이용 가능 상태:', canUseMarket);
+
+      if (canUseMarket) {
+        return;
+      }
+
+      showVerificationAlert();
+    } catch (error: any) {
+      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+      showVerificationAlert();
     }
   };
 
@@ -261,7 +167,7 @@ export default function MarketPage() {
     priceText: item.priceText || formatPrice(item.price),
     likes: 0,
     chats: 0,
-    imageUrl: item.photos[0] ?? '',
+    imageUrl: typeof item.imageUrls?.[0] === 'string' ? item.imageUrls[0] : '',
   }));
 
   const filteredItems =
@@ -684,7 +590,7 @@ const styles = StyleSheet.create({
   },
 
   tradeTypeTextActive: {
-    color: BLUE,
+    color: '#111111',
     fontWeight: '900',
   },
 

@@ -1,17 +1,20 @@
 import { api } from './client';
+import { BaseResponse } from './types';
 
-export const getUploadUrl = async (data: {
+export interface PresignedUrlRequest {
   fileName: string;
   contentType: string;
-  fileType: 'IMAGE' | 'PDF';
-}) => {
-  console.log('업로드 URL 요청 body:', data);
+  fileType: string;
+}
 
-  const response = await api.post('/api/s3/presigned-url', data);
+export interface PresignedUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+}
 
-  console.log('업로드 URL 응답:', response.data);
-
-  return response;
+export const getUploadUrl = (data: PresignedUrlRequest) => {
+  return api.post<BaseResponse<PresignedUrlResponse>>('/api/s3/presigned-url', data);
 };
 
 export const uploadFileToStorage = async (
@@ -19,8 +22,6 @@ export const uploadFileToStorage = async (
   fileUri: string,
   contentType: string,
 ) => {
-  console.log('S3 업로드 시작:', uploadUrl);
-
   const fileResponse = await fetch(fileUri);
   const blob = await fileResponse.blob();
 
@@ -32,12 +33,8 @@ export const uploadFileToStorage = async (
     body: blob,
   });
 
-  console.log('S3 업로드 상태:', uploadResponse.status);
-
   if (!uploadResponse.ok) {
-    const errorText = await uploadResponse.text();
-    console.log('S3 업로드 실패 내용:', errorText);
-    throw new Error(`S3 업로드 실패: ${uploadResponse.status}`);
+    throw new Error(`S3 upload failed: ${uploadResponse.status}`);
   }
 
   return uploadResponse;

@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     resizeMode: 'contain',
   },
 
@@ -147,9 +147,9 @@ const styles = StyleSheet.create({
   },
   headerRight: { flexDirection: 'row', gap: 10 },
   iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fafafa',

@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,7 +8,19 @@ import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 export default function VerificationPage() {
   const [method, setMethod] = useState<'camera' | 'pdf' | ''>('');
   const handleSubmit = async () => {
+    if (!method) {
+      Alert.alert('인증 방식 선택', '인증 방식을 선택해주세요.');
+      return;
+    }
+
     try {
+      await submitVerification({
+        imageUrl: 'https://example.com/verification-file.png',
+        university: '소속대학',
+        country: '파견국가',
+        region: '파견지역',
+      });
+
       await AsyncStorage.setItem('isVerified', 'true');
 
       Alert.alert('제출 완료', '인증 요청이 제출되었습니다.', [

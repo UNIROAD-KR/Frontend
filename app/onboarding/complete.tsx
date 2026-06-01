@@ -34,8 +34,35 @@ export default function CompletePage() {
       <Pressable
         style={styles.startButton}
         onPress={async () => {
-          await AsyncStorage.setItem('nickname', displayName);
-          router.replace('/home');
+          try {
+            const birthYearStr = await AsyncStorage.getItem('birthYear');
+            const domesticUniversity = await AsyncStorage.getItem('university') || '';
+            const dispatchedUniversity = await AsyncStorage.getItem('dispatchedUniversity') || '';
+            const dispatchedCountry = await AsyncStorage.getItem('dispatchedCountry') || '';
+            const dispatchedRegion = await AsyncStorage.getItem('dispatchedRegion') || '';
+
+            // 나이 계산 로직 (출생년도 기반, 예시: 현재연도 - 출생년도 + 1)
+            const currentYear = new Date().getFullYear();
+            const age = birthYearStr ? currentYear - parseInt(birthYearStr, 10) + 1 : 20;
+
+            // auth.ts의 onboarding API 호출을 동적으로 가져옵니다 (상단 import 추가 필요시 활용)
+            const { onboarding } = await import('../../src/api/auth');
+
+            await onboarding({
+              age,
+              domesticUniversity,
+              dispatchedUniversity,
+              dispatchedCountry,
+              dispatchedRegion,
+            });
+
+            await AsyncStorage.setItem('nickname', displayName);
+            router.replace('/home');
+          } catch (error: any) {
+            console.log('온보딩 정보 전송 실패:', error.response?.data || error.message);
+            // 에러 처리: Alert 또는 그냥 진행
+            // router.replace('/home');
+          }
         }}
       >
         <Text style={styles.startButtonText}>시작하기</Text>

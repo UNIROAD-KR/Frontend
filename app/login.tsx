@@ -1,22 +1,40 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
+import NaverLogin from '@react-native-seoul/naver-login';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
-import { login } from '../src/api/auth';
+import { login, socialLogin } from '../src/api/auth';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com',
+      iosClientId: '803840308244-onouauek1qv66kqirf9hjmqlb96dck2n.apps.googleusercontent.com',
+    });
+
+    NaverLogin.initialize({
+      appName: '유니로드',
+      consumerKey: '3jo54WreHzQliJbUhzPo',
+      consumerSecret: '_N6TMAqNu0',
+      serviceUrlSchemeIOS: 'naverlogin',
+    });
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -45,6 +63,98 @@ export default function LoginPage() {
       console.log('로그인 실패:', error.response?.data || error.message);
 
       Alert.alert('로그인 실패', '이메일 또는 비밀번호를 확인해주세요.');
+    }
+  };
+
+  const handleSocialLogin = async (provider: string) => {
+    try {
+      let sdkAccessToken = '';
+      console.log('provider:', provider);
+
+      if (provider === 'kakao') {
+        const token = await kakaoLogin();
+        console.log('카카오 로그인:', token);
+
+        if (!token.accessToken) {
+          throw new Error('카카오 토큰 없음');
+        }
+        sdkAccessToken = token.accessToken;
+      } else if (provider === 'naver') {
+        const response = await NaverLogin.login();
+        console.log('네이버 로그인:', response);
+
+        if (!response.isSuccess || !response.successResponse) {
+          throw new Error(
+            response.failureResponse?.message || '네이버 로그인 실패'
+          );
+        }
+        sdkAccessToken = response.successResponse.accessToken;
+      } else if (provider === 'google') {
+        await GoogleSignin.hasPlayServices();
+        const userInfo = await GoogleSignin.signIn();
+        console.log('구글 로그인:', userInfo);
+        const idToken = userInfo.data?.idToken;
+        if (!idToken) {
+          throw new Error('구글 토큰 없음');
+        }
+        sdkAccessToken = idToken;
+      } else if (provider === 'apple') {
+        if (Platform.OS !== 'ios') {
+          Alert.alert('지원 불가', 'Apple 로그인은 iOS에서만 사용할 수 있습니다.');
+          return;
+        }
+
+        const isAvailable = await AppleAuthentication.isAvailableAsync();
+        if (!isAvailable) {
+          Alert.alert('지원 불가', '이 기기에서는 Apple 로그인을 사용할 수 없습니다.');
+          return;
+        }
+
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        console.log('애플 로그인:', credential);
+
+        if (!credential.identityToken) {
+          throw new Error('애플 identityToken 없음');
+        }
+
+        sdkAccessToken = credential.identityToken;
+      }
+      else {
+        Alert.alert('준비 중', `${provider} 로그인은 아직 구현되지 않았습니다.`);
+        return;
+      }
+
+
+      // 2. 백엔드 API로 토큰 전송
+      const response = await socialLogin(provider, sdkAccessToken);
+      console.log(`${provider} 로그인 성공:`, response.data);
+
+      const { accessToken, refreshToken, status } = response.data.data;
+
+      // 3. 발급받은 서비스 토큰 저장
+      await AsyncStorage.setItem('accessToken', accessToken);
+      await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // 4. 상태(status)에 따라 라우팅
+      if (status === 'NEED_SIGNUP') {
+        router.replace('/sns-signup');
+      } else if (status === 'NEED_ONBOARDING') {
+        router.replace('/onboarding/nickname');
+      } else {
+        router.replace('/home');
+      }
+    } catch (error: any) {
+      console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
+      if (error.code === 'ERR_REQUEST_CANCELED') {
+        return;
+      }
+      Alert.alert('소셜 로그인 실패', '로그인 처리 중 문제가 발생했습니다.');
     }
   };
 
@@ -107,14 +217,14 @@ export default function LoginPage() {
       </View>
 
       <View style={styles.snsRow}>
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('kakao')}>
           <Image
             source={require('../assets/images/kakao.png')}
             style={styles.snsImage}
           />
         </Pressable>
 
-        <Pressable onPress={() => router.push('/sns-signup')}>
+        <Pressable onPress={() => handleSocialLogin('google')}>
           <Image
             source={require('../assets/images/google.png')}
             style={styles.snsImage}
@@ -123,14 +233,14 @@ export default function LoginPage() {
 
         <Pressable
           style={[styles.snsCircle, styles.naver]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('naver')}
         >
           <Text style={styles.naverText}>N</Text>
         </Pressable>
 
         <Pressable
           style={[styles.snsCircle, styles.apple]}
-          onPress={() => router.push('/sns-signup')}
+          onPress={() => handleSocialLogin('apple')}
         >
           <Text style={styles.appleText}></Text>
         </Pressable>
@@ -149,8 +259,8 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 30,
-    paddingTop: 170,
-    paddingBottom: 80,
+    paddingTop: 150,
+    paddingBottom: 64,
   },
 
   logo: {
@@ -166,34 +276,34 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#000000',
     letterSpacing: -2,
-    marginBottom: 55,
+    marginBottom: 52,
   },
 
   input: {
     width: '100%',
-    height: 59,
+    height: 48,
     borderWidth: 1,
     borderColor: '#C9C9C9',
     borderRadius: 6,
-    paddingHorizontal: 16,
-    fontSize: 20,
+    paddingHorizontal: 14,
+    fontSize: 16,
     color: '#111111',
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   loginButton: {
     width: '100%',
-    height: 59,
+    height: 50,
     backgroundColor: BLUE,
     borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 15,
+    marginTop: 16,
   },
 
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '700',
   },
 
@@ -201,24 +311,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 31,
+    marginTop: 34,
   },
 
   findText: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#222222',
   },
 
   bar: {
-    fontSize: 18,
+    fontSize: 15,
     color: '#D0D0D0',
-    marginHorizontal: 19,
+    marginHorizontal: 18,
   },
 
   snsTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 105,
+    marginTop: 108,
   },
 
   line: {
@@ -228,9 +338,9 @@ const styles = StyleSheet.create({
   },
 
   snsTitle: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#777777',
-    marginHorizontal: 15,
+    marginHorizontal: 12,
   },
 
   snsRow: {
@@ -238,7 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 31,
-    marginTop: 35,
+    marginTop: 28,
   },
 
   snsCircle: {
