@@ -12,6 +12,8 @@ import {
   Image,
 } from 'react-native';
 import { signupStyles as styles } from '../src/styles/signupStyles';
+import { checkUsername } from '../src/api/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SnsSignupPage() {
   const [username, setUsername] = useState('');
@@ -42,12 +44,36 @@ export default function SnsSignupPage() {
     'icloud.com',
     '직접 입력',
   ];
+  const handleCheckUsername = async () => {
+    if (!username.trim()) {
+      Alert.alert('입력 오류', '아이디를 입력해주세요.');
+      return;
+    }
 
-  const handleSubmit = () => {
+    try {
+      await checkUsername(username.trim());
+      Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
+    } catch (error: any) {
+      console.log(
+        '아이디 중복확인 실패:',
+        error.response?.data || error.message,
+      );
+      Alert.alert('중복 확인 실패', '이미 사용 중인 아이디일 수 있습니다.');
+    }
+  };
+  const handleSubmit = async () => {
     if (!canSubmit) {
       Alert.alert('입력 확인', '아이디와 비밀번호를 확인해주세요.');
       return;
     }
+
+    await AsyncStorage.multiRemove([
+      'accessToken',
+      'refreshToken',
+      'isVerified',
+    ]);
+
+    await AsyncStorage.setItem('isVerified', 'false');
 
     router.push({
       pathname: '/onboarding/nickname',
@@ -87,7 +113,7 @@ export default function SnsSignupPage() {
           autoCapitalize="none"
         />
 
-        <Pressable style={styles.checkButton}>
+        <Pressable style={styles.checkButton} onPress={handleCheckUsername}>
           <Text style={styles.checkButtonText}>중복확인</Text>
         </Pressable>
       </View>

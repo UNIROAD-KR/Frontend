@@ -68,7 +68,7 @@ export default function LoginPage() {
       {/* 이메일 */}
       <TextInput
         style={styles.input}
-        placeholder="이메일 입력"
+        placeholder="아이디 입력"
         placeholderTextColor="#8A8A8A"
         value={email}
         onChangeText={setEmail}
@@ -97,12 +97,6 @@ export default function LoginPage() {
         <Text style={styles.bar}>|</Text>
 
         <Text style={styles.findText}>비밀번호 찾기</Text>
-
-        <Text style={styles.bar}>|</Text>
-
-        <Pressable onPress={() => router.push('/signup')}>
-          <Text style={styles.findText}>회원가입</Text>
-        </Pressable>
       </View>
 
       {/* SNS 로그인 */}

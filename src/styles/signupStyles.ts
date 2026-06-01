@@ -24,8 +24,8 @@ export const signupStyles = StyleSheet.create({
   },
 
   back: {
-    fontSize: 36,
-    lineHeight: 36,
+    fontSize: 30,
+    lineHeight: 32,
     color: '#111111',
     fontWeight: '400',
   },

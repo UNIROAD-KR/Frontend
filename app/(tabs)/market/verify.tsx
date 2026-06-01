@@ -1,27 +1,18 @@
-import { router } from 'expo-router';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 export default function MarketVerifyScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.backIcon}
-            />
-          </TouchableOpacity>
+          <AppBackButton style={styles.iconBtn} />
 
           <Text style={styles.headerTitle}>교환학생 인증</Text>
 
@@ -94,15 +85,9 @@ const styles = StyleSheet.create({
   },
 
   iconBtn: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
-  },
-
-  backIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: 'contain',
   },
 
   headerTitle: {
@@ -113,7 +98,7 @@ const styles = StyleSheet.create({
   },
 
   headerSpacer: {
-    width: 44,
+    width: 40,
   },
 
   intro: {

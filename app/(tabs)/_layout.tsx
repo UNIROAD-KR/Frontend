@@ -1,29 +1,44 @@
 import { Tabs, router, usePathname } from 'expo-router';
-import React from 'react';
-import { Image, StyleSheet, Pressable } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+const VISIBLE_TAB_BAR_STYLE = {
+  height: 92,
+  paddingTop: 10,
+  paddingBottom: 18,
+  backgroundColor: '#FAFAFA',
+  borderTopWidth: 0,
+};
+
+const HIDDEN_TAB_BAR_STYLE = {
+  display: 'none' as const,
+};
+
+const MARKET_ROUTES_WITH_TABS = new Set([
+  '/market',
+  '/market/write',
+  '/market/category',
+  '/market/preview',
+  '/market/verify',
+]);
 
 export default function TabLayout() {
   const pathname = usePathname();
 
   const isMarketActive =
     pathname.startsWith('/market') || pathname.includes('/home/market');
-  const isHomeActive = pathname === '/home' || pathname === '/';
+  const shouldHideTabBar =
+    pathname === '/market/ticket-preview' ||
+    (pathname.startsWith('/market/') && !MARKET_ROUTES_WITH_TABS.has(pathname));
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#2F66D0',
         tabBarInactiveTintColor: '#777',
-        tabBarStyle: {
-          height: 92,
-          paddingTop: 10,
-          paddingBottom: 18,
-          backgroundColor: '#FAFAFA',
-          borderTopWidth: 0,
-        },
+        tabBarStyle: shouldHideTabBar
+          ? HIDDEN_TAB_BAR_STYLE
+          : VISIBLE_TAB_BAR_STYLE,
         tabBarLabelStyle: {
           fontSize: 14,
           fontWeight: '600',
@@ -153,8 +168,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabIcon: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     resizeMode: 'contain',
   },
 });

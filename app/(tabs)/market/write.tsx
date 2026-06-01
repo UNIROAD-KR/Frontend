@@ -17,8 +17,68 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
+import { saveMarketDraft } from '../../../src/storage/marketDraft';
+
+const parsePhotos = (value?: string) => {
+  if (!value) return [];
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as string[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseDate = (value?: string) => {
+  if (!value) return new Date();
+
+  const date = new Date(`${value}T00:00:00`);
+
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+};
 
 export default function MarketWritePage() {
+  const handlePickImages = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('권한 필요', '앨범 접근 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const selectedUris = result.assets.map((asset) => asset.uri);
+
+    setPhotos((prev) => [...prev, ...selectedUris].slice(0, 10));
+  };
+  const handleTakePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const uri = result.assets[0].uri;
+
+    setPhotos((prev) => [...prev, uri].slice(0, 10));
+  };
   const scrollRef = useRef<ScrollView>(null);
 
   useFocusEffect(
@@ -29,21 +89,35 @@ export default function MarketWritePage() {
       });
     }, []),
   );
-  const { type } = useLocalSearchParams<{ type?: string }>();
+  const params = useLocalSearchParams<{
+    type?: string;
+    title?: string;
+    content?: string;
+    price?: string;
+    region?: string;
+    returnDate?: string;
+    photos?: string;
+    allowOffer?: string;
+  }>();
+  const { type } = params;
 
   const [verificationModalVisible, setVerificationModalVisible] =
     useState(false);
 
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [region, setRegion] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [photos, setPhotos] = useState<string[]>(() =>
+    parsePhotos(params.photos),
+  );
+  const [region, setRegion] = useState(params.region || '');
+  const [returnDate, setReturnDate] = useState(params.returnDate || '');
+  const [selectedDate, setSelectedDate] = useState(() =>
+    parseDate(params.returnDate),
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [price, setPrice] = useState('');
-  const [allowOffer, setAllowOffer] = useState(false);
+  const [title, setTitle] = useState(params.title || '');
+  const [content, setContent] = useState(params.content || '');
+  const [price, setPrice] = useState(params.price || '');
+  const [allowOffer, setAllowOffer] = useState(params.allowOffer === 'true');
 
   useEffect(() => {
     checkVerification();
@@ -54,55 +128,6 @@ export default function MarketWritePage() {
 
     if (isVerified !== 'true') {
       setVerificationModalVisible(true);
-    }
-  };
-
-  const handlePickImages = async () => {
-    if (photos.length >= 10) {
-      Alert.alert('사진 제한', '사진은 최대 10장까지 업로드할 수 있습니다.');
-      return;
-    }
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert('권한 필요', '사진첩 접근 권한이 필요합니다.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      selectionLimit: 10 - photos.length,
-    });
-
-    if (!result.canceled) {
-      const selectedUris = result.assets.map((asset) => asset.uri);
-      setPhotos((prev) => [...prev, ...selectedUris].slice(0, 10));
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    if (photos.length >= 10) {
-      Alert.alert('사진 제한', '사진은 최대 10장까지 업로드할 수 있습니다.');
-      return;
-    }
-
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다.');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, 10));
     }
   };
 
@@ -119,6 +144,24 @@ export default function MarketWritePage() {
     setShowDatePicker(false);
   };
 
+  const handleTempSave = async () => {
+    await saveMarketDraft({
+      step: 'write',
+      write: {
+        type,
+        title,
+        content,
+        price,
+        region,
+        returnDate,
+        photos,
+        allowOffer,
+      },
+    });
+
+    Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
+  };
+
   const handleSubmit = () => {
     if (!region || !returnDate || !title || !content || !price) {
       Alert.alert('입력 오류', '필수 항목을 모두 입력해주세요.');
@@ -133,6 +176,8 @@ export default function MarketWritePage() {
         price,
         region,
         returnDate,
+        type,
+        allowOffer: allowOffer ? 'true' : 'false',
         photos: JSON.stringify(photos),
       },
     } as any);
@@ -151,15 +196,13 @@ export default function MarketWritePage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
+          <AppBackButton />
 
           <Text style={styles.headerTitle}>
             {type === 'all' ? '다음 교환학생에게 넘기기' : '개별 판매하기'}
           </Text>
 
-          <Pressable>
+          <Pressable onPress={handleTempSave}>
             <Text style={styles.tempSave}>임시저장</Text>
           </Pressable>
         </View>
@@ -409,12 +452,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
-  },
-
-  back: {
-    fontSize: 38,
-    color: '#111111',
-    lineHeight: 38,
   },
 
   headerTitle: {

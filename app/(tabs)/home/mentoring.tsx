@@ -96,14 +96,14 @@ const styles = StyleSheet.create({
 
   header: { flexDirection: 'row', alignItems: 'center' },
   iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { width: 22, height: 22, resizeMode: 'contain' },
+  icon: { width: 20, height: 20, resizeMode: 'contain' },
   headerTitle: {
     flex: 1,
     textAlign: 'center',
