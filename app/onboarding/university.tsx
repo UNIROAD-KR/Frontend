@@ -71,17 +71,44 @@ export default function UniversityPage() {
 
   const [university, setUniversity] = useState('');
   const [status, setStatus] = useState<'preparing' | 'dispatched' | ''>('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const isValid = university !== '' && status !== '';
+  const filteredUniversities = useMemo(() => {
+    if (!showSuggestions || university.trim().length === 0) {
+      return [];
+    }
+
+    return universities.filter((item) => item.includes(university.trim()));
+  }, [showSuggestions, university]);
+
+  const handleSelectUniversity = (selectedUniversity: string) => {
+    setUniversity(selectedUniversity);
+    setShowSuggestions(false);
+  };
+
   const handleNext = async () => {
-    if (!university) {
+    if (!isValid) {
       return;
     }
 
     await AsyncStorage.setItem('university', university);
+    await AsyncStorage.setItem('exchangeStatus', status);
+    await AsyncStorage.setItem(
+      'profileStatus',
+      status === 'preparing' ? '지원 준비 중' : '파견 중',
+    );
+
+    if (status === 'preparing') {
+      router.push({
+        pathname: '/onboarding/country',
+        params: { nickname },
+      });
+      return;
+    }
 
     router.push({
-      pathname: '/onboarding/country',
+      pathname: '/onboarding/dispatched-country',
       params: { nickname },
     });
   };
@@ -187,72 +214,17 @@ export default function UniversityPage() {
 
         <View style={styles.bottomSpacer} />
 
-      <Pressable
-        style={[styles.nextButton, isValid && styles.nextButtonActive]}
-        disabled={!isValid}
-        onPress={() => {
-          if (status === 'preparing') {
-            router.push({
-              pathname: '/onboarding/country',
-              params: { nickname },
-            });
-          } else if (status === 'dispatched') {
-            router.push({
-              pathname: '/onboarding/dispatched-country',
-              params: { nickname },
-            });
-          }
-        }}
-      >
-        <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
-          다음 (2/4)
-        </Text>
-      </Pressable>
-      <Modal
-        transparent
-        visible={universityModalVisible}
-        animationType="fade"
-        onRequestClose={() => setUniversityModalVisible(false)}
-      >
         <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setUniversityModalVisible(false)}
+          style={[styles.nextButton, isValid && styles.nextButtonActive]}
+          disabled={!isValid}
+          onPress={handleNext}
         >
-          <Pressable style={styles.universityModal}>
-            <Text style={styles.modalTitle}>소속대학 선택</Text>
-
-            <ScrollView
-              style={styles.universityScroll}
-              showsVerticalScrollIndicator={false}
-            >
-              {universities.map((item) => (
-                <Pressable
-                  key={item}
-                  style={[
-                    styles.universityOption,
-                    university === item && styles.universityOptionActive,
-                  ]}
-                  onPress={async () => {
-                    setUniversity(item);
-                    await AsyncStorage.setItem('university', item);
-                    setUniversityModalVisible(false);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.universityOptionText,
-                      university === item && styles.universityOptionTextActive,
-                    ]}
-                  >
-                    {item}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Pressable>
+          <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
+            다음 (2/4)
+          </Text>
         </Pressable>
-      </Modal>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

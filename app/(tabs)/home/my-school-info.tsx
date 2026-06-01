@@ -380,22 +380,22 @@ export default function MySchoolInfoScreen() {
             {expandedIndex === 4 && (
               <View style={styles.accordionBody}>
                 <View style={styles.tipCard}>
-                  <Text style={styles.tipTitle}>💬 서류 준비 팁</Text>
-                  <Text style={styles.tipText}>
-                    "자기소개서 작성 시 왜 하필 그 파견교여야 하는지 학과 커리큘럼을 직접 대조하며 어필하는 것이 선발 확률을 높입니다."
-                  </Text>
-                </View>
-                <View style={styles.tipCard}>
-                  <Text style={styles.tipTitle}>🗣️ 면접 준비 팁</Text>
-                  <Text style={styles.tipText}>
-                    "영어 면접은 지원 동기와 가서 무슨 과목을 배울지, 돌발 상황(길을 잃거나 아플 때)에 어떻게 대처할 것인지를 영어로 시뮬레이션 해보는 것으로 충분합니다."
-                  </Text>
-                </View>
-                <View style={styles.tipCard}>
-                  <Text style={styles.tipTitle}>📈 어학 성적 가이드</Text>
-                  <Text style={styles.tipText}>
-                    "경쟁률이 센 독일이나 미국 메이저 학교를 지원할 경우 최저 성적 기준보다 최소 5~10점 이상의 성적표를 갖추는 것이 안정적입니다."
-                  </Text>
+	                  <Text style={styles.tipTitle}>💬 서류 준비 팁</Text>
+	                  <Text style={styles.tipText}>
+	                    {'"'}자기소개서 작성 시 왜 하필 그 파견교여야 하는지 학과 커리큘럼을 직접 대조하며 어필하는 것이 선발 확률을 높입니다.{'"'}
+	                  </Text>
+	                </View>
+	                <View style={styles.tipCard}>
+	                  <Text style={styles.tipTitle}>🗣️ 면접 준비 팁</Text>
+	                  <Text style={styles.tipText}>
+	                    {'"'}영어 면접은 지원 동기와 가서 무슨 과목을 배울지, 돌발 상황(길을 잃거나 아플 때)에 어떻게 대처할 것인지를 영어로 시뮬레이션 해보는 것으로 충분합니다.{'"'}
+	                  </Text>
+	                </View>
+	                <View style={styles.tipCard}>
+	                  <Text style={styles.tipTitle}>📈 어학 성적 가이드</Text>
+	                  <Text style={styles.tipText}>
+	                    {'"'}경쟁률이 센 독일이나 미국 메이저 학교를 지원할 경우 최저 성적 기준보다 최소 5~10점 이상의 성적표를 갖추는 것이 안정적입니다.{'"'}
+	                  </Text>
                 </View>
               </View>
             )}

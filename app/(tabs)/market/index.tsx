@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 
@@ -66,25 +67,10 @@ const formatPrice = (price: number) => {
   return `${price.toLocaleString()}원`;
 };
 
-const formatRelativeTime = (createdAt: string) => {
-  const createdTime = new Date(createdAt).getTime();
-  const diffMinutes = Math.max(
-    0,
-    Math.floor((Date.now() - createdTime) / (1000 * 60)),
-  );
-
-  if (diffMinutes < 1) return '방금 전';
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}시간 전`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}일 전`;
-};
-
 export default function MarketPage() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
@@ -102,7 +88,7 @@ export default function MarketPage() {
     try {
       const response = await getUsedItems();
       console.log('중고거래 목록:', response.data);
-      setItems(response.data.data ?? []);
+      setItems(response.data.data.items ?? []);
     } catch (error: any) {
       console.log(
         '중고거래 목록 조회 실패:',
@@ -147,27 +133,55 @@ export default function MarketPage() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchMyItems();
+      fetchUsedItems();
       checkVerificationStatus();
     }, []),
   );
 
-  const toggleLike = (id: string) => {
+  const toggleLike = (id: number) => {
     setLikedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const toggleBookmark = (id: number) => {
+    setBookmarkedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  const requireVerificationBefore = async (path: string) => {
+    try {
+      const canUseMarket = await canUseMarketWithoutVerification();
+
+      if (canUseMarket) {
+        router.push(path as any);
+        return;
+      }
+    } catch (error: any) {
+      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+    }
+
+    Alert.alert(
+      '교환학생 인증',
+      '중고거래를 이용하려면 교환학생 신원 인증이 필요해요.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '신원 인증하기', onPress: () => router.push('/verification' as any) },
+      ],
     );
   };
 
   const displayItems = items.map((item) => ({
     id: item.id,
     title: item.title,
-    region: item.region || '지역 미정',
-    semester: item.semester || '학기 미정',
-    time: formatRelativeTime(item.createdAt),
-    priceText: item.priceText || formatPrice(item.price),
+    region: item.region,
+    semester: item.semester,
+    time: '방금 전',
+    priceText: formatPrice(item.price),
     likes: 0,
     chats: 0,
-    imageUrl: typeof item.imageUrls?.[0] === 'string' ? item.imageUrls[0] : '',
+    imageUrl: item.thumbnailImageUrl ?? '',
   }));
 
   const filteredItems =

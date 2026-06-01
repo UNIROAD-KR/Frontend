@@ -380,7 +380,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F8FAFC',
@@ -428,14 +427,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#0F2042',
     borderColor: '#0F2042',
   },
-  icon: { width: 22, height: 22, resizeMode: 'contain' },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '800',
+  countryPillInactive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E8F0',
   },
-  headerRight: { flexDirection: 'row', gap: 10 },
+  countryPillText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   sectionTitle: {
     marginTop: 34,

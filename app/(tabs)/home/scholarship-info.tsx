@@ -305,10 +305,10 @@ export default function ScholarshipInfoScreen() {
                 <View style={styles.essayTipCard}>
                   <Text style={styles.essayTipNum}>문항 2</Text>
                   <View style={styles.essayTipContent}>
-                    <Text style={styles.essayQuestion}>교환학생 파견 목적 및 학업 계획 (700자)</Text>
-                    <Text style={styles.essayTipText}>
-                      • "영어 실력 향상" 같은 뻔한 내용 대신, 파견교의 특정 전공 수업(실제 개설 과목명 언급)과 학술 환경을 왜 누려야 하는지 전공 역량 강화 위주로 설계하세요.
-                    </Text>
+	                    <Text style={styles.essayQuestion}>교환학생 파견 목적 및 학업 계획 (700자)</Text>
+	                    <Text style={styles.essayTipText}>
+	                      • {'"'}영어 실력 향상{'"'} 같은 뻔한 내용 대신, 파견교의 특정 전공 수업(실제 개설 과목명 언급)과 학술 환경을 왜 누려야 하는지 전공 역량 강화 위주로 설계하세요.
+	                    </Text>
                   </View>
                 </View>
 

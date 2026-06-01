@@ -33,6 +33,7 @@ export interface UsedItemSummaryResponse {
   semester: string;
   thumbnailImageUrl: string;
   authorName: string;
+  memberId?: number;
 }
 
 export interface TradeItemResponse {
@@ -47,10 +48,12 @@ export interface TradeCategoryImageResponse {
 }
 
 export interface UsedItemResponse extends UsedItemSummaryResponse {
+  memberId: number;
   content: string;
   items?: TradeItemResponse[];
   categoryImages?: TradeCategoryImageResponse[];
   createdAt: string;
+  returnDate?: string;
 }
 
 export type UsedItem = UsedItemSummaryResponse;

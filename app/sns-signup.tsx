@@ -2,18 +2,18 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Alert,
+  Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
-  Modal,
-  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
-import { checkUsername } from '../src/api/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SnsSignupPage() {
   const [username, setUsername] = useState('');
@@ -51,7 +51,24 @@ export default function SnsSignupPage() {
     '직접 입력',
   ];
 
-  const handleSubmit = () => {
+  const handleCheckUsername = async () => {
+    const cleanedUsername = username.trim();
+
+    if (!cleanedUsername) {
+      Alert.alert('입력 오류', '아이디를 입력해주세요.');
+      return;
+    }
+
+    try {
+      await checkUsername(cleanedUsername);
+      Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
+    } catch (error: any) {
+      console.log('아이디 중복확인 실패:', error.response?.data || error.message);
+      Alert.alert('중복 확인 실패', '이미 사용 중인 아이디입니다.');
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!canSubmit) {
       Alert.alert('입력 확인', '아이디, 이름, 비밀번호를 확인해주세요.');
       return;

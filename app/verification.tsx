@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { submitVerification } from '../src/api/verification';
-import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 
 export default function VerificationPage() {
   const [method, setMethod] = useState<'camera' | 'pdf' | ''>('');

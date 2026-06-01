@@ -711,7 +711,7 @@ export default function SchoolDetailScreen() {
                         ))}
                       </View>
                     </View>
-                    <Text style={styles.oneLinerText}>"{review.text}"</Text>
+                    <Text style={styles.oneLinerText}>{'"'}{review.text}{'"'}</Text>
                   </View>
                 ))}
               </View>
@@ -811,13 +811,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   icon: { width: 22, height: 22, resizeMode: 'contain' },
-  headerTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 21,
-    fontWeight: '800',
-  },
   headerRight: { flexDirection: 'row', gap: 8 },
+  content: {
+    paddingBottom: 130,
+  },
+  carouselContainer: {
+    width,
+    height: 240,
+    position: 'relative',
+  },
+  slideFrame: {
+    width,
+    height: 240,
+  },
+  slideImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(15, 32, 66, 0.45)',
+  },
+  carouselTitleContainer: {
+    position: 'absolute',
+    left: 20,
+    bottom: 24,
+    zIndex: 2,
+  },
+  carouselSchoolName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 4,
+  },
 
   schoolTitle: {
     marginTop: 28,

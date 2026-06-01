@@ -1368,11 +1368,53 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     position: 'relative',
   },
-  headerRight: { flexDirection: 'row', gap: 10 },
-  iconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  prepTabActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  prepTabLabelWrap: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    justifyContent: 'center',
+  },
+  prepTabText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#8F8F8F',
+    textAlign: 'center',
+    includeFontPadding: false,
+    lineHeight: 24,
+    paddingBottom: 0,
+  },
+  prepTabTextActive: {
+    color: '#111111',
+    fontWeight: '900',
+  },
+  cardSection: {
+    marginTop: 0,
+    marginHorizontal: -16,
+    overflow: 'visible',
+  },
+  cardSectionContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    gap: INFO_CARD_GAP,
+  },
+  menuCard: {
+    width: INFO_CARD_WIDTH,
+    height: 160,
+    overflow: 'hidden',
+    borderRadius: 24,
+    justifyContent: 'flex-end',
+    paddingLeft: 24,
+    paddingBottom: 20,
+  },
+  cardTextBox: {
+    width: INFO_CARD_WIDTH - 176,
+    zIndex: 2,
+    alignSelf: 'flex-start',
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
   cardTitle: {

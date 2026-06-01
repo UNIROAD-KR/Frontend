@@ -1,27 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, router, usePathname } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Pressable } from 'react-native';
-
-const VISIBLE_TAB_BAR_STYLE = {
-  height: 92,
-  paddingTop: 10,
-  paddingBottom: 18,
-  backgroundColor: '#FAFAFA',
-  borderTopWidth: 0,
-};
-
-const HIDDEN_TAB_BAR_STYLE = {
-  display: 'none' as const,
-};
-
-const MARKET_ROUTES_WITH_TABS = new Set([
-  '/market',
-  '/market/write',
-  '/market/category',
-  '/market/preview',
-  '/market/verify',
-]);
 
 export default function TabLayout() {
   const pathname = usePathname();
@@ -29,6 +8,10 @@ export default function TabLayout() {
   const isMarketActive =
     pathname.startsWith('/market') || pathname.includes('/home/market');
   const isHomeActive = pathname === '/home' || pathname === '/';
+  const isExploreActive = pathname.includes('/home/explore');
+  const isCommunityActive = pathname.includes('/community');
+  const isMyPageActive = pathname.includes('/mypage');
+
   return (
     <Tabs
       screenOptions={{
@@ -186,11 +169,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  tabIcon: {
-    width: 34,
-    height: 34,
-    resizeMode: 'contain',
-  },
-});

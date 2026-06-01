@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   Pressable,
@@ -11,6 +12,12 @@ import {
   View,
 } from 'react-native';
 
+import { createOrGetChatRoom } from '../../../src/api/chat';
+import {
+  getUsedItemDetail,
+  TradeCategory,
+  UsedItemResponse,
+} from '../../../src/api/usedItems';
 import {
   getLocalMarketPost,
   LocalMarketPost,
@@ -21,6 +28,20 @@ const BLUE = '#123F9F';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DETAIL_IMAGE_HEIGHT = 290;
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const categoryNameMap: Record<TradeCategory, string> = {
+  KITCHEN: '주방 용품',
+  BATH: '욕실 / 청소 용품',
+  LIFE: '생활 용품',
+  BEDDING: '침구류',
+  ELECTRONICS: '전자기기',
+  ETC: '기타',
+};
+
+type MarketDetailPost = Omit<LocalMarketPost, 'id'> & {
+  id: string | number;
+  source: 'api' | 'local';
+  targetMemberId?: number;
+};
 
 const parseDate = (value: string) => {
   if (!value) return null;
@@ -61,19 +82,83 @@ const getDdayText = (value: string) => {
   return diff >= 0 ? `귀국 D-${diff}` : '귀국 완료';
 };
 
-const formatPrice = (post: LocalMarketPost) => {
-  if (post.priceText) return post.priceText;
-  if (!post.price) return '가격 미정';
-
-  return `${post.price.toLocaleString()}원`;
+const formatNumberPrice = (price: number) => {
+  if (!price) return '가격 미정';
+  return `${price.toLocaleString()}원`;
 };
+
+const formatPrice = (post: MarketDetailPost) => {
+  if (post.priceText) return post.priceText;
+
+  return formatNumberPrice(post.price);
+};
+
+const getCategoryName = (category: TradeCategory | string) =>
+  categoryNameMap[category as TradeCategory] ?? category;
+
+const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
+  const categoryImages = item.categoryImages ?? [];
+  const categoryImageByName = categoryImages.reduce<Record<string, string[]>>(
+    (acc, image) => {
+      const category = getCategoryName(image.category);
+      acc[category] = [...(acc[category] ?? []), image.imageUrl];
+      return acc;
+    },
+    {},
+  );
+  const itemsByCategory = (item.items ?? []).reduce<
+    Record<string, { name: string; quantity: number }[]>
+  >((acc, tradeItem) => {
+    const category = getCategoryName(tradeItem.category);
+    acc[category] = [
+      ...(acc[category] ?? []),
+      { name: tradeItem.name, quantity: tradeItem.quantity },
+    ];
+    return acc;
+  }, {});
+  const allCategories = Array.from(
+    new Set([...Object.keys(itemsByCategory), ...Object.keys(categoryImageByName)]),
+  );
+  const categoryPhotoUrls = categoryImages.map((image) => image.imageUrl);
+  const photos = Array.from(
+    new Set([item.thumbnailImageUrl, ...categoryPhotoUrls].filter(Boolean)),
+  );
+
+  return {
+    id: item.id,
+    source: 'api',
+    title: item.title,
+    content: item.content,
+    price: item.price,
+    priceText: formatNumberPrice(item.price),
+    region: item.region,
+    semester: item.semester,
+    returnDate: item.returnDate ?? '',
+    photos,
+    itemGroups: allCategories.map((category) => ({
+      category,
+      items: itemsByCategory[category] ?? [],
+      photos: categoryImageByName[category] ?? [],
+      description: '',
+    })),
+    authorName: item.authorName,
+    createdAt: item.createdAt,
+    targetMemberId: item.memberId,
+  };
+};
+
+const mapLocalPost = (post: LocalMarketPost): MarketDetailPost => ({
+  ...post,
+  source: 'local',
+});
 
 export default function MarketDetailPage() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
   const [liked, setLiked] = useState(false);
-  const [post, setPost] = useState<LocalMarketPost | null>(null);
+  const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const currentScrollY = useRef(0);
@@ -91,7 +176,25 @@ export default function MarketDetailPage() {
           return;
         }
 
-        const nextPost = await getLocalMarketPost(id);
+        const numericId = Number(id);
+        let nextPost: MarketDetailPost | null = null;
+
+        if (Number.isFinite(numericId)) {
+          try {
+            const response = await getUsedItemDetail(numericId);
+            nextPost = mapApiPost(response.data.data);
+          } catch (error: any) {
+            console.log(
+              '중고거래 상세 조회 실패:',
+              error.response?.data || error.message,
+            );
+          }
+        }
+
+        if (!nextPost) {
+          const localPost = await getLocalMarketPost(id);
+          nextPost = localPost ? mapLocalPost(localPost) : null;
+        }
 
         if (active) {
           setPost(nextPost);
@@ -130,6 +233,59 @@ export default function MarketDetailPage() {
         animated: false,
       });
     });
+  };
+
+  const handleStartChat = async () => {
+    if (!post || chatLoading) return;
+
+    if (post.source !== 'api' || typeof post.id !== 'number') {
+      Alert.alert(
+        '채팅을 시작할 수 없어요',
+        '서버에 등록된 거래글만 채팅을 시작할 수 있어요.',
+      );
+      return;
+    }
+
+    if (!post.targetMemberId) {
+      Alert.alert(
+        '판매자 정보를 확인할 수 없어요',
+        '백엔드 상세 응답에 판매자 ID가 없어 채팅방을 만들 수 없습니다.',
+      );
+      return;
+    }
+
+    try {
+      setChatLoading(true);
+      const response = await createOrGetChatRoom({
+        referenceType: 'TRADE',
+        referenceId: post.id,
+        targetMemberId: post.targetMemberId,
+      });
+      const roomId = response.data.roomId;
+
+      if (!roomId) {
+        throw new Error('채팅방 ID가 응답에 없습니다.');
+      }
+
+      router.push({
+        pathname: '/chat/[roomId]',
+        params: {
+          roomId: String(roomId),
+          title: post.title,
+          price: formatPrice(post),
+          thumbnail: post.photos[0] ?? '',
+          sellerName: post.authorName,
+        },
+      } as any);
+    } catch (error: any) {
+      console.log('채팅방 생성 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '채팅방 생성 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   if (loading) {
@@ -239,8 +395,10 @@ export default function MarketDetailPage() {
           />
         </Pressable>
 
-        <Pressable style={styles.chatButton}>
-          <Text style={styles.chatText}>채팅 시작하기</Text>
+        <Pressable style={styles.chatButton} onPress={handleStartChat}>
+          <Text style={styles.chatText}>
+            {chatLoading ? '채팅방 여는 중...' : '채팅 시작하기'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -287,7 +445,7 @@ function ImageCarousel({ photos }: { photos: string[] }) {
   );
 }
 
-function TradeInfo({ post }: { post: LocalMarketPost }) {
+function TradeInfo({ post }: { post: MarketDetailPost }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>거래 정보</Text>
@@ -332,7 +490,7 @@ function TradeInfo({ post }: { post: LocalMarketPost }) {
   );
 }
 
-function ItemList({ post }: { post: LocalMarketPost }) {
+function ItemList({ post }: { post: MarketDetailPost }) {
   return (
     <View>
       <Text style={styles.sectionTitle}>물품 목록</Text>
@@ -400,7 +558,7 @@ function ItemList({ post }: { post: LocalMarketPost }) {
   );
 }
 
-function SellerInfo({ post }: { post: LocalMarketPost }) {
+function SellerInfo({ post }: { post: MarketDetailPost }) {
   const authorName = post.authorName || '나';
   const initial = authorName.trim().charAt(0) || '나';
 

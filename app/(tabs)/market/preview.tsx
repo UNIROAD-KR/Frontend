@@ -26,6 +26,9 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
 import { createUsedItem } from '../../../src/api/usedItems';
+import type { TradeCategory } from '../../../src/api/usedItems';
+import { clearMarketDraft, saveMarketDraft } from '../../../src/storage/marketDraft';
+import { saveLocalMarketPost } from '../../../src/storage/marketPosts';
 
 type CategoryName =
   | '주방 용품'
@@ -564,53 +567,6 @@ export default function MarketPreviewPage() {
   };
 
   const handleUpload = async () => {
-    const uploadedImageUrls = await Promise.all(
-      photoList.map((photo, index) => uploadImage(photo, index)),
-    );
-    const thumbnailImageUrl = uploadedImageUrls[0];
-
-    if (photoList.length === 0) {
-      Alert.alert('대표 이미지 필요', '대표 사진을 1장 이상 추가해주세요.');
-      return;
-    }
-
-    if (!title.trim() || !content.trim() || !price.trim()) {
-      Alert.alert('입력 오류', '제목, 설명, 가격을 모두 입력해주세요.');
-      return;
-    }
-
-    if (selectedGroups.length === 0) {
-      Alert.alert('입력 오류', '물품을 1개 이상 선택해주세요.');
-      return;
-    }
-
-    try {
-      const requestBody = {
-        title: title.trim(),
-        content: content.trim(),
-        price: Number(price.replace(/[^0-9]/g, '')) || 0,
-        region: regionText,
-        semester: semesterText,
-        thumbnailImageUrl,
-        items: selectedGroups.flatMap((group) =>
-          group.items.map((item) => ({
-            category: categoryCodeMap[group.category],
-            name: item.name,
-            quantity: item.quantity,
-          })),
-        ),
-        categoryImages: selectedGroups.map((group, index) => ({
-          category: categoryCodeMap[group.category],
-          imageUrl: uploadedImageUrls[index] ?? thumbnailImageUrl,
-        })),
-      };
-
-    console.log('중고거래 서버 업로드 요청:', requestBody);
-
-    await createUsedItem(requestBody);
-  };
-
-  const handleUpload = async () => {
     if (photoList.length === 0) {
       Alert.alert('대표 이미지 필요', '대표 사진을 1장 이상 추가해주세요.');
       return;
@@ -630,9 +586,38 @@ export default function MarketPreviewPage() {
     const cleanedContent = content.trim();
     const cleanedPriceText = price.trim();
     const numericPrice = Number(cleanedPriceText.replace(/[^0-9]/g, '')) || 0;
+    const syncPostToServer = async () => {
+      const uploadedImageUrls = await Promise.all(
+        photoList.map((photo, index) => uploadImage(photo, index)),
+      );
+      const thumbnailImageUrl = uploadedImageUrls[0];
+
+      const response = await createUsedItem({
+        title: cleanedTitle,
+        content: cleanedContent,
+        price: numericPrice,
+        region: regionText,
+        semester: semesterText,
+        thumbnailImageUrl,
+        items: selectedGroups.flatMap((group) =>
+          group.items.map((item) => ({
+            category: categoryCodeMap[group.category],
+            name: item.name,
+            quantity: item.quantity,
+          })),
+        ),
+        categoryImages: selectedGroups.map((group, index) => ({
+          category: categoryCodeMap[group.category],
+          imageUrl: uploadedImageUrls[index] ?? thumbnailImageUrl,
+        })),
+      });
+
+      return response.data.data;
+    };
 
     try {
       const nickname = await AsyncStorage.getItem('nickname');
+      await syncPostToServer();
 
       await saveLocalMarketPost({
         title: cleanedTitle,
@@ -655,24 +640,16 @@ export default function MarketPreviewPage() {
         authorName: nickname || '나',
       });
 
-      void syncPostToServer({
-        title: cleanedTitle,
-        content: cleanedContent,
-        price: numericPrice,
-      }).catch((error: any) => {
-        console.log(
-          '중고거래 서버 동기화 실패:',
-          error.response?.data || error.message,
-        );
-      });
-
       await clearMarketDraft();
 
       Alert.alert('업로드 완료', '중고거래 게시글이 등록되었습니다.');
       router.replace('/market' as any);
     } catch (error: any) {
-      console.log('로컬 업로드 실패:', error.response?.data || error.message);
-      Alert.alert('업로드 실패', '게시글 등록에 실패했습니다.');
+      console.log('중고거래 업로드 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '업로드 실패',
+        error.response?.data?.message ?? '게시글 등록에 실패했습니다.',
+      );
     }
   };
 

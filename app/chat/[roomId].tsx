@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -12,30 +13,48 @@ import {
   View,
 } from 'react-native';
 
-import { getChatMessages } from '../../src/api/chat';
+import {
+  ChatMessageResponse,
+  getChatMessages,
+  sendChatMessage,
+} from '../../src/api/chat';
+import { getMemberMe } from '../../src/api/auth';
 
 type ChatMessage = {
   id: number;
   roomId: number;
   senderId: number | 'me' | 'other';
   message: string;
-  type: string;
+  type?: string;
   createdAt: string;
 };
 
 const BLUE = '#123F9F';
 
+const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
+  id: item.id,
+  roomId: item.roomId,
+  senderId: item.senderId,
+  message: item.message ?? item.content ?? '',
+  type: item.type,
+  createdAt: item.createdAt,
+});
+
 export default function ChatRoomPage() {
-  const { roomId } = useLocalSearchParams<{ roomId: string }>();
+  const { roomId, title, price, thumbnail, sellerName } = useLocalSearchParams<{
+    roomId: string;
+    title?: string;
+    price?: string;
+    thumbnail?: string;
+    sellerName?: string;
+  }>();
 
   const scrollRef = useRef<ScrollView>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    fetchMessages();
-  }, [roomId]);
+  const [sending, setSending] = useState(false);
+  const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -45,31 +64,53 @@ export default function ChatRoomPage() {
     }
   }, [messages]);
 
-  const fetchMessages = async () => {
+  const fetchCurrentMember = useCallback(async () => {
+    try {
+      const response = await getMemberMe();
+      setCurrentMemberId(response.data.data.id);
+    } catch (error: any) {
+      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+    }
+  }, []);
+
+  const fetchMessages = useCallback(async () => {
     try {
       const response = await getChatMessages(Number(roomId));
-      setMessages(response.data.data ?? response.data ?? []);
+      const payload = response.data;
+      const rawMessages = Array.isArray(payload)
+        ? payload
+        : (payload?.content ?? []);
+
+      setMessages(rawMessages.map(normalizeMessage));
     } catch (error: any) {
       console.log('메시지 조회 실패:', error.response?.data || error.message);
     }
-  };
+  }, [roomId]);
 
-  const handleSend = () => {
+  useEffect(() => {
+    fetchCurrentMember();
+    fetchMessages();
+  }, [fetchCurrentMember, fetchMessages]);
+
+  const handleSend = async () => {
     const text = message.trim();
 
-    if (!text) return;
+    if (!text || sending) return;
 
-    const newMessage: ChatMessage = {
-      id: Date.now(),
-      roomId: Number(roomId),
-      senderId: 'me',
-      message: text,
-      type: 'TALK',
-      createdAt: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setMessage('');
+    try {
+      setSending(true);
+      const response = await sendChatMessage(Number(roomId), text);
+      setMessages((prev) => [...prev, normalizeMessage(response.data.data)]);
+      setMessage('');
+    } catch (error: any) {
+      console.log('메시지 전송 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '메시지 전송 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -80,7 +121,7 @@ export default function ChatRoomPage() {
         </Pressable>
 
         <View style={styles.nameRow}>
-          <Text style={styles.name}>may.be</Text>
+          <Text style={styles.name}>{sellerName ?? '채팅'}</Text>
           <Image
             source={require('../../assets/images/shield.png')}
             style={styles.badgeIcon}
@@ -94,13 +135,17 @@ export default function ChatRoomPage() {
       </View>
 
       <View style={styles.productCard}>
-        <View style={styles.thumbnail} />
+        <View style={styles.thumbnail}>
+          {!!thumbnail && (
+            <Image source={{ uri: thumbnail }} style={styles.thumbnailImage} />
+          )}
+        </View>
 
         <View style={styles.productInfo}>
           <Text style={styles.productTitle}>
-            독일 아샤펜부르크 중고 물품 양도
+            {title ?? '중고거래 게시글'}
           </Text>
-          <Text style={styles.productPrice}>21만 원</Text>
+          <Text style={styles.productPrice}>{price ?? '가격 미정'}</Text>
         </View>
       </View>
 
@@ -125,7 +170,8 @@ export default function ChatRoomPage() {
         ) : (
           <View style={styles.messageList}>
             {messages.map((item) => {
-              const isMine = item.senderId === 'me';
+              const isMine =
+                item.senderId === 'me' || item.senderId === currentMemberId;
 
               return (
                 <View
@@ -208,7 +254,7 @@ export default function ChatRoomPage() {
             <Pressable style={styles.sendButton} onPress={handleSend}>
               <Image
                 source={require('../../assets/images/send.png')}
-                style={styles.sendIcon}
+                style={[styles.sendIcon, sending && styles.sendingIcon]}
               />
             </Pressable>
           </View>
@@ -280,6 +326,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#9B9B9B',
     marginRight: 22,
+    overflow: 'hidden',
+  },
+
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 
   productInfo: {
@@ -479,5 +532,9 @@ const styles = StyleSheet.create({
     width: 29,
     height: 29,
     resizeMode: 'contain',
+  },
+
+  sendingIcon: {
+    opacity: 0.45,
   },
 });
