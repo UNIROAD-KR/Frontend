@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -43,16 +43,20 @@ const COUNTRY_HEADER_META: Record<string, { flag: string; title: string; desc: s
 };
 
 const GUIDE_CATEGORY_ORDER = [
+  '슈페어콘토 개설',
   '비자',
   '은행/카드',
   '보험',
   '유심/eSIM',
-  '항공권',
-  '숙소',
   '입국 후 등록',
 ];
 
 const PREP_CATEGORY_META: Record<string, { emoji: string; title: string; desc: string }> = {
+  '슈페어콘토 개설': {
+    emoji: '💶',
+    title: '슈페어콘토 개설',
+    desc: '독일 체류비 증명을 위한 계좌 준비하기',
+  },
   비자: {
     emoji: '🛂',
     title: '비자',
@@ -116,6 +120,7 @@ const COUNTRY_CHECKLISTS: CountryChecklist[] = [
     icon: 'airplane',
     visaUrl: 'https://example.com/visa/de',
     checklist: [
+      { id: 'de-blocked-account', title: '슈페어콘토 개설', category: '슈페어콘토 개설', required: true },
       { id: 'de-visa', title: '학생비자 신청 서류 확인', category: '비자', required: true },
       { id: 'de-blocked', title: '슈페어콘토 준비', category: '은행/카드', required: true },
       { id: 'de-insurance', title: '공보험 또는 유학생 보험 가입', category: '보험', required: true },
@@ -320,7 +325,9 @@ const normalizeCountry = (country: string | null) => {
 };
 
 export default function VisaGuideScreen() {
-  const [screenMode, setScreenMode] = useState<'checklist' | 'visa'>('checklist');
+  const [screenMode, setScreenMode] = useState<
+    'checklist' | 'visa' | 'bank' | 'sim' | 'insurance' | 'blockedAccount'
+  >('checklist');
   const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CHECKLISTS[0].name);
   const [checkedVisaSteps, setCheckedVisaSteps] = useState<Record<number, boolean>>({ 0: true });
   const [checkedDocs, setCheckedDocs] = useState<Record<string, boolean>>({
@@ -366,6 +373,22 @@ export default function VisaGuideScreen() {
         onToggleDoc={(doc) => setCheckedDocs((prev) => ({ ...prev, [doc]: !prev[doc] }))}
       />
     );
+  }
+
+  if (screenMode === 'bank') {
+    return <BankAccountGuide onBack={() => setScreenMode('checklist')} />;
+  }
+
+  if (screenMode === 'sim') {
+    return <SimGuide onBack={() => setScreenMode('checklist')} />;
+  }
+
+  if (screenMode === 'insurance') {
+    return <InsuranceGuide onBack={() => setScreenMode('checklist')} />;
+  }
+
+  if (screenMode === 'blockedAccount') {
+    return <BlockedAccountGuide onBack={() => setScreenMode('checklist')} />;
   }
 
   return (
@@ -426,6 +449,10 @@ export default function VisaGuideScreen() {
               desc: `${category} 정보 확인하기`,
             };
             const isVisa = category === '비자';
+            const isBank = category === '은행/카드';
+            const isSim = category === '유심/eSIM';
+            const isInsurance = category === '보험';
+            const isBlockedAccount = category === '슈페어콘토 개설';
 
             return (
               <TouchableOpacity
@@ -436,6 +463,10 @@ export default function VisaGuideScreen() {
                 ]}
                 onPress={() => {
                   if (isVisa) setScreenMode('visa');
+                  if (isBank) setScreenMode('bank');
+                  if (isSim) setScreenMode('sim');
+                  if (isInsurance) setScreenMode('insurance');
+                  if (isBlockedAccount) setScreenMode('blockedAccount');
                 }}
                 activeOpacity={0.86}
               >
@@ -452,6 +483,527 @@ export default function VisaGuideScreen() {
           })}
         </View>
 
+      </ScrollView>
+    </View>
+  );
+}
+
+function BankAccountGuide({ onBack }: { onBack: () => void }) {
+  const [openAccountCard, setOpenAccountCard] = useState<string | null>(null);
+  const accountCards = [
+    {
+      id: 'n26',
+      title: 'N26 계좌',
+      desc: '독일 현지 생활비 관리와 카드 사용을 위한 계좌',
+      points: [
+        '독일 현지 IBAN을 제공해 기숙사비, 보험료, 통신비 납부에 편리',
+        '모바일 앱으로 계좌 관리가 가능하고 영어 지원이 잘 되어 있음',
+        '계좌 개설 시 여권을 이용한 영상 인증(화상통화)이 필요',
+      ],
+      links: [
+        {
+          title: 'N26 장단점 바로가기',
+          url: 'https://blog.naver.com/ottff123/224197289904',
+        },
+        {
+          title: 'N26 개설 방법 바로가기',
+          url: 'https://blog.naver.com/ottff123/224200944417',
+        },
+      ],
+      icon: 'card-outline' as const,
+    },
+    {
+      id: 'wise',
+      title: 'Wise 계좌',
+      desc: '해외 송금과 환전 수수료를 함께 확인하기 좋은 계좌',
+      points: [
+        '벨기에 기반 금융 서비스로 다양한 통화 관리 가능',
+        '한국 → 독일 송금 시 환율이 투명한 편',
+        '온라인으로 화상통화 없이 간편하게 개설 가능',
+      ],
+      links: [
+         {
+          title: 'Wise 장단점 바로가기',
+          url: 'https://blog.naver.com/moinmoin99/224148034214',
+        },
+        {
+          title: 'Wise 개설 방법 바로가기',
+          url: 'https://blog.naver.com/moinmoin99/224148034214',
+        },
+      ],
+      icon: 'globe-outline' as const,
+    },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={NAVY} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>은행/카드 가이드</Text>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.telecomCardList}>
+          {accountCards.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={styles.telecomCard}
+              onPress={() => setOpenAccountCard((prev) => (prev === card.id ? null : card.id))}
+              activeOpacity={0.88}
+            >
+              <View style={styles.bigGuideIcon}>
+                <Ionicons name={card.icon} size={19} color={BLUE} />
+              </View>
+              <View style={styles.telecomCardTitleRow}>
+                <Text style={styles.telecomCardTitle}>{card.title}</Text>
+                <Ionicons
+                  name={openAccountCard === card.id ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#94A3B8"
+                />
+              </View>
+              <Text style={styles.telecomCardDesc}>{card.desc}</Text>
+              {openAccountCard === card.id && (
+                <View style={styles.telecomPointList}>
+                  {card.points.map((point) => (
+                    <Text key={point} style={styles.telecomPointText}>
+                      - {point}
+                    </Text>
+                  ))}
+                  <View style={styles.telecomBlogLinkSpacer} />
+                  {card.links.map((link) => (
+                    <TouchableOpacity
+                      key={link.url}
+                      style={styles.telecomBlogLink}
+                      onPress={() => Linking.openURL(link.url)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="reader-outline" size={16} color={BLUE} />
+                      <Text style={styles.telecomBlogLinkText}>{link.title}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.accountNoteBox}>
+          <Text style={styles.accountNoteText}>
+            교환학생들 사이에서는 보통 다음과 같이 쓰는 경우가 많습니다.
+          </Text>
+          <Text style={styles.accountNoteHighlightText}>
+            1) N26 = 독일 생활용 주계좌 {'\n'}2) Wise = 한국에서 생활비 받을 때 쓰는 송금용 계좌
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function BlockedAccountGuide({ onBack }: { onBack: () => void }) {
+  const [openBlockedSection, setOpenBlockedSection] = useState<string | null>(null);
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={NAVY} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>슈페어콘토 개설</Text>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.blockedAccountCard}>
+          <View style={styles.bigGuideIcon}>
+            <Ionicons name="wallet-outline" size={19} color={BLUE} />
+          </View>
+          <Text style={styles.blockedAccountTitle}>독일 학생비자 재정 증명 준비</Text>
+          <Text style={styles.blockedAccountLead}>
+            독일 학생비자 발급을 위해 필요한 동결 계좌입니다. 체류 기간 동안 사용할 생활비를 미리 예치해두고, 독일 입국 후 매달 일정 금액을 인출하여 사용할 수 있습니다.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.blockedAccountBlogLink}
+            onPress={() => Linking.openURL('https://blog.naver.com/oiseohyun/224302083472')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="reader-outline" size={16} color={BLUE} />
+            <Text style={styles.telecomBlogLinkText}>슈페어콘토 개설 방법 바로가기</Text>
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+          </TouchableOpacity>
+
+          <View style={styles.blockedAccountSection}>
+            <TouchableOpacity
+              style={styles.blockedAccountSectionHeader}
+              onPress={() => setOpenBlockedSection((prev) => (prev === 'about' ? null : 'about'))}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.blockedAccountSectionTitle}>슈페어콘토란?</Text>
+              <Ionicons name={openBlockedSection === 'about' ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            {openBlockedSection === 'about' && (
+              <View style={styles.blockedAccountContentBox}>
+                {[
+                  '독일 정부가 요구하는 재정 증명 수단',
+                  '체류 기간 동안 생활비를 미리 예치',
+                  '매월 정해진 금액만 인출 가능',
+                ].map((item) => (
+                  <Text key={item} style={styles.blockedAccountBullet}>- {item}</Text>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={styles.blockedAccountSection}>
+            <TouchableOpacity
+              style={styles.blockedAccountSectionHeader}
+              onPress={() => setOpenBlockedSection((prev) => (prev === 'amount' ? null : 'amount'))}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.blockedAccountSectionTitle}>필요 금액 (2026년 기준)</Text>
+              <Ionicons name={openBlockedSection === 'amount' ? 'chevron-up' : 'chevron-down'} size={18} color="#94A3B8" />
+            </TouchableOpacity>
+            {openBlockedSection === 'amount' && (
+              <View style={styles.blockedAccountContentBox}>
+                {[
+                  '월 생활비 증빙: 992유로',
+                  '월 계좌 수수료: 5유로',
+                  '개설비: 89유로',
+                  '예치 버퍼: 100유로',
+                ].map((item) => (
+                  <Text key={item} style={styles.blockedAccountBullet}>- {item}</Text>
+                ))}
+                <View style={styles.blockedAccountFormulaBox}>
+                  <Text style={styles.blockedAccountFormulaLabel}>예상 필요 금액</Text>
+                  <Text style={styles.blockedAccountFormula}>189 + (997 × 체류 개월 수) 유로</Text>
+                </View>
+                <Text style={styles.blockedAccountExample}>예시) 5개월 체류: 약 5,174유로</Text>
+                <Text style={styles.blockedAccountExample}>예시) 6개월 체류: 약 6,171유로</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.accountNoteBox}>
+          <Text style={styles.accountNoteText}>
+            개설기간의 경우,{'\n'}비자 기간을 충분히 커버할 수 있도록 설정하는 것이 좋습니다.
+          </Text>
+          <Text style={[styles.accountNoteText, styles.insuranceRecommendFirstLine]}>
+            <Text style={styles.accountNoteHighlightText}>
+              대부분의 교환학생은 5~6개월로 개설하며, Expatrio를 가장 많이 이용합니다.
+            </Text>
+            {' '}Expatrio에서는 슈페어콘토 단독 가입 또는 공보험이 포함된 Value Package를 선택할 수 있습니다.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function SimGuide({ onBack }: { onBack: () => void }) {
+  const [openTelecomCard, setOpenTelecomCard] = useState<string | null>(null);
+  const telecomCards = [
+    {
+      id: 'aldi-talk',
+      title: 'Aldi Talk',
+      desc: 'Aldi 마트에서 실물 유심을 편하게 구매할 수 있는 선불 유심',
+      points: [
+        '앱에서 데이터 사용량 조회와 충전 가능',
+        '신규 starter pack으로 10유로 4주 요금제 혜택',
+        'O2 네트워크 기반, 제공 데이터 대비 가격이 합리적인 편',
+      ],
+      links: [
+        {
+          title: 'Aldi Talk 개설 방법 바로가기',
+          url: 'https://blog.naver.com/ukkeat/224223133487',
+        },
+      ],
+      icon: 'storefront-outline' as const,
+    },
+    {
+      id: 'o2',
+      title: 'O2',
+      desc: '저가 중심의 대형 통신사로 eSIM을 지원하는 선택지',
+      points: [
+        '후기상 Aldi Talk보다 빠르고 5G가 잘 터지는 편',
+        '선불 요금제 기준 9.99유로에 6GB 사용 가능',
+        '한국 유심과 함께 쓰기 편해 O2 매장에서 많이 구매',
+      ],
+      links: [
+        {
+          title: 'O2 개설 방법 바로가기',
+          url: 'https://blog.naver.com/eawoniya/224256449745',
+        },
+      ],
+      icon: 'phone-portrait-outline' as const,
+    },
+    {
+      id: 'fraenk',
+      title: 'fraenk',
+      desc: '앱으로 가입부터 번호 발급까지 진행할 수 있는 eSIM',
+      points: [
+        '실물 유심 없이 휴대폰에서 회선만 바꿔 사용할 수 있어 편리',
+        'fraenk 앱에서 가입, 번호 발급, 데이터 사용량 확인 가능',
+        '유럽 여러 지역에서 사용하기 좋고 여행 중에도 안정적인 편',
+      ],
+      links: [
+        {
+          title: 'fraenk 개설 방법 바로가기 1',
+          url: 'https://blog.naver.com/2_nxm_2/224276074032',
+        },
+        {
+          title: 'fraenk 개설 방법 바로가기 2',
+          url: 'https://blog.naver.com/may_12kr/224228376856',
+        },
+      ],
+      icon: 'radio-outline' as const,
+    },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={NAVY} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>유심/eSIM 가이드</Text>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.telecomCardList}>
+          {telecomCards.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={styles.telecomCard}
+              onPress={() => setOpenTelecomCard((prev) => (prev === card.id ? null : card.id))}
+              activeOpacity={0.88}
+            >
+              <View style={styles.bigGuideIcon}>
+                <Ionicons name={card.icon} size={19} color={BLUE} />
+              </View>
+              <View style={styles.telecomCardTitleRow}>
+                <Text style={styles.telecomCardTitle}>{card.title}</Text>
+                <Ionicons
+                  name={openTelecomCard === card.id ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#94A3B8"
+                />
+              </View>
+              <Text style={styles.telecomCardDesc}>{card.desc}</Text>
+              {openTelecomCard === card.id && (
+                <View style={styles.telecomPointList}>
+                  {card.points.map((point) => (
+                    <Text key={point} style={styles.telecomPointText}>
+                      - {point}
+                    </Text>
+                  ))}
+                  <View style={styles.telecomBlogLinkSpacer} />
+                  {card.links.map((link) => (
+                    <TouchableOpacity
+                      key={link.url}
+                      style={styles.telecomBlogLink}
+                      onPress={() => Linking.openURL(link.url)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="reader-outline" size={16} color={BLUE} />
+                      <Text style={styles.telecomBlogLinkText}>{link.title}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.telecomNoteBox}>
+          <Text style={styles.telecomNoteText}>
+            세 통신사 모두 EU 내에서 자유롭게 데이터 사용이 가능합니다.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function InsuranceGuide({ onBack }: { onBack: () => void }) {
+  const [openInsuranceCard, setOpenInsuranceCard] = useState<string | null>(null);
+  const [openInsuranceCompare, setOpenInsuranceCompare] = useState(false);
+  const insuranceCards = [
+    {
+      id: 'public',
+      title: 'TK 공보험',
+      desc: '한국인 유학생들이 가장 선호하는 공보험사 중 하나',
+      points: [
+        '독일 대학이나 비자 절차에서 인정받기 쉬운 편',
+        '병원 이용 시 보장 범위가 넓고 안정적',
+        '사보험보다 비용이 높지만, 여러가지 혜택 존재',
+      ],
+       links: [
+        {
+          title: 'TK 공보험 활성화 절차 바로가기',
+          url: 'https://blog.naver.com/nknk040820/224259526932',
+        },
+      ],
+      icon: 'shield-checkmark-outline' as const,
+    },
+    {
+      id: 'private',
+      title: '사보험',
+      desc: '단기 체류나 교환학생 조건에 맞춰 비교해볼 수 있는 보험',
+      points: [
+        '공보험 대비 보험료가 저렴한 편',
+        '이후 공보험사 공증 받는 절차 필요',
+        '학교나 비자 신청에서 인정되는 보험인지 먼저 확인하는 것이 중요',
+      ],
+      links: [
+        {
+          title: '마비스타(MAWISTA) 가입 방법 바로가기',
+          url: 'https://blog.naver.com/imnoting_/224299059998',
+        },
+        {
+          title: '공증 신청 바로가기',
+          url: 'https://blog.naver.com/lovelovelov3/224230722270',
+        },
+      ],
+      icon: 'medical-outline' as const,
+    },
+  ];
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
+          <Ionicons name="arrow-back" size={22} color={NAVY} />
+        </TouchableOpacity>
+
+        <Text style={styles.headerTitle}>보험 가이드</Text>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.telecomCardList}>
+          {insuranceCards.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={styles.telecomCard}
+              onPress={() => setOpenInsuranceCard((prev) => (prev === card.id ? null : card.id))}
+              activeOpacity={0.88}
+            >
+              <View style={styles.bigGuideIcon}>
+                <Ionicons name={card.icon} size={19} color={BLUE} />
+              </View>
+              <View style={styles.telecomCardTitleRow}>
+                <Text style={styles.telecomCardTitle}>{card.title}</Text>
+                <Ionicons
+                  name={openInsuranceCard === card.id ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#94A3B8"
+                />
+              </View>
+              <Text style={styles.telecomCardDesc}>{card.desc}</Text>
+              {openInsuranceCard === card.id && (
+                <View style={styles.telecomPointList}>
+                  {card.points.map((point) => (
+                    <Text key={point} style={styles.telecomPointText}>
+                      - {point}
+                    </Text>
+                  ))}
+                  <View style={styles.telecomBlogLinkSpacer} />
+                  {card.links.map((link) => (
+                    <TouchableOpacity
+                      key={link.url}
+                      style={styles.telecomBlogLink}
+                      onPress={() => Linking.openURL(link.url)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="reader-outline" size={16} color={BLUE} />
+                      <Text style={styles.telecomBlogLinkText}>{link.title}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TouchableOpacity
+          style={styles.insuranceCompareBox}
+          onPress={() => setOpenInsuranceCompare((prev) => !prev)}
+          activeOpacity={0.88}
+        >
+          <View style={styles.insuranceCompareHeader}>
+            <Text style={styles.insuranceCompareTitle}>TK vs MAWISTA 한눈에 비교하기</Text>
+            <Ionicons
+              name={openInsuranceCompare ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color="#94A3B8"
+            />
+          </View>
+
+          {openInsuranceCompare && (
+            <View style={styles.insuranceCompareTable}>
+              <View style={[styles.insuranceCompareTableRow, styles.insuranceCompareTableHeader]}>
+                <Text style={[styles.insuranceCompareTableCell, styles.insuranceCompareTableLabel]}>항목</Text>
+                <Text style={[styles.insuranceCompareTableCell, styles.insuranceCompareTableHeadText]}>TK</Text>
+                <Text style={[styles.insuranceCompareTableCell, styles.insuranceCompareTableHeadText]}>MAWISTA</Text>
+              </View>
+              {[
+                ['월 보험료', '상대적으로 높음', '상대적으로 저렴'],
+                ['비자 및 학교 인정', '인정 절차가 비교적 수월함', '학교 및 비자 요건 확인 필요'],
+                ['보장 범위', '넓고 안정적인 보장', '상품에 따라 상이'],
+                ['추천 대상', '장기 유학생, 안정성을 중시하는 학생', '교환학생, 비용을 아끼고 싶은 학생'],
+              ].map(([label, tk, mawista]) => (
+                <View key={label} style={styles.insuranceCompareTableRow}>
+                  <Text style={[styles.insuranceCompareTableCell, styles.insuranceCompareTableLabel]}>{label}</Text>
+                  <Text style={styles.insuranceCompareTableCell}>{tk}</Text>
+                  <Text style={styles.insuranceCompareTableCell}>{mawista}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </TouchableOpacity>
+
+        <View style={styles.accountNoteBox}>
+          <Text style={styles.accountNoteText}>
+            독일 대학과 비자 요건에 따라 인정 여부가 달라질 수 있으므로,{'\n'}가입 전 반드시 확인하세요.
+          </Text>
+          <Text style={[styles.accountNoteHighlightText, styles.insuranceRecommendFirstLine]}>
+            비용을 우선한다면? → MAWISTA
+          </Text>
+          <Text style={styles.accountNoteHighlightText}>안정성과 행정 편의성 및 공보험 혜택을 원한다면? → TK</Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -476,7 +1028,7 @@ function VisaApplicationGuide({
   const [openQuestion, setOpenQuestion] = useState<string | null>('입학허가서를 받을 예정인가요?');
   const [openVidexItem, setOpenVidexItem] = useState<string | null>('개인정보 입력');
   const guide = visaGuideData.germany;
-  const blogLinks = [
+  const overviewBlogLinks = [
     {
       id: 'visa-blog',
       title: '독일 학생비자 후기',
@@ -490,6 +1042,28 @@ function VisaApplicationGuide({
       url: `https://search.naver.com/search.naver?where=blog&query=${encodeURIComponent('독일 학생비자 서류 준비 후기')}`,
     },
   ];
+  const prepBlogLinks = [
+    {
+      id: 'documents-blog',
+      title: '비자 서류 준비 후기',
+      desc: '서류 준비 사례와 체크 포인트 보기',
+      url: `https://search.naver.com/search.naver?where=blog&query=${encodeURIComponent('독일 학생비자 서류 준비 후기')}`,
+    },
+  ];
+  const issueBlogLinks = [
+    {
+      id: 'pickup-blog',
+      title: '비자 수령 후기',
+      desc: '대사관 방문 이후 수령 과정 살펴보기',
+      url: `https://search.naver.com/search.naver?where=blog&query=${encodeURIComponent('독일 학생비자 수령 후기')}`,
+    },
+  ];
+  const blogLinks =
+    activeSection === 'prep'
+      ? prepBlogLinks
+      : activeSection === 'issue'
+        ? issueBlogLinks
+        : overviewBlogLinks;
   void _countryName;
   void _checkedVisaSteps;
   void _onToggleStep;
@@ -773,19 +1347,22 @@ function VisaApplicationGuide({
         {activeSection === 'issue' && renderIssueGuide()}
 
         <View style={styles.blogLinkSection}>
-          <Text style={styles.blogLinkTitle}>블로그 후기 모아보기</Text>
-          <View style={styles.blogLinkList}>
+          <Text style={[styles.blogLinkTitle, activeSection !== 'overview' && styles.relatedBlogLinkTitle]}>
+            {activeSection === 'overview' ? '블로그 후기 모아보기' : '관련 블로그'}
+          </Text>
+          <View style={[styles.blogLinkList, activeSection !== 'overview' && styles.relatedBlogLinkList]}>
             {blogLinks.map((link, index) => (
               <TouchableOpacity
                 key={link.id}
                 style={[
                   styles.blogLinkItem,
+                  activeSection !== 'overview' && styles.relatedBlogLinkItem,
                   index === blogLinks.length - 1 && styles.blogLinkItemLast,
                 ]}
                 activeOpacity={0.85}
                 onPress={() => Linking.openURL(link.url)}
               >
-                <View style={styles.blogLinkIcon}>
+                <View style={[styles.blogLinkIcon, activeSection !== 'overview' && styles.relatedBlogLinkIcon]}>
                   <Ionicons name="reader-outline" size={18} color={BLUE} />
                 </View>
                 <View style={styles.blogLinkTextBox}>
@@ -813,16 +1390,25 @@ function GuideStep({
   desc: string;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(index === 1);
+
   return (
     <View style={styles.guideStepCard}>
-      <View style={styles.guideStepHeader}>
-        <View style={styles.guideStepBadge}>
-          <Text style={styles.guideStepBadgeText}>STEP {index}</Text>
+      <TouchableOpacity
+        style={[styles.guideStepHeader, !open && styles.guideStepHeaderClosed]}
+        onPress={() => setOpen((prev) => !prev)}
+        activeOpacity={0.85}
+      >
+        <View style={styles.guideStepTopRow}>
+          <View style={styles.guideStepBadge}>
+            <Text style={styles.guideStepBadgeText}>STEP {index}</Text>
+          </View>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={NAVY} />
         </View>
         <Text style={styles.guideStepTitle}>{title}</Text>
         <Text style={styles.guideStepDesc}>{desc}</Text>
-      </View>
-      <View style={styles.guideStepBody}>{children}</View>
+      </TouchableOpacity>
+      {open && <View style={styles.guideStepBody}>{children}</View>}
     </View>
   );
 }
@@ -953,8 +1539,8 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   countrySummaryGuideTitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 21,
     fontWeight: '900',
     color: NAVY,
   },
@@ -1247,6 +1833,290 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  telecomCardList: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  telecomCard: {
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#EEF3FA',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  telecomCardTitleRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  telecomCardTitle: {
+    flex: 1,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  telecomCardDesc: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#536277',
+  },
+  telecomPointList: {
+    marginTop: 10,
+    gap: 5,
+  },
+  telecomPointText: {
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  telecomBlogLinkSpacer: {
+    height: 5,
+  },
+  telecomBlogLink: {
+    minHeight: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  telecomBlogLinkText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  telecomNoteBox: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  telecomNoteText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  accountNoteBox: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  accountNoteText: {
+    fontSize: 12,
+    lineHeight: 21,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  accountNoteHighlightText: {
+    fontSize: 12,
+    lineHeight: 21,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  blockedAccountCard: {
+    marginHorizontal: 20,
+    borderRadius: 18,
+    backgroundColor: '#EEF3FA',
+    padding: 15,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  blockedAccountTitle: {
+    marginTop: 10,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  blockedAccountLead: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 19,
+    fontWeight: '700',
+    color: '#536277',
+  },
+  blockedAccountSection: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#DDE7F4',
+    paddingTop: 12,
+  },
+  blockedAccountSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  blockedAccountSectionTitle: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  blockedAccountContentBox: {
+    marginTop: 9,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 5,
+  },
+  blockedAccountBullet: {
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  blockedAccountText: {
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#536277',
+  },
+  blockedAccountFormulaBox: {
+    marginTop: 8,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  blockedAccountFormulaLabel: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  blockedAccountFormula: {
+    marginTop: 2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  blockedAccountExample: {
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '800',
+    color: NAVY,
+  },
+  blockedAccountBlogLink: {
+    minHeight: 40,
+    marginTop: 14,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  insuranceRecommendFirstLine: {
+    marginTop: 8,
+  },
+  insuranceCompareBox: {
+    marginHorizontal: 20,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E8EEF7',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  insuranceCompareTitle: {
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  insuranceCompareHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  insuranceCompareTable: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: '#E8EEF7',
+  },
+  insuranceCompareTableRow: {
+    flexDirection: 'row',
+  },
+  insuranceCompareTableHeader: {
+    backgroundColor: '#EEF4FF',
+  },
+  insuranceCompareTableCell: {
+    flex: 1,
+    minHeight: 40,
+    paddingHorizontal: 6,
+    paddingVertical: 7,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E8EEF7',
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  insuranceCompareTableLabel: {
+    flex: 0.82,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  insuranceCompareTableHeadText: {
+    fontWeight: '900',
+    color: NAVY,
+  },
+  insuranceCompareNotice: {
+    marginTop: 12,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '800',
+    color: '#475569',
+  },
+  insuranceRecommendBox: {
+    marginTop: 10,
+    borderRadius: 12,
+    backgroundColor: '#EEF4FF',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  insuranceRecommendTitle: {
+    marginBottom: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  insuranceRecommendText: {
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: '800',
+    color: BLUE,
+  },
   timelineListHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1315,6 +2185,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: NAVY,
   },
+  relatedBlogLinkTitle: {
+    marginBottom: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: '#64748B',
+  },
   blogLinkList: {
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
@@ -1325,12 +2202,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 1,
   },
+  relatedBlogLinkList: {
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF7',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   blogLinkItem: {
     minHeight: 70,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  relatedBlogLinkItem: {
+    minHeight: 64,
   },
   blogLinkItemLast: {
     borderBottomWidth: 0,
@@ -1343,6 +2231,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  relatedBlogLinkIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: '#F3F6FA',
+    marginRight: 10,
   },
   blogLinkTextBox: {
     flex: 1,
@@ -1363,27 +2258,29 @@ const styles = StyleSheet.create({
   },
   detailHero: {
     marginHorizontal: 20,
-    marginTop: 16,
-    borderRadius: 20,
-    backgroundColor: '#EAF1FF',
-    padding: 18,
+    marginTop: 10,
+    borderRadius: 18,
+    backgroundColor: '#EEF3FA',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
   },
   detailEyebrow: {
-    fontSize: 12,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: '900',
     color: BLUE,
   },
   detailTitle: {
-    marginTop: 8,
-    fontSize: 22,
-    lineHeight: 29,
+    marginTop: 6,
+    fontSize: 18,
+    lineHeight: 24,
     fontWeight: '900',
     color: NAVY,
   },
   detailDesc: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 20,
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#475569',
   },
@@ -1397,9 +2294,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   guideStepHeader: {
-    padding: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  guideStepHeaderClosed: {
+    borderBottomWidth: 0,
+  },
+  guideStepTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   guideStepBadge: {
     alignSelf: 'flex-start',
@@ -1414,16 +2320,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   guideStepTitle: {
-    marginTop: 10,
-    fontSize: 18,
-    lineHeight: 24,
+    marginTop: 9,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '900',
     color: NAVY,
   },
   guideStepDesc: {
-    marginTop: 7,
-    fontSize: 13,
-    lineHeight: 19,
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#64748B',
   },
