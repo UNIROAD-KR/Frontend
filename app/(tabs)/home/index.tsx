@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import { SoftServiceIcon } from '@/components/soft-service-icon';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,6 +13,8 @@ import {
   View,
   type DimensionValue,
 } from 'react-native';
+
+import { getMemberMe } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -255,7 +257,7 @@ const getSemesterText = (date: Date) => {
 };
 
 export default function HomeScreen() {
-  const [displayName, setDisplayName] = useState('서현');
+  const [displayName, setDisplayName] = useState('닉네임');
   const [lifecycleStatus, setLifecycleStatus] = useState<LifecycleStatus>('지원 준비 중');
   const [dispatchInfo, setDispatchInfo] = useState({
     country: '독일',
@@ -303,14 +305,38 @@ export default function HomeScreen() {
           AsyncStorage.getItem('returnDate'),
         ]);
 
-        if (savedNickname) {
-          setDisplayName(savedNickname);
+        let apiNickname: string | null = null;
+        let apiDispatchedCountry: string | null = null;
+        let apiDispatchedUniversity: string | null = null;
+
+        try {
+          const memberRes = await getMemberMe();
+          const member = memberRes.data?.data;
+
+          apiNickname = member?.nickname?.trim() || null;
+          apiDispatchedCountry = member?.dispatchedCountry || null;
+          apiDispatchedUniversity = member?.dispatchedUniversity || null;
+
+          if (apiNickname) {
+            await AsyncStorage.setItem('nickname', apiNickname);
+          }
+        } catch (error: any) {
+          console.log('회원 정보 조회 실패:', error.response?.data || error.message);
         }
 
-        if (dispatchedCountry || dispatchedUniversity) {
+        if (apiNickname || savedNickname) {
+          setDisplayName(apiNickname || savedNickname || '닉네임');
+        }
+
+        if (
+          apiDispatchedCountry ||
+          apiDispatchedUniversity ||
+          dispatchedCountry ||
+          dispatchedUniversity
+        ) {
           setDispatchInfo({
-            country: dispatchedCountry || '독일',
-            university: dispatchedUniversity || '베를린 자유대학교',
+            country: apiDispatchedCountry || dispatchedCountry || '독일',
+            university: apiDispatchedUniversity || dispatchedUniversity || '베를린 자유대학교',
           });
         }
 
@@ -452,9 +478,6 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search" size={21} color={NAVY} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="notifications-outline" size={22} color={NAVY} />
           </TouchableOpacity>
