@@ -124,6 +124,7 @@ export default function ProfileCardScreen() {
           profileAvatarUri,
           exchangeStatus,
           savedIsVerified,
+          savedOverrides,
         ] = await Promise.all([
           AsyncStorage.getItem('nickname'),
           AsyncStorage.getItem('dispatchedCountry'),
@@ -134,9 +135,11 @@ export default function ProfileCardScreen() {
           AsyncStorage.getItem('profileAvatarUri'),
           AsyncStorage.getItem('exchangeStatus'),
           AsyncStorage.getItem('isVerified'),
+          AsyncStorage.getItem('profileFieldOverrides'),
         ]);
 
         setIsVerified(savedIsVerified === 'true');
+        const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
 
         let apiProfile = {
           nickname: null as string | null,
@@ -169,11 +172,11 @@ export default function ProfileCardScreen() {
 
         setProfile((prev) => ({
           ...prev,
-          nickname: apiProfile.nickname || nickname || prev.nickname,
-          country: apiProfile.country || dispatchedCountry || prev.country,
-          region: apiProfile.region || dispatchedRegion || prev.region,
-          university: apiProfile.university || dispatchedUniversity || prev.university,
-          homeUniversity: apiProfile.homeUniversity || homeUniversity || prev.homeUniversity,
+          nickname: overrides.nickname ? nickname || prev.nickname : apiProfile.nickname || nickname || prev.nickname,
+          country: overrides.country ? dispatchedCountry || prev.country : apiProfile.country || dispatchedCountry || prev.country,
+          region: overrides.region ? dispatchedRegion || prev.region : apiProfile.region || dispatchedRegion || prev.region,
+          university: overrides.dispatchedUniversity ? dispatchedUniversity || prev.university : apiProfile.university || dispatchedUniversity || prev.university,
+          homeUniversity: overrides.homeUniversity ? homeUniversity || prev.homeUniversity : apiProfile.homeUniversity || homeUniversity || prev.homeUniversity,
           status: profileStatus || (exchangeStatus ? statusDisplayMap[exchangeStatus] : null) || prev.status,
           avatarUri: profileAvatarUri || prev.avatarUri,
         }));
@@ -217,7 +220,7 @@ export default function ProfileCardScreen() {
               {profile.avatarUri ? (
                 <Image source={{ uri: profile.avatarUri }} style={styles.avatar} />
               ) : (
-                <Ionicons name="person" size={25} color="#B8C0CC" />
+                <Ionicons name="person" size={25} color={INK} />
               )}
               {isVerified ? (
                 <View style={styles.exchangeBadge}>
@@ -335,7 +338,7 @@ function MenuSection({
               <Text style={styles.menuTitle}>{item.title}</Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={17} color="#A4ADBA" />
+            <Ionicons name="chevron-forward" size={17} color={INK} />
           </TouchableOpacity>
         ))}
       </View>

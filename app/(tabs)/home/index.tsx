@@ -261,6 +261,7 @@ export default function HomeScreen() {
   const [lifecycleStatus, setLifecycleStatus] = useState<LifecycleStatus>('지원 준비 중');
   const [dispatchInfo, setDispatchInfo] = useState({
     country: '독일',
+    region: '베를린',
     university: '베를린 자유대학교',
   });
   const [dashboardDates, setDashboardDates] = useState({
@@ -286,36 +287,45 @@ export default function HomeScreen() {
           onboardingStatus,
           profileStatus,
           dispatchedCountry,
+          dispatchedRegion,
           dispatchedUniversity,
           applicationDeadline,
           departurePrepStartDate,
           departureDate,
           dispatchStartDate,
           returnDate,
+          savedOverrides,
         ] = await Promise.all([
           AsyncStorage.getItem('nickname'),
           AsyncStorage.getItem('exchangeStatus'),
           AsyncStorage.getItem('profileStatus'),
           AsyncStorage.getItem('dispatchedCountry'),
+          AsyncStorage.getItem('dispatchedRegion'),
           AsyncStorage.getItem('dispatchedUniversity'),
           AsyncStorage.getItem('applicationDeadline'),
           AsyncStorage.getItem('departurePrepStartDate'),
           AsyncStorage.getItem('departureDate'),
           AsyncStorage.getItem('dispatchStartDate'),
           AsyncStorage.getItem('returnDate'),
+          AsyncStorage.getItem('profileFieldOverrides'),
         ]);
+        const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
 
         let apiNickname: string | null = null;
         let apiDispatchedCountry: string | null = null;
+        let apiDispatchedRegion: string | null = null;
         let apiDispatchedUniversity: string | null = null;
 
         try {
           const memberRes = await getMemberMe();
           const member = memberRes.data?.data;
 
-          apiNickname = member?.nickname?.trim() || null;
-          apiDispatchedCountry = member?.dispatchedCountry || null;
-          apiDispatchedUniversity = member?.dispatchedUniversity || null;
+          apiNickname = overrides.nickname ? null : member?.nickname?.trim() || null;
+          apiDispatchedCountry = overrides.country ? null : member?.dispatchedCountry || null;
+          apiDispatchedRegion = overrides.region ? null : member?.dispatchedRegion || null;
+          apiDispatchedUniversity = overrides.dispatchedUniversity
+            ? null
+            : member?.dispatchedUniversity || null;
 
           if (apiNickname) {
             await AsyncStorage.setItem('nickname', apiNickname);
@@ -330,12 +340,15 @@ export default function HomeScreen() {
 
         if (
           apiDispatchedCountry ||
+          apiDispatchedRegion ||
           apiDispatchedUniversity ||
           dispatchedCountry ||
+          dispatchedRegion ||
           dispatchedUniversity
         ) {
           setDispatchInfo({
             country: apiDispatchedCountry || dispatchedCountry || '독일',
+            region: apiDispatchedRegion || dispatchedRegion || '베를린',
             university: apiDispatchedUniversity || dispatchedUniversity || '베를린 자유대학교',
           });
         }

@@ -18,6 +18,7 @@ export default function HomeLayout() {
       <Stack.Screen name="departure-checklist" />
       <Stack.Screen name="profile-card" />
       <Stack.Screen name="profile-edit" />
+      <Stack.Screen name="profile-field-edit" />
       <Stack.Screen name="more-menu" />
       <Stack.Screen name="mentoring" />
       <Stack.Screen name="school-detail" />
