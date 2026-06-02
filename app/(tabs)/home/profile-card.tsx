@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { getMemberMe } from '../../../src/api/auth';
+import { getMemberMe, logout } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -36,6 +36,7 @@ type MenuItem = {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   route: RouteTarget;
+  action?: 'logout';
 };
 
 const quickActions: QuickAction[] = [
@@ -85,10 +86,11 @@ const accountItems: MenuItem[] = [
     route: '/(tabs)/home/profile-edit',
   },
   {
-    title: '기타 설정',
-    description: '계정과 서비스 설정 관리',
-    icon: 'settings-outline',
+    title: '로그아웃하기',
+    description: '현재 계정에서 로그아웃',
+    icon: 'log-out-outline',
     route: null,
+    action: 'logout',
   },
 ];
 
@@ -195,6 +197,26 @@ export default function ProfileCardScreen() {
     router.push(route as any);
   };
 
+  const handleLogout = () => {
+    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '로그아웃',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+          } catch (error) {
+            console.log('로그아웃 API 호출 실패:', error);
+          } finally {
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+            router.replace('/login');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -237,7 +259,7 @@ export default function ProfileCardScreen() {
             </View>
 
             <View style={styles.profileManage}>
-              <Text style={styles.profileManageText}>내 정보 수정</Text>
+              <Ionicons name="pencil-outline" size={16} color={NAVY} />
             </View>
           </TouchableOpacity>
 
@@ -302,8 +324,17 @@ export default function ProfileCardScreen() {
           )}
         </TouchableOpacity>
 
-        <MenuSection title="내 활동" items={activityItems} onPressItem={openRoute} />
-        <MenuSection title="계정 / 설정" items={accountItems} onPressItem={openRoute} />
+        <MenuSection
+          title="내 활동"
+          items={activityItems}
+          onPressItem={openRoute}
+        />
+        <MenuSection
+          title="계정 / 설정"
+          items={accountItems}
+          onPressItem={openRoute}
+          onLogout={handleLogout}
+        />
       </ScrollView>
     </View>
   );
@@ -317,6 +348,7 @@ function MenuSection({
   title: string;
   items: MenuItem[];
   onPressItem: (route: RouteTarget) => void;
+  onLogout?: () => void;
 }) {
   return (
     <View style={styles.section}>
@@ -327,7 +359,7 @@ function MenuSection({
           <TouchableOpacity
             key={item.title}
             style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-            onPress={() => onPressItem(item.route)}
+            onPress={() => (item.action === 'logout' ? onLogout?.() : onPressItem(item.route))}
             activeOpacity={0.82}
           >
             <View style={styles.menuIconBox}>
@@ -452,17 +484,10 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   profileManage: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  profileManageText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: NAVY,
   },
   verificationCard: {
     minHeight: 60,
