@@ -26,6 +26,7 @@ import { getPopularCountries } from '../../../src/api/exchangeInfo';
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const INFO_CARD_WIDTH = Math.min(342, SCREEN_WIDTH - 48);
 const INFO_CARD_GAP = 10;
+const SHOW_EXPLORE_BLOG_REVIEWS = false;
 
 const BANNER_ITEMS = [
   {
@@ -767,6 +768,8 @@ export default function ExploreScreen() {
           </ScrollView>
         </View>
 
+        {SHOW_EXPLORE_BLOG_REVIEWS && (
+          <>
         {/* 💬 블로그 후기 탐색 섹션 */}
         <View style={styles.blogHeader}>
           <Text style={styles.blogTitle}>블로그 후기</Text>
@@ -950,9 +953,12 @@ export default function ExploreScreen() {
             })
           )}
         </View>
+          </>
+        )}
       </ScrollView>
 
-      <Modal
+      {SHOW_EXPLORE_BLOG_REVIEWS && (
+        <Modal
         visible={activeBlogFilter !== null}
         transparent
         animationType="slide"
@@ -1148,10 +1154,12 @@ export default function ExploreScreen() {
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
-      </Modal>
+        </Modal>
+      )}
 
       {/* 📚 블로그 후기 상세 독서 모달 */}
-      <Modal
+      {SHOW_EXPLORE_BLOG_REVIEWS && (
+        <Modal
         visible={selectedReview !== null}
         animationType="slide"
         transparent={false}
@@ -1283,7 +1291,8 @@ export default function ExploreScreen() {
             </View>
           </SafeAreaView>
         )}
-      </Modal>
+        </Modal>
+      )}
     </View>
   );
 }
