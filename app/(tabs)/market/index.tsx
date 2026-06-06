@@ -10,11 +10,11 @@ import {
   Text,
   TextInput,
   View,
+  TouchableOpacity,
 } from 'react-native';
 
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
-
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 
 const ticketItems = [
@@ -68,6 +68,7 @@ const formatPrice = (price: number) => {
 };
 
 export default function MarketPage() {
+  const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
@@ -75,12 +76,11 @@ export default function MarketPage() {
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
-
   useEffect(() => {
     if (tab === 'ticket') {
-      setSelectedType('ticket');
+      setSelectedTab('ticket');
     } else {
-      setSelectedType('bulk');
+      setSelectedTab('bulk');
     }
   }, [tab]);
 
@@ -167,7 +167,10 @@ export default function MarketPage() {
       '중고거래를 이용하려면 교환학생 신원 인증이 필요해요.',
       [
         { text: '취소', style: 'cancel' },
-        { text: '신원 인증하기', onPress: () => router.push('/verification' as any) },
+        {
+          text: '신원 인증하기',
+          onPress: () => router.push('/verification' as any),
+        },
       ],
     );
   };
@@ -221,40 +224,42 @@ export default function MarketPage() {
           </View>
         </View>
 
-        <View style={styles.tradeTypeBox}>
-          <Pressable
+        <View style={styles.tradeTypeWrapper}>
+          <TouchableOpacity
             style={[
               styles.tradeTypeButton,
-              selectedType === 'bulk' && styles.tradeTypeActive,
+              selectedTab === 'bulk' && styles.tradeTypeButtonActive,
             ]}
-            onPress={() => setSelectedType('bulk')}
+            onPress={() => setSelectedTab('bulk')}
+            activeOpacity={0.8}
           >
             <Text
               style={[
                 styles.tradeTypeText,
-                selectedType === 'bulk' && styles.tradeTypeTextActive,
+                selectedTab === 'bulk' && styles.tradeTypeTextActive,
               ]}
             >
               귀국 전 일괄 거래
             </Text>
-          </Pressable>
+          </TouchableOpacity>
 
-          <Pressable
+          <TouchableOpacity
             style={[
               styles.tradeTypeButton,
-              selectedType === 'ticket' && styles.tradeTypeActive,
+              selectedTab === 'ticket' && styles.tradeTypeButtonActive,
             ]}
-            onPress={() => setSelectedType('ticket')}
+            onPress={() => setSelectedTab('ticket')}
+            activeOpacity={0.8}
           >
             <Text
               style={[
                 styles.tradeTypeText,
-                selectedType === 'ticket' && styles.tradeTypeTextActive,
+                selectedTab === 'ticket' && styles.tradeTypeTextActive,
               ]}
             >
               티켓 양도
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBox}>
@@ -290,7 +295,7 @@ export default function MarketPage() {
           })}
         </View>
 
-        {selectedType === 'bulk' ? (
+        {selectedTab === 'bulk' ? (
           filteredItems.length > 0 ? (
             <View style={styles.postList}>
               {filteredItems.map((item) => (
@@ -503,7 +508,74 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 14,
+    padding: 4,
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  tradeTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F3F6',
+    borderRadius: 12,
+    padding: 5,
+    marginHorizontal: 22,
+    marginTop: 16,
+    marginBottom: 16,
+    height: 56,
+  },
 
+  tradeTypeButton: {
+    flex: 1,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tradeTypeWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F3F6',
+    borderRadius: 15,
+    padding: 5,
+    marginTop: 16,
+    marginBottom: 16,
+    height: 54,
+  },
+  tradeTypeButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  tradeTypeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#9B9B9B',
+  },
+
+  tradeTypeTextActive: {
+    color: '#003CFF',
+  },
+  segmentButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  segmentButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  segmentText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#999999',
+  },
+
+  segmentTextActive: {
+    color: '#003CFF',
+  },
   scroll: {
     flex: 1,
   },
@@ -584,28 +656,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 5,
     marginBottom: 16,
-  },
-
-  tradeTypeButton: {
-    flex: 1,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  tradeTypeActive: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  tradeTypeText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#8F8F8F',
-  },
-
-  tradeTypeTextActive: {
-    color: '#111111',
-    fontWeight: '900',
   },
 
   searchBox: {
