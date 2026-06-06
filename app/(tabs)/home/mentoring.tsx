@@ -6,7 +6,9 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
-import { router, Stack } from 'expo-router'; // ⭐ Stack 추가
+import { Stack } from 'expo-router'; // ⭐ Stack 추가
+
+import { BackButton } from '@/components/back-button';
 
 export default function MentoringScreen() {
   return (
@@ -14,15 +16,7 @@ export default function MentoringScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Stack.Screen options={{ headerShown: false }} />
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.dismissTo('/(tabs)/home/explore')}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          <BackButton fallbackHref="/(tabs)/home/explore" />
 
           <Text style={styles.headerTitle}>멘토링</Text>
 

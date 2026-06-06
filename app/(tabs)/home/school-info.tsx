@@ -9,6 +9,8 @@ import {
   Image,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 export default function SchoolInfoScreen() {
   const countries = [
     '독일',
@@ -27,15 +29,7 @@ export default function SchoolInfoScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.dismissTo('/(tabs)/home/explore')}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          <BackButton fallbackHref="/(tabs)/home/explore" />
 
           <Text style={styles.headerTitle}>파견교 정보 찾기</Text>
 

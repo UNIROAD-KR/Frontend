@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   Image,
@@ -9,6 +8,8 @@ import {
   View,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 export default function MarketDetailPage() {
   const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
   const [liked, setLiked] = useState(false);
@@ -17,9 +18,7 @@ export default function MarketDetailPage() {
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.top}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
+          <BackButton />
         </View>
 
         <View style={styles.imageArea}>
@@ -271,11 +270,6 @@ const styles = StyleSheet.create({
     height: 70,
     justifyContent: 'center',
     paddingHorizontal: 22,
-  },
-
-  back: {
-    fontSize: 36,
-    color: '#111',
   },
 
   imageArea: {

@@ -23,15 +23,8 @@ export const signupStyles = StyleSheet.create({
     marginBottom: 46,
   },
 
-  back: {
-    fontSize: 36,
-    lineHeight: 36,
-    color: '#111111',
-    fontWeight: '400',
-  },
-
   headerBlank: {
-    width: 28,
+    width: 44,
   },
 
   title: {

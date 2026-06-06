@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 type CategoryName =
   | '주방 용품'
   | '욕실 / 청소 용품'
@@ -248,9 +250,7 @@ export default function MarketCategoryPage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
+          <BackButton />
 
           <Text style={styles.headerTitle}>다음 교환학생에게 넘기기</Text>
 
@@ -433,12 +433,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
-  },
-
-  back: {
-    fontSize: 38,
-    color: '#111111',
-    lineHeight: 38,
   },
 
   headerTitle: {

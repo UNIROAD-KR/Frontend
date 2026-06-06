@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   Image,
@@ -11,6 +11,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { BackButton } from '@/components/back-button';
 
 import { getChatMessages } from '../../src/api/chat';
 
@@ -45,9 +47,7 @@ export default function ChatRoomPage() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <BackButton />
 
         <View style={styles.nameRow}>
           <Text style={styles.name}>may.be</Text>
@@ -174,12 +174,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-
-  back: {
-    fontSize: 48,
-    lineHeight: 48,
-    color: '#111111',
   },
 
   nameRow: {

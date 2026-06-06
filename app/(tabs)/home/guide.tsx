@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import {
   View,
   Text,
@@ -9,20 +8,14 @@ import {
   TextInput,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 export default function GuideScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.dismissTo('/(tabs)/home/explore')}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          <BackButton fallbackHref="/(tabs)/home/explore" />
 
           <Text style={styles.headerTitle}>교환학생 가이드</Text>
 

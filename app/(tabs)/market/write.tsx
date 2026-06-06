@@ -18,6 +18,8 @@ import {
   View,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 export default function MarketWritePage() {
   const scrollRef = useRef<ScrollView>(null);
 
@@ -151,9 +153,7 @@ export default function MarketWritePage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
+          <BackButton />
 
           <Text style={styles.headerTitle}>
             {type === 'all' ? '다음 교환학생에게 넘기기' : '개별 판매하기'}
@@ -409,12 +409,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
-  },
-
-  back: {
-    fontSize: 38,
-    color: '#111111',
-    lineHeight: 38,
   },
 
   headerTitle: {

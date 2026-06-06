@@ -2,15 +2,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { BackButton } from '@/components/back-button';
+
 export default function CompletePage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
   const displayName = nickname || 'OO';
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <BackButton />
 
       <View style={styles.centerArea}>
         <Image
@@ -89,11 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 30,
     paddingTop: 52,
-  },
-
-  back: {
-    fontSize: 38,
-    color: '#000',
   },
 
   centerArea: {

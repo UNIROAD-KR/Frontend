@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { BackButton } from '@/components/back-button';
 import { createOrGetChatRoom } from '../../../src/api/chat';
 
 export default function TicketPreviewPage() {
@@ -12,9 +13,7 @@ export default function TicketPreviewPage() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <BackButton style={styles.backButton} />
 
         <View style={styles.tagRow}>
           <View style={styles.tag}>
@@ -160,16 +159,7 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    width: 32,
-    height: 38,
-    justifyContent: 'center',
     marginBottom: 18,
-  },
-
-  back: {
-    fontSize: 38,
-    lineHeight: 38,
-    color: '#111111',
   },
 
   tagRow: {

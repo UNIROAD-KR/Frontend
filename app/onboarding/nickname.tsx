@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
-  Image,
 } from 'react-native';
+
+import { BackButton } from '@/components/back-button';
 
 export default function NicknamePage() {
   const [nickname, setNickname] = useState('');
@@ -16,9 +18,7 @@ export default function NicknamePage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <BackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -113,9 +113,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 38,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 

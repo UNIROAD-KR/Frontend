@@ -14,6 +14,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { BackButton } from '@/components/back-button';
+
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
 import { createUsedItem } from '../../../src/api/usedItems';
 
@@ -353,9 +356,7 @@ export default function MarketPreviewPage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.back}>‹</Text>
-          </Pressable>
+          <BackButton />
 
           <Text style={styles.headerTitle}>다음 교환학생에게 넘기기</Text>
 
@@ -686,7 +687,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  back: { fontSize: 38, color: '#111111', lineHeight: 38 },
   headerTitle: { fontSize: 17, fontWeight: '900', color: '#111111' },
   tempSave: { fontSize: 13, color: '#BDBDBD', fontWeight: '700' },
   imagePreview: {

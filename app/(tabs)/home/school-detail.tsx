@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
 } from 'react-native';
 
+import { BackButton } from '@/components/back-button';
+
 export default function SchoolDetailScreen() {
   const { name } = useLocalSearchParams<{ name?: string }>();
 
@@ -15,15 +17,7 @@ export default function SchoolDetailScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          <BackButton />
 
           <Text style={styles.headerTitle}>상세 정보</Text>
 

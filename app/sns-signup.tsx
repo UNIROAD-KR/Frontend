@@ -10,6 +10,7 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import { BackButton } from '@/components/back-button';
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
@@ -115,9 +116,7 @@ export default function SnsSignupPage() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <BackButton />
 
         <Text style={styles.title}>회원가입</Text>
 

@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { BackButton } from '@/components/back-button';
+
 type CurrentSituation =
   | 'PREPARING_APPLICATION'
   | 'PREPARING_DEPARTURE'
@@ -55,9 +57,7 @@ export default function UniversityPage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <BackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -201,9 +201,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 38,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 
