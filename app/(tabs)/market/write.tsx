@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { saveMarketDraft } from '../../../src/storage/marketDraft';
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 const parsePhotos = (value?: string) => {
   if (!value) return [];
@@ -37,8 +38,6 @@ const parseDate = (value?: string) => {
 
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
-
-import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 export default function MarketWritePage() {
   const handlePickImages = async () => {

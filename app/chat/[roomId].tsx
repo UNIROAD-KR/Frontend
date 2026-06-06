@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
@@ -19,6 +19,7 @@ import {
   sendChatMessage,
 } from '../../src/api/chat';
 import { getMemberMe } from '../../src/api/auth';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 type ChatMessage = {
   id: number;
@@ -116,9 +117,7 @@ export default function ChatRoomPage() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={15}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton />
 
         <View style={styles.nameRow}>
           <Text style={styles.name}>{sellerName ?? '채팅'}</Text>
@@ -277,12 +276,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-
-  back: {
-    fontSize: 34,
-    lineHeight: 36,
-    color: '#111111',
   },
 
   nameRow: {

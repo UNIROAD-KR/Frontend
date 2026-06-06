@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 
 import { getMemberMe } from '../src/api/auth';
+import { AppBackButton } from '@/components/ui/app-back-button';
 import {
   CompanionPostResponse,
   deleteCompanionPost,
@@ -425,9 +426,10 @@ export default function CommunityDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable style={styles.headerIconButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#111111" />
-        </Pressable>
+        <AppBackButton
+          onPress={() => router.back()}
+          style={styles.headerIconButton}
+        />
         <Text style={styles.headerTitle}>
           {detailType === 'companion' ? '동행 구하기' : '자유 게시판'}
         </Text>

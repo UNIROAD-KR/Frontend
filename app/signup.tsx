@@ -12,6 +12,7 @@ import {
 
 import { checkEmail, signUp, checkUsername } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -108,9 +109,7 @@ export default function SignupPage() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton />
 
         <Text style={styles.title}>회원가입</Text>
 

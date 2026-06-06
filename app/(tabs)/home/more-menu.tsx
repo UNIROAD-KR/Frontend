@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { SoftServiceIcon } from '@/components/soft-service-icon';
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { router } from 'expo-router';
 import {
   Dimensions,
@@ -87,9 +87,7 @@ export default function MoreMenuScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>전체 서비스</Text>
 

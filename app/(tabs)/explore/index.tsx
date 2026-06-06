@@ -9,12 +9,14 @@ import {
   ScrollView,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function ExploreScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <AppBackButton
           style={styles.iconBtn}
           onPress={() => {
             if (router.canGoBack()) {
@@ -23,12 +25,7 @@ export default function ExploreScreen() {
               router.navigate('/(tabs)/home');
             }
           }}
-        >
-          <Image
-            source={require('../../../assets/images/back.png')}
-            style={styles.icon}
-          />
-        </TouchableOpacity>
+        />
 
         <Text style={styles.title}>교환학생 정보 탐색</Text>
 
@@ -126,7 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
-  back: { fontSize: 22 },
   title: {
     flex: 1,
     textAlign: 'center',

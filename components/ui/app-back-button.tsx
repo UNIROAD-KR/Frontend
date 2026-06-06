@@ -28,7 +28,7 @@ export function AppBackButton({
       accessibilityLabel="뒤로가기"
       hitSlop={hitSlop}
       onPress={onPress ?? (() => router.back())}
-      style={[styles.button, style]}
+      style={[style, styles.button]}
     >
       <Image
         source={require('../../assets/images/back.png')}
@@ -42,12 +42,13 @@ const styles = StyleSheet.create({
   button: {
     width: 40,
     height: 40,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 15,
+    height: 24,
     resizeMode: 'contain',
   },
 });

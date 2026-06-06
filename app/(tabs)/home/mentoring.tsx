@@ -8,21 +8,18 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router'; // ⭐ Stack 추가
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function MentoringScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Stack.Screen options={{ headerShown: false }} />
-          <TouchableOpacity
+          <AppBackButton
             style={styles.iconBtn}
-            onPress={() => router.dismissTo('/(tabs)/home/explore')}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+            onPress={() => router.back()}
+          />
 
           <Text style={styles.headerTitle}>멘토링</Text>
 

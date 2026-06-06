@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -180,9 +181,7 @@ export default function ProfileCardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>내 프로필</Text>
 

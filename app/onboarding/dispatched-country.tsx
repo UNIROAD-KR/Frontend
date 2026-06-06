@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 const countries = [
   '독일',
   '프랑스',
@@ -77,9 +79,7 @@ export default function DispatchedCountryPage() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton style={styles.backButton} />
 
         <View style={styles.progressRow}>
           <View style={styles.progressActive} />
@@ -243,10 +243,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000000',
+  backButton: {
     marginBottom: 36,
   },
 

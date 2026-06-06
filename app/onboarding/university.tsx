@@ -13,6 +13,8 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 const universities = [
   '서울대학교',
   '서울과학기술대학교',
@@ -123,9 +125,7 @@ export default function UniversityPage() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton style={styles.backButton} />
 
         <View style={styles.progressRow}>
           <View style={styles.progressActive} />
@@ -243,10 +243,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 

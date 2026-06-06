@@ -3,6 +3,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState } from 'react';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { onboarding, OnboardingRequest } from '../../src/api/auth';
 
 const calculateAge = (birthYear: string | null) => {
@@ -102,9 +103,7 @@ export default function CompletePage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <AppBackButton />
 
       <View style={styles.centerArea}>
         <Image
@@ -146,12 +145,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 30,
     paddingTop: 52,
-  },
-
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
   },
 
   centerArea: {

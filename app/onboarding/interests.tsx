@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 const interests = [
   '교환학생 준비 가이드',
   '교환학생 생활 팁',
@@ -25,9 +27,7 @@ export default function InterestsPage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <AppBackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -95,10 +95,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 20,
   },
 

@@ -2,7 +2,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -18,6 +17,7 @@ import {
   View,
   type KeyboardEvent,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
 const PREP_DATES_STORAGE_KEY = 'departurePrepDueDates';
@@ -403,9 +403,7 @@ export default function DepartureChecklistScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>나의 출국 준비</Text>
 
