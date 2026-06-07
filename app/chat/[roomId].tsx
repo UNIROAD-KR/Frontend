@@ -141,9 +141,7 @@ export default function ChatRoomPage() {
         </View>
 
         <View style={styles.productInfo}>
-          <Text style={styles.productTitle}>
-            {title ?? '중고거래 게시글'}
-          </Text>
+          <Text style={styles.productTitle}>{title ?? '중고거래 게시글'}</Text>
           <Text style={styles.productPrice}>{price ?? '가격 미정'}</Text>
         </View>
       </View>
@@ -504,7 +502,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,
-    marginRight: -2,
+    marginRight: 3,
   },
 
   emojiIcon: {

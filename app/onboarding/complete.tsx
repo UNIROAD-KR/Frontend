@@ -35,7 +35,11 @@ const mapGender = (gender: string | null): OnboardingRequest['gender'] | null =>
 const mapCurrentSituation = (
   exchangeStatus: string | null,
 ): OnboardingRequest['currentSituation'] =>
-  exchangeStatus === 'dispatched' ? 'DISPATCHED' : 'PREPARING_APPLICATION';
+  exchangeStatus === 'dispatched'
+    ? 'DISPATCHED'
+    : exchangeStatus === 'accepted'
+      ? 'PREPARING_DEPARTURE'
+      : 'PREPARING_APPLICATION';
 
 export default function CompletePage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
@@ -58,6 +62,7 @@ export default function CompletePage() {
         dispatchedCountry,
         dispatchedRegion,
         exchangeStatus,
+        onboardingSituation,
       ] = await AsyncStorage.multiGet([
         'birthYear',
         'gender',
@@ -66,6 +71,7 @@ export default function CompletePage() {
         'dispatchedCountry',
         'dispatchedRegion',
         'exchangeStatus',
+        'onboardingSituation',
       ]);
 
       const gender = mapGender(storedGender[1]);
@@ -79,7 +85,9 @@ export default function CompletePage() {
       const request: OnboardingRequest = {
         nickname: displayName,
         gender,
-        currentSituation: mapCurrentSituation(exchangeStatus[1]),
+        currentSituation: mapCurrentSituation(
+          onboardingSituation[1] ?? exchangeStatus[1],
+        ),
         domesticUniversity: domesticUniversityValue,
         age: calculateAge(birthYear[1]),
         dispatchedUniversity: dispatchedUniversity[1]?.trim() || undefined,

@@ -132,7 +132,7 @@ export default function SnsSignupPage() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <AppBackButton />
+        <AppBackButton fallbackHref="/login" />
 
         <Text style={styles.title}>회원가입</Text>
 
