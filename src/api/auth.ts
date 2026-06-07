@@ -56,6 +56,11 @@ export interface MemberResponse {
   balance: number;
 }
 
+export interface PasswordUpdateRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export const signUp = (data: SignUpRequest) => {
   return api.post('/api/auth/sign-up', data);
 };
@@ -103,4 +108,8 @@ export const logout = () => {
 
 export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
+};
+
+export const updatePassword = (data: PasswordUpdateRequest) => {
+  return api.patch<BaseResponse<void>>('/api/members/me/password', data);
 };

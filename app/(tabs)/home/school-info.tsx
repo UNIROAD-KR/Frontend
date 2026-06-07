@@ -215,7 +215,12 @@ export default function SchoolInfoScreen() {
         <Text style={styles.headerTitle}>파견교 정보</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../../assets/images/alarm.png')}
               style={styles.icon}

@@ -68,6 +68,14 @@ export const getUsedItems = () => {
   return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items');
 };
 
+export const getMyUsedItems = (
+  params: { cursorId?: number; size?: number } = { size: 20 },
+) => {
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/my', {
+    params,
+  });
+};
+
 export const getUsedItemDetail = (id: number) => {
   return api.get<BaseResponse<UsedItemResponse>>(`/api/used-items/${id}`);
 };

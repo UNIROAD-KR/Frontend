@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { logout } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -21,7 +22,7 @@ const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
-type RouteTarget = string | null;
+type RouteTarget = unknown;
 type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
 
 type QuickAction = {
@@ -34,12 +35,27 @@ type MenuItem = {
   title: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
-  route: RouteTarget;
+  route?: RouteTarget;
+  action?: 'logout';
 };
 
 const quickActions: QuickAction[] = [
-  { title: '관심목록', icon: 'heart-outline', route: null },
-  { title: '최근 본 글', icon: 'time-outline', route: null },
+  {
+    title: '관심목록',
+    icon: 'heart-outline',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'saved' },
+    },
+  },
+  {
+    title: '최근 본 글',
+    icon: 'time-outline',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'recent' },
+    },
+  },
   { title: '여행 혜택', icon: 'sparkles-outline', route: '/(tabs)/home/guide' },
 ];
 
@@ -48,19 +64,28 @@ const activityItems: MenuItem[] = [
     title: '커뮤니티 작성글',
     description: '질문, 후기, 정보 공유 글 관리',
     icon: 'chatbubbles-outline',
-    route: '/(tabs)/community',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'free' },
+    },
   },
   {
     title: '중고거래 작성글',
     description: '판매 중인 물품과 거래 상태 확인',
     icon: 'bag-handle-outline',
-    route: '/(tabs)/market',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'market' },
+    },
   },
   {
     title: '동행 모집글',
     description: '출국, 여행, 정착 동행 모집 현황',
     icon: 'people-outline',
-    route: '/(tabs)/community',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'companion' },
+    },
   },
 ];
 
@@ -69,7 +94,10 @@ const savedItems: MenuItem[] = [
     title: '관심 게시글',
     description: '다시 볼 게시글 모아보기',
     icon: 'bookmark-outline',
-    route: null,
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'saved' },
+    },
   },
   {
     title: '저장한 파견교',
@@ -96,19 +124,19 @@ const accountItems: MenuItem[] = [
     title: '알림 설정',
     description: '관심 글과 거래 알림 관리',
     icon: 'notifications-outline',
-    route: null,
+    route: '/(tabs)/home/profile-notifications',
   },
   {
     title: '비밀번호 관리',
     description: '계정 비밀번호 변경 및 보안 관리',
     icon: 'lock-closed-outline',
-    route: null,
+    route: '/(tabs)/home/profile-password',
   },
   {
     title: '로그아웃',
     description: '현재 계정에서 나가기',
     icon: 'log-out-outline',
-    route: null,
+    action: 'logout',
   },
 ];
 
@@ -169,13 +197,40 @@ export default function ProfileCardScreen() {
     }, []),
   );
 
-  const openRoute = (route: RouteTarget) => {
+  const openRoute = (route?: RouteTarget) => {
     if (!route) {
       Alert.alert('준비 중', '이 목록 화면은 곧 연결될 예정입니다.');
       return;
     }
 
     router.push(route as any);
+  };
+
+  const performLogout = async () => {
+    try {
+      await logout();
+    } catch (error: any) {
+      console.log('로그아웃 API 실패:', error.response?.data || error.message);
+    } finally {
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+      router.replace('/login' as any);
+    }
+  };
+
+  const confirmLogout = () => {
+    Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      { text: '확인', style: 'destructive', onPress: performLogout },
+    ]);
+  };
+
+  const handleMenuItemPress = (item: MenuItem) => {
+    if (item.action === 'logout') {
+      confirmLogout();
+      return;
+    }
+
+    openRoute(item.route);
   };
 
   return (
@@ -185,7 +240,10 @@ export default function ProfileCardScreen() {
 
         <Text style={styles.headerTitle}>내 프로필</Text>
 
-        <TouchableOpacity style={styles.iconBtn} onPress={() => openRoute(null)}>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => openRoute('/(tabs)/home/profile-settings')}
+        >
           <Ionicons name="settings-outline" size={21} color={NAVY} />
         </TouchableOpacity>
       </View>
@@ -237,9 +295,9 @@ export default function ProfileCardScreen() {
           ))}
         </View>
 
-        <MenuSection title="내 활동" items={activityItems} onPressItem={openRoute} />
-        <MenuSection title="관심 / 저장" items={savedItems} onPressItem={openRoute} />
-        <MenuSection title="계정 / 설정" items={accountItems} onPressItem={openRoute} />
+        <MenuSection title="내 활동" items={activityItems} onPressItem={handleMenuItemPress} />
+        <MenuSection title="관심 / 저장" items={savedItems} onPressItem={handleMenuItemPress} />
+        <MenuSection title="계정 / 설정" items={accountItems} onPressItem={handleMenuItemPress} />
       </ScrollView>
     </View>
   );
@@ -252,7 +310,7 @@ function MenuSection({
 }: {
   title: string;
   items: MenuItem[];
-  onPressItem: (route: RouteTarget) => void;
+  onPressItem: (item: MenuItem) => void;
 }) {
   return (
     <View style={styles.section}>
@@ -263,7 +321,7 @@ function MenuSection({
           <TouchableOpacity
             key={item.title}
             style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-            onPress={() => onPressItem(item.route)}
+            onPress={() => onPressItem(item)}
             activeOpacity={0.82}
           >
             <View style={styles.menuIconBox}>

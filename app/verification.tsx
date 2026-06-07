@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { submitVerification } from '../src/api/verification';
 
 export default function VerificationPage() {
@@ -38,6 +39,8 @@ export default function VerificationPage() {
 
   return (
     <View style={styles.container}>
+      <AppBackButton fallbackHref="/home" style={styles.backButton} />
+
       <Text style={styles.title}>교환학생 신원 인증</Text>
 
       <Text style={styles.description}>
@@ -110,7 +113,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 32,
-    paddingTop: 150,
+    paddingTop: 52,
+  },
+
+  backButton: {
+    marginBottom: 58,
   },
 
   title: {

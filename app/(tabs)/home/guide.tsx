@@ -16,21 +16,26 @@ export default function GuideScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <AppBackButton
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-          />
+          <AppBackButton style={styles.iconBtn} />
 
           <Text style={styles.headerTitle}>교환학생 가이드</Text>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.icon}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.icon}

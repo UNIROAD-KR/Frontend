@@ -9,34 +9,29 @@ import {
   ScrollView,
 } from 'react-native';
 
-import { AppBackButton } from '@/components/ui/app-back-button';
-
 export default function ExploreScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <AppBackButton
-          style={styles.iconBtn}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.navigate('/(tabs)/home');
-            }
-          }}
-        />
-
         <Text style={styles.title}>교환학생 정보 탐색</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../../assets/images/alarm.png')}
               style={styles.icon}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/more-menu' as any)}
+          >
             <Image
               source={require('../../../assets/images/menu.png')}
               style={styles.icon}

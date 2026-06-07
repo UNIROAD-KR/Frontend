@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -16,6 +18,7 @@ import {
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
+const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
 
 const ticketItems = [
   {
@@ -67,13 +70,23 @@ const formatPrice = (price: number) => {
   return `${price.toLocaleString()}원`;
 };
 
+type TicketItem = (typeof ticketItems)[number];
+
+const saveBookmarkedTickets = async (ids: number[]) => {
+  const savedTickets = ticketItems.filter((item) => ids.includes(item.id));
+
+  await AsyncStorage.setItem(
+    SAVED_TICKET_POSTS_STORAGE_KEY,
+    JSON.stringify(savedTickets),
+  );
+};
+
 export default function MarketPage() {
   const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
-  const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
   useEffect(() => {
@@ -83,6 +96,31 @@ export default function MarketPage() {
       setSelectedTab('bulk');
     }
   }, [tab]);
+
+  useEffect(() => {
+    const loadBookmarkedTickets = async () => {
+      const savedTickets = await AsyncStorage.getItem(
+        SAVED_TICKET_POSTS_STORAGE_KEY,
+      );
+
+      if (!savedTickets) {
+        return;
+      }
+
+      try {
+        const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
+        const ids = parsedTickets
+          .map((item) => item.id)
+          .filter((id): id is number => typeof id === 'number');
+
+        setBookmarkedIds(ids);
+      } catch {
+        await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
+      }
+    };
+
+    loadBookmarkedTickets();
+  }, []);
 
   const fetchUsedItems = async () => {
     try {
@@ -145,9 +183,17 @@ export default function MarketPage() {
   };
 
   const toggleBookmark = (id: number) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
+    setBookmarkedIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+
+      saveBookmarkedTickets(next).catch((error) => {
+        console.log('저장한 티켓 목록 저장 실패:', error);
+      });
+
+      return next;
+    });
   };
 
   const requireVerificationBefore = async (path: string) => {
@@ -208,14 +254,20 @@ export default function MarketPage() {
           <Text style={styles.title}>교환학생 전용 거래</Text>
 
           <View style={styles.headerIcons}>
-            <Pressable>
+            <Pressable
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.headerIconImage}
               />
             </Pressable>
 
-            <Pressable>
+            <Pressable
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.headerIconImage}
@@ -414,13 +466,16 @@ export default function MarketPage() {
                     }}
                   >
                     <View style={styles.bookmarkIconWrapper}>
-                      <Image
-                        source={
+                      <Ionicons
+                        name={
                           bookmarkedIds.includes(item.id)
-                            ? require('../../../assets/images/filled_book_mark.png')
-                            : require('../../../assets/images/book_mark.png')
+                            ? 'bookmark'
+                            : 'bookmark-outline'
                         }
-                        style={styles.bookmarkIcon}
+                        size={24}
+                        color={
+                          bookmarkedIds.includes(item.id) ? BLUE : '#111111'
+                        }
                       />
                     </View>
                   </Pressable>
@@ -480,7 +535,10 @@ export default function MarketPage() {
 
           <Pressable
             style={styles.fabMenuItem}
-            onPress={() => requireVerificationBefore('/market/ticket-preview')}
+            onPress={() => {
+              setIsFabOpen(false);
+              router.push('/market/ticket-write' as any);
+            }}
           >
             <Image
               source={require('../../../assets/images/used_each.png')}
@@ -586,31 +644,24 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   ticketProfileIcon: {
-    width: 25,
-    height: 25,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     resizeMode: 'cover',
-    marginRight: 7,
+    marginRight: 6,
   },
   bookmarkButton: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   bookmarkIconWrapper: {
-    width: 22,
-    height: 22,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  bookmarkIcon: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
-    position: 'absolute',
   },
 
   ticketInfoItem: {
@@ -619,8 +670,8 @@ const styles = StyleSheet.create({
   },
 
   ticketInfoIcon: {
-    width: 14,
-    height: 14,
+    width: 13,
+    height: 13,
     resizeMode: 'contain',
     marginRight: 5,
   },
@@ -713,7 +764,7 @@ const styles = StyleSheet.create({
   },
 
   postList: {
-    gap: 20,
+    gap: 16,
   },
 
   emptyState: {
@@ -742,11 +793,11 @@ const styles = StyleSheet.create({
   },
 
   thumbnail: {
-    width: 144,
-    height: 144,
+    width: 118,
+    height: 118,
     borderRadius: 10,
     backgroundColor: '#D9D9D9',
-    marginRight: 16,
+    marginRight: 13,
     overflow: 'hidden',
   },
 
@@ -758,32 +809,32 @@ const styles = StyleSheet.create({
 
   heartCircle: {
     position: 'absolute',
-    right: 9,
-    top: 8,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    right: 7,
+    top: 7,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#444444',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   heartCircleActive: {
-    backgroundColor: '#FFE3EC',
+    backgroundColor: '#EAF1FF',
   },
 
   heart: {
     color: '#FFFFFF',
-    fontSize: 21,
+    fontSize: 19,
   },
 
   heartActive: {
-    color: '#FF4F7B',
+    color: BLUE,
   },
 
   postInfo: {
     flex: 1,
-    paddingTop: 6,
+    paddingTop: 2,
   },
 
   postTop: {
@@ -793,28 +844,28 @@ const styles = StyleSheet.create({
 
   postTitle: {
     flex: 1,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '700',
     color: '#111111',
   },
 
   arrow: {
-    fontSize: 34,
+    fontSize: 28,
     color: '#777777',
   },
 
   meta: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#777777',
-    marginTop: 8,
+    marginTop: 5,
   },
 
   price: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: '#000000',
-    marginTop: 6,
+    marginTop: 4,
   },
 
   reactionRow: {
@@ -822,7 +873,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 8,
-    marginTop: 26,
+    marginTop: 15,
   },
 
   reactionItem: {
@@ -849,7 +900,7 @@ const styles = StyleSheet.create({
   },
 
   ticketCard: {
-    paddingVertical: 20,
+    paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
@@ -857,7 +908,7 @@ const styles = StyleSheet.create({
   ticketMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
 
   userCircle: {
@@ -877,14 +928,14 @@ const styles = StyleSheet.create({
 
   ticketMeta: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 10,
     color: '#777777',
   },
 
   ticketTag: {
-    paddingHorizontal: 13,
-    height: 22,
-    borderRadius: 11,
+    paddingHorizontal: 10,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
@@ -892,7 +943,7 @@ const styles = StyleSheet.create({
   },
 
   ticketTagText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#555555',
   },
@@ -905,8 +956,8 @@ const styles = StyleSheet.create({
 
   ticketTitle: {
     flex: 1,
-    fontSize: 19,
-    lineHeight: 26,
+    fontSize: 17,
+    lineHeight: 23,
     fontWeight: '900',
     color: '#111111',
   },
@@ -919,12 +970,12 @@ const styles = StyleSheet.create({
 
   ticketInfoRow: {
     flexDirection: 'row',
-    gap: 22,
-    marginTop: 12,
+    gap: 18,
+    marginTop: 9,
   },
 
   ticketInfo: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666666',
     fontWeight: '600',
   },
@@ -932,29 +983,29 @@ const styles = StyleSheet.create({
   ticketPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 12,
   },
 
   ticketPrice: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: '900',
     color: '#000000',
     marginRight: 10,
   },
 
   ticketOriginalPrice: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#B8B8B8',
     textDecorationLine: 'line-through',
   },
 
   ticketLikeRow: {
     alignItems: 'flex-end',
-    marginTop: -10,
+    marginTop: -4,
   },
 
   ticketLike: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#555555',
   },
 

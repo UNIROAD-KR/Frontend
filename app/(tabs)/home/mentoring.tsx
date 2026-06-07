@@ -16,21 +16,26 @@ export default function MentoringScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Stack.Screen options={{ headerShown: false }} />
-          <AppBackButton
-            style={styles.iconBtn}
-            onPress={() => router.back()}
-          />
+          <AppBackButton style={styles.iconBtn} />
 
           <Text style={styles.headerTitle}>멘토링</Text>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.icon}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.icon}

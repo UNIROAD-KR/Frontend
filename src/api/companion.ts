@@ -33,6 +33,12 @@ export interface CompanionPostResponse {
   createdAt: string;
 }
 
+export interface CompanionPostListResponse {
+  items: CompanionPostResponse[];
+  hasNext: boolean;
+  nextCursorId: number | null;
+}
+
 // 동행 구하기 목록 조회
 export const getCompanionPosts = async (params: CursorRequest = { size: 10 }) => {
   console.log('[동행 구하기 목록 조회 API] 요청 시작: GET /api/companions', params);
@@ -81,4 +87,13 @@ export const deleteCompanionPost = (postId: number) => {
 // 내 동행 구하기 글 조회
 export const getMyCompanionPosts = () => {
   return api.get<BaseResponse<CompanionPostResponse[]>>('/api/companions/my');
+};
+
+export const getMyCompanionPostPage = (
+  params: CursorRequest = { size: 20 },
+) => {
+  return api.get<BaseResponse<CompanionPostListResponse>>(
+    '/api/companions/my',
+    { params },
+  );
 };

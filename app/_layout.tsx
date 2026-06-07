@@ -33,6 +33,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/dispatched-interests" />
         <Stack.Screen name="onboarding/complete" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="notifications" options={{ animation: 'none' }} />
+        <Stack.Screen name="more-menu" options={{ animation: 'none' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="sns-signup" />
       </Stack>

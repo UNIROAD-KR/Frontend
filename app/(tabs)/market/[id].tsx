@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -343,10 +344,6 @@ export default function MarketDetailPage() {
 
           <View style={styles.titleRow}>
             <Text style={styles.title}>{post.title}</Text>
-            <Image
-              source={require('../../../assets/images/share.png')}
-              style={styles.shareIcon}
-            />
           </View>
 
           <Text style={styles.price}>{formatPrice(post)}</Text>
@@ -384,14 +381,14 @@ export default function MarketDetailPage() {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <Pressable onPress={() => setLiked(!liked)}>
-          <Image
-            source={
-              liked
-                ? require('../../../assets/images/filled_heart.png')
-                : require('../../../assets/images/heart.png')
-            }
-            style={liked ? styles.filledHeartIcon : styles.heartIcon}
+        <Pressable
+          style={styles.bottomHeartButton}
+          onPress={() => setLiked((prev) => !prev)}
+        >
+          <Ionicons
+            name={liked ? 'heart' : 'heart-outline'}
+            size={35}
+            color={liked ? BLUE : '#111111'}
           />
         </Pressable>
 
@@ -595,7 +592,9 @@ const styles = StyleSheet.create({
   top: {
     height: 92,
     paddingTop: 36,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 22,
   },
 
@@ -709,12 +708,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#111111',
     marginRight: 10,
-  },
-
-  shareIcon: {
-    width: 30,
-    height: 30,
-    resizeMode: 'contain',
   },
 
   price: {
@@ -965,23 +958,17 @@ const styles = StyleSheet.create({
     height: 86,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 22,
-    paddingTop: 12,
+    paddingTop: 10,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
 
-  heartIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-    top: 6,
-  },
-
-  filledHeartIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-    top: 6,
+  bottomHeartButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
 
   chatButton: {
@@ -990,8 +977,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
-    width: '85%',
-    left: 15,
+    flex: 1,
   },
 
   chatText: {

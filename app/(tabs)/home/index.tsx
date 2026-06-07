@@ -452,10 +452,16 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/(tabs)/home/profile-list?type=recent' as any)}
+          >
             <Ionicons name="search" size={21} color={NAVY} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/notifications' as any)}
+          >
             <Ionicons name="notifications-outline" size={22} color={NAVY} />
           </TouchableOpacity>
         </View>
@@ -599,7 +605,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>빠른 메뉴</Text>
           <TouchableOpacity
             style={styles.quickMoreButton}
-            onPress={() => router.push('/(tabs)/home/more-menu' as any)}
+            onPress={() => router.push('/more-menu' as any)}
             activeOpacity={0.82}
           >
             <Text style={styles.moreText}>더보기</Text>
