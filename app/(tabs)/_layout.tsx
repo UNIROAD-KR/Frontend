@@ -150,7 +150,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="mypage"
         options={{
-          title: '나의 관리',
+          title: '지출 관리',
           tabBarIcon: () => (
             <Ionicons
               name={isMyPageActive ? 'person' : 'person-outline'}

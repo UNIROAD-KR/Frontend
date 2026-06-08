@@ -1,18 +1,18 @@
-import svgPaths from "./svg-zgl5s7yjap";
-import imgRectangle2 from "./f1259078373f69f440e5c5c94b0db9d9488b12ea.png";
+import imgRectangle22 from "./0d9de5031788a1431dd255cfab19aab97a78758d.png";
+import imgRectangle122 from "./2be959ac26a39131fa26027eb872c8a6c279aa04.png";
+import img3DiconsWalletFrontColor from "./399482c90a7c204543ec505e5fd9a5e2ec41e352.png";
 import imgRectangle112 from "./4e53df4d1e1c6c5a3d566e59aff229f8bfacc4ac.png";
+import img3DiconsCalenderFrontColor from "./5d4a26146c420f7f577959af3da6fa59156846c8.png";
+import imgLocation from "./68a3d1200ea3f10a9eeb6f9538364d176d16f3dc.png";
+import imgDevops from "./6f7eef858e89311f642739309218169c8b03e180.png";
+import img3DiconsFireFrontColor from "./7124b4b945ceb78d277bc2e9f521e7b63f080782.png";
+import imgShoppingCart from "./84cb1c0daafe7ca98dce450a59e81454a06f7efe.png";
+import imgCompass from "./9202b6db6ef47098bdfb7ebb2f0701ddbf6869e5.png";
+import imgTravelBook from "./b99f3eb588a93b62feaa091f3e39bc9a8c559378.png";
 import imgRectangle113 from "./c0aebca7450dc48144bf4c4b01d46d1e705d9970.png";
 import imgRectangle114 from "./db42d8d2e486e9a5661bbefe85db1ce0bf50c5fe.png";
-import imgRectangle22 from "./0d9de5031788a1431dd255cfab19aab97a78758d.png";
-import imgLocation from "./68a3d1200ea3f10a9eeb6f9538364d176d16f3dc.png";
-import imgRectangle122 from "./2be959ac26a39131fa26027eb872c8a6c279aa04.png";
-import img3DiconsCalenderFrontColor from "./5d4a26146c420f7f577959af3da6fa59156846c8.png";
-import img3DiconsFireFrontColor from "./7124b4b945ceb78d277bc2e9f521e7b63f080782.png";
-import imgTravelBook from "./b99f3eb588a93b62feaa091f3e39bc9a8c559378.png";
-import img3DiconsWalletFrontColor from "./399482c90a7c204543ec505e5fd9a5e2ec41e352.png";
-import imgCompass from "./9202b6db6ef47098bdfb7ebb2f0701ddbf6869e5.png";
-import imgShoppingCart from "./84cb1c0daafe7ca98dce450a59e81454a06f7efe.png";
-import imgDevops from "./6f7eef858e89311f642739309218169c8b03e180.png";
+import imgRectangle2 from "./f1259078373f69f440e5c5c94b0db9d9488b12ea.png";
+import svgPaths from "./svg-zgl5s7yjap";
 
 function Group() {
   return (
@@ -350,7 +350,7 @@ export default function Home() {
         <div className="absolute left-[343.81px] opacity-50 size-[21.622px] top-[16px]" data-name="Devops">
           <img alt="" className="absolute inset-0 max-w-none object-contain pointer-events-none size-full" src={imgDevops} />
         </div>
-        <p className="-translate-x-1/2 absolute font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal h-[12.973px] leading-[normal] left-[354.62px] not-italic text-[#666] text-[10px] text-center top-[40.62px] w-[43.243px]">나의 관리</p>
+        <p className="-translate-x-1/2 absolute font-['Inter:Regular','Noto_Sans_KR:Regular',sans-serif] font-normal h-[12.973px] leading-[normal] left-[354.62px] not-italic text-[#666] text-[10px] text-center top-[40.62px] w-[43.243px]">지출 관리</p>
       </div>
     </div>
   );
