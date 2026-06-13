@@ -382,7 +382,16 @@ export default function TicketWritePage() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <AppBackButton />
+          <AppBackButton
+            onPress={() => {
+              if (step === 2) {
+                setStep(1);
+                return;
+              }
+
+              router.back();
+            }}
+          />
           <Text style={styles.headerTitle}>티켓양도하기</Text>
           <Text style={styles.tempSave}>임시저장</Text>
         </View>
@@ -402,6 +411,7 @@ export default function TicketWritePage() {
                   >
                     <Text
                       style={[styles.typeText, active && styles.typeTextActive]}
+                      numberOfLines={1}
                     >
                       {option.label}
                     </Text>
@@ -411,7 +421,9 @@ export default function TicketWritePage() {
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>티켓 정보</Text>
+              <Text style={[styles.sectionLabel, styles.sectionHeaderLabel]}>
+                티켓 정보
+              </Text>
               <View style={styles.sectionLine} />
             </View>
 
@@ -458,7 +470,9 @@ export default function TicketWritePage() {
             {!isAccommodation && (
               <View style={styles.twoColumnRow}>
                 <View style={styles.halfGroup}>
-                  <Text style={styles.inputLabel}>{fieldLabels.date}</Text>
+                  <Text style={styles.inputLabel} numberOfLines={1}>
+                    {fieldLabels.date}
+                  </Text>
                   <Pressable
                     style={styles.selectInput}
                     onPress={() => openPicker('date')}
@@ -476,7 +490,9 @@ export default function TicketWritePage() {
                 </View>
 
                 <View style={styles.halfGroup}>
-                  <Text style={styles.inputLabel}>{fieldLabels.time}</Text>
+                  <Text style={styles.inputLabel} numberOfLines={1}>
+                    {fieldLabels.time}
+                  </Text>
                   <Pressable
                     style={styles.selectInput}
                     onPress={() => openPicker('time')}
@@ -553,7 +569,9 @@ export default function TicketWritePage() {
               </View>
 
               <View style={styles.halfGroup}>
-                <Text style={styles.inputLabel}>{fieldLabels.location}</Text>
+                <Text style={styles.inputLabel} numberOfLines={1}>
+                  {fieldLabels.location}
+                </Text>
                 <TextInput
                   style={styles.input}
                   placeholder="입력"
@@ -615,8 +633,10 @@ export default function TicketWritePage() {
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>가격</Text>
+            <View style={[styles.sectionHeader, styles.priceSectionHeader]}>
+              <Text style={[styles.sectionLabel, styles.sectionHeaderLabel]}>
+                가격
+              </Text>
               <View style={styles.sectionLine} />
             </View>
 
@@ -650,7 +670,7 @@ export default function TicketWritePage() {
           </>
         ) : (
           <>
-            <Text style={styles.inputLabel}>제목</Text>
+            <Text style={styles.stepTwoLabel}>제목</Text>
             <TextInput
               style={styles.input}
               placeholder="제목을 입력해주세요."
@@ -659,7 +679,7 @@ export default function TicketWritePage() {
               onChangeText={setTitle}
             />
 
-            <Text style={[styles.inputLabel, styles.descriptionLabel]}>
+            <Text style={[styles.stepTwoLabel, styles.descriptionLabel]}>
               상세 설명
             </Text>
             <TextInput
@@ -1109,55 +1129,59 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   header: {
-    height: 38,
+    height: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 22,
+    marginBottom: 24,
   },
   headerTitle: {
     position: 'absolute',
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
     color: '#111111',
   },
   tempSave: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#C4C4C4',
     fontWeight: '600',
   },
   sectionLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 12,
+    marginBottom: 14,
+  },
+  sectionHeaderLabel: {
+    marginBottom: 0,
   },
   typeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     columnGap: 8,
-    rowGap: 12,
-    marginBottom: 32,
+    rowGap: 13,
+    marginBottom: 36,
   },
   typeButton: {
-    height: 24,
+    height: 27,
+    flexBasis: '30%',
     minWidth: '30%',
     flexGrow: 1,
-    borderRadius: 12,
+    borderRadius: 13.5,
     backgroundColor: '#F1F1F1',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
   },
   typeButtonActive: {
     backgroundColor: '#E5E8FF',
   },
   typeText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '600',
     color: '#111111',
   },
   typeTextActive: {
@@ -1168,8 +1192,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    marginTop: 10,
-    marginBottom: 14,
+    marginTop: 0,
+    marginBottom: 15,
+  },
+  priceSectionHeader: {
+    marginTop: 23,
   },
   sectionLine: {
     flex: 1,
@@ -1179,36 +1206,48 @@ const styles = StyleSheet.create({
   twoColumnRow: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: 13,
   },
   halfGroup: {
     flex: 1,
   },
   fullGroup: {
-    marginBottom: 12,
+    marginBottom: 13,
   },
   hiddenRow: {
     display: 'none',
   },
   inputLabel: {
-    fontSize: 12,
+    height: 17,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 7,
+    marginBottom: 8,
+    includeFontPadding: false,
+  },
+  stepTwoLabel: {
+    height: 19,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 10,
+    includeFontPadding: false,
   },
   selectInput: {
-    height: 32,
+    height: 36,
     borderWidth: 1,
     borderColor: '#D4D4D4',
     borderRadius: 3,
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   selectText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 13,
     color: '#9B9B9B',
   },
   selectTextActive: {
@@ -1216,70 +1255,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chevron: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#A0A0A0',
-    lineHeight: 18,
+    lineHeight: 19,
   },
   input: {
-    height: 32,
+    height: 36,
     borderWidth: 1,
     borderColor: '#D4D4D4',
     borderRadius: 3,
-    paddingHorizontal: 11,
-    fontSize: 12,
+    paddingHorizontal: 12,
+    fontSize: 13,
     color: '#111111',
-    marginBottom: 14,
+    marginBottom: 15,
   },
   quantityBox: {
-    height: 32,
+    height: 36,
     borderWidth: 1,
     borderColor: '#D4D4D4',
     borderRadius: 3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   quantityButton: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
   quantityButtonText: {
-    fontSize: 18,
-    lineHeight: 20,
+    fontSize: 19,
+    lineHeight: 21,
     color: '#111111',
     fontWeight: '700',
   },
   quantityText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#777777',
     fontWeight: '700',
   },
   helperText: {
     marginTop: -6,
-    marginBottom: 10,
-    fontSize: 11,
+    marginBottom: 11,
+    fontSize: 12,
     color: BLUE,
     fontWeight: '700',
   },
   descriptionLabel: {
-    marginTop: 22,
+    marginTop: 24,
   },
   textArea: {
-    height: 135,
+    height: 145,
     borderWidth: 1,
     borderColor: '#D4D4D4',
     borderRadius: 3,
-    paddingHorizontal: 11,
-    paddingVertical: 12,
-    fontSize: 12,
-    lineHeight: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    fontSize: 13,
+    lineHeight: 20,
     color: '#111111',
   },
   bottomButton: {
-    height: 42,
+    height: 46,
     borderRadius: 4,
     backgroundColor: BLUE,
     alignItems: 'center',
@@ -1290,7 +1329,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#C9D0F8',
   },
   bottomButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '900',
     color: '#FFFFFF',
   },
@@ -1311,31 +1350,31 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   picker: {
-    height: 210,
+    height: 218,
     backgroundColor: '#FFFFFF',
   },
   calendarBox: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 6,
+    paddingTop: 17,
+    paddingBottom: 8,
   },
   calendarMonthRow: {
-    height: 44,
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 11,
   },
   calendarNavButton: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
   },
   calendarNavText: {
-    fontSize: 32,
-    lineHeight: 34,
+    fontSize: 33,
+    lineHeight: 35,
     color: '#111111',
     fontWeight: '800',
   },
@@ -1344,7 +1383,7 @@ const styles = StyleSheet.create({
     left: 56,
     right: 56,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: '#111111',
   },
@@ -1355,10 +1394,10 @@ const styles = StyleSheet.create({
   weekDayText: {
     width: `${100 / 7}%`,
     textAlign: 'center',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: '#777777',
-    lineHeight: 30,
+    lineHeight: 31,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -1367,7 +1406,7 @@ const styles = StyleSheet.create({
   },
   calendarDay: {
     width: `${100 / 7}%`,
-    height: 46,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1391,9 +1430,9 @@ const styles = StyleSheet.create({
     right: '50%',
   },
   calendarDayCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
@@ -1402,7 +1441,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
   },
   calendarDayText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111111',
   },
@@ -1416,7 +1455,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   timePickerLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
     color: '#111111',
     marginBottom: 8,
@@ -1429,8 +1468,8 @@ const styles = StyleSheet.create({
   },
   timeOption: {
     width: '14.8%',
-    height: 34,
-    borderRadius: 17,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#F1F1F1',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1439,7 +1478,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
   },
   timeOptionText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '800',
     color: '#333333',
   },
@@ -1490,13 +1529,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   timeWheelText: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '500',
     color: '#9E9E9E',
     lineHeight: TIME_ITEM_HEIGHT,
   },
   timeWheelTextSelected: {
-    fontSize: 18,
+    fontSize: 19,
     color: '#111111',
     fontWeight: '600',
     lineHeight: TIME_ITEM_HEIGHT,
@@ -1504,14 +1543,14 @@ const styles = StyleSheet.create({
   timeWheelSeparator: {
     width: 42,
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '600',
     color: '#111111',
     lineHeight: TIME_ITEM_HEIGHT,
     zIndex: 1,
   },
   pickerHeader: {
-    height: 48,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1523,7 +1562,7 @@ const styles = StyleSheet.create({
     width: 34,
   },
   pickerCancel: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#777777',
     fontWeight: '700',
   },
@@ -1532,12 +1571,12 @@ const styles = StyleSheet.create({
     left: 88,
     right: 88,
     textAlign: 'center',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '900',
     color: '#111111',
   },
   pickerDone: {
-    fontSize: 15,
+    fontSize: 16,
     color: BLUE,
     fontWeight: '900',
   },
@@ -1553,7 +1592,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   countryOption: {
-    height: 44,
+    height: 46,
     borderRadius: 6,
     paddingHorizontal: 14,
     alignItems: 'center',
@@ -1563,7 +1602,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F3FF',
   },
   countryOptionText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111111',
   },
