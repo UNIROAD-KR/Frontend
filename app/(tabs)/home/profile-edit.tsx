@@ -18,7 +18,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getMemberMe } from '../../../src/api/auth';
+import {
+  getMemberMe,
+  updateMemberProfile,
+  type CurrentSituation,
+  type MemberProfileUpdateRequest,
+} from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -40,6 +45,20 @@ const exchangeStatusByProfileStatus: Record<string, string> = {
   '출국 준비 중': 'accepted',
   '파견 중': 'dispatched',
   귀국: 'returned',
+};
+const currentSituationByProfileStatus: Record<string, CurrentSituation> = {
+  '지원 준비 중': 'PREPARING_APPLICATION',
+  '출국 준비 중': 'PREPARING_DEPARTURE',
+  '파견 중': 'DISPATCHED',
+  귀국: 'RETURNED',
+};
+const profileStatusByCurrentSituation: Record<CurrentSituation, string> = {
+  PREPARING_APPLICATION: '지원 준비 중',
+  WAITING_RESULT: '지원 준비 중',
+  ACCEPTED: '지원 준비 중',
+  PREPARING_DEPARTURE: '출국 준비 중',
+  DISPATCHED: '파견 중',
+  RETURNED: '귀국',
 };
 type DateFieldKey = 'applicationDeadline' | 'departureDate' | 'dispatchStartDate' | 'returnDate';
 type EditSnapshot = {
@@ -87,6 +106,7 @@ export default function ProfileEditScreen() {
   const [draftDate, setDraftDate] = useState(createDate(2026, 8, 21));
   const [activeDateField, setActiveDateField] = useState<DateFieldKey>('departureDate');
   const [initialSnapshot, setInitialSnapshot] = useState<EditSnapshot | null>(null);
+  const [loadedCurrentSituation, setLoadedCurrentSituation] = useState<CurrentSituation | null>(null);
 
   const currentSnapshot: EditSnapshot = {
     nickname: nickname.trim(),
@@ -161,8 +181,9 @@ export default function ProfileEditScreen() {
       let nextDispatchedUniversity = savedDispatchedUniversity || '';
       let nextCountry = savedCountry || '';
       let nextRegion = savedRegion || '';
-      const nextStatus =
+      let nextStatus =
         savedStatus && statusOptions.includes(savedStatus) ? savedStatus : statusOptions[1];
+      let nextCurrentSituation: CurrentSituation | null = null;
       const nextApplicationDeadline = toDateValue(savedApplicationDeadline);
       const nextDepartureDate = toDateValue(savedDepartureDate);
       const nextDispatchStartDate = toDateValue(savedDispatchStartDate);
@@ -183,6 +204,10 @@ export default function ProfileEditScreen() {
         if (member?.dispatchedUniversity && !overrides.dispatchedUniversity) {
           nextDispatchedUniversity = member.dispatchedUniversity;
         }
+        if (member?.currentSituation) {
+          nextCurrentSituation = member.currentSituation;
+          nextStatus = profileStatusByCurrentSituation[member.currentSituation] || nextStatus;
+        }
       } catch (error) {
         console.log('내 정보 조회 실패:', error);
       }
@@ -196,6 +221,7 @@ export default function ProfileEditScreen() {
       setCountry(nextCountry);
       setRegion(nextRegion);
       setStatus(nextStatus);
+      setLoadedCurrentSituation(nextCurrentSituation);
       setApplicationDeadline(nextApplicationDeadline);
       setDepartureDate(nextDepartureDate);
       setDispatchStartDate(nextDispatchStartDate);
@@ -282,6 +308,30 @@ export default function ProfileEditScreen() {
           ? AsyncStorage.setItem('departurePrepStartDate', toStorageDate(new Date()))
           : Promise.resolve()
         : AsyncStorage.removeItem('departurePrepStartDate');
+    const nextCurrentSituation =
+      loadedCurrentSituation && profileStatusByCurrentSituation[loadedCurrentSituation] === status
+        ? loadedCurrentSituation
+        : currentSituationByProfileStatus[status];
+    const requestBody: MemberProfileUpdateRequest = {
+      nickname: nickname.trim(),
+      dispatchedCountry: country.trim(),
+      dispatchedRegion: region.trim(),
+      currentSituation: nextCurrentSituation,
+      dispatchedUniversity: dispatchedUniversity.trim(),
+      domesticUniversity: homeUniversity.trim(),
+      applicationDeadline: applicationDeadline ? toStorageDate(applicationDeadline) : null,
+      departureDate: departureDate ? toStorageDate(departureDate) : null,
+      dispatchStartDate: dispatchStartDate ? toStorageDate(dispatchStartDate) : null,
+      returnDate: returnDate ? toStorageDate(returnDate) : null,
+    };
+
+    try {
+      await updateMemberProfile(requestBody);
+    } catch (error: any) {
+      console.log('프로필 수정 실패:', error.response?.data || error.message);
+      Alert.alert('저장 실패', '프로필 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     await Promise.all([
       AsyncStorage.setItem('nickname', nickname.trim()),
@@ -307,10 +357,12 @@ export default function ProfileEditScreen() {
       avatarUri
         ? AsyncStorage.setItem('profileAvatarUri', avatarUri)
         : AsyncStorage.removeItem('profileAvatarUri'),
+      AsyncStorage.removeItem('profileFieldOverrides'),
       departurePrepStartDateTask,
     ]);
 
     setInitialSnapshot(currentSnapshot);
+    setLoadedCurrentSituation(nextCurrentSituation);
 
     Alert.alert('저장 완료', '프로필 정보가 저장되었습니다.', [
       { text: '확인', onPress: () => router.back() },

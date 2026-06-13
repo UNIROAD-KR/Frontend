@@ -14,7 +14,7 @@ import {
   type DimensionValue,
 } from 'react-native';
 
-import { getMemberMe } from '../../../src/api/auth';
+import { getMemberMe, type CurrentSituation } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -210,6 +210,36 @@ const statusDisplayMap: Record<string, LifecycleStatus> = {
   returned: '귀국',
 };
 
+const currentSituationDisplayMap: Record<CurrentSituation, string> = {
+  PREPARING_APPLICATION: '파견 지원 준비 중',
+  WAITING_RESULT: '파견 결과 대기 중',
+  ACCEPTED: '파견 확정',
+  PREPARING_DEPARTURE: '출국 준비 중',
+  DISPATCHED: '파견 중',
+  RETURNED: '귀국 완료',
+};
+
+const currentSituationLifecycleMap: Record<CurrentSituation, LifecycleStatus> = {
+  PREPARING_APPLICATION: '지원 준비 중',
+  WAITING_RESULT: '지원 준비 중',
+  ACCEPTED: '지원 준비 중',
+  PREPARING_DEPARTURE: '출국 준비 중',
+  DISPATCHED: '파견 중',
+  RETURNED: '귀국',
+};
+
+const getCurrentSituationDisplayText = (value: string | null | undefined) => {
+  if (!value) return '상태 미설정';
+  return currentSituationDisplayMap[value as CurrentSituation] || value;
+};
+
+const getLifecycleStatusFromCurrentSituation = (
+  value: string | null | undefined,
+): LifecycleStatus | null => {
+  if (!value) return null;
+  return currentSituationLifecycleMap[value as CurrentSituation] || null;
+};
+
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
 const oneDay = 1000 * 60 * 60 * 24;
 
@@ -259,8 +289,9 @@ const getSemesterText = (date: Date) => {
 export default function HomeScreen() {
   const [displayName, setDisplayName] = useState('닉네임');
   const [lifecycleStatus, setLifecycleStatus] = useState<LifecycleStatus>('지원 준비 중');
+  const [currentSituationText, setCurrentSituationText] = useState('상태 미설정');
   const [dispatchInfo, setDispatchInfo] = useState({
-    country: '독일',
+    country: '파견 국가 미설정',
     region: '베를린',
     university: '베를린 자유대학교',
   });
@@ -286,7 +317,6 @@ export default function HomeScreen() {
           savedNickname,
           onboardingStatus,
           profileStatus,
-          dispatchedCountry,
           dispatchedRegion,
           dispatchedUniversity,
           applicationDeadline,
@@ -299,7 +329,6 @@ export default function HomeScreen() {
           AsyncStorage.getItem('nickname'),
           AsyncStorage.getItem('exchangeStatus'),
           AsyncStorage.getItem('profileStatus'),
-          AsyncStorage.getItem('dispatchedCountry'),
           AsyncStorage.getItem('dispatchedRegion'),
           AsyncStorage.getItem('dispatchedUniversity'),
           AsyncStorage.getItem('applicationDeadline'),
@@ -315,17 +344,19 @@ export default function HomeScreen() {
         let apiDispatchedCountry: string | null = null;
         let apiDispatchedRegion: string | null = null;
         let apiDispatchedUniversity: string | null = null;
+        let apiCurrentSituation: string | null = null;
 
         try {
           const memberRes = await getMemberMe();
           const member = memberRes.data?.data;
 
           apiNickname = overrides.nickname ? null : member?.nickname?.trim() || null;
-          apiDispatchedCountry = overrides.country ? null : member?.dispatchedCountry || null;
+          apiDispatchedCountry = member?.dispatchedCountry || null;
           apiDispatchedRegion = overrides.region ? null : member?.dispatchedRegion || null;
           apiDispatchedUniversity = overrides.dispatchedUniversity
             ? null
             : member?.dispatchedUniversity || null;
+          apiCurrentSituation = member?.currentSituation || null;
 
           if (apiNickname) {
             await AsyncStorage.setItem('nickname', apiNickname);
@@ -338,23 +369,16 @@ export default function HomeScreen() {
           setDisplayName(apiNickname || savedNickname || '닉네임');
         }
 
-        if (
-          apiDispatchedCountry ||
-          apiDispatchedRegion ||
-          apiDispatchedUniversity ||
-          dispatchedCountry ||
-          dispatchedRegion ||
-          dispatchedUniversity
-        ) {
-          setDispatchInfo({
-            country: apiDispatchedCountry || dispatchedCountry || '독일',
-            region: apiDispatchedRegion || dispatchedRegion || '베를린',
-            university: apiDispatchedUniversity || dispatchedUniversity || '베를린 자유대학교',
-          });
-        }
+        setCurrentSituationText(getCurrentSituationDisplayText(apiCurrentSituation));
+        setDispatchInfo({
+          country: apiDispatchedCountry || '파견 국가 미설정',
+          region: apiDispatchedRegion || dispatchedRegion || '베를린',
+          university: apiDispatchedUniversity || dispatchedUniversity || '베를린 자유대학교',
+        });
 
         setLifecycleStatus(
-          normalizeStatus(profileStatus, onboardingStatus, Boolean(dispatchedUniversity)),
+          getLifecycleStatusFromCurrentSituation(apiCurrentSituation) ||
+            normalizeStatus(profileStatus, onboardingStatus, Boolean(dispatchedUniversity)),
         );
         const parsedDepartureDate = parseDate(departureDate, createDate(2026, 8, 21));
         setDashboardDates({
@@ -463,6 +487,7 @@ export default function HomeScreen() {
       progressWidth: '100%',
     },
   }[lifecycleStatus];
+  const heroTitle = `${dispatchInfo.country} ${currentSituationText}`;
 
   return (
     <ScrollView
@@ -511,7 +536,7 @@ export default function HomeScreen() {
               <Text style={styles.dispatchedDay}>{dispatchedDay}</Text>
               <Text style={styles.dispatchedDayUnit}>일째</Text>
             </View>
-            <Text style={styles.heroTitle}>{heroCopy.title}</Text>
+            <Text style={styles.heroTitle}>{heroTitle}</Text>
             <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
 
             <View style={styles.progressTrack}>
@@ -546,7 +571,7 @@ export default function HomeScreen() {
               <Text style={styles.heroDday}>{heroCopy.metric}</Text>
             </View>
 
-            <Text style={styles.heroTitle}>{heroCopy.title}</Text>
+            <Text style={styles.heroTitle}>{heroTitle}</Text>
             {!isDeparturePreparing ? (
               <Text style={styles.heroSubtitle}>{heroCopy.subtitle}</Text>
             ) : null}
