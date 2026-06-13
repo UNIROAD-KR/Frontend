@@ -12,6 +12,11 @@ import {
   View,
 } from 'react-native';
 
+import {
+  getTickets,
+  TicketTransferResponse,
+  TicketType,
+} from '../../../src/api/ticket';
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
@@ -67,11 +72,71 @@ const formatPrice = (price: number) => {
   return `${price.toLocaleString()}원`;
 };
 
+const ticketTypeLabelMap: Record<TicketType, string> = {
+  TOUR: '관광 티켓',
+  CONCERT: '콘서트 / 공연',
+  TRAIN: '기차',
+  FLIGHT: '항공권',
+  ACCOMMODATION: '숙박',
+};
+
+const formatTicketPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
+
+const formatSingleTicketDate = (date: string) => {
+  const [, month, day] = date.trim().split('-');
+
+  if (!month || !day) return date;
+
+  const parsedMonth = Number(month);
+  const parsedDay = Number(day);
+
+  if (Number.isNaN(parsedMonth) || Number.isNaN(parsedDay)) {
+    return date;
+  }
+
+  return `${parsedMonth}월 ${parsedDay}일`;
+};
+
+const formatTicketDate = (date: string) => {
+  const [startDate, endDate] = date.split('~').map((value) => value.trim());
+
+  if (!endDate) {
+    return formatSingleTicketDate(startDate);
+  }
+
+  return `${formatSingleTicketDate(startDate)} ~ ${formatSingleTicketDate(endDate)}`;
+};
+
+const formatTicketCreatedTime = (createdAt?: string) => {
+  if (!createdAt) return '';
+
+  const createdDate = new Date(createdAt);
+
+  if (Number.isNaN(createdDate.getTime())) {
+    return createdAt.slice(0, 10).replaceAll('-', '.');
+  }
+
+  const diffMs = Date.now() - createdDate.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일 전`;
+
+  return createdAt.slice(0, 10).replaceAll('-', '.');
+};
+
 export default function MarketPage() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
+  const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
@@ -94,6 +159,16 @@ export default function MarketPage() {
         '중고거래 목록 조회 실패:',
         error.response?.data || error.message,
       );
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      const response = await getTickets(undefined, 10);
+      setTickets(response.data.data.items ?? []);
+    } catch (error: any) {
+      console.log('티켓 양도 목록 조회 실패:', error.response?.data || error.message);
+      setTickets([]);
     }
   };
 
@@ -134,6 +209,7 @@ export default function MarketPage() {
   useFocusEffect(
     useCallback(() => {
       fetchUsedItems();
+      fetchTickets();
       checkVerificationStatus();
     }, []),
   );
@@ -148,6 +224,16 @@ export default function MarketPage() {
     setBookmarkedIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
+  };
+
+  const handleFabPress = () => {
+    if (selectedType === 'ticket') {
+      setIsFabOpen(false);
+      requireVerificationBefore('/market/ticket-write');
+      return;
+    }
+
+    setIsFabOpen((prev) => !prev);
   };
 
   const requireVerificationBefore = async (path: string) => {
@@ -189,10 +275,27 @@ export default function MarketPage() {
       ? displayItems
       : displayItems.filter((item) => item.region === selectedCountry);
 
+  const displayTickets = tickets.map((item) => ({
+    id: item.id,
+    country: item.authorDispatchedCountry ?? '',
+    semester: ticketTypeLabelMap[item.ticketType],
+    time: formatTicketCreatedTime(item.createdAt),
+    region: item.country,
+    category: ticketTypeLabelMap[item.ticketType],
+    title: item.title,
+    date: formatTicketDate(item.eventDate),
+    count: `${item.quantity}매`,
+    price: formatTicketPrice(item.transferPrice),
+    originalPrice: item.originalPrice
+      ? formatTicketPrice(item.originalPrice)
+      : '',
+    likes: 0,
+  }));
+
   const filteredTickets =
     selectedCountry === '전체'
-      ? ticketItems
-      : ticketItems.filter((item) => item.country === selectedCountry);
+      ? displayTickets
+      : displayTickets.filter((item) => item.region.includes(selectedCountry));
 
   return (
     <View style={styles.container}>
@@ -227,7 +330,10 @@ export default function MarketPage() {
               styles.tradeTypeButton,
               selectedType === 'bulk' && styles.tradeTypeActive,
             ]}
-            onPress={() => setSelectedType('bulk')}
+            onPress={() => {
+              setSelectedType('bulk');
+              setIsFabOpen(false);
+            }}
           >
             <Text
               style={[
@@ -244,7 +350,10 @@ export default function MarketPage() {
               styles.tradeTypeButton,
               selectedType === 'ticket' && styles.tradeTypeActive,
             ]}
-            onPress={() => setSelectedType('ticket')}
+            onPress={() => {
+              setSelectedType('ticket');
+              setIsFabOpen(false);
+            }}
           >
             <Text
               style={[
@@ -378,7 +487,12 @@ export default function MarketPage() {
               <Pressable
                 key={item.id}
                 style={styles.ticketCard}
-                onPress={() => router.push('/market/ticket-preview' as any)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/market/ticket-preview',
+                    params: { id: String(item.id) },
+                  } as any)
+                }
               >
                 <View style={styles.ticketMetaRow}>
                   <Image
@@ -387,7 +501,7 @@ export default function MarketPage() {
                   />
 
                   <Text style={styles.ticketMeta}>
-                    {item.country} · {item.semester} 파견생 · {item.time}
+                    {item.country} 파견생 · {item.time}
                   </Text>
 
                   <View style={styles.ticketTag}>
@@ -458,7 +572,7 @@ export default function MarketPage() {
         )}
       </ScrollView>
 
-      {isFabOpen && (
+      {isFabOpen && selectedType === 'bulk' && (
         <View style={styles.fabMenu}>
           <Pressable
             style={styles.fabMenuItem}
@@ -488,7 +602,7 @@ export default function MarketPage() {
 
       <Pressable
         style={[styles.fabButton, isFabOpen && styles.fabButtonOpen]}
-        onPress={() => setIsFabOpen((prev) => !prev)}
+        onPress={handleFabPress}
       >
         <Text style={styles.fabText}>{isFabOpen ? '−' : '+'}</Text>
       </Pressable>
@@ -514,29 +628,29 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   ticketProfileIcon: {
-    width: 25,
-    height: 25,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     resizeMode: 'cover',
-    marginRight: 7,
+    marginRight: 6,
   },
   bookmarkButton: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   bookmarkIconWrapper: {
-    width: 22,
-    height: 22,
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   bookmarkIcon: {
-    width: 30,
-    height: 30,
+    width: 27,
+    height: 27,
     resizeMode: 'contain',
     position: 'absolute',
   },
@@ -547,10 +661,10 @@ const styles = StyleSheet.create({
   },
 
   ticketInfoIcon: {
-    width: 14,
-    height: 14,
+    width: 13,
+    height: 13,
     resizeMode: 'contain',
-    marginRight: 5,
+    marginRight: 4,
   },
   header: {
     flexDirection: 'row',
@@ -799,7 +913,7 @@ const styles = StyleSheet.create({
   },
 
   ticketCard: {
-    paddingVertical: 20,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
@@ -807,7 +921,7 @@ const styles = StyleSheet.create({
   ticketMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 9,
   },
 
   userCircle: {
@@ -827,22 +941,22 @@ const styles = StyleSheet.create({
 
   ticketMeta: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 10,
     color: '#777777',
   },
 
   ticketTag: {
-    paddingHorizontal: 13,
-    height: 22,
-    borderRadius: 11,
+    paddingHorizontal: 9,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 6,
+    marginLeft: 5,
   },
 
   ticketTagText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#555555',
   },
@@ -855,8 +969,8 @@ const styles = StyleSheet.create({
 
   ticketTitle: {
     flex: 1,
-    fontSize: 19,
-    lineHeight: 26,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '900',
     color: '#111111',
   },
@@ -869,12 +983,12 @@ const styles = StyleSheet.create({
 
   ticketInfoRow: {
     flexDirection: 'row',
-    gap: 22,
-    marginTop: 12,
+    gap: 16,
+    marginTop: 9,
   },
 
   ticketInfo: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666666',
     fontWeight: '600',
   },
@@ -882,53 +996,58 @@ const styles = StyleSheet.create({
   ticketPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 14,
   },
 
   ticketPrice: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '900',
     color: '#000000',
-    marginRight: 10,
+    marginRight: 8,
   },
 
   ticketOriginalPrice: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#B8B8B8',
     textDecorationLine: 'line-through',
   },
 
   ticketLikeRow: {
     alignItems: 'flex-end',
-    marginTop: -10,
+    marginTop: -8,
   },
 
   ticketLike: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#555555',
   },
 
   fabButton: {
     position: 'absolute',
-    right: 22,
-    bottom: 40,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    right: 24,
+    bottom: 42,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   fabButtonOpen: {
-    backgroundColor: '#555555',
+    backgroundColor: '#303030',
   },
 
   fabText: {
-    fontSize: 43,
-    lineHeight: 46,
+    fontSize: 30,
+    lineHeight: 33,
     color: '#FFFFFF',
-    fontWeight: '300',
+    fontWeight: '400',
   },
 
   fabMenu: {

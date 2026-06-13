@@ -1,6 +1,9 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -8,12 +11,188 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { createOrGetChatRoom } from '../../../src/api/chat';
+import {
+  getTicketDetail,
+  TicketTransferResponse,
+  TicketType,
+} from '../../../src/api/ticket';
+
+const BLUE = '#123F9F';
+
+const ticketTypeLabelMap: Record<TicketType, string> = {
+  TOUR: '관광 티켓',
+  CONCERT: '콘서트 / 공연',
+  TRAIN: '기차',
+  FLIGHT: '항공권',
+  ACCOMMODATION: '숙박',
+};
+
+type TicketInfoLabels = {
+  date: string;
+  time: string;
+  location: string;
+};
+
+const defaultTicketInfoLabels: TicketInfoLabels = {
+  date: '날짜',
+  time: '시간',
+  location: '장소',
+};
+
+const ticketInfoLabelMap: Partial<Record<TicketType, TicketInfoLabels>> = {
+  TOUR: {
+    date: '이용일',
+    time: '이용시간',
+    location: '이용 장소',
+  },
+  CONCERT: {
+    date: '공연일',
+    time: '공연시간',
+    location: '공연 장소',
+  },
+  TRAIN: {
+    date: '탑승일',
+    time: '탑승시간',
+    location: '출발/도착 장소',
+  },
+  FLIGHT: {
+    date: '출발일',
+    time: '출발시간',
+    location: '출발/도착 공항',
+  },
+  ACCOMMODATION: {
+    date: '체크인 날짜',
+    time: '체크아웃 날짜',
+    location: '숙소 위치',
+  },
+};
+
+const formatPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
+const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+
+const formatDate = (date: string) => {
+  const trimmedDate = date.trim();
+  const matchedDate = trimmedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matchedDate) return trimmedDate;
+
+  const [, year, month, day] = matchedDate;
+  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.getFullYear() !== Number(year) ||
+    parsedDate.getMonth() !== Number(month) - 1 ||
+    parsedDate.getDate() !== Number(day)
+  ) {
+    return trimmedDate;
+  }
+
+  return `${year}. ${month}. ${day} (${weekdayLabels[parsedDate.getDay()]})`;
+};
+
+const getAccommodationDates = (dateRange: string) => {
+  const [startDate, endDate] = dateRange.split('~').map((date) => date.trim());
+
+  return {
+    checkIn: startDate ? formatDate(startDate) : formatDate(dateRange),
+    checkOut: endDate ? formatDate(endDate) : '-',
+  };
+};
+
+const formatAccommodationDateRange = (dateRange: string) => {
+  const { checkIn, checkOut } = getAccommodationDates(dateRange);
+
+  if (checkOut === '-') {
+    return formatDate(dateRange);
+  }
+
+  return `${checkIn} ~ ${checkOut}`;
+};
 
 export default function TicketPreviewPage() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState<'ticket' | 'seller'>('ticket');
+  const [ticket, setTicket] = useState<TicketTransferResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const loadTicket = async () => {
+        const numericId = Number(id);
+
+        if (!id || !Number.isFinite(numericId)) {
+          setTicket(null);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          setLoading(true);
+          const response = await getTicketDetail(numericId);
+
+          if (active) {
+            setTicket(response.data.data);
+          }
+        } catch (error: any) {
+          console.log('티켓 양도 상세 조회 실패:', error.response?.data || error.message);
+          if (active) {
+            setTicket(null);
+          }
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
+      };
+
+      loadTicket();
+
+      return () => {
+        active = false;
+      };
+    }, [id]),
+  );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator color={BLUE} />
+        <Text style={styles.centerText}>티켓 정보를 불러오는 중이에요</Text>
+      </View>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <AppBackButton style={styles.centerBackButton} />
+        <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요</Text>
+        <Text style={styles.emptyText}>목록에서 다시 선택해주세요.</Text>
+      </View>
+    );
+  }
+
+  const category = ticketTypeLabelMap[ticket.ticketType];
+  const isAccommodation = ticket.ticketType === 'ACCOMMODATION';
+  const infoLabels =
+    ticketInfoLabelMap[ticket.ticketType] ?? defaultTicketInfoLabels;
+  const accommodationDates = getAccommodationDates(ticket.eventDate);
+  const eventDate = isAccommodation
+    ? formatAccommodationDateRange(ticket.eventDate)
+    : formatDate(ticket.eventDate);
+  const infoDate = isAccommodation ? accommodationDates.checkIn : eventDate;
+  const infoTime = isAccommodation
+    ? accommodationDates.checkOut
+    : ticket.eventTime;
+  const metaText = isAccommodation
+    ? `${ticket.quantity}매 / ${eventDate}`
+    : `${ticket.quantity}매 / ${eventDate} ${ticket.eventTime}`;
 
   return (
     <View style={styles.container}>
@@ -25,15 +204,15 @@ export default function TicketPreviewPage() {
 
         <View style={styles.tagRow}>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>바르셀로나</Text>
+            <Text style={styles.tagText}>{ticket.location}</Text>
           </View>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>관광</Text>
+            <Text style={styles.tagText}>{category}</Text>
           </View>
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={styles.title}>사그라다 파밀리아 표 양도</Text>
+          <Text style={styles.title}>{ticket.title}</Text>
           <Image
             source={require('../../../assets/images/share.png')}
             style={styles.shareIcon}
@@ -41,9 +220,11 @@ export default function TicketPreviewPage() {
         </View>
 
         <View style={styles.priceRow}>
-          <Text style={styles.price}>€20</Text>
-          <Text style={styles.originalPrice}>원가 €26</Text>
-          <Text style={styles.meta}>1매 / 5월 9일(목) 16:15</Text>
+          <Text style={styles.price}>{formatPrice(ticket.transferPrice)}</Text>
+          <Text style={styles.originalPrice}>
+            원가 {formatPrice(ticket.originalPrice)}
+          </Text>
+          <Text style={styles.meta}>{metaText}</Text>
         </View>
 
         <View style={styles.tabRow}>
@@ -67,71 +248,40 @@ export default function TicketPreviewPage() {
 
             <View style={styles.infoGrid}>
               <View style={styles.infoCard}>
-                <View style={styles.infoLabelRow}>
-                  <Image
-                    source={require('../../../assets/images/ticket_date_place.png')}
-                    style={styles.infoIcon}
-                  />
-                  <Text style={styles.infoLabel}>날짜</Text>
-                </View>
-                <Text style={styles.infoValue}>2026. 05. 09 (목)</Text>
+                <Text style={styles.infoLabel}>{infoLabels.date}</Text>
+                <Text style={styles.infoValue}>{infoDate}</Text>
               </View>
 
               <View style={styles.infoCard}>
-                <View style={styles.infoLabelRow}>
-                  <Image
-                    source={require('../../../assets/images/ticket_time_count.png')}
-                    style={styles.infoIcon}
-                  />
-                  <Text style={styles.infoLabel}>시간</Text>
-                </View>
-                <Text style={styles.infoValue}>오전 10:00</Text>
+                <Text style={styles.infoLabel}>{infoLabels.time}</Text>
+                <Text style={styles.infoValue}>{infoTime}</Text>
               </View>
 
               <View style={styles.infoCard}>
-                <View style={styles.infoLabelRow}>
-                  <Image
-                    source={require('../../../assets/images/ticket_date_place.png')}
-                    style={styles.infoIcon}
-                  />
-                  <Text style={styles.infoLabel}>장소</Text>
-                </View>
-                <Text style={styles.infoValue}>
-                  사그라다 파밀리아 성당 앞 정문
-                </Text>
+                <Text style={styles.infoLabel}>{infoLabels.location}</Text>
+                <Text style={styles.infoValue}>{ticket.location}</Text>
               </View>
 
               <View style={styles.infoCard}>
-                <View style={styles.infoLabelRow}>
-                  <Image
-                    source={require('../../../assets/images/ticket_time_count.png')}
-                    style={styles.infoIcon}
-                  />
-                  <Text style={styles.infoLabel}>양도 매수</Text>
-                </View>
-                <Text style={styles.infoValue}>1매</Text>
+                <Text style={styles.infoLabel}>양도 매수</Text>
+                <Text style={styles.infoValue}>{ticket.quantity}매</Text>
               </View>
             </View>
 
             <Text style={styles.sellerTitle}>판매자 글</Text>
 
             <View style={styles.contentBox}>
-              <Text style={styles.contentText}>
-                사그라다 파밀리아 5/9 당일 표 양도합니다! 오후 4:15이고{'\n'}
-                입장 티켓 받아서 드려요~!{'\n'}
-                티켓은 한 장이고 근처에 있어서 입장 도와드릴 수 있어요!{'\n\n'}
-                관심 있으신 분은 채팅 부탁드려요 :)
-              </Text>
+              <Text style={styles.contentText}>{ticket.content}</Text>
             </View>
           </>
         ) : (
           <>
             <Text style={styles.sectionTitle}>판매자 정보</Text>
             <Text style={styles.sectionDesc}>
-              교환학생 선배 판매자의 기본 정보예요
+              교환학생 티켓 양도 판매자의 기본 정보예요
             </Text>
 
-            <Text style={styles.nickname}>may.be</Text>
+            <Text style={styles.nickname}>{ticket.authorName}</Text>
 
             <View style={styles.profileCard}>
               <Image
@@ -140,13 +290,9 @@ export default function TicketPreviewPage() {
               />
 
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>may.be</Text>
-                <Text style={styles.profileMeta}>
-                  독일　아샤펜부르크　26-2학기 파견생
-                </Text>
+                <Text style={styles.profileName}>{ticket.authorName}</Text>
+                <Text style={styles.profileMeta}>티켓 양도 판매자</Text>
               </View>
-
-              <Text style={styles.profileArrow}>›</Text>
             </View>
           </>
         )}
@@ -160,90 +306,64 @@ export default function TicketPreviewPage() {
                 ? require('../../../assets/images/filled_heart.png')
                 : require('../../../assets/images/heart.png')
             }
-            style={liked ? styles.filledHeartIcon : styles.heartIcon}
+            style={styles.heartIcon}
           />
         </Pressable>
-        <Pressable style={styles.chatButton} onPress={handleStartChat}>
+        <Pressable
+          style={styles.chatButton}
+          onPress={() => Alert.alert('준비 중', '채팅 연결은 상세 기능에서 연결할 예정이에요.')}
+        >
           <Text style={styles.chatText}>채팅 시작하기</Text>
         </Pressable>
       </View>
     </View>
   );
 }
-const handleStartChat = async () => {
-  try {
-    const response = await createOrGetChatRoom({
-      referenceType: 'TRADE',
-      referenceId: 1,
-      targetMemberId: 1,
-    });
-
-    const roomId = response.data.roomId;
-
-    router.push({
-      pathname: '/chat/[roomId]',
-      params: {
-        roomId: String(roomId),
-      },
-    } as any);
-  } catch (error: any) {
-    console.log('채팅방 생성 실패:', error.response?.data || error.message);
-  }
-};
-const BLUE = '#123F9F';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-
   content: {
     paddingHorizontal: 20,
     paddingTop: 54,
     paddingBottom: 120,
   },
-
+  centerContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  centerBackButton: {
+    position: 'absolute',
+    left: 20,
+    top: 54,
+  },
+  centerText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '700',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#777777',
+  },
   backButton: {
     marginBottom: 18,
-  },
-  shareIcon: {
-    width: 27,
-    height: 27,
-    resizeMode: 'contain',
-  },
-
-  infoLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 9,
-  },
-
-  infoIcon: {
-    width: 14,
-    height: 14,
-    resizeMode: 'contain',
-    marginRight: 5,
-  },
-
-  profileImage: {
-    width: 51,
-    height: 51,
-    borderRadius: 25.5,
-    marginRight: 17,
-  },
-
-  bookmarkIcon: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
   },
   tagRow: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 15,
   },
-
   tag: {
     height: 22,
     minWidth: 62,
@@ -253,59 +373,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   tagText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#777777',
   },
-
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
   },
-
   title: {
     flex: 1,
     fontSize: 22,
     lineHeight: 30,
     fontWeight: '900',
     color: '#000000',
-    letterSpacing: -0.8,
   },
-
-  share: {
-    fontSize: 27,
-    color: '#000000',
+  shareIcon: {
+    width: 27,
+    height: 27,
+    resizeMode: 'contain',
     marginLeft: 8,
   },
-
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 30,
   },
-
   price: {
     fontSize: 18,
     fontWeight: '900',
     color: BLUE,
     marginRight: 8,
   },
-
   originalPrice: {
     fontSize: 12,
     color: '#C8C8C8',
     textDecorationLine: 'line-through',
     marginRight: 10,
   },
-
   meta: {
     fontSize: 12,
     color: '#555555',
   },
-
   tabRow: {
     height: 48,
     flexDirection: 'row',
@@ -313,19 +425,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EEEEEE',
     marginBottom: 25,
   },
-
   tabButton: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   tabText: {
     fontSize: 16,
     fontWeight: '800',
     color: '#111111',
   },
-
   activeLine: {
     position: 'absolute',
     bottom: -1,
@@ -334,33 +443,28 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     backgroundColor: '#102BE0',
   },
-
   sectionTitle: {
     fontSize: 17,
     fontWeight: '900',
     color: '#111111',
     marginBottom: 8,
   },
-
   sectionDesc: {
     fontSize: 12,
     lineHeight: 18,
     color: '#666666',
     marginBottom: 28,
   },
-
   infoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
     marginBottom: 28,
   },
-
   infoCard: {
     flexGrow: 1,
     flexBasis: '47%',
     minWidth: '47%',
-    maxWidth: '100%',
     minHeight: 82,
     backgroundColor: '#FAFAFA',
     borderRadius: 6,
@@ -371,24 +475,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#555555',
+    marginBottom: 9,
   },
-
   infoValue: {
     fontSize: 15,
     fontWeight: '800',
     color: '#111111',
     lineHeight: 19,
-    flexShrink: 1,
-    flexWrap: 'wrap',
   },
-
   sellerTitle: {
     fontSize: 17,
     fontWeight: '900',
     color: '#111111',
     marginBottom: 18,
   },
-
   contentBox: {
     minHeight: 143,
     borderRadius: 3,
@@ -396,14 +496,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 21,
     paddingVertical: 22,
   },
-
   contentText: {
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '600',
     color: '#111111',
   },
-
   nickname: {
     fontSize: 18,
     fontWeight: '900',
@@ -411,7 +509,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 15,
   },
-
   profileCard: {
     height: 81,
     borderRadius: 4,
@@ -420,37 +517,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
   },
-
-  profileCircle: {
+  profileImage: {
     width: 51,
     height: 51,
     borderRadius: 25.5,
-    backgroundColor: '#D9D9D9',
     marginRight: 17,
   },
-
   profileInfo: {
     flex: 1,
   },
-
   profileName: {
     fontSize: 21,
     fontWeight: '900',
     color: '#333333',
     marginBottom: 5,
   },
-
   profileMeta: {
     fontSize: 11,
     fontWeight: '600',
     color: '#555555',
   },
-
-  profileArrow: {
-    fontSize: 33,
-    color: '#000000',
-  },
-
   bottomBar: {
     position: 'absolute',
     left: 0,
@@ -462,7 +548,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     flexDirection: 'row',
   },
-
   heartButton: {
     width: 44,
     height: 44,
@@ -470,22 +555,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  heart: {
-    fontSize: 35,
-    color: '#000000',
-    lineHeight: 38,
-  },
   heartIcon: {
     width: 40,
     height: 40,
     resizeMode: 'contain',
   },
-  filledHeartIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-  },
-
   chatButton: {
     flex: 1,
     height: 49,
@@ -494,7 +568,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   chatText: {
     fontSize: 19,
     fontWeight: '900',

@@ -1,36 +1,51 @@
 import { api } from './client';
-import { BaseResponse } from './types';
+import { BaseResponse, CursorResponse } from './types';
 
 export type TicketType = 'TOUR' | 'CONCERT' | 'TRAIN' | 'FLIGHT' | 'ACCOMMODATION';
 
 export interface TicketTransferRequest {
   ticketType: TicketType;
   title: string;
-  content?: string;
+  content: string;
   eventDate: string;
   eventTime: string;
+  country: string;
   location: string;
   quantity: number;
   transferPrice: number;
-  originalPrice?: number;
+  originalPrice: number;
 }
 
 export interface TicketTransferResponse {
   id: number;
   authorName: string;
+  authorDispatchedCountry?: string;
   ticketType: TicketType;
   title: string;
   content: string;
   eventDate: string;
   eventTime: string;
+  country: string;
   location: string;
   quantity: number;
   transferPrice: number;
   originalPrice: number;
   status: 'AVAILABLE' | 'COMPLETED';
+  createdAt?: string;
 }
 
 // 티켓 양도 글 작성
+export type TicketTransferListResponse = CursorResponse<TicketTransferResponse>;
+
+export const getTickets = (cursorId?: number, size = 10) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets', {
+    params: {
+      cursorId,
+      size,
+    },
+  });
+};
+
 export const createTicket = (data: TicketTransferRequest) => {
   return api.post<BaseResponse<number>>('/api/tickets', data);
 };
