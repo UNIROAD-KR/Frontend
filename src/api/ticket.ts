@@ -19,7 +19,14 @@ export interface TicketTransferRequest {
 export interface TicketTransferResponse {
   id: number;
   authorName: string;
+  authorNickname?: string;
   authorDispatchedCountry?: string;
+  authorDispatchedRegion?: string;
+  authorDispatchRegion?: string;
+  authorDispatchedUniversity?: string;
+  authorDispatchYear?: number | string;
+  authorDispatchSemester?: number | string;
+  authorDispatchStartDate?: string;
   ticketType: TicketType;
   title: string;
   content: string;

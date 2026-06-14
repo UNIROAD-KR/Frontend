@@ -1,9 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -137,6 +140,12 @@ export default function MarketPage() {
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
+  const [ticketNextCursorId, setTicketNextCursorId] = useState<number | null>(
+    null,
+  );
+  const [ticketHasNext, setTicketHasNext] = useState(false);
+  const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
+  const ticketLoadingMoreRef = useRef(false);
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
@@ -162,13 +171,67 @@ export default function MarketPage() {
     }
   };
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (cursorId?: number) => {
     try {
-      const response = await getTickets(undefined, 10);
-      setTickets(response.data.data.items ?? []);
+      if (cursorId) {
+        ticketLoadingMoreRef.current = true;
+        setTicketLoadingMore(true);
+      }
+
+      const response = await getTickets(cursorId, 10);
+      const { items: nextItems = [], nextCursorId, hasNext } =
+        response.data.data;
+
+      setTickets((prev) => {
+        if (!cursorId) {
+          return nextItems;
+        }
+
+        const existingIds = new Set(prev.map((item) => item.id));
+        const uniqueNextItems = nextItems.filter(
+          (item) => !existingIds.has(item.id),
+        );
+
+        return [...prev, ...uniqueNextItems];
+      });
+      setTicketNextCursorId(nextCursorId ?? null);
+      setTicketHasNext(hasNext);
     } catch (error: any) {
       console.log('티켓 양도 목록 조회 실패:', error.response?.data || error.message);
-      setTickets([]);
+      if (!cursorId) {
+        setTickets([]);
+        setTicketNextCursorId(null);
+        setTicketHasNext(false);
+      }
+    } finally {
+      if (cursorId) {
+        ticketLoadingMoreRef.current = false;
+        setTicketLoadingMore(false);
+      }
+    }
+  };
+
+  const fetchNextTickets = () => {
+    if (!ticketHasNext || !ticketNextCursorId || ticketLoadingMoreRef.current) {
+      return;
+    }
+
+    fetchTickets(ticketNextCursorId);
+  };
+
+  const handleMarketScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (selectedType !== 'ticket') {
+      return;
+    }
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom =
+      contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+    if (distanceFromBottom < 180) {
+      fetchNextTickets();
     }
   };
 
@@ -303,6 +366,8 @@ export default function MarketPage() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleMarketScroll}
       >
         <View style={styles.header}>
           <Text style={styles.title}>교환학생 전용 거래</Text>
@@ -568,6 +633,11 @@ export default function MarketPage() {
                 </View>
               </Pressable>
             ))}
+            {ticketLoadingMore && (
+              <View style={styles.ticketLoadingMore}>
+                <ActivityIndicator color={BLUE} />
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -910,6 +980,11 @@ const styles = StyleSheet.create({
 
   ticketList: {
     marginTop: 0,
+  },
+
+  ticketLoadingMore: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
 
   ticketCard: {

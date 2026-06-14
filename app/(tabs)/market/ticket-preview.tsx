@@ -112,6 +112,40 @@ const formatAccommodationDateRange = (dateRange: string) => {
   return `${checkIn} ~ ${checkOut}`;
 };
 
+const formatDispatchSemester = (
+  year?: number | string,
+  semester?: number | string,
+) => {
+  if (!year || !semester) return '';
+
+  const firstValue = String(year);
+  const secondValue = String(semester);
+  const firstNumber = Number(firstValue.replace(/[^0-9]/g, ''));
+  const secondNumber = Number(secondValue.replace(/[^0-9]/g, ''));
+  const dispatchYear =
+    firstNumber >= 1000 ? firstNumber : secondNumber >= 1000 ? secondNumber : 0;
+  const dispatchSemester =
+    firstNumber >= 1 && firstNumber <= 2
+      ? firstNumber
+      : secondNumber >= 1 && secondNumber <= 2
+        ? secondNumber
+        : 0;
+
+  if (!dispatchYear || !dispatchSemester) return '';
+
+  return `${String(dispatchYear).slice(-2)}-${dispatchSemester}학기 파견생`;
+};
+
+const formatJoinedDate = (date?: string) => {
+  const matchedDate = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matchedDate) return '';
+
+  const [, year, month, day] = matchedDate;
+
+  return `${year}년 ${Number(month)}월 ${Number(day)}일 가입`;
+};
+
 export default function TicketPreviewPage() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [liked, setLiked] = useState(false);
@@ -193,6 +227,15 @@ export default function TicketPreviewPage() {
   const metaText = isAccommodation
     ? `${ticket.quantity}매 / ${eventDate}`
     : `${ticket.quantity}매 / ${eventDate} ${ticket.eventTime}`;
+  const sellerNickname = ticket.authorNickname || ticket.authorName;
+  const sellerUniversity = ticket.authorDispatchedUniversity;
+  const sellerRegion =
+    ticket.authorDispatchedRegion || ticket.authorDispatchRegion;
+  const sellerSemester = formatDispatchSemester(
+    ticket.authorDispatchYear,
+    ticket.authorDispatchSemester,
+  );
+  const sellerJoinedDate = formatJoinedDate(ticket.authorDispatchStartDate);
 
   return (
     <View style={styles.container}>
@@ -281,18 +324,54 @@ export default function TicketPreviewPage() {
               교환학생 티켓 양도 판매자의 기본 정보예요
             </Text>
 
-            <Text style={styles.nickname}>{ticket.authorName}</Text>
-
             <View style={styles.profileCard}>
-              <Image
-                source={require('../../../assets/images/ticket_profile.png')}
-                style={styles.profileImage}
-              />
+              <View style={styles.profileTopRow}>
+                <Image
+                  source={require('../../../assets/images/ticket_profile.png')}
+                  style={styles.profileImage}
+                />
 
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{ticket.authorName}</Text>
-                <Text style={styles.profileMeta}>티켓 양도 판매자</Text>
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>{sellerNickname}</Text>
+                  {sellerSemester.length > 0 && (
+                    <Text style={styles.profileSemester}>{sellerSemester}</Text>
+                  )}
+                </View>
               </View>
+
+              {(sellerJoinedDate ||
+                ticket.authorDispatchedCountry ||
+                sellerUniversity ||
+                sellerRegion) && (
+                <View style={styles.profileDetailList}>
+                  {sellerJoinedDate.length > 0 && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>가입일</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {sellerJoinedDate}
+                      </Text>
+                    </View>
+                  )}
+                  {(ticket.authorDispatchedCountry || sellerRegion) && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>파견 지역</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {[ticket.authorDispatchedCountry, sellerRegion]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                  )}
+                  {sellerUniversity && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>파견교</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {sellerUniversity}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           </>
         )}
@@ -510,18 +589,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   profileCard: {
-    height: 62,
-    borderRadius: 4,
+    borderRadius: 10,
     backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    marginBottom: 16,
   },
   profileImage: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    marginRight: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: 13,
   },
   profileInfo: {
     flex: 1,
@@ -530,12 +612,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     color: '#333333',
-    marginBottom: 3,
+    marginBottom: 4,
   },
-  profileMeta: {
+  profileSemester: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#555555',
+    fontWeight: '800',
+    color: BLUE,
+    lineHeight: 17,
+  },
+  profileDetailList: {
+    gap: 9,
+    paddingTop: 2,
+  },
+  profileDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileDetailLabel: {
+    width: 52,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#777777',
+  },
+  profileDetailValue: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '800',
+    color: '#222222',
   },
   bottomBar: {
     position: 'absolute',
