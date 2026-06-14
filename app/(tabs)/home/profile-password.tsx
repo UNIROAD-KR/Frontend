@@ -31,7 +31,10 @@ export default function ProfilePasswordScreen() {
 
   const handleSubmit = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('입력 필요', '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.');
+      Alert.alert(
+        '입력 필요',
+        '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.',
+      );
       return;
     }
 
@@ -83,18 +86,6 @@ export default function ProfilePasswordScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIconBox}>
-            <Ionicons name="lock-closed-outline" size={25} color={BLUE} />
-          </View>
-          <View style={styles.heroTextBox}>
-            <Text style={styles.heroTitle}>계정 보안을 지켜요</Text>
-            <Text style={styles.heroDesc}>
-              현재 비밀번호를 확인한 뒤 새 비밀번호로 안전하게 변경해요.
-            </Text>
-          </View>
-        </View>
-
         <View style={styles.formCard}>
           <PasswordField
             label="현재 비밀번호"
@@ -116,7 +107,11 @@ export default function ProfilePasswordScreen() {
           />
 
           <View style={styles.ruleBox}>
-            <Ionicons name="information-circle-outline" size={18} color={BLUE} />
+            <Ionicons
+              name="information-circle-outline"
+              size={18}
+              color={BLUE}
+            />
             <Text style={styles.ruleText}>
               영문, 숫자, 특수문자를 각각 1개 이상 포함해야 해요.
             </Text>
@@ -124,7 +119,10 @@ export default function ProfilePasswordScreen() {
         </View>
 
         <Pressable
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          style={[
+            styles.submitButton,
+            submitting && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={submitting}
         >
