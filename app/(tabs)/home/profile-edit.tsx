@@ -72,6 +72,13 @@ type EditSnapshot = {
   departureDate: string;
   dispatchStartDate: string;
   returnDate: string;
+  dispatchSemester: string;
+};
+type MemberWithDispatchSemester = NonNullable<Awaited<ReturnType<typeof getMemberMe>>['data']['data']> & {
+  dispatchSemester?: string | null;
+};
+type MemberProfileUpdateWithDispatchSemester = MemberProfileUpdateRequest & {
+  dispatchSemester?: string | null;
 };
 
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
@@ -87,6 +94,15 @@ const formatDate = (date: Date) =>
   `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
     date.getDate(),
   ).padStart(2, '0')}`;
+const normalizeDispatchSemester = (value?: string | number | null) => {
+  if (value === null || value === undefined) return '';
+
+  const trimmedValue = String(value).trim();
+
+  if (/^\d{4}$/.test(trimmedValue)) return '';
+
+  return trimmedValue;
+};
 
 export default function ProfileEditScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -102,6 +118,7 @@ export default function ProfileEditScreen() {
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
   const [dispatchStartDate, setDispatchStartDate] = useState<Date | null>(null);
   const [returnDate, setReturnDate] = useState<Date | null>(null);
+  const [dispatchSemester, setDispatchSemester] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [draftDate, setDraftDate] = useState(createDate(2026, 8, 21));
   const [activeDateField, setActiveDateField] = useState<DateFieldKey>('departureDate');
@@ -119,6 +136,7 @@ export default function ProfileEditScreen() {
     departureDate: toStorageDate(departureDate),
     dispatchStartDate: toStorageDate(dispatchStartDate),
     returnDate: toStorageDate(returnDate),
+    dispatchSemester: dispatchSemester.trim(),
   };
 
   const hasChanges =
@@ -129,7 +147,7 @@ export default function ProfileEditScreen() {
     });
 
   const openFieldEdit = (
-    field: 'nickname' | 'homeUniversity' | 'country' | 'dispatchedUniversity',
+    field: 'nickname' | 'homeUniversity' | 'country' | 'dispatchedUniversity' | 'dispatchSemester',
     value: string,
   ) => {
     router.push({
@@ -154,6 +172,7 @@ export default function ProfileEditScreen() {
         savedDepartureDate,
         savedDispatchStartDate,
         savedReturnDate,
+        savedDispatchSemester,
         savedOverrides,
       ] = await Promise.all([
         AsyncStorage.getItem('profileAvatarUri'),
@@ -168,6 +187,7 @@ export default function ProfileEditScreen() {
         AsyncStorage.getItem('departureDate'),
         AsyncStorage.getItem('dispatchStartDate'),
         AsyncStorage.getItem('returnDate'),
+        AsyncStorage.getItem('dispatchSemester'),
         AsyncStorage.getItem('profileFieldOverrides'),
       ]);
 
@@ -188,10 +208,11 @@ export default function ProfileEditScreen() {
       const nextDepartureDate = toDateValue(savedDepartureDate);
       const nextDispatchStartDate = toDateValue(savedDispatchStartDate);
       const nextReturnDate = toDateValue(savedReturnDate);
+      let nextDispatchSemester = normalizeDispatchSemester(savedDispatchSemester);
 
       try {
         const memberRes = await getMemberMe();
-        const member = memberRes.data?.data;
+        const member = memberRes.data?.data as MemberWithDispatchSemester | undefined;
 
         if (member?.name) nextName = member.name;
         if (member?.email) nextEmail = member.email;
@@ -203,6 +224,9 @@ export default function ProfileEditScreen() {
         if (member?.dispatchedRegion && !overrides.region) nextRegion = member.dispatchedRegion;
         if (member?.dispatchedUniversity && !overrides.dispatchedUniversity) {
           nextDispatchedUniversity = member.dispatchedUniversity;
+        }
+        if (member?.dispatchSemester && !overrides.dispatchSemester) {
+          nextDispatchSemester = normalizeDispatchSemester(member.dispatchSemester);
         }
         if (member?.currentSituation) {
           nextCurrentSituation = member.currentSituation;
@@ -226,6 +250,7 @@ export default function ProfileEditScreen() {
       setDepartureDate(nextDepartureDate);
       setDispatchStartDate(nextDispatchStartDate);
       setReturnDate(nextReturnDate);
+      setDispatchSemester(nextDispatchSemester);
       const loadedSnapshot = {
         nickname: nextNickname.trim(),
         homeUniversity: nextHomeUniversity.trim(),
@@ -237,6 +262,7 @@ export default function ProfileEditScreen() {
         departureDate: toStorageDate(nextDepartureDate),
         dispatchStartDate: toStorageDate(nextDispatchStartDate),
         returnDate: toStorageDate(nextReturnDate),
+        dispatchSemester: nextDispatchSemester.trim(),
       };
 
       setInitialSnapshot((prev) => prev ?? loadedSnapshot);
@@ -312,7 +338,7 @@ export default function ProfileEditScreen() {
       loadedCurrentSituation && profileStatusByCurrentSituation[loadedCurrentSituation] === status
         ? loadedCurrentSituation
         : currentSituationByProfileStatus[status];
-    const requestBody: MemberProfileUpdateRequest = {
+    const requestBody: MemberProfileUpdateWithDispatchSemester = {
       nickname: nickname.trim(),
       dispatchedCountry: country.trim(),
       dispatchedRegion: region.trim(),
@@ -323,6 +349,7 @@ export default function ProfileEditScreen() {
       departureDate: departureDate ? toStorageDate(departureDate) : null,
       dispatchStartDate: dispatchStartDate ? toStorageDate(dispatchStartDate) : null,
       returnDate: returnDate ? toStorageDate(returnDate) : null,
+      dispatchSemester: dispatchSemester.trim(),
     };
 
     try {
@@ -354,6 +381,9 @@ export default function ProfileEditScreen() {
       returnDate
         ? AsyncStorage.setItem('returnDate', toStorageDate(returnDate))
         : AsyncStorage.removeItem('returnDate'),
+      dispatchSemester.trim()
+        ? AsyncStorage.setItem('dispatchSemester', dispatchSemester.trim())
+        : AsyncStorage.removeItem('dispatchSemester'),
       avatarUri
         ? AsyncStorage.setItem('profileAvatarUri', avatarUri)
         : AsyncStorage.removeItem('profileAvatarUri'),
@@ -372,7 +402,7 @@ export default function ProfileEditScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
@@ -430,6 +460,13 @@ export default function ProfileEditScreen() {
             value={dispatchedUniversity}
             placeholder="미정"
             onPress={() => openFieldEdit('dispatchedUniversity', dispatchedUniversity)}
+            withDivider
+          />
+          <EditableInfoRow
+            label="파견 학기"
+            value={dispatchSemester}
+            placeholder="ex) 2025-2학기"
+            onPress={() => openFieldEdit('dispatchSemester', dispatchSemester)}
           />
         </InfoSection>
 

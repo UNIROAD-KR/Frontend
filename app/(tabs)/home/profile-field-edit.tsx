@@ -21,7 +21,12 @@ const INK = '#111111';
 const MUTED = '#737373';
 const LINE = '#E5E7EB';
 
-type FieldKey = 'nickname' | 'homeUniversity' | 'country' | 'dispatchedUniversity';
+type FieldKey =
+  | 'nickname'
+  | 'homeUniversity'
+  | 'country'
+  | 'dispatchedUniversity'
+  | 'dispatchSemester';
 
 const COUNTRY_GROUPS = {
   유럽권: ['독일', '프랑스', '체코', '스페인', '이탈리아', '네덜란드', '영국'],
@@ -73,6 +78,14 @@ const fieldConfig: Record<
     buttonText: '선택 완료',
     storageKeys: ['dispatchedUniversity'],
   },
+  dispatchSemester: {
+    title: '파견 학기 설정',
+    label: '파견 학기',
+    placeholder: 'ex) 2025-2학기',
+    helpText: '파견 학기를 직접 입력해 주세요.',
+    buttonText: '변경하기',
+    storageKeys: ['dispatchSemester'],
+  },
 };
 
 export default function ProfileFieldEditScreen() {
@@ -85,6 +98,7 @@ export default function ProfileFieldEditScreen() {
     field === 'homeUniversity' ||
     field === 'country' ||
     field === 'dispatchedUniversity' ||
+    field === 'dispatchSemester' ||
     field === 'nickname'
       ? field
       : 'nickname';
