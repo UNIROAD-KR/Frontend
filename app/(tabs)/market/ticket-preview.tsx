@@ -1,9 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -74,6 +71,29 @@ const ticketInfoLabelMap: Partial<Record<TicketType, TicketInfoLabels>> = {
 
 const formatPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+
+const formatRelativeTime = (value?: string) => {
+  if (!value) return '';
+
+  const createdAt = new Date(value);
+
+  if (Number.isNaN(createdAt.getTime())) {
+    return value.slice(0, 10).replaceAll('-', '.');
+  }
+
+  const diffMinutes = Math.floor((Date.now() - createdAt.getTime()) / 60000);
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일 전`;
+
+  return value.slice(0, 10).replaceAll('-', '.');
+};
 
 const formatDate = (date: string) => {
   const trimmedDate = date.trim();
@@ -230,6 +250,7 @@ export default function TicketPreviewPage() {
   const metaText = isAccommodation
     ? `${ticket.quantity}매 / ${eventDate}`
     : `${ticket.quantity}매 / ${eventDate} ${ticket.eventTime}`;
+  const postedTime = formatRelativeTime(ticket.createdAt ?? ticket.updatedAt);
   const sellerNickname = ticket.authorNickname || ticket.authorName;
   const sellerUniversity = ticket.authorDispatchedUniversity;
   const sellerRegion =
@@ -273,7 +294,7 @@ export default function TicketPreviewPage() {
         <View style={styles.priceRow}>
           <Text style={styles.price}>{formatPrice(ticket.transferPrice)}</Text>
           <Text style={styles.originalPrice}>
-            원가 {formatPrice(ticket.originalPrice)}
+            원가 {formatPrice(ticket.originalPrice ?? ticket.transferPrice)}
           </Text>
           <Text style={styles.meta}>{metaText}</Text>
         </View>

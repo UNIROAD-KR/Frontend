@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -27,6 +27,18 @@ import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
+
+type TicketItem = {
+  id: number;
+  title: string;
+  country: string;
+  semester: string;
+  region: string;
+  category: string;
+  date: string;
+  price: string;
+  time: string;
+};
 
 const formatPrice = (price: number) => {
   if (!price) return '가격 미정';
@@ -92,6 +104,34 @@ const formatTicketCreatedTime = (createdAt?: string) => {
   return createdAt.slice(0, 10).replaceAll('-', '.');
 };
 
+const formatRelativeTime = formatTicketCreatedTime;
+
+const mapTicketItem = (item: TicketTransferResponse): TicketItem => ({
+  id: item.id,
+  title: item.title,
+  country: item.authorDispatchedCountry ?? '',
+  semester: ticketTypeLabelMap[item.ticketType],
+  region: item.country,
+  category: ticketTypeLabelMap[item.ticketType],
+  date: formatTicketDate(item.eventDate),
+  price: formatTicketPrice(item.transferPrice),
+  time: formatTicketCreatedTime(item.createdAt ?? item.updatedAt),
+});
+
+const saveBookmarkedTickets = async (
+  bookmarkedIds: number[],
+  ticketItems: TicketItem[],
+) => {
+  const bookmarkedTickets = ticketItems.filter((item) =>
+    bookmarkedIds.includes(item.id),
+  );
+
+  await AsyncStorage.setItem(
+    SAVED_TICKET_POSTS_STORAGE_KEY,
+    JSON.stringify(bookmarkedTickets),
+  );
+};
+
 export default function MarketPage() {
   const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
   const { tab } = useLocalSearchParams<{ tab?: string }>();
@@ -111,8 +151,10 @@ export default function MarketPage() {
   useEffect(() => {
     if (tab === 'ticket') {
       setSelectedTab('ticket');
+      setSelectedType('ticket');
     } else {
       setSelectedTab('bulk');
+      setSelectedType('bulk');
     }
   }, [tab]);
 
@@ -401,6 +443,7 @@ export default function MarketPage() {
               selectedTab === 'bulk' && styles.tradeTypeButtonActive,
             ]}
             onPress={() => {
+              setSelectedTab('bulk');
               setSelectedType('bulk');
               setIsFabOpen(false);
             }}
@@ -421,6 +464,7 @@ export default function MarketPage() {
               selectedTab === 'ticket' && styles.tradeTypeButtonActive,
             ]}
             onPress={() => {
+              setSelectedTab('ticket');
               setSelectedType('ticket');
               setIsFabOpen(false);
             }}

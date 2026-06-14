@@ -6,13 +6,14 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { getMemberMe, logout } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
@@ -26,12 +27,14 @@ type RouteTarget = unknown;
 
 type QuickAction = {
   title: string;
+  icon: keyof typeof Ionicons.glyphMap;
   route: RouteTarget;
 };
 
 type MenuItem = {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
+  description?: string;
   route: RouteTarget;
   action?: 'logout';
 };
@@ -45,6 +48,7 @@ const quickActions: QuickAction[] = [
 const activityItems: MenuItem[] = [
   {
     title: '좋아요한 글',
+    icon: 'heart-outline',
     route: {
       pathname: '/(tabs)/home/profile-list',
       params: { type: 'saved' },
@@ -217,26 +221,6 @@ export default function ProfileCardScreen() {
     openRoute(item.route);
   };
 
-  const handleLogout = () => {
-    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '로그아웃',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logout();
-          } catch (error) {
-            console.log('로그아웃 API 호출 실패:', error);
-          } finally {
-            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
-            router.replace('/login');
-          }
-        },
-      },
-    ]);
-  };
-
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -280,14 +264,15 @@ export default function ProfileCardScreen() {
             </View>
           </TouchableOpacity>
 
-          <View style={styles.quickCard}>
+          <View style={styles.quickRow}>
             {quickActions.map((item) => (
               <TouchableOpacity
                 key={item.title}
-                style={styles.quickItem}
+                style={styles.quickButton}
                 onPress={() => openRoute(item.route)}
                 activeOpacity={0.86}
               >
+                <Ionicons name={item.icon} size={15} color={NAVY} />
                 <Text style={styles.quickTitle}>{item.title}</Text>
               </TouchableOpacity>
             ))}
@@ -344,13 +329,12 @@ export default function ProfileCardScreen() {
         <MenuSection
           title="내 활동"
           items={activityItems}
-          onPressItem={openRoute}
+          onPressItem={handleMenuPress}
         />
         <MenuSection
           title="계정 / 설정"
           items={accountItems}
-          onPressItem={openRoute}
-          onLogout={handleLogout}
+          onPressItem={handleMenuPress}
         />
       </ScrollView>
     </View>
@@ -364,8 +348,7 @@ function MenuSection({
 }: {
   title: string;
   items: MenuItem[];
-  onPressItem: (route: RouteTarget) => void;
-  onLogout?: () => void;
+  onPressItem: (item: MenuItem) => void;
 }) {
   return (
     <View style={styles.section}>
@@ -376,7 +359,7 @@ function MenuSection({
           <TouchableOpacity
             key={item.title}
             style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-            onPress={() => (item.action === 'logout' ? onLogout?.() : onPressItem(item.route))}
+            onPress={() => onPressItem(item)}
             activeOpacity={0.82}
           >
             <View style={styles.menuIconBox}>
@@ -402,8 +385,6 @@ const styles = StyleSheet.create({
   },
   header: {
     height: 104,
-    paddingTop: 48,
-    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',

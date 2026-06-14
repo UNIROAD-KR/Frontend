@@ -133,6 +133,8 @@ export const getMemberMe = () => {
 
 export const updateMemberProfile = (data: MemberProfileUpdateRequest) => {
   return api.patch<BaseResponse<MemberResponse>>('/api/members/me/profile', data);
+};
+
 export const updatePassword = (data: PasswordUpdateRequest) => {
   return api.patch<BaseResponse<void>>('/api/members/me/password', data);
 };

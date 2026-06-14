@@ -24,6 +24,7 @@ import {
   type CurrentSituation,
   type MemberProfileUpdateRequest,
 } from '../../../src/api/auth';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
