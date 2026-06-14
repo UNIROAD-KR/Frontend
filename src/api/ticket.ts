@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse } from './types';
+import { BaseResponse, CursorResponse } from './types';
 
 export type TicketType = 'TOUR' | 'CONCERT' | 'TRAIN' | 'FLIGHT' | 'ACCOMMODATION';
 
@@ -11,10 +11,11 @@ export interface TicketTransferRequest {
   eventDate: string;
   eventEndDate?: string;
   eventTime: string;
+  country: string;
   location: string;
   quantity: number;
   transferPrice: number;
-  originalPrice?: number;
+  originalPrice: number;
 }
 
 export interface TicketTransferResponse {
@@ -23,9 +24,10 @@ export interface TicketTransferResponse {
   authorNickname?: string;
   authorDispatchedCountry?: string;
   authorDispatchedRegion?: string;
+  authorDispatchRegion?: string;
   authorDispatchedUniversity?: string;
-  authorDispatchYear?: number;
-  authorDispatchSemester?: string;
+  authorDispatchYear?: number | string;
+  authorDispatchSemester?: number | string;
   authorDispatchStartDate?: string;
   ticketType: TicketType;
   title: string;
@@ -34,6 +36,7 @@ export interface TicketTransferResponse {
   eventDate: string;
   eventEndDate?: string;
   eventTime: string;
+  country: string;
   location: string;
   quantity: number;
   transferPrice: number;
@@ -50,6 +53,17 @@ export interface TicketTransferListResponse {
 }
 
 // 티켓 양도 글 작성
+export type TicketTransferListResponse = CursorResponse<TicketTransferResponse>;
+
+export const getTickets = (cursorId?: number, size = 10) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets', {
+    params: {
+      cursorId,
+      size,
+    },
+  });
+};
+
 export const createTicket = (data: TicketTransferRequest) => {
   return api.post<BaseResponse<number>>('/api/tickets', data);
 };

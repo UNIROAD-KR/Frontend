@@ -1,14 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { type RefObject, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -24,20 +22,51 @@ import {
   TicketTransferRequest,
   TicketType,
 } from '../../../src/api/ticket';
-import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
-const NAVY = '#0F2042';
-const BLUE = '#123F9F';
-const INPUT_BORDER = '#D7D7D7';
-const DRAFT_KEY = 'univ:market:ticket-write-draft';
+const BLUE = '#102BE0';
+const TIME_ITEM_HEIGHT = 36;
+const TIME_WHEEL_HEIGHT = 180;
+const TIME_WHEEL_BOX_HEIGHT = 206;
+const calendarWeekDays = ['일', '월', '화', '수', '목', '금', '토'];
 
-const ticketTypes: { label: string; value: TicketType }[] = [
+const ticketTypeOptions: { label: string; value: TicketType }[] = [
   { label: '관광 티켓', value: 'TOUR' },
   { label: '콘서트 / 공연', value: 'CONCERT' },
   { label: '기차', value: 'TRAIN' },
   { label: '항공권', value: 'FLIGHT' },
   { label: '숙박', value: 'ACCOMMODATION' },
 ];
+
+const ticketFieldLabels: Record<
+  TicketType,
+  { date: string; time: string; location: string }
+> = {
+  TOUR: {
+    date: '이용일',
+    time: '시간',
+    location: '장소',
+  },
+  CONCERT: {
+    date: '공연일',
+    time: '공연 시간',
+    location: '공연 장소',
+  },
+  TRAIN: {
+    date: '출발일',
+    time: '출발 시간',
+    location: '장소(역명)',
+  },
+  FLIGHT: {
+    date: '출발일',
+    time: '출발 시간',
+    location: '장소(공항명)',
+  },
+  ACCOMMODATION: {
+    date: '체크인 날짜',
+    time: '',
+    location: '장소',
+  },
+};
 
 const formatDate = (date: Date) => {
   const year = date.getFullYear();
@@ -47,28 +76,40 @@ const formatDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatTime = (date: Date) => {
-  const hour = String(date.getHours()).padStart(2, '0');
-  const minute = String(date.getMinutes()).padStart(2, '0');
+const hourOptions = Array.from({ length: 24 }, (_, index) =>
+  String(index).padStart(2, '0'),
+);
+const minuteOptions = Array.from({ length: 12 }, (_, index) =>
+  String(index * 5).padStart(2, '0'),
+);
+const countryOptions = [
+  '독일',
+  '프랑스',
+  '스페인',
+  '체코',
+  '이탈리아',
+  '네덜란드',
+  '일본',
+  '기타',
+];
 
-  return `${hour}:${minute}`;
+const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
+
+const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+
+const parseDateValue = (value: string) => {
+  if (!value) return new Date();
+
+  const date = new Date(`${value}T00:00:00`);
+
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
-const parseMoney = (value: string) => {
-  const number = Number(value.replace(/[^\d]/g, ''));
-  return Number.isFinite(number) ? number : 0;
-};
-
-type PickerTarget = 'date' | 'time' | null;
-
-export default function TicketWriteScreen() {
+export default function TicketWritePage() {
   const [step, setStep] = useState<1 | 2>(1);
-  const [verificationModalVisible, setVerificationModalVisible] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [selectedType, setSelectedType] = useState<TicketType>('TOUR');
-  const [dateValue, setDateValue] = useState(new Date());
-  const [timeValue, setTimeValue] = useState(new Date());
+  const [ticketType, setTicketType] = useState<TicketType | null>(null);
   const [eventDate, setEventDate] = useState('');
+  const [checkoutDate, setCheckoutDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [country, setCountry] = useState('');
   const [location, setLocation] = useState('');
@@ -77,145 +118,252 @@ export default function TicketWriteScreen() {
   const [originalPrice, setOriginalPrice] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
+  const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [dateTarget, setDateTarget] = useState<'event' | 'checkin' | 'checkout'>(
+    'event',
+  );
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedHour, setSelectedHour] = useState('00');
+  const [selectedMinute, setSelectedMinute] = useState('00');
+  const [submitting, setSubmitting] = useState(false);
+  const hourWheelRef = useRef<ScrollView>(null);
+  const minuteWheelRef = useRef<ScrollView>(null);
+  const hourSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minuteSnapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const isAccommodation = ticketType === 'ACCOMMODATION';
+  const fieldLabels = ticketType
+    ? ticketFieldLabels[ticketType]
+    : ticketFieldLabels.TOUR;
 
-  useEffect(() => {
-    const checkVerification = async () => {
-      try {
-        const canUseMarket = await canUseMarketWithoutVerification();
-
-        if (!canUseMarket) {
-          setVerificationModalVisible(true);
-        }
-      } catch (error: any) {
-        console.log('티켓 작성 인증 상태 조회 실패:', error.response?.data || error.message);
-        setVerificationModalVisible(true);
-      }
-    };
-
-    checkVerification();
-  }, []);
-
-  const stepOneValid = useMemo(
+  const canGoNext = useMemo(
     () =>
       Boolean(
-        eventDate &&
-          eventTime &&
-          country.trim() &&
+        ticketType &&
+          eventDate &&
+          (isAccommodation ? checkoutDate : eventTime) &&
+          country &&
           location.trim() &&
-          parseMoney(transferPrice) > 0,
+          transferPrice &&
+          originalPrice &&
+          Number(transferPrice) > 0 &&
+          Number(originalPrice) > 0,
       ),
-    [country, eventDate, eventTime, location, transferPrice],
-  );
-
-  const stepTwoValid = useMemo(
-    () => Boolean(title.trim() && content.trim()),
-    [title, content],
-  );
-
-  const handleDateChange = (
-    _event: DateTimePickerEvent,
-    selectedDate?: Date,
-  ) => {
-    if (_event.type === 'dismissed') {
-      setPickerTarget(null);
-      return;
-    }
-
-    if (!selectedDate) {
-      return;
-    }
-
-    setDateValue(selectedDate);
-    setEventDate(formatDate(selectedDate));
-  };
-
-  const handleTimeChange = (
-    _event: DateTimePickerEvent,
-    selectedTime?: Date,
-  ) => {
-    if (_event.type === 'dismissed') {
-      setPickerTarget(null);
-      return;
-    }
-
-    if (!selectedTime) {
-      return;
-    }
-
-    setTimeValue(selectedTime);
-    setEventTime(formatTime(selectedTime));
-  };
-
-  const saveDraft = async () => {
-    await AsyncStorage.setItem(
-      DRAFT_KEY,
-      JSON.stringify({
-        selectedType,
-        eventDate,
-        eventTime,
-        country,
-        location,
-        quantity,
-        transferPrice,
-        originalPrice,
-        title,
-        content,
-      }),
-    );
-    Alert.alert('임시저장 완료', '작성 중인 티켓 양도글을 저장했어요.');
-  };
-
-  const goNext = () => {
-    if (!stepOneValid) {
-      Alert.alert('입력 필요', '티켓 정보와 양도 가격을 입력해주세요.');
-      return;
-    }
-
-    setStep(2);
-  };
-
-  const uploadTicket = async () => {
-    if (!stepTwoValid) {
-      Alert.alert('입력 필요', '제목과 상세 설명을 입력해주세요.');
-      return;
-    }
-
-    const payload: TicketTransferRequest = {
-      ticketType: selectedType,
-      title: title.trim(),
-      content: content.trim(),
-      country: country.trim(),
+    [
       eventDate,
       eventTime,
+      checkoutDate,
+      isAccommodation,
+      country,
+      location,
+      originalPrice,
+      ticketType,
+      transferPrice,
+    ],
+  );
+
+  const canSubmit = Boolean(title.trim() && content.trim() && !submitting);
+
+  const openPicker = (
+    mode: 'date' | 'time',
+    target: 'event' | 'checkin' | 'checkout' = 'event',
+  ) => {
+    setPickerMode(mode);
+
+    if (mode === 'date') {
+      setDateTarget(target);
+      const currentValue = target === 'checkout' ? checkoutDate : eventDate;
+      const selectedDate = parseDateValue(currentValue || eventDate);
+      setCalendarMonth(
+        new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
+      );
+      return;
+    }
+
+    const [hour = '00', minute = '00'] = eventTime.split(':');
+    const nextHour = hour.padStart(2, '0');
+    const nextMinute = minute.padStart(2, '0');
+
+    setSelectedHour(nextHour);
+    setSelectedMinute(nextMinute);
+
+    setTimeout(() => {
+      hourWheelRef.current?.scrollTo({
+        y: hourOptions.indexOf(nextHour) * TIME_ITEM_HEIGHT,
+        animated: false,
+      });
+      minuteWheelRef.current?.scrollTo({
+        y: minuteOptions.indexOf(nextMinute) * TIME_ITEM_HEIGHT,
+        animated: false,
+      });
+    }, 80);
+  };
+
+  const closePicker = () => {
+    if (hourSnapTimerRef.current) {
+      clearTimeout(hourSnapTimerRef.current);
+      hourSnapTimerRef.current = null;
+    }
+    if (minuteSnapTimerRef.current) {
+      clearTimeout(minuteSnapTimerRef.current);
+      minuteSnapTimerRef.current = null;
+    }
+
+    setPickerMode(null);
+  };
+
+  const handleConfirmPicker = () => {
+    if (pickerMode === 'time') {
+      setEventTime(`${selectedHour}:${selectedMinute}`);
+    }
+
+    closePicker();
+  };
+
+  const snapTimeWheelToNearest = (
+    offsetY: number,
+    options: string[],
+    onSelect: (value: string) => void,
+    wheelRef: RefObject<ScrollView | null>,
+    animated = true,
+  ) => {
+    const rawIndex = Math.round(offsetY / TIME_ITEM_HEIGHT);
+    const nextIndex = Math.max(0, Math.min(options.length - 1, rawIndex));
+
+    onSelect(options[nextIndex]);
+    wheelRef.current?.scrollTo({
+      y: nextIndex * TIME_ITEM_HEIGHT,
+      animated,
+    });
+  };
+
+  const handleTimeWheelDragEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+    options: string[],
+    onSelect: (value: string) => void,
+    wheelRef: RefObject<ScrollView | null>,
+    timerRef: RefObject<ReturnType<typeof setTimeout> | null>,
+  ) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = setTimeout(() => {
+      snapTimeWheelToNearest(offsetY, options, onSelect, wheelRef);
+      timerRef.current = null;
+    }, 120);
+  };
+
+  const handleTimeWheelMomentumEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+    options: string[],
+    onSelect: (value: string) => void,
+    wheelRef: RefObject<ScrollView | null>,
+    timerRef: RefObject<ReturnType<typeof setTimeout> | null>,
+  ) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    snapTimeWheelToNearest(offsetY, options, onSelect, wheelRef);
+  };
+
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    return [
+      ...Array.from({ length: firstDay }, () => null),
+      ...Array.from({ length: totalDays }, (_, index) => index + 1),
+    ];
+  }, [calendarMonth]);
+
+  const moveCalendarMonth = (amount: number) => {
+    setCalendarMonth(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + amount, 1),
+    );
+  };
+
+  const handleSelectDate = (day: number) => {
+    const selectedDate = new Date(
+      calendarMonth.getFullYear(),
+      calendarMonth.getMonth(),
+      day,
+    );
+    const nextDate = formatDate(selectedDate);
+
+    if (dateTarget === 'checkout') {
+      if (eventDate && parseDateValue(nextDate) <= parseDateValue(eventDate)) {
+        Alert.alert('날짜 선택', '체크아웃 날짜는 체크인 날짜보다 이전일 수 없어요.');
+        return;
+      }
+
+      setCheckoutDate(nextDate);
+      return;
+    }
+
+    setEventDate(nextDate);
+
+    if (
+      isAccommodation &&
+      checkoutDate &&
+      parseDateValue(checkoutDate) <= parseDateValue(nextDate)
+    ) {
+      setCheckoutDate('');
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!ticketType || !canSubmit || !canGoNext) return;
+
+    const submitEventDate = isAccommodation
+      ? `${eventDate}~${checkoutDate}`
+      : eventDate;
+
+    const payload: TicketTransferRequest = {
+      ticketType,
+      title: title.trim(),
+      content: content.trim(),
+      eventDate: submitEventDate,
+      eventTime: isAccommodation ? '00:00' : eventTime,
+      country,
       location: location.trim(),
       quantity,
-      transferPrice: parseMoney(transferPrice),
-      originalPrice: originalPrice.trim()
-        ? parseMoney(originalPrice)
-        : undefined,
+      transferPrice: Number(transferPrice),
+      originalPrice: Number(originalPrice),
     };
 
-    setSubmitting(true);
-
     try {
-      await createTicket(payload);
-      await AsyncStorage.removeItem(DRAFT_KEY);
-      Alert.alert('업로드 완료', '티켓 양도글이 등록되었습니다.', [
-        {
-          text: '확인',
-          onPress: () =>
-            router.replace({
-              pathname: '/(tabs)/market',
-              params: { tab: 'ticket' },
-            } as any),
-        },
-      ]);
+      setSubmitting(true);
+      const response = await createTicket(payload);
+      const ticketId = response.data.data;
+
+      if (ticketId) {
+        router.replace({
+          pathname: '/market/ticket-preview',
+          params: { id: String(ticketId) },
+        } as any);
+        return;
+      }
+
+      router.replace({
+        pathname: '/market',
+        params: { tab: 'ticket', refresh: String(Date.now()) },
+      } as any);
     } catch (error: any) {
-      console.log('티켓 양도글 등록 실패:', error.response?.data || error.message);
+      console.log('티켓 양도 글 작성 실패:', error.response?.data || error.message);
       Alert.alert(
         '업로드 실패',
-        error.response?.data?.message || '티켓 양도글 등록에 실패했어요.',
+        error.response?.data?.message ?? '티켓 양도 글을 등록하지 못했어요.',
       );
     } finally {
       setSubmitting(false);
@@ -223,305 +371,746 @@ export default function TicketWriteScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.statusSpacer} />
-
-      <View style={styles.header}>
-        <AppBackButton
-          style={styles.backButton}
-          onPress={step === 2 ? () => setStep(1) : undefined}
-        />
-        <Text style={styles.headerTitle}>티켓 양도하기</Text>
-        <Pressable style={styles.draftButton} onPress={saveDraft}>
-          <Text style={styles.draftText}>임시저장</Text>
-        </Pressable>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.keyboardWrap}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {step === 1 ? (
-            <>
-              <Text style={styles.sectionTitle}>티켓 종류</Text>
-              <View style={styles.typeGrid}>
-                {ticketTypes.map((item) => {
-                  const active = selectedType === item.value;
+        <View style={styles.header}>
+          <AppBackButton
+            onPress={() => {
+              if (step === 2) {
+                setStep(1);
+                return;
+              }
 
-                  return (
-                    <Pressable
-                      key={item.value}
-                      style={[styles.typeChip, active && styles.typeChipActive]}
-                      onPress={() => setSelectedType(item.value)}
+              router.back();
+            }}
+          />
+          <Text style={styles.headerTitle}>티켓양도하기</Text>
+          <Text style={styles.tempSave}>임시저장</Text>
+        </View>
+
+        {step === 1 ? (
+          <>
+            <Text style={styles.sectionLabel}>티켓 종류</Text>
+            <View style={styles.typeGrid}>
+              {ticketTypeOptions.map((option) => {
+                const active = ticketType === option.value;
+
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.typeButton, active && styles.typeButtonActive]}
+                    onPress={() => setTicketType(option.value)}
+                  >
+                    <Text
+                      style={[styles.typeText, active && styles.typeTextActive]}
+                      numberOfLines={1}
                     >
-                      <Text
-                        style={[
-                          styles.typeChipText,
-                          active && styles.typeChipTextActive,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-              <DividerTitle title="티켓 정보" />
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionLabel, styles.sectionHeaderLabel]}>
+                티켓 정보
+              </Text>
+              <View style={styles.sectionLine} />
+            </View>
 
+            {isAccommodation && (
               <View style={styles.twoColumnRow}>
-                <View style={styles.columnField}>
-                  <Text style={styles.fieldLabel}>날짜</Text>
+                <View style={styles.halfGroup}>
+                  <Text style={styles.inputLabel}>체크인 날짜</Text>
                   <Pressable
                     style={styles.selectInput}
-                    onPress={() => setPickerTarget('date')}
+                    onPress={() => openPicker('date', 'checkin')}
                   >
                     <Text
                       style={[
                         styles.selectText,
-                        !eventDate && styles.placeholderText,
+                        eventDate && styles.selectTextActive,
                       ]}
                     >
                       {eventDate || '연도-월-일'}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#B8B8B8" />
+                    <Text style={styles.chevron}>⌄</Text>
                   </Pressable>
                 </View>
 
-                <View style={styles.columnField}>
-                  <Text style={styles.fieldLabel}>시간</Text>
+                <View style={styles.halfGroup}>
+                  <Text style={styles.inputLabel}>체크아웃 날짜</Text>
                   <Pressable
                     style={styles.selectInput}
-                    onPress={() => setPickerTarget('time')}
+                    onPress={() => openPicker('date', 'checkout')}
                   >
                     <Text
                       style={[
                         styles.selectText,
-                        !eventTime && styles.placeholderText,
+                        checkoutDate && styles.selectTextActive,
+                      ]}
+                    >
+                      {checkoutDate || '연도-월-일'}
+                    </Text>
+                    <Text style={styles.chevron}>⌄</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {!isAccommodation && (
+              <View style={styles.twoColumnRow}>
+                <View style={styles.halfGroup}>
+                  <Text style={styles.inputLabel} numberOfLines={1}>
+                    {fieldLabels.date}
+                  </Text>
+                  <Pressable
+                    style={styles.selectInput}
+                    onPress={() => openPicker('date')}
+                  >
+                    <Text
+                      style={[
+                        styles.selectText,
+                        eventDate && styles.selectTextActive,
+                      ]}
+                    >
+                      {eventDate || '연도-월-일'}
+                    </Text>
+                    <Text style={styles.chevron}>⌄</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.halfGroup}>
+                  <Text style={styles.inputLabel} numberOfLines={1}>
+                    {fieldLabels.time}
+                  </Text>
+                  <Pressable
+                    style={styles.selectInput}
+                    onPress={() => openPicker('time')}
+                  >
+                    <Text
+                      style={[
+                        styles.selectText,
+                        eventTime && styles.selectTextActive,
                       ]}
                     >
                       {eventTime || '선택'}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color="#B8B8B8" />
+                    <Text style={styles.chevron}>⌄</Text>
                   </Pressable>
                 </View>
               </View>
+            )}
 
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>국가</Text>
-                <TextInput
-                  style={styles.fullInput}
-                  placeholder="예: 독일"
-                  placeholderTextColor="#9B9B9B"
-                  value={country}
-                  onChangeText={setCountry}
-                />
+            <View style={styles.hiddenRow}>
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel}>날짜</Text>
+                <Pressable
+                  style={styles.selectInput}
+                  onPress={() => openPicker('date')}
+                >
+                  <Text
+                    style={[
+                      styles.selectText,
+                      eventDate && styles.selectTextActive,
+                    ]}
+                  >
+                    {eventDate || '연도-월-일'}
+                  </Text>
+                  <Text style={styles.chevron}>⌄</Text>
+                </Pressable>
               </View>
 
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>장소</Text>
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel}>시간</Text>
+                <Pressable
+                  style={styles.selectInput}
+                  onPress={() => openPicker('time')}
+                >
+                  <Text
+                    style={[
+                      styles.selectText,
+                      eventTime && styles.selectTextActive,
+                    ]}
+                  >
+                    {eventTime || '선택'}
+                  </Text>
+                  <Text style={styles.chevron}>⌄</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.twoColumnRow}>
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel}>국가</Text>
+                <Pressable
+                  style={styles.selectInput}
+                  onPress={() => setCountryPickerVisible(true)}
+                >
+                  <Text
+                    style={[
+                      styles.selectText,
+                      country && styles.selectTextActive,
+                    ]}
+                  >
+                    {country || '선택'}
+                  </Text>
+                  <Text style={styles.chevron}>⌄</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel} numberOfLines={1}>
+                  {fieldLabels.location}
+                </Text>
                 <TextInput
-                  style={styles.fullInput}
-                  placeholder="거래 장소 또는 행사 장소를 입력해주세요"
+                  style={styles.input}
+                  placeholder="입력"
+                  placeholderTextColor="#9B9B9B"
+                  value={location}
+                  onChangeText={setLocation}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fullGroup}>
+              <Text style={styles.inputLabel}>양도 매수</Text>
+              <View style={styles.quantityBox}>
+                <Pressable
+                  style={styles.quantityButton}
+                  onPress={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                >
+                  <Text style={styles.quantityButtonText}>−</Text>
+                </Pressable>
+                <Text style={styles.quantityText}>{quantity}</Text>
+                <Pressable
+                  style={styles.quantityButton}
+                  onPress={() => setQuantity((prev) => prev + 1)}
+                >
+                  <Text style={styles.quantityButtonText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.hiddenRow}>
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel}>장소</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="입력"
                   placeholderTextColor="#9B9B9B"
                   value={location}
                   onChangeText={setLocation}
                 />
               </View>
 
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>양도 매수</Text>
-                <View style={styles.fullQuantityBox}>
+              <View style={styles.halfGroup}>
+                <Text style={styles.inputLabel}>양도 매수</Text>
+                <View style={styles.quantityBox}>
                   <Pressable
                     style={styles.quantityButton}
                     onPress={() => setQuantity((prev) => Math.max(1, prev - 1))}
                   >
-                    <Text style={styles.quantitySymbol}>−</Text>
+                    <Text style={styles.quantityButtonText}>−</Text>
                   </Pressable>
                   <Text style={styles.quantityText}>{quantity}</Text>
                   <Pressable
                     style={styles.quantityButton}
                     onPress={() => setQuantity((prev) => prev + 1)}
                   >
-                    <Text style={styles.quantitySymbol}>+</Text>
+                    <Text style={styles.quantityButtonText}>+</Text>
                   </Pressable>
                 </View>
               </View>
+            </View>
 
-              <DividerTitle title="가격" />
-
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>양도 가격</Text>
-                <TextInput
-                  style={styles.fullInput}
-                  placeholder="양도 가격"
-                  placeholderTextColor="#9B9B9B"
-                  keyboardType="numeric"
-                  value={transferPrice}
-                  onChangeText={setTransferPrice}
-                />
-              </View>
-
-              <View style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>원가 (선택)</Text>
-                <TextInput
-                  style={styles.fullInput}
-                  placeholder="구매 당시 원가"
-                  placeholderTextColor="#9B9B9B"
-                  keyboardType="numeric"
-                  value={originalPrice}
-                  onChangeText={setOriginalPrice}
-                />
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={styles.fieldBlock}>
-                <Text style={styles.sectionTitle}>제목</Text>
-                <TextInput
-                  style={[styles.fullInput, styles.titleInputSpacing]}
-                  placeholder="제목을 입력해주세요."
-                  placeholderTextColor="#8E8E8E"
-                  value={title}
-                  onChangeText={setTitle}
-                />
-              </View>
-
-              <View style={styles.descriptionBlock}>
-                <Text style={styles.sectionTitle}>상세 설명</Text>
-                <TextInput
-                  style={styles.descriptionInput}
-                  placeholder="양도 이유, 거래 방식 등 자유롭게 적어주세요"
-                  placeholderTextColor="#8E8E8E"
-                  value={content}
-                  onChangeText={setContent}
-                  textAlignVertical="top"
-                  multiline
-                />
-              </View>
-            </>
-          )}
-        </ScrollView>
-
-        <View style={styles.footer}>
-          {step === 1 ? (
-            <Pressable
-              style={[
-                styles.primaryButton,
-                !stepOneValid && styles.primaryButtonDisabled,
-              ]}
-              onPress={goNext}
-            >
-              <Text style={styles.primaryButtonText}>다음 (1/2)</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={[
-                styles.primaryButton,
-                (!stepTwoValid || submitting) && styles.primaryButtonDisabled,
-              ]}
-              onPress={uploadTicket}
-              disabled={submitting}
-            >
-              <Text style={styles.primaryButtonText}>
-                {submitting ? '업로드 중...' : '업로드 하기'}
+            <View style={[styles.sectionHeader, styles.priceSectionHeader]}>
+              <Text style={[styles.sectionLabel, styles.sectionHeaderLabel]}>
+                가격
               </Text>
+              <View style={styles.sectionLine} />
+            </View>
+
+            <Text style={styles.inputLabel}>양도 가격</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="€ 양도 가격"
+              placeholderTextColor="#9B9B9B"
+              keyboardType="number-pad"
+              value={transferPrice}
+              onChangeText={(value) => setTransferPrice(onlyDigits(value))}
+            />
+
+            <Text style={styles.inputLabel}>원가</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="€ 구매 당시 원가"
+              placeholderTextColor="#9B9B9B"
+              keyboardType="number-pad"
+              value={originalPrice}
+              onChangeText={(value) => setOriginalPrice(onlyDigits(value))}
+            />
+
+            <Pressable
+              style={[styles.bottomButton, !canGoNext && styles.buttonDisabled]}
+              disabled={!canGoNext}
+              onPress={() => setStep(2)}
+            >
+              <Text style={styles.bottomButtonText}>다음 (1/2)</Text>
             </Pressable>
-          )}
-        </View>
-      </KeyboardAvoidingView>
+          </>
+        ) : (
+          <>
+            <Text style={styles.stepTwoLabel}>제목</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="제목을 입력해주세요."
+              placeholderTextColor="#9B9B9B"
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <Text style={[styles.stepTwoLabel, styles.descriptionLabel]}>
+              상세 설명
+            </Text>
+            <TextInput
+              style={styles.textArea}
+              placeholder="양도 이유, 거래 방식 등 자유롭게 적어주세요"
+              placeholderTextColor="#9B9B9B"
+              value={content}
+              onChangeText={setContent}
+              multiline
+              textAlignVertical="top"
+            />
+
+            <Pressable
+              style={[
+                styles.bottomButton,
+                (!canSubmit || !canGoNext) && styles.buttonDisabled,
+              ]}
+              disabled={!canSubmit || !canGoNext}
+              onPress={handleSubmit}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.bottomButtonText}>업로드 하기</Text>
+              )}
+            </Pressable>
+          </>
+        )}
+      </ScrollView>
 
       <Modal
         transparent
-        visible={pickerTarget !== null}
-        animationType="fade"
-        onRequestClose={() => setPickerTarget(null)}
+        visible={pickerMode !== null}
+        animationType="slide"
+        onRequestClose={closePicker}
       >
-        <Pressable
-          style={styles.pickerBackdrop}
-          onPress={() => setPickerTarget(null)}
-        />
-        <View style={styles.pickerSheet}>
-          <View style={styles.pickerHeader}>
-            <Pressable onPress={() => setPickerTarget(null)}>
-              <Text style={styles.pickerCancelText}>취소</Text>
-            </Pressable>
-            <Text style={styles.pickerTitle}>
-              {pickerTarget === 'date' ? '날짜 선택' : '시간 선택'}
-            </Text>
-            <Pressable onPress={() => setPickerTarget(null)}>
-              <Text style={styles.pickerDoneText}>완료</Text>
-            </Pressable>
-          </View>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={closePicker} />
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <Pressable onPress={closePicker}>
+                <Text style={styles.pickerCancel}>취소</Text>
+              </Pressable>
+              <Text style={styles.pickerTitle}>
+                {pickerMode === 'date' ? '날짜 선택' : '시간 선택'}
+              </Text>
+              <Pressable onPress={handleConfirmPicker}>
+                <Text style={styles.pickerDone}>완료</Text>
+              </Pressable>
+            </View>
 
-          {pickerTarget === 'date' ? (
-            <DateTimePicker
-              value={dateValue}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleDateChange}
-              style={styles.picker}
-            />
-          ) : (
-            <DateTimePicker
-              value={timeValue}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={handleTimeChange}
-              style={styles.picker}
-            />
-          )}
+            {false && (
+              <View style={styles.pickerHeader}>
+                <Pressable onPress={closePicker}>
+                  <Text style={styles.pickerCancel}>취소</Text>
+                </Pressable>
+                <Text style={styles.pickerTitle}>
+                  {pickerMode === 'date' ? '날짜 선택' : '시간 선택'}
+                </Text>
+                <Pressable onPress={handleConfirmPicker}>
+                  <Text style={styles.pickerDone}>완료</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {pickerMode === 'date' && (
+              <View style={styles.calendarBox}>
+                <View style={styles.calendarMonthRow}>
+                  <Pressable
+                    style={styles.calendarNavButton}
+                    onPress={() => moveCalendarMonth(-1)}
+                  >
+                    <Text style={styles.calendarNavText}>‹</Text>
+                  </Pressable>
+                  <Text style={styles.calendarMonthText}>
+                    {calendarMonth.getFullYear()}년 {calendarMonth.getMonth() + 1}월
+                  </Text>
+                  <Pressable
+                    style={styles.calendarNavButton}
+                    onPress={() => moveCalendarMonth(1)}
+                  >
+                    <Text style={styles.calendarNavText}>›</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.weekRow}>
+                  {calendarWeekDays.map((day) => (
+                    <Text key={day} style={styles.weekDayText}>
+                      {day}
+                    </Text>
+                  ))}
+                </View>
+
+                <View style={styles.calendarGrid}>
+                  {calendarDays.map((day, index) => {
+                    const dateValue = day
+                      ? formatDate(
+                          new Date(
+                            calendarMonth.getFullYear(),
+                            calendarMonth.getMonth(),
+                            day,
+                          ),
+                        )
+                      : '';
+                    const isCheckInDate = Boolean(
+                      day && isAccommodation && dateValue === eventDate,
+                    );
+                    const isCheckOutDate = Boolean(
+                      day && isAccommodation && dateValue === checkoutDate,
+                    );
+                    const selected = Boolean(
+                      day &&
+                        (isAccommodation
+                          ? isCheckInDate || isCheckOutDate
+                          : dateValue === eventDate),
+                    );
+                    const hasAccommodationRange = Boolean(
+                      isAccommodation && eventDate && checkoutDate,
+                    );
+                    const inAccommodationRange = Boolean(
+                      day &&
+                        hasAccommodationRange &&
+                        dateValue > eventDate &&
+                        dateValue < checkoutDate,
+                    );
+                    const rangeStartsHere = Boolean(
+                      hasAccommodationRange && isCheckInDate,
+                    );
+                    const rangeEndsHere = Boolean(
+                      hasAccommodationRange && isCheckOutDate,
+                    );
+                    const showRangeBackground = Boolean(
+                      inAccommodationRange || rangeStartsHere || rangeEndsHere,
+                    );
+
+                    return (
+                      <Pressable
+                        key={`${dateValue}-${index}`}
+                        style={styles.calendarDay}
+                        disabled={!day}
+                        onPress={() => day && handleSelectDate(day)}
+                      >
+                        {showRangeBackground && (
+                          <View
+                            style={[
+                              styles.calendarRangeBackground,
+                              inAccommodationRange &&
+                                styles.calendarRangeMiddle,
+                              rangeStartsHere && styles.calendarRangeStart,
+                              rangeEndsHere && styles.calendarRangeEnd,
+                            ]}
+                          />
+                        )}
+                        <View
+                          style={[
+                            styles.calendarDayCircle,
+                            selected && styles.calendarDaySelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.calendarDayText,
+                              selected && styles.calendarDayTextSelected,
+                            ]}
+                          >
+                            {day ?? ''}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {false && pickerMode === 'time' && (
+              <View style={styles.timePickerBox}>
+                <Text style={styles.timePickerLabel}>시간</Text>
+                <View style={styles.timeOptionGrid}>
+                  {hourOptions.map((hour) => {
+                    const selected = selectedHour === hour;
+
+                    return (
+                      <Pressable
+                        key={hour}
+                        style={[
+                          styles.timeOption,
+                          selected && styles.timeOptionSelected,
+                        ]}
+                        onPress={() => setSelectedHour(hour)}
+                      >
+                        <Text
+                          style={[
+                            styles.timeOptionText,
+                            selected && styles.timeOptionTextSelected,
+                          ]}
+                        >
+                          {hour}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.timePickerLabel}>분</Text>
+                <View style={styles.timeOptionGrid}>
+                  {minuteOptions.map((minute) => {
+                    const selected = selectedMinute === minute;
+
+                    return (
+                      <Pressable
+                        key={minute}
+                        style={[
+                          styles.timeOption,
+                          selected && styles.timeOptionSelected,
+                        ]}
+                        onPress={() => setSelectedMinute(minute)}
+                      >
+                        <Text
+                          style={[
+                            styles.timeOptionText,
+                            selected && styles.timeOptionTextSelected,
+                          ]}
+                        >
+                          {minute}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {pickerMode === 'time' && (
+              <View style={styles.timeWheelBox}>
+                <View style={styles.timeWheelHighlight} />
+                <View style={styles.timeWheelColumn}>
+                  <Text style={styles.timeWheelLabel}>시</Text>
+                  <ScrollView
+                    ref={hourWheelRef}
+                    style={styles.timeWheel}
+                    contentContainerStyle={styles.timeWheelContent}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={TIME_ITEM_HEIGHT}
+                    snapToAlignment="start"
+                    decelerationRate="fast"
+                    onMomentumScrollBegin={() => {
+                      if (hourSnapTimerRef.current) {
+                        clearTimeout(hourSnapTimerRef.current);
+                        hourSnapTimerRef.current = null;
+                      }
+                    }}
+                    onMomentumScrollEnd={(event) =>
+                      handleTimeWheelMomentumEnd(
+                        event,
+                        hourOptions,
+                        setSelectedHour,
+                        hourWheelRef,
+                        hourSnapTimerRef,
+                      )
+                    }
+                    onScrollEndDrag={(event) =>
+                      handleTimeWheelDragEnd(
+                        event,
+                        hourOptions,
+                        setSelectedHour,
+                        hourWheelRef,
+                        hourSnapTimerRef,
+                      )
+                    }
+                  >
+                    {hourOptions.map((hour) => {
+                      const selected = selectedHour === hour;
+
+                      return (
+                        <Pressable
+                          key={hour}
+                          style={[
+                            styles.timeWheelItem,
+                            selected && styles.timeWheelItemSelected,
+                          ]}
+                          onPress={() => {
+                            setSelectedHour(hour);
+                            hourWheelRef.current?.scrollTo({
+                              y: hourOptions.indexOf(hour) * TIME_ITEM_HEIGHT,
+                              animated: true,
+                            });
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.timeWheelText,
+                              selected && styles.timeWheelTextSelected,
+                            ]}
+                          >
+                            {hour}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+
+                <Text style={styles.timeWheelSeparator}>:</Text>
+
+                <View style={styles.timeWheelColumn}>
+                  <Text style={styles.timeWheelLabel}>분</Text>
+                  <ScrollView
+                    ref={minuteWheelRef}
+                    style={styles.timeWheel}
+                    contentContainerStyle={styles.timeWheelContent}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={TIME_ITEM_HEIGHT}
+                    snapToAlignment="start"
+                    decelerationRate="fast"
+                    onMomentumScrollBegin={() => {
+                      if (minuteSnapTimerRef.current) {
+                        clearTimeout(minuteSnapTimerRef.current);
+                        minuteSnapTimerRef.current = null;
+                      }
+                    }}
+                    onMomentumScrollEnd={(event) =>
+                      handleTimeWheelMomentumEnd(
+                        event,
+                        minuteOptions,
+                        setSelectedMinute,
+                        minuteWheelRef,
+                        minuteSnapTimerRef,
+                      )
+                    }
+                    onScrollEndDrag={(event) =>
+                      handleTimeWheelDragEnd(
+                        event,
+                        minuteOptions,
+                        setSelectedMinute,
+                        minuteWheelRef,
+                        minuteSnapTimerRef,
+                      )
+                    }
+                  >
+                    {minuteOptions.map((minute) => {
+                      const selected = selectedMinute === minute;
+
+                      return (
+                        <Pressable
+                          key={minute}
+                          style={[
+                            styles.timeWheelItem,
+                            selected && styles.timeWheelItemSelected,
+                          ]}
+                          onPress={() => {
+                            setSelectedMinute(minute);
+                            minuteWheelRef.current?.scrollTo({
+                              y:
+                                minuteOptions.indexOf(minute) *
+                                TIME_ITEM_HEIGHT,
+                              animated: true,
+                            });
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.timeWheelText,
+                              selected && styles.timeWheelTextSelected,
+                            ]}
+                          >
+                            {minute}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
 
-      <Modal transparent visible={verificationModalVisible} animationType="fade">
+      <Modal
+        transparent
+        visible={countryPickerVisible}
+        animationType="slide"
+        onRequestClose={() => setCountryPickerVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <View style={styles.verifyModal}>
-            <Text style={styles.verifyTitle}>교환학생 인증</Text>
-            <Text style={styles.verifyDesc}>
-              글을 작성하려면 교환학생 신원{'\n'}인증이 필요해요.
-            </Text>
-
-            <View style={styles.verifyButtonRow}>
-              <Pressable
-                style={styles.verifyCancelButton}
-                onPress={() => {
-                  setVerificationModalVisible(false);
-                  router.back();
-                }}
-              >
-                <Text style={styles.verifyCancelText}>취소</Text>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setCountryPickerVisible(false)}
+          />
+          <View style={styles.countrySheet}>
+            <View style={styles.pickerHeader}>
+              <Pressable onPress={() => setCountryPickerVisible(false)}>
+                <Text style={styles.pickerCancel}>취소</Text>
               </Pressable>
+              <Text style={styles.pickerTitle}>국가 선택</Text>
+              <View style={styles.pickerHeaderSpacer} />
+            </View>
 
-              <Pressable
-                style={styles.verifyButton}
-                onPress={() => {
-                  setVerificationModalVisible(false);
-                  router.push('/verification' as any);
-                }}
-              >
-                <Text style={styles.verifyButtonText}>신원 인증하기</Text>
-              </Pressable>
+            <View style={styles.countryList}>
+              {countryOptions.map((option) => {
+                const selected = country === option;
+
+                return (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.countryOption,
+                      selected && styles.countryOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setCountry(option);
+                      setCountryPickerVisible(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.countryOptionText,
+                        selected && styles.countryOptionTextSelected,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         </View>
       </Modal>
-    </View>
-  );
-}
-
-function DividerTitle({ title }: { title: string }) {
-  return (
-    <View style={styles.dividerTitleRow}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.dividerLine} />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -530,324 +1119,495 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  statusSpacer: {
-    height: 52,
-  },
-  header: {
-    height: 56,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 38,
-    height: 38,
-  },
-  headerTitle: {
-    position: 'absolute',
-    left: 80,
-    right: 80,
-    textAlign: 'center',
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#111111',
-  },
-  draftButton: {
-    minWidth: 64,
-    height: 38,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  draftText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#B8B8B8',
-  },
-  keyboardWrap: {
-    flex: 1,
-  },
   scroll: {
     flex: 1,
   },
   content: {
+    flexGrow: 1,
     paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 110,
+    paddingTop: 54,
+    paddingBottom: 24,
   },
-  sectionTitle: {
+  header: {
+    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  headerTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: 17,
     fontWeight: '900',
     color: '#111111',
   },
+  tempSave: {
+    fontSize: 13,
+    color: '#C4C4C4',
+    fontWeight: '600',
+  },
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 14,
+  },
+  sectionHeaderLabel: {
+    marginBottom: 0,
+  },
   typeGrid: {
-    marginTop: 18,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    columnGap: 8,
+    rowGap: 13,
+    marginBottom: 36,
   },
-  typeChip: {
-    width: '47%',
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F4F4F4',
+  typeButton: {
+    height: 27,
+    flexBasis: '30%',
+    minWidth: '30%',
+    flexGrow: 1,
+    borderRadius: 13.5,
+    backgroundColor: '#F1F1F1',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 13,
   },
-  typeChipActive: {
-    backgroundColor: '#EAF1FF',
-    borderWidth: 1,
-    borderColor: '#C9DAFF',
+  typeButtonActive: {
+    backgroundColor: '#E5E8FF',
   },
-  typeChipText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#555555',
+  typeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#111111',
   },
-  typeChipTextActive: {
-    color: NAVY,
+  typeTextActive: {
+    color: BLUE,
+    fontWeight: '900',
   },
-  dividerTitleRow: {
-    marginTop: 58,
-    marginBottom: 20,
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    marginTop: 0,
+    marginBottom: 15,
   },
-  dividerLine: {
+  priceSectionHeader: {
+    marginTop: 23,
+  },
+  sectionLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#D8D8D8',
+    backgroundColor: '#E5E5E5',
   },
   twoColumnRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 18,
+    gap: 10,
+    marginBottom: 13,
   },
-  columnField: {
+  halfGroup: {
     flex: 1,
   },
-  fieldBlock: {
-    marginBottom: 22,
+  fullGroup: {
+    marginBottom: 13,
   },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#222222',
-    marginBottom: 9,
+  hiddenRow: {
+    display: 'none',
+  },
+  inputLabel: {
+    height: 17,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 8,
+    includeFontPadding: false,
+  },
+  stepTwoLabel: {
+    height: 19,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 10,
+    includeFontPadding: false,
   },
   selectInput: {
-    height: 50,
-    borderRadius: 6,
+    height: 36,
     borderWidth: 1,
-    borderColor: INPUT_BORDER,
-    paddingHorizontal: 12,
+    borderColor: '#D4D4D4',
+    borderRadius: 3,
+    paddingHorizontal: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   selectText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#333333',
-  },
-  placeholderText: {
+    flex: 1,
+    fontSize: 13,
     color: '#9B9B9B',
   },
-  textInput: {
-    height: 50,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: INPUT_BORDER,
-    paddingHorizontal: 13,
-    fontSize: 14,
-    fontWeight: '700',
+  selectTextActive: {
     color: '#111111',
-  },
-  fullInput: {
-    height: 50,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: INPUT_BORDER,
-    paddingHorizontal: 13,
-    fontSize: 14,
     fontWeight: '700',
-    color: '#111111',
   },
-  titleInputSpacing: {
-    marginTop: 16,
+  chevron: {
+    fontSize: 17,
+    color: '#A0A0A0',
+    lineHeight: 19,
+  },
+  input: {
+    height: 36,
+    borderWidth: 1,
+    borderColor: '#D4D4D4',
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    fontSize: 13,
+    color: '#111111',
+    marginBottom: 15,
   },
   quantityBox: {
-    height: 50,
-    borderRadius: 6,
+    height: 36,
     borderWidth: 1,
-    borderColor: INPUT_BORDER,
+    borderColor: '#D4D4D4',
+    borderRadius: 3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-  },
-  fullQuantityBox: {
-    height: 50,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: INPUT_BORDER,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
+    paddingHorizontal: 10,
   },
   quantityButton: {
-    width: 34,
-    height: 36,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quantitySymbol: {
-    fontSize: 24,
-    lineHeight: 26,
-    fontWeight: '800',
+  quantityButtonText: {
+    fontSize: 19,
+    lineHeight: 21,
     color: '#111111',
+    fontWeight: '700',
   },
   quantityText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#555555',
-  },
-  descriptionBlock: {
-    marginTop: 36,
-  },
-  descriptionInput: {
-    marginTop: 16,
-    minHeight: 220,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: INPUT_BORDER,
-    paddingHorizontal: 13,
-    paddingTop: 14,
     fontSize: 14,
-    lineHeight: 20,
+    color: '#777777',
     fontWeight: '700',
+  },
+  helperText: {
+    marginTop: -6,
+    marginBottom: 11,
+    fontSize: 12,
+    color: BLUE,
+    fontWeight: '700',
+  },
+  descriptionLabel: {
+    marginTop: 24,
+  },
+  textArea: {
+    height: 145,
+    borderWidth: 1,
+    borderColor: '#D4D4D4',
+    borderRadius: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+    fontSize: 13,
+    lineHeight: 20,
     color: '#111111',
   },
-  footer: {
-    paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 26,
-    backgroundColor: '#FFFFFF',
-  },
-  primaryButton: {
-    height: 58,
+  bottomButton: {
+    height: 46,
     borderRadius: 4,
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 'auto',
   },
-  primaryButtonDisabled: {
-    opacity: 0.55,
+  buttonDisabled: {
+    backgroundColor: '#C9D0F8',
   },
-  primaryButtonText: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  pickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.16)',
-  },
-  pickerSheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    backgroundColor: '#FFFFFF',
-    paddingBottom: 28,
-    overflow: 'hidden',
-  },
-  pickerHeader: {
-    height: 52,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF0F3',
-  },
-  pickerTitle: {
+  bottomButtonText: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#111111',
-  },
-  pickerCancelText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#8A8A8A',
-  },
-  pickerDoneText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  picker: {
-    backgroundColor: '#FFFFFF',
+    color: '#FFFFFF',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
-  verifyModal: {
-    width: 290,
-    borderRadius: 12,
-    backgroundColor: 'rgba(40,40,40,0.88)',
-    paddingHorizontal: 22,
-    paddingTop: 24,
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.22)',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    overflow: 'hidden',
+    minHeight: 0,
     paddingBottom: 18,
   },
-  verifyTitle: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  verifyDesc: {
-    marginTop: 14,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  verifyButtonRow: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 14,
-  },
-  verifyCancelButton: {
-    flex: 1,
-    height: 42,
-    borderRadius: 8,
-    backgroundColor: '#8A8A8A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifyCancelText: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  verifyButton: {
-    flex: 1.28,
-    height: 42,
-    borderRadius: 8,
+  picker: {
+    height: 218,
     backgroundColor: '#FFFFFF',
+  },
+  calendarBox: {
+    paddingHorizontal: 20,
+    paddingTop: 17,
+    paddingBottom: 8,
+  },
+  calendarMonthRow: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 11,
+  },
+  calendarNavButton: {
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
-  verifyButtonText: {
-    fontSize: 15,
+  calendarNavText: {
+    fontSize: 33,
+    lineHeight: 35,
+    color: '#111111',
+    fontWeight: '800',
+  },
+  calendarMonthText: {
+    position: 'absolute',
+    left: 56,
+    right: 56,
+    textAlign: 'center',
+    fontSize: 19,
     fontWeight: '900',
     color: '#111111',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  weekDayText: {
+    width: `${100 / 7}%`,
+    textAlign: 'center',
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#777777',
+    lineHeight: 31,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingTop: 2,
+  },
+  calendarDay: {
+    width: `${100 / 7}%`,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  calendarRangeBackground: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    backgroundColor: '#E8ECFF',
+  },
+  calendarRangeMiddle: {
+    left: 0,
+    right: 0,
+  },
+  calendarRangeStart: {
+    left: '50%',
+    right: 0,
+  },
+  calendarRangeEnd: {
+    left: 0,
+    right: '50%',
+  },
+  calendarDayCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  calendarDaySelected: {
+    backgroundColor: BLUE,
+  },
+  calendarDayText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  calendarDayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  timePickerBox: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  timePickerLabel: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 8,
+  },
+  timeOptionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 18,
+  },
+  timeOption: {
+    width: '14.8%',
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F1F1F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeOptionSelected: {
+    backgroundColor: BLUE,
+  },
+  timeOptionText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#333333',
+  },
+  timeOptionTextSelected: {
+    color: '#FFFFFF',
+  },
+  timeWheelBox: {
+    height: TIME_WHEEL_BOX_HEIGHT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    position: 'relative',
+  },
+  timeWheelHighlight: {
+    position: 'absolute',
+    left: 34,
+    right: 34,
+    top: (TIME_WHEEL_BOX_HEIGHT - TIME_ITEM_HEIGHT) / 2,
+    height: TIME_ITEM_HEIGHT,
+    borderRadius: 10,
+    backgroundColor: '#F1F1F3',
+  },
+  timeWheelColumn: {
+    width: 104,
+    alignItems: 'center',
+  },
+  timeWheelLabel: {
+    display: 'none',
+  },
+  timeWheel: {
+    width: '100%',
+    height: TIME_WHEEL_HEIGHT,
+  },
+  timeWheelContent: {
+    paddingVertical: (TIME_WHEEL_HEIGHT - TIME_ITEM_HEIGHT) / 2,
+    alignItems: 'center',
+  },
+  timeWheelItem: {
+    width: 88,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 0,
+  },
+  timeWheelItemSelected: {
+    backgroundColor: 'transparent',
+  },
+  timeWheelText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#9E9E9E',
+    lineHeight: TIME_ITEM_HEIGHT,
+  },
+  timeWheelTextSelected: {
+    fontSize: 19,
+    color: '#111111',
+    fontWeight: '600',
+    lineHeight: TIME_ITEM_HEIGHT,
+  },
+  timeWheelSeparator: {
+    width: 42,
+    textAlign: 'center',
+    fontSize: 19,
+    fontWeight: '600',
+    color: '#111111',
+    lineHeight: TIME_ITEM_HEIGHT,
+    zIndex: 1,
+  },
+  pickerHeader: {
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  pickerHeaderSpacer: {
+    width: 34,
+  },
+  pickerCancel: {
+    fontSize: 16,
+    color: '#777777',
+    fontWeight: '700',
+  },
+  pickerTitle: {
+    position: 'absolute',
+    left: 88,
+    right: 88,
+    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  pickerDone: {
+    fontSize: 16,
+    color: BLUE,
+    fontWeight: '900',
+  },
+  countrySheet: {
+    overflow: 'hidden',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 18,
+  },
+  countryList: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  countryOption: {
+    height: 46,
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  countryOptionSelected: {
+    backgroundColor: '#F0F3FF',
+  },
+  countryOptionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  countryOptionTextSelected: {
+    color: BLUE,
+    fontWeight: '900',
   },
 });

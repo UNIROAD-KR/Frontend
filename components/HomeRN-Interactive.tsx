@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  ScrollView,
   Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from 'react-native';
-import Svg, { Path, Circle, G, Defs, ClipPath, Rect } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 402;
@@ -420,7 +420,7 @@ const BottomBar = () => (
     <BottomBarTab
       left={343.81}
       icon={images.devops}
-      title="나의 관리"
+      title="지출 관리"
       isActive={false}
     />
   </View>

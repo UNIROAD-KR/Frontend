@@ -18,15 +18,36 @@ export interface SignUpRequest {
   name: string;
 }
 
+export type CurrentSituation =
+  | 'PREPARING_APPLICATION'
+  | 'WAITING_RESULT'
+  | 'ACCEPTED'
+  | 'PREPARING_DEPARTURE'
+  | 'DISPATCHED'
+  | 'RETURNED';
+
 export interface OnboardingRequest {
   age?: number;
   nickname: string;
   gender: 'MALE' | 'FEMALE';
-  currentSituation: 'PREPARING_APPLICATION' | 'PREPARING_DEPARTURE' | 'DISPATCHED';
+  currentSituation: CurrentSituation;
   domesticUniversity: string;
   dispatchedUniversity?: string;
   dispatchedCountry?: string;
   dispatchedRegion?: string;
+}
+
+export interface MemberProfileUpdateRequest {
+  nickname?: string;
+  dispatchedCountry?: string;
+  dispatchedRegion?: string;
+  currentSituation?: CurrentSituation;
+  dispatchedUniversity?: string;
+  domesticUniversity?: string;
+  applicationDeadline?: string | null;
+  departureDate?: string | null;
+  dispatchStartDate?: string | null;
+  returnDate?: string | null;
 }
 
 export interface SocialSignUpRequest {
@@ -110,6 +131,8 @@ export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };
 
+export const updateMemberProfile = (data: MemberProfileUpdateRequest) => {
+  return api.patch<BaseResponse<MemberResponse>>('/api/members/me/profile', data);
 export const updatePassword = (data: PasswordUpdateRequest) => {
   return api.patch<BaseResponse<void>>('/api/members/me/password', data);
 };

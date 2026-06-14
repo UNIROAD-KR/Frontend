@@ -1,3 +1,6 @@
+import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,7 +16,6 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { createOrGetChatRoom } from '../../../src/api/chat';
 import {
   getTicketDetail,
   TicketTransferResponse,
@@ -22,160 +24,221 @@ import {
 
 const BLUE = '#123F9F';
 
-const ticketTypeLabels: Record<TicketType, string> = {
-  TOUR: '관광',
-  CONCERT: '공연',
+const ticketTypeLabelMap: Record<TicketType, string> = {
+  TOUR: '관광 티켓',
+  CONCERT: '콘서트 / 공연',
   TRAIN: '기차',
   FLIGHT: '항공권',
   ACCOMMODATION: '숙박',
 };
 
-const fallbackTicket: TicketTransferResponse = {
-  id: 1,
-  authorName: 'may.be',
-  authorNickname: 'may.be',
-  authorDispatchedCountry: '독일',
-  authorDispatchedRegion: '아샤펜부르크',
-  authorDispatchSemester: '26-2학기',
-  ticketType: 'TOUR',
-  title: '사그라다 파밀리아 표 양도',
-  content:
-    '사그라다 파밀리아 당일 표 양도합니다!\n입장 티켓 받아서 드려요.\n관심 있으신 분은 채팅 부탁드려요 :)',
-  country: '스페인',
-  eventDate: '2026-05-09',
-  eventTime: '16:15',
-  location: '사그라다 파밀리아 성당 앞 정문',
-  quantity: 1,
-  transferPrice: 20,
-  originalPrice: 26,
-  status: 'AVAILABLE',
+type TicketInfoLabels = {
+  date: string;
+  time: string;
+  location: string;
 };
 
-const formatPrice = (value?: number) => {
-  if (!value) {
-    return '가격 미정';
-  }
-
-  return `${value.toLocaleString()}원`;
+const defaultTicketInfoLabels: TicketInfoLabels = {
+  date: '날짜',
+  time: '시간',
+  location: '장소',
 };
 
-const formatDate = (value?: string) => {
-  if (!value) {
-    return '날짜 미정';
-  }
-
-  return value.replaceAll('-', '.');
+const ticketInfoLabelMap: Partial<Record<TicketType, TicketInfoLabels>> = {
+  TOUR: {
+    date: '이용일',
+    time: '이용시간',
+    location: '이용 장소',
+  },
+  CONCERT: {
+    date: '공연일',
+    time: '공연시간',
+    location: '공연 장소',
+  },
+  TRAIN: {
+    date: '탑승일',
+    time: '탑승시간',
+    location: '출발/도착 장소',
+  },
+  FLIGHT: {
+    date: '출발일',
+    time: '출발시간',
+    location: '출발/도착 공항',
+  },
+  ACCOMMODATION: {
+    date: '체크인 날짜',
+    time: '체크아웃 날짜',
+    location: '숙소 위치',
+  },
 };
 
-const formatRelativeTime = (value?: string) => {
-  if (!value) {
-    return '';
+const formatPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
+const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
+
+const formatDate = (date: string) => {
+  const trimmedDate = date.trim();
+  const matchedDate = trimmedDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matchedDate) return trimmedDate;
+
+  const [, year, month, day] = matchedDate;
+  const parsedDate = new Date(Number(year), Number(month) - 1, Number(day));
+
+  if (
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.getFullYear() !== Number(year) ||
+    parsedDate.getMonth() !== Number(month) - 1 ||
+    parsedDate.getDate() !== Number(day)
+  ) {
+    return trimmedDate;
   }
 
-  const createdAt = new Date(value);
-
-  if (Number.isNaN(createdAt.getTime())) {
-    return value.slice(0, 10).replaceAll('-', '.');
-  }
-
-  const diffMinutes = Math.max(
-    0,
-    Math.floor((Date.now() - createdAt.getTime()) / 60000),
-  );
-
-  if (diffMinutes < 1) return '방금 전';
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}시간 전`;
-
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}일 전`;
-
-  return value.slice(0, 10).replaceAll('-', '.');
+  return `${year}. ${month}. ${day} (${weekdayLabels[parsedDate.getDay()]})`;
 };
 
-const getAuthorName = (ticket: TicketTransferResponse) =>
-  ticket.authorNickname || ticket.authorName || '판매자';
+const getAccommodationDates = (dateRange: string) => {
+  const [startDate, endDate] = dateRange.split('~').map((date) => date.trim());
 
-const getAuthorMeta = (ticket: TicketTransferResponse) =>
-  [
-    ticket.authorDispatchedCountry,
-    ticket.authorDispatchedRegion,
-    ticket.authorDispatchSemester,
-  ]
-    .filter(Boolean)
-    .join(' · ') || '교환학생 판매자';
+  return {
+    checkIn: startDate ? formatDate(startDate) : formatDate(dateRange),
+    checkOut: endDate ? formatDate(endDate) : '-',
+  };
+};
+
+const formatAccommodationDateRange = (dateRange: string) => {
+  const { checkIn, checkOut } = getAccommodationDates(dateRange);
+
+  if (checkOut === '-') {
+    return formatDate(dateRange);
+  }
+
+  return `${checkIn} ~ ${checkOut}`;
+};
+
+const formatDispatchSemester = (
+  year?: number | string,
+  semester?: number | string,
+) => {
+  if (!year || !semester) return '';
+
+  const firstValue = String(year);
+  const secondValue = String(semester);
+  const firstNumber = Number(firstValue.replace(/[^0-9]/g, ''));
+  const secondNumber = Number(secondValue.replace(/[^0-9]/g, ''));
+  const dispatchYear =
+    firstNumber >= 1000 ? firstNumber : secondNumber >= 1000 ? secondNumber : 0;
+  const dispatchSemester =
+    firstNumber >= 1 && firstNumber <= 2
+      ? firstNumber
+      : secondNumber >= 1 && secondNumber <= 2
+        ? secondNumber
+        : 0;
+
+  if (!dispatchYear || !dispatchSemester) return '';
+
+  return `${String(dispatchYear).slice(-2)}-${dispatchSemester}학기 파견생`;
+};
+
+const formatJoinedDate = (date?: string) => {
+  const matchedDate = date?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matchedDate) return '';
+
+  const [, year, month, day] = matchedDate;
+
+  return `${year}년 ${Number(month)}월 ${Number(day)}일 가입`;
+};
 
 export default function TicketPreviewPage() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState<'ticket' | 'seller'>('ticket');
-  const [ticket, setTicket] = useState<TicketTransferResponse | null>(
-    id ? null : fallbackTicket,
+  const [ticket, setTicket] = useState<TicketTransferResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const loadTicket = async () => {
+        const numericId = Number(id);
+
+        if (!id || !Number.isFinite(numericId)) {
+          setTicket(null);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          setLoading(true);
+          const response = await getTicketDetail(numericId);
+
+          if (active) {
+            setTicket(response.data.data);
+          }
+        } catch (error: any) {
+          console.log('티켓 양도 상세 조회 실패:', error.response?.data || error.message);
+          if (active) {
+            setTicket(null);
+          }
+        } finally {
+          if (active) {
+            setLoading(false);
+          }
+        }
+      };
+
+      loadTicket();
+
+      return () => {
+        active = false;
+      };
+    }, [id]),
   );
-  const [loading, setLoading] = useState(Boolean(id));
-
-  useEffect(() => {
-    const loadTicket = async () => {
-      if (!id) {
-        setTicket(fallbackTicket);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await getTicketDetail(Number(id));
-        setTicket(response.data.data);
-      } catch (error: any) {
-        console.log('티켓 양도 상세 조회 실패:', error.response?.data || error.message);
-        Alert.alert('조회 실패', '티켓 양도글을 불러오지 못했어요.');
-        setTicket(fallbackTicket);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTicket();
-  }, [id]);
-
-  const viewModel = useMemo(() => ticket ?? fallbackTicket, [ticket]);
-  const postedTime = formatRelativeTime(
-    viewModel.createdAt ?? viewModel.updatedAt,
-  );
-
-  const handleStartChat = async () => {
-    try {
-      const response = await createOrGetChatRoom({
-        referenceType: 'TRADE',
-        referenceId: viewModel.id,
-        targetMemberId: 1,
-      });
-
-      const roomId = response.data.roomId;
-
-      router.push({
-        pathname: '/chat/[roomId]',
-        params: {
-          roomId: String(roomId),
-          title: viewModel.title,
-          price: formatPrice(viewModel.transferPrice),
-          sellerName: getAuthorName(viewModel),
-        },
-      } as any);
-    } catch (error: any) {
-      console.log('채팅방 생성 실패:', error.response?.data || error.message);
-      Alert.alert('채팅 시작 실패', '잠시 후 다시 시도해주세요.');
-    }
-  };
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={[styles.container, styles.centerContent]}>
         <ActivityIndicator color={BLUE} />
+        <Text style={styles.centerText}>티켓 정보를 불러오는 중이에요</Text>
       </View>
     );
   }
+
+  if (!ticket) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <AppBackButton style={styles.centerBackButton} />
+        <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요</Text>
+        <Text style={styles.emptyText}>목록에서 다시 선택해주세요.</Text>
+      </View>
+    );
+  }
+
+  const category = ticketTypeLabelMap[ticket.ticketType];
+  const isAccommodation = ticket.ticketType === 'ACCOMMODATION';
+  const infoLabels =
+    ticketInfoLabelMap[ticket.ticketType] ?? defaultTicketInfoLabels;
+  const accommodationDates = getAccommodationDates(ticket.eventDate);
+  const eventDate = isAccommodation
+    ? formatAccommodationDateRange(ticket.eventDate)
+    : formatDate(ticket.eventDate);
+  const infoDate = isAccommodation ? accommodationDates.checkIn : eventDate;
+  const infoTime = isAccommodation
+    ? accommodationDates.checkOut
+    : ticket.eventTime;
+  const metaText = isAccommodation
+    ? `${ticket.quantity}매 / ${eventDate}`
+    : `${ticket.quantity}매 / ${eventDate} ${ticket.eventTime}`;
+  const sellerNickname = ticket.authorNickname || ticket.authorName;
+  const sellerUniversity = ticket.authorDispatchedUniversity;
+  const sellerRegion =
+    ticket.authorDispatchedRegion || ticket.authorDispatchRegion;
+  const sellerSemester = formatDispatchSemester(
+    ticket.authorDispatchYear,
+    ticket.authorDispatchSemester,
+  );
+  const sellerJoinedDate = formatJoinedDate(ticket.authorDispatchStartDate);
 
   return (
     <View style={styles.container}>
@@ -187,12 +250,10 @@ export default function TicketPreviewPage() {
 
         <View style={styles.tagRow}>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>{viewModel.country || '국가 미정'}</Text>
+            <Text style={styles.tagText}>{ticket.location}</Text>
           </View>
           <View style={styles.tag}>
-            <Text style={styles.tagText}>
-              {ticketTypeLabels[viewModel.ticketType]}
-            </Text>
+            <Text style={styles.tagText}>{category}</Text>
           </View>
           {postedTime ? (
             <View style={styles.tag}>
@@ -202,21 +263,19 @@ export default function TicketPreviewPage() {
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{viewModel.title}</Text>
-          <Ionicons name="share-outline" size={28} color="#111111" />
+          <Text style={styles.title}>{ticket.title}</Text>
+          <Image
+            source={require('../../../assets/images/share.png')}
+            style={styles.shareIcon}
+          />
         </View>
 
         <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatPrice(viewModel.transferPrice)}</Text>
-          {viewModel.originalPrice ? (
-            <Text style={styles.originalPrice}>
-              원가 {formatPrice(viewModel.originalPrice)}
-            </Text>
-          ) : null}
-          <Text style={styles.meta}>
-            {viewModel.quantity}매 / {formatDate(viewModel.eventDate)}{' '}
-            {viewModel.eventTime}
+          <Text style={styles.price}>{formatPrice(ticket.transferPrice)}</Text>
+          <Text style={styles.originalPrice}>
+            원가 {formatPrice(ticket.originalPrice)}
           </Text>
+          <Text style={styles.meta}>{metaText}</Text>
         </View>
 
         <View style={styles.tabRow}>
@@ -239,41 +298,88 @@ export default function TicketPreviewPage() {
             </Text>
 
             <View style={styles.infoGrid}>
-              <InfoCard icon="calendar-outline" label="날짜" value={formatDate(viewModel.eventDate)} />
-              <InfoCard icon="time-outline" label="시간" value={viewModel.eventTime || '시간 미정'} />
-              <InfoCard icon="location-outline" label="장소" value={viewModel.location || '장소 미정'} />
-              <InfoCard icon="ticket-outline" label="양도 매수" value={`${viewModel.quantity}매`} />
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>{infoLabels.date}</Text>
+                <Text style={styles.infoValue}>{infoDate}</Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>{infoLabels.time}</Text>
+                <Text style={styles.infoValue}>{infoTime}</Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>{infoLabels.location}</Text>
+                <Text style={styles.infoValue}>{ticket.location}</Text>
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoLabel}>양도 매수</Text>
+                <Text style={styles.infoValue}>{ticket.quantity}매</Text>
+              </View>
             </View>
 
             <Text style={styles.sellerTitle}>판매자 글</Text>
 
             <View style={styles.contentBox}>
-              <Text style={styles.contentText}>
-                {viewModel.content || '판매자가 아직 상세 설명을 작성하지 않았어요.'}
-              </Text>
+              <Text style={styles.contentText}>{ticket.content}</Text>
             </View>
           </>
         ) : (
           <>
             <Text style={styles.sectionTitle}>판매자 정보</Text>
             <Text style={styles.sectionDesc}>
-              교환학생 선배 판매자의 기본 정보예요
+              교환학생 티켓 양도 판매자의 기본 정보예요
             </Text>
 
-            <Text style={styles.nickname}>{getAuthorName(viewModel)}</Text>
-
             <View style={styles.profileCard}>
-              <Image
-                source={require('../../../assets/images/ticket_profile.png')}
-                style={styles.profileImage}
-              />
+              <View style={styles.profileTopRow}>
+                <Image
+                  source={require('../../../assets/images/ticket_profile.png')}
+                  style={styles.profileImage}
+                />
 
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{getAuthorName(viewModel)}</Text>
-                <Text style={styles.profileMeta}>{getAuthorMeta(viewModel)}</Text>
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>{sellerNickname}</Text>
+                  {sellerSemester.length > 0 && (
+                    <Text style={styles.profileSemester}>{sellerSemester}</Text>
+                  )}
+                </View>
               </View>
 
-              <Text style={styles.profileArrow}>›</Text>
+              {(sellerJoinedDate ||
+                ticket.authorDispatchedCountry ||
+                sellerUniversity ||
+                sellerRegion) && (
+                <View style={styles.profileDetailList}>
+                  {sellerJoinedDate.length > 0 && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>가입일</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {sellerJoinedDate}
+                      </Text>
+                    </View>
+                  )}
+                  {(ticket.authorDispatchedCountry || sellerRegion) && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>파견 지역</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {[ticket.authorDispatchedCountry, sellerRegion]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </View>
+                  )}
+                  {sellerUniversity && (
+                    <View style={styles.profileDetailRow}>
+                      <Text style={styles.profileDetailLabel}>파견교</Text>
+                      <Text style={styles.profileDetailValue}>
+                        {sellerUniversity}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           </>
         )}
@@ -281,36 +387,22 @@ export default function TicketPreviewPage() {
 
       <View style={styles.bottomBar}>
         <Pressable onPress={() => setLiked(!liked)} style={styles.heartButton}>
-          <Ionicons
-            name={liked ? 'heart' : 'heart-outline'}
-            size={36}
-            color={liked ? BLUE : '#111111'}
+          <Image
+            source={
+              liked
+                ? require('../../../assets/images/filled_heart.png')
+                : require('../../../assets/images/heart.png')
+            }
+            style={styles.heartIcon}
           />
         </Pressable>
-        <Pressable style={styles.chatButton} onPress={handleStartChat}>
+        <Pressable
+          style={styles.chatButton}
+          onPress={() => Alert.alert('준비 중', '채팅 연결은 상세 기능에서 연결할 예정이에요.')}
+        >
           <Text style={styles.chatText}>채팅 시작하기</Text>
         </Pressable>
       </View>
-    </View>
-  );
-}
-
-function InfoCard({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.infoCard}>
-      <View style={styles.infoLabelRow}>
-        <Ionicons name={icon} size={14} color="#555555" />
-        <Text style={styles.infoLabel}>{label}</Text>
-      </View>
-      <Text style={styles.infoValue}>{value}</Text>
     </View>
   );
 }
@@ -330,6 +422,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 54,
     paddingBottom: 120,
+  },
+  centerContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  centerBackButton: {
+    position: 'absolute',
+    left: 20,
+    top: 54,
+  },
+  centerText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '700',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#111111',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#777777',
   },
   backButton: {
     marginBottom: 18,
@@ -365,6 +483,12 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     fontWeight: '900',
     color: '#000000',
+  },
+  shareIcon: {
+    width: 27,
+    height: 27,
+    resizeMode: 'contain',
+    marginLeft: 8,
   },
   priceRow: {
     flexDirection: 'row',
@@ -435,7 +559,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '47%',
     minWidth: '47%',
-    minHeight: 86,
+    minHeight: 82,
     backgroundColor: '#FAFAFA',
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -451,12 +575,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#555555',
+    marginBottom: 9,
   },
   infoValue: {
     fontSize: 15,
     fontWeight: '800',
     color: '#111111',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   sellerTitle: {
     fontSize: 17,
@@ -478,44 +603,64 @@ const styles = StyleSheet.create({
     color: '#111111',
   },
   nickname: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
-    marginTop: 16,
-    marginBottom: 15,
+    marginTop: 14,
+    marginBottom: 12,
   },
   profileCard: {
-    minHeight: 81,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  profileTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    marginBottom: 16,
   },
   profileImage: {
-    width: 51,
-    height: 51,
-    borderRadius: 25.5,
-    marginRight: 17,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    marginRight: 13,
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '900',
     color: '#333333',
-    marginBottom: 5,
+    marginBottom: 4,
   },
-  profileMeta: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#555555',
+  profileSemester: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: BLUE,
+    lineHeight: 17,
   },
-  profileArrow: {
-    fontSize: 33,
-    color: '#000000',
+  profileDetailList: {
+    gap: 9,
+    paddingTop: 2,
+  },
+  profileDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileDetailLabel: {
+    width: 52,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#777777',
+  },
+  profileDetailValue: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '800',
+    color: '#222222',
   },
   bottomBar: {
     position: 'absolute',
@@ -534,6 +679,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+  },
+  heartIcon: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
   chatButton: {
     flex: 1,

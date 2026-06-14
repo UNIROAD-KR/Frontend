@@ -1,10 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
@@ -15,19 +15,23 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { AppBackButton } from '@/components/ui/app-back-button';
-import { getMemberMe } from '../../../src/api/auth';
+import {
+  getMemberMe,
+  updateMemberProfile,
+  type CurrentSituation,
+  type MemberProfileUpdateRequest,
+} from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
 const INK = '#111111';
 const MUTED = '#64748B';
-const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
+const CARD = '#FFFFFF';
+const PAGE = '#F4F5F7';
 
 const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중'];
 const dateLabels: Record<string, string> = {
@@ -42,7 +46,40 @@ const exchangeStatusByProfileStatus: Record<string, string> = {
   '파견 중': 'dispatched',
   귀국: 'returned',
 };
+const currentSituationByProfileStatus: Record<string, CurrentSituation> = {
+  '지원 준비 중': 'PREPARING_APPLICATION',
+  '출국 준비 중': 'PREPARING_DEPARTURE',
+  '파견 중': 'DISPATCHED',
+  귀국: 'RETURNED',
+};
+const profileStatusByCurrentSituation: Record<CurrentSituation, string> = {
+  PREPARING_APPLICATION: '지원 준비 중',
+  WAITING_RESULT: '지원 준비 중',
+  ACCEPTED: '지원 준비 중',
+  PREPARING_DEPARTURE: '출국 준비 중',
+  DISPATCHED: '파견 중',
+  RETURNED: '귀국',
+};
 type DateFieldKey = 'applicationDeadline' | 'departureDate' | 'dispatchStartDate' | 'returnDate';
+type EditSnapshot = {
+  nickname: string;
+  homeUniversity: string;
+  country: string;
+  region: string;
+  dispatchedUniversity: string;
+  status: string;
+  applicationDeadline: string;
+  departureDate: string;
+  dispatchStartDate: string;
+  returnDate: string;
+  dispatchSemester: string;
+};
+type MemberWithDispatchSemester = NonNullable<Awaited<ReturnType<typeof getMemberMe>>['data']['data']> & {
+  dispatchSemester?: string | null;
+};
+type MemberProfileUpdateWithDispatchSemester = MemberProfileUpdateRequest & {
+  dispatchSemester?: string | null;
+};
 
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
 const toDateValue = (value: string | null) => {
@@ -57,67 +94,183 @@ const formatDate = (date: Date) =>
   `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
     date.getDate(),
   ).padStart(2, '0')}`;
+const normalizeDispatchSemester = (value?: string | number | null) => {
+  if (value === null || value === undefined) return '';
+
+  const trimmedValue = String(value).trim();
+
+  if (/^\d{4}$/.test(trimmedValue)) return '';
+
+  return trimmedValue;
+};
 
 export default function ProfileEditScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
-  const [name, setName] = useState('서현');
-  const [nickname, setNickname] = useState('교환학생꿈나무');
-  const [homeUniversity, setHomeUniversity] = useState('서울대학교');
-  const [country, setCountry] = useState('독일');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
+  const [homeUniversity, setHomeUniversity] = useState('');
+  const [country, setCountry] = useState('');
+  const [region, setRegion] = useState('');
+  const [dispatchedUniversity, setDispatchedUniversity] = useState('');
   const [status, setStatus] = useState('출국 준비 중');
   const [applicationDeadline, setApplicationDeadline] = useState<Date | null>(null);
   const [departureDate, setDepartureDate] = useState<Date | null>(null);
   const [dispatchStartDate, setDispatchStartDate] = useState<Date | null>(null);
   const [returnDate, setReturnDate] = useState<Date | null>(null);
+  const [dispatchSemester, setDispatchSemester] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [draftDate, setDraftDate] = useState(createDate(2026, 8, 21));
   const [activeDateField, setActiveDateField] = useState<DateFieldKey>('departureDate');
+  const [initialSnapshot, setInitialSnapshot] = useState<EditSnapshot | null>(null);
+  const [loadedCurrentSituation, setLoadedCurrentSituation] = useState<CurrentSituation | null>(null);
 
-  useEffect(() => {
+  const currentSnapshot: EditSnapshot = {
+    nickname: nickname.trim(),
+    homeUniversity: homeUniversity.trim(),
+    country: country.trim(),
+    region: region.trim(),
+    dispatchedUniversity: dispatchedUniversity.trim(),
+    status,
+    applicationDeadline: toStorageDate(applicationDeadline),
+    departureDate: toStorageDate(departureDate),
+    dispatchStartDate: toStorageDate(dispatchStartDate),
+    returnDate: toStorageDate(returnDate),
+    dispatchSemester: dispatchSemester.trim(),
+  };
+
+  const hasChanges =
+    !!initialSnapshot &&
+    Object.keys(currentSnapshot).some((key) => {
+      const snapshotKey = key as keyof EditSnapshot;
+      return currentSnapshot[snapshotKey] !== initialSnapshot[snapshotKey];
+    });
+
+  const openFieldEdit = (
+    field: 'nickname' | 'homeUniversity' | 'country' | 'dispatchedUniversity' | 'dispatchSemester',
+    value: string,
+  ) => {
+    router.push({
+      pathname: '/(tabs)/home/profile-field-edit',
+      params: { field, value, region },
+    } as any);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
     const loadProfile = async () => {
       const [
         savedAvatar,
         savedNickname,
         savedUniversity,
+        savedHomeUniversity,
+        savedDispatchedUniversity,
         savedCountry,
+        savedRegion,
         savedStatus,
         savedApplicationDeadline,
         savedDepartureDate,
         savedDispatchStartDate,
         savedReturnDate,
+        savedDispatchSemester,
+        savedOverrides,
       ] = await Promise.all([
         AsyncStorage.getItem('profileAvatarUri'),
         AsyncStorage.getItem('nickname'),
         AsyncStorage.getItem('university'),
+        AsyncStorage.getItem('homeUniversity'),
+        AsyncStorage.getItem('dispatchedUniversity'),
         AsyncStorage.getItem('dispatchedCountry'),
+        AsyncStorage.getItem('dispatchedRegion'),
         AsyncStorage.getItem('profileStatus'),
         AsyncStorage.getItem('applicationDeadline'),
         AsyncStorage.getItem('departureDate'),
         AsyncStorage.getItem('dispatchStartDate'),
         AsyncStorage.getItem('returnDate'),
+        AsyncStorage.getItem('dispatchSemester'),
+        AsyncStorage.getItem('profileFieldOverrides'),
       ]);
 
-      if (savedAvatar) setAvatarUri(savedAvatar);
-      if (savedNickname) setNickname(savedNickname);
-      if (savedUniversity) setHomeUniversity(savedUniversity);
-      if (savedCountry) setCountry(savedCountry);
-      if (savedStatus && statusOptions.includes(savedStatus)) setStatus(savedStatus);
-      setApplicationDeadline(toDateValue(savedApplicationDeadline));
-      setDepartureDate(toDateValue(savedDepartureDate));
-      setDispatchStartDate(toDateValue(savedDispatchStartDate));
-      setReturnDate(toDateValue(savedReturnDate));
+      const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
+
+      const nextAvatar = savedAvatar || null;
+      let nextName = '';
+      let nextEmail = '';
+      let nextNickname = savedNickname || '';
+      let nextHomeUniversity = savedHomeUniversity || savedUniversity || '';
+      let nextDispatchedUniversity = savedDispatchedUniversity || '';
+      let nextCountry = savedCountry || '';
+      let nextRegion = savedRegion || '';
+      let nextStatus =
+        savedStatus && statusOptions.includes(savedStatus) ? savedStatus : statusOptions[1];
+      let nextCurrentSituation: CurrentSituation | null = null;
+      const nextApplicationDeadline = toDateValue(savedApplicationDeadline);
+      const nextDepartureDate = toDateValue(savedDepartureDate);
+      const nextDispatchStartDate = toDateValue(savedDispatchStartDate);
+      const nextReturnDate = toDateValue(savedReturnDate);
+      let nextDispatchSemester = normalizeDispatchSemester(savedDispatchSemester);
 
       try {
         const memberRes = await getMemberMe();
-        const memberName = memberRes.data?.data?.name;
-        if (memberName) setName(memberName);
+        const member = memberRes.data?.data as MemberWithDispatchSemester | undefined;
+
+        if (member?.name) nextName = member.name;
+        if (member?.email) nextEmail = member.email;
+        if (member?.nickname && !overrides.nickname) nextNickname = member.nickname;
+        if ((member?.homeUniversity || member?.domesticUniversity) && !overrides.homeUniversity) {
+          nextHomeUniversity = member.homeUniversity || member.domesticUniversity || '';
+        }
+        if (member?.dispatchedCountry && !overrides.country) nextCountry = member.dispatchedCountry;
+        if (member?.dispatchedRegion && !overrides.region) nextRegion = member.dispatchedRegion;
+        if (member?.dispatchedUniversity && !overrides.dispatchedUniversity) {
+          nextDispatchedUniversity = member.dispatchedUniversity;
+        }
+        if (member?.dispatchSemester && !overrides.dispatchSemester) {
+          nextDispatchSemester = normalizeDispatchSemester(member.dispatchSemester);
+        }
+        if (member?.currentSituation) {
+          nextCurrentSituation = member.currentSituation;
+          nextStatus = profileStatusByCurrentSituation[member.currentSituation] || nextStatus;
+        }
       } catch (error) {
         console.log('내 정보 조회 실패:', error);
       }
+
+      setAvatarUri(nextAvatar);
+      setName(nextName);
+      setEmail(nextEmail);
+      setNickname(nextNickname);
+      setHomeUniversity(nextHomeUniversity);
+      setDispatchedUniversity(nextDispatchedUniversity);
+      setCountry(nextCountry);
+      setRegion(nextRegion);
+      setStatus(nextStatus);
+      setLoadedCurrentSituation(nextCurrentSituation);
+      setApplicationDeadline(nextApplicationDeadline);
+      setDepartureDate(nextDepartureDate);
+      setDispatchStartDate(nextDispatchStartDate);
+      setReturnDate(nextReturnDate);
+      setDispatchSemester(nextDispatchSemester);
+      const loadedSnapshot = {
+        nickname: nextNickname.trim(),
+        homeUniversity: nextHomeUniversity.trim(),
+        country: nextCountry.trim(),
+        region: nextRegion.trim(),
+        dispatchedUniversity: nextDispatchedUniversity.trim(),
+        status: nextStatus,
+        applicationDeadline: toStorageDate(nextApplicationDeadline),
+        departureDate: toStorageDate(nextDepartureDate),
+        dispatchStartDate: toStorageDate(nextDispatchStartDate),
+        returnDate: toStorageDate(nextReturnDate),
+        dispatchSemester: nextDispatchSemester.trim(),
+      };
+
+      setInitialSnapshot((prev) => prev ?? loadedSnapshot);
     };
 
     loadProfile();
-  }, []);
+    }, []),
+  );
 
   const setActiveDate = (date: Date) => {
     if (activeDateField === 'applicationDeadline') {
@@ -170,26 +323,6 @@ export default function ProfileEditScreen() {
     setShowPicker(false);
   };
 
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert('권한 필요', '프로필 이미지를 변경하려면 사진 접근 권한이 필요합니다.');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.85,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-
-    if (!result.canceled) {
-      setAvatarUri(result.assets[0].uri);
-    }
-  };
-
   const saveProfile = async () => {
     const [savedStatus, savedDeparturePrepStartDate] = await Promise.all([
       AsyncStorage.getItem('profileStatus'),
@@ -201,11 +334,39 @@ export default function ProfileEditScreen() {
           ? AsyncStorage.setItem('departurePrepStartDate', toStorageDate(new Date()))
           : Promise.resolve()
         : AsyncStorage.removeItem('departurePrepStartDate');
+    const nextCurrentSituation =
+      loadedCurrentSituation && profileStatusByCurrentSituation[loadedCurrentSituation] === status
+        ? loadedCurrentSituation
+        : currentSituationByProfileStatus[status];
+    const requestBody: MemberProfileUpdateWithDispatchSemester = {
+      nickname: nickname.trim(),
+      dispatchedCountry: country.trim(),
+      dispatchedRegion: region.trim(),
+      currentSituation: nextCurrentSituation,
+      dispatchedUniversity: dispatchedUniversity.trim(),
+      domesticUniversity: homeUniversity.trim(),
+      applicationDeadline: applicationDeadline ? toStorageDate(applicationDeadline) : null,
+      departureDate: departureDate ? toStorageDate(departureDate) : null,
+      dispatchStartDate: dispatchStartDate ? toStorageDate(dispatchStartDate) : null,
+      returnDate: returnDate ? toStorageDate(returnDate) : null,
+      dispatchSemester: dispatchSemester.trim(),
+    };
+
+    try {
+      await updateMemberProfile(requestBody);
+    } catch (error: any) {
+      console.log('프로필 수정 실패:', error.response?.data || error.message);
+      Alert.alert('저장 실패', '프로필 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
 
     await Promise.all([
-      AsyncStorage.setItem('nickname', nickname.trim() || '교환학생꿈나무'),
-      AsyncStorage.setItem('university', homeUniversity.trim() || '서울대학교'),
-      AsyncStorage.setItem('dispatchedCountry', country.trim() || '독일'),
+      AsyncStorage.setItem('nickname', nickname.trim()),
+      AsyncStorage.setItem('university', homeUniversity.trim()),
+      AsyncStorage.setItem('homeUniversity', homeUniversity.trim()),
+      AsyncStorage.setItem('dispatchedCountry', country.trim()),
+      AsyncStorage.setItem('dispatchedRegion', region.trim()),
+      AsyncStorage.setItem('dispatchedUniversity', dispatchedUniversity.trim()),
       AsyncStorage.setItem('profileStatus', status),
       AsyncStorage.setItem('exchangeStatus', exchangeStatusByProfileStatus[status]),
       applicationDeadline
@@ -220,11 +381,18 @@ export default function ProfileEditScreen() {
       returnDate
         ? AsyncStorage.setItem('returnDate', toStorageDate(returnDate))
         : AsyncStorage.removeItem('returnDate'),
+      dispatchSemester.trim()
+        ? AsyncStorage.setItem('dispatchSemester', dispatchSemester.trim())
+        : AsyncStorage.removeItem('dispatchSemester'),
       avatarUri
         ? AsyncStorage.setItem('profileAvatarUri', avatarUri)
         : AsyncStorage.removeItem('profileAvatarUri'),
+      AsyncStorage.removeItem('profileFieldOverrides'),
       departurePrepStartDateTask,
     ]);
+
+    setInitialSnapshot(currentSnapshot);
+    setLoadedCurrentSituation(nextCurrentSituation);
 
     Alert.alert('저장 완료', '프로필 정보가 저장되었습니다.', [
       { text: '확인', onPress: () => router.back() },
@@ -234,14 +402,12 @@ export default function ProfileEditScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
         <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>프로필 수정</Text>
-
-        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -255,40 +421,52 @@ export default function ProfileEditScreen() {
             {avatarUri ? (
               <Image source={{ uri: avatarUri }} style={styles.avatar} />
             ) : (
-              <Ionicons name="person" size={44} color={INK} />
+              <Ionicons name="person" size={24} color={INK} />
             )}
-          </View>
-
-          <TouchableOpacity style={styles.imageButton} onPress={pickImage} activeOpacity={0.86}>
-            <Ionicons name="camera-outline" size={18} color={BLUE} />
-            <Text style={styles.imageButtonText}>프로필 이미지 변경</Text>
-          </TouchableOpacity>
-
-          <View style={styles.profileNameField}>
-            <DisabledField label="이름" value={name} />
           </View>
         </View>
 
-        <FormSection title="프로필 정보">
-          <Field
+        <InfoSection title="기본 정보">
+          <EditableInfoRow
             label="닉네임"
             value={nickname}
-            onChangeText={setNickname}
-            placeholder="닉네임을 입력하세요"
+            placeholder="미설정"
+            onPress={() => openFieldEdit('nickname', nickname)}
+            withDivider
           />
-          <Field
-            label="학교"
+          <ReadonlyInfoRow label="이름" value={name} withDivider />
+          <ReadonlyInfoRow label="이메일" value={email} />
+        </InfoSection>
+
+        <InfoSection title="학교 정보">
+          <EditableInfoRow
+            label="소속 대학"
             value={homeUniversity}
-            onChangeText={setHomeUniversity}
-            placeholder="학교를 입력하세요"
+            placeholder="미설정"
+            onPress={() => openFieldEdit('homeUniversity', homeUniversity)}
+            withDivider
           />
-          <Field
-            label="파견 국가"
-            value={country}
-            onChangeText={setCountry}
-            placeholder="파견 국가를 입력하세요"
+          <EditableInfoRow
+            label="파견 국가 및 지역"
+            value={[country, region].filter(Boolean).join(' ')}
+            placeholder="미설정"
+            onPress={() => openFieldEdit('country', country)}
+            withDivider
           />
-        </FormSection>
+          <EditableInfoRow
+            label="파견교"
+            value={dispatchedUniversity}
+            placeholder="미정"
+            onPress={() => openFieldEdit('dispatchedUniversity', dispatchedUniversity)}
+            withDivider
+          />
+          <EditableInfoRow
+            label="파견 학기"
+            value={dispatchSemester}
+            placeholder="ex) 2025-2학기"
+            onPress={() => openFieldEdit('dispatchSemester', dispatchSemester)}
+          />
+        </InfoSection>
 
         <FormSection title="파견 상태">
           <View style={styles.optionGrid}>
@@ -352,8 +530,15 @@ export default function ProfileEditScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerButton} onPress={saveProfile} activeOpacity={0.88}>
-          <Text style={styles.footerButtonText}>변경사항 저장</Text>
+        <TouchableOpacity
+          style={[styles.footerButton, !hasChanges && styles.footerButtonDisabled]}
+          onPress={saveProfile}
+          activeOpacity={hasChanges ? 0.88 : 1}
+          disabled={!hasChanges}
+        >
+          <Text style={[styles.footerButtonText, !hasChanges && styles.footerButtonTextDisabled]}>
+            변경사항 저장
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -406,6 +591,73 @@ export default function ProfileEditScreen() {
   );
 }
 
+function InfoSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.sectionBody}>{children}</View>
+      </View>
+    </View>
+  );
+}
+
+function ReadonlyInfoRow({
+  label,
+  value,
+  withDivider = false,
+}: {
+  label: string;
+  value: string;
+  withDivider?: boolean;
+}) {
+  return (
+    <View style={[styles.infoRow, withDivider && styles.infoRowDivider]}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue} numberOfLines={1}>
+        {value || '-'}
+      </Text>
+    </View>
+  );
+}
+
+function EditableInfoRow({
+  label,
+  value,
+  placeholder,
+  onPress,
+  withDivider = false,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onPress: () => void;
+  withDivider?: boolean;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.infoRow, withDivider && styles.infoRowDivider]}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text
+        style={[styles.infoValue, !value.trim() && styles.infoPlaceholder]}
+        numberOfLines={1}
+      >
+        {value.trim() || placeholder}
+      </Text>
+      <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
+    </TouchableOpacity>
+  );
+}
+
 function FormSection({
   title,
   children,
@@ -415,48 +667,10 @@ function FormSection({
 }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.sectionCard}>{children}</View>
-    </View>
-  );
-}
-
-function DisabledField({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={[styles.input, styles.disabledInput]}
-        value={value}
-        editable={false}
-        selectTextOnFocus={false}
-        showSoftInputOnFocus={false}
-      />
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (value: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#A4ADBA"
-      />
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={[styles.sectionBody, styles.formSectionBody]}>{children}</View>
+      </View>
     </View>
   );
 }
@@ -502,18 +716,17 @@ function getDateFieldPlaceholder(field: DateFieldKey) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: PAGE,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 20,
     paddingTop: 50,
-    paddingBottom: 15,
+    paddingBottom: 10,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    position: 'relative',
   },
   iconBtn: {
     width: 38,
@@ -522,117 +735,126 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: SOFT,
+    zIndex: 1,
   },
   headerTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 17,
     fontSize: 18,
     fontWeight: '900',
     color: NAVY,
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
+    textAlign: 'center',
   },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 22,
+    paddingTop: 24,
     paddingBottom: 150,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 20,
   },
   avatarFrame: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: '#EEF2FF',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: LINE,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  imageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    borderRadius: 999,
-    backgroundColor: '#F4F8FF',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  imageButtonText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  profileNameField: {
-    alignSelf: 'stretch',
-    marginTop: 18,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 16,
   },
   sectionTitle: {
-    marginBottom: 10,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
-    color: INK,
+    color: NAVY,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 6,
   },
   sectionCard: {
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: LINE,
-    padding: 16,
-    shadowColor: NAVY,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 1,
+    borderRadius: 12,
+    backgroundColor: CARD,
+    overflow: 'hidden',
+  },
+  sectionBody: {
+    paddingHorizontal: 18,
+    paddingTop: 0,
+    paddingBottom: 6,
+  },
+  formSectionBody: {
+    paddingBottom: 15,
+  },
+  infoRow: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoRowDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F3',
+  },
+  infoLabel: {
+    flex: 0.85,
+    fontSize: 14,
+    fontWeight: '700',
+    color: INK,
+  },
+  infoValue: {
+    flex: 1.25,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#7A828E',
+    textAlign: 'right',
+  },
+  infoPlaceholder: {
+    color: '#A4ADBA',
   },
   field: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   fieldLabel: {
     marginBottom: 8,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
     color: NAVY,
   },
   input: {
-    minHeight: 42,
-    borderRadius: 10,
-    backgroundColor: SOFT,
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 0,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: INK,
   },
   disabledInput: {
     backgroundColor: '#FFFFFF',
+    color: INK,
   },
   optionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 9,
+    gap: 8,
+    paddingTop: 8,
   },
   dateField: {
-    marginTop: 18,
+    marginTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
-    paddingTop: 16,
+    borderTopColor: '#E2E6EC',
+    paddingTop: 12,
   },
   dateLabelRow: {
     flexDirection: 'row',
@@ -641,49 +863,44 @@ const styles = StyleSheet.create({
   },
   optionalText: {
     marginBottom: 8,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#94A3B8',
+    color: MUTED,
   },
   dateButton: {
-    minHeight: 42,
-    borderRadius: 10,
-    backgroundColor: SOFT,
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: PAGE,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    gap: 9,
+    gap: 8,
   },
   dateButtonText: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 14,
+    fontWeight: '700',
     color: INK,
   },
   datePlaceholderText: {
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#A4ADBA',
   },
   statusChip: {
-    minHeight: 38,
-    borderRadius: 10,
-    backgroundColor: SOFT,
-    borderWidth: 1,
-    borderColor: '#E7EDF6',
+    minHeight: 32,
+    borderRadius: 999,
+    backgroundColor: PAGE,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
   },
   statusChipSelected: {
     backgroundColor: '#123F9F',
-    borderColor: '#123F9F',
   },
   statusChipText: {
     fontSize: 13,
-    fontWeight: '900',
-    color: MUTED,
+    fontWeight: '700',
+    color: '#A4ADBA',
   },
   statusChipTextSelected: {
     color: '#FFFFFF',
@@ -696,21 +913,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 28,
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderTopWidth: 1,
-    borderTopColor: '#EEF2F7',
+    backgroundColor: 'rgba(244,245,247,0.96)',
   },
   footerButton: {
-    height: 44,
+    height: 46,
     borderRadius: 12,
     backgroundColor: '#123F9F',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  footerButtonDisabled: {
+    backgroundColor: '#D8DEE8',
+  },
   footerButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  footerButtonTextDisabled: {
+    color: '#8B95A1',
   },
   modalOverlay: {
     flex: 1,
@@ -742,17 +963,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EEF2F7',
   },
   sheetTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     color: NAVY,
   },
   sheetCancelText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '800',
     color: MUTED,
   },
   sheetDoneText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     color: BLUE,
   },

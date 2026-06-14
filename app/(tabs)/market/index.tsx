@@ -2,10 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -30,107 +33,63 @@ const formatPrice = (price: number) => {
   return `${price.toLocaleString()}원`;
 };
 
-type TicketItem = {
-  id: number;
-  country: string;
-  semester: string;
-  time: string;
-  region: string;
-  category: string;
-  title: string;
-  date: string;
-  count: string;
-  price: string;
-  originalPrice: string;
-  likes: number;
-};
-
-const ticketTypeLabels: Record<TicketType, string> = {
-  TOUR: '관광',
-  CONCERT: '공연',
+const ticketTypeLabelMap: Record<TicketType, string> = {
+  TOUR: '관광 티켓',
+  CONCERT: '콘서트 / 공연',
   TRAIN: '기차',
   FLIGHT: '항공권',
   ACCOMMODATION: '숙박',
 };
 
-const formatTicketPrice = (price?: number) => {
-  if (!price) {
-    return '가격 미정';
+const formatTicketPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
+
+const formatSingleTicketDate = (date: string) => {
+  const [, month, day] = date.trim().split('-');
+
+  if (!month || !day) return date;
+
+  const parsedMonth = Number(month);
+  const parsedDay = Number(day);
+
+  if (Number.isNaN(parsedMonth) || Number.isNaN(parsedDay)) {
+    return date;
   }
 
-  return `${price.toLocaleString()}원`;
+  return `${parsedMonth}월 ${parsedDay}일`;
 };
 
-const formatTicketDate = (value?: string) => {
-  if (!value) {
-    return '날짜 미정';
+const formatTicketDate = (date: string) => {
+  const [startDate, endDate] = date.split('~').map((value) => value.trim());
+
+  if (!endDate) {
+    return formatSingleTicketDate(startDate);
   }
 
-  return value.replaceAll('-', '.');
+  return `${formatSingleTicketDate(startDate)} ~ ${formatSingleTicketDate(endDate)}`;
 };
 
-const formatRelativeTime = (value?: string) => {
-  if (!value) {
-    return '방금 전';
+const formatTicketCreatedTime = (createdAt?: string) => {
+  if (!createdAt) return '';
+
+  const createdDate = new Date(createdAt);
+
+  if (Number.isNaN(createdDate.getTime())) {
+    return createdAt.slice(0, 10).replaceAll('-', '.');
   }
 
-  const createdAt = new Date(value);
+  const diffMs = Date.now() - createdDate.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
 
-  if (Number.isNaN(createdAt.getTime())) {
-    return '방금 전';
-  }
-
-  const diffMinutes = Math.max(
-    0,
-    Math.floor((Date.now() - createdAt.getTime()) / 60000),
-  );
-
-  if (!Number.isFinite(diffMinutes) || diffMinutes < 1) {
-    return '방금 전';
-  }
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}분 전`;
-  }
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
 
   const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours}시간 전`;
-  }
+  if (diffHours < 24) return `${diffHours}시간 전`;
 
   const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일 전`;
 
-  if (diffDays < 7) {
-    return `${diffDays}일 전`;
-  }
-
-  return value.slice(0, 10).replaceAll('-', '.');
-};
-
-const mapTicketItem = (item: TicketTransferResponse): TicketItem => ({
-  id: item.id,
-  country: item.country || item.authorDispatchedCountry || '국가 미정',
-  semester: item.authorDispatchSemester
-    ? `${item.authorDispatchYear ?? ''}${item.authorDispatchYear ? '-' : ''}${item.authorDispatchSemester}`
-    : '파견생',
-  time: formatRelativeTime(item.createdAt ?? item.updatedAt),
-  region: item.location || item.authorDispatchedRegion || '장소 미정',
-  category: ticketTypeLabels[item.ticketType],
-  title: item.title,
-  date: formatTicketDate(item.eventDate),
-  count: `${item.quantity}매`,
-  price: formatTicketPrice(item.transferPrice),
-  originalPrice: item.originalPrice ? formatTicketPrice(item.originalPrice) : '',
-  likes: 0,
-});
-
-const saveBookmarkedTickets = async (ids: number[], tickets: TicketItem[]) => {
-  const savedTickets = tickets.filter((item) => ids.includes(item.id));
-
-  await AsyncStorage.setItem(
-    SAVED_TICKET_POSTS_STORAGE_KEY,
-    JSON.stringify(savedTickets),
-  );
+  return createdAt.slice(0, 10).replaceAll('-', '.');
 };
 
 export default function MarketPage() {
@@ -140,6 +99,13 @@ export default function MarketPage() {
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
+  const [ticketNextCursorId, setTicketNextCursorId] = useState<number | null>(
+    null,
+  );
+  const [ticketHasNext, setTicketHasNext] = useState(false);
+  const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
+  const ticketLoadingMoreRef = useRef(false);
+  const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
   useEffect(() => {
@@ -188,16 +154,67 @@ export default function MarketPage() {
     }
   };
 
-  const fetchTickets = async () => {
+  const fetchTickets = async (cursorId?: number) => {
     try {
-      const response = await getTickets({ size: 30 });
-      setTickets(response.data.data.items ?? []);
+      if (cursorId) {
+        ticketLoadingMoreRef.current = true;
+        setTicketLoadingMore(true);
+      }
+
+      const response = await getTickets(cursorId, 10);
+      const { items: nextItems = [], nextCursorId, hasNext } =
+        response.data.data;
+
+      setTickets((prev) => {
+        if (!cursorId) {
+          return nextItems;
+        }
+
+        const existingIds = new Set(prev.map((item) => item.id));
+        const uniqueNextItems = nextItems.filter(
+          (item) => !existingIds.has(item.id),
+        );
+
+        return [...prev, ...uniqueNextItems];
+      });
+      setTicketNextCursorId(nextCursorId ?? null);
+      setTicketHasNext(hasNext);
     } catch (error: any) {
-      console.log(
-        '티켓 양도 목록 조회 실패:',
-        error.response?.data || error.message,
-      );
-      setTickets([]);
+      console.log('티켓 양도 목록 조회 실패:', error.response?.data || error.message);
+      if (!cursorId) {
+        setTickets([]);
+        setTicketNextCursorId(null);
+        setTicketHasNext(false);
+      }
+    } finally {
+      if (cursorId) {
+        ticketLoadingMoreRef.current = false;
+        setTicketLoadingMore(false);
+      }
+    }
+  };
+
+  const fetchNextTickets = () => {
+    if (!ticketHasNext || !ticketNextCursorId || ticketLoadingMoreRef.current) {
+      return;
+    }
+
+    fetchTickets(ticketNextCursorId);
+  };
+
+  const handleMarketScroll = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    if (selectedType !== 'ticket') {
+      return;
+    }
+
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom =
+      contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+    if (distanceFromBottom < 180) {
+      fetchNextTickets();
     }
   };
 
@@ -268,6 +285,16 @@ export default function MarketPage() {
     });
   };
 
+  const handleFabPress = () => {
+    if (selectedType === 'ticket') {
+      setIsFabOpen(false);
+      requireVerificationBefore('/market/ticket-write');
+      return;
+    }
+
+    setIsFabOpen((prev) => !prev);
+  };
+
   const requireVerificationBefore = async (path: string) => {
     try {
       const canUseMarket = await canUseMarketWithoutVerification();
@@ -310,10 +337,27 @@ export default function MarketPage() {
       ? displayItems
       : displayItems.filter((item) => item.region === selectedCountry);
 
+  const displayTickets = tickets.map((item) => ({
+    id: item.id,
+    country: item.authorDispatchedCountry ?? '',
+    semester: ticketTypeLabelMap[item.ticketType],
+    time: formatTicketCreatedTime(item.createdAt),
+    region: item.country,
+    category: ticketTypeLabelMap[item.ticketType],
+    title: item.title,
+    date: formatTicketDate(item.eventDate),
+    count: `${item.quantity}매`,
+    price: formatTicketPrice(item.transferPrice),
+    originalPrice: item.originalPrice
+      ? formatTicketPrice(item.originalPrice)
+      : '',
+    likes: 0,
+  }));
+
   const filteredTickets =
     selectedCountry === '전체'
-      ? ticketItems
-      : ticketItems.filter((item) => item.country === selectedCountry);
+      ? displayTickets
+      : displayTickets.filter((item) => item.region.includes(selectedCountry));
 
   return (
     <View style={styles.container}>
@@ -321,6 +365,8 @@ export default function MarketPage() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleMarketScroll}
       >
         <View style={styles.header}>
           <Text style={styles.title}>교환학생 전용 거래</Text>
@@ -354,8 +400,10 @@ export default function MarketPage() {
               styles.tradeTypeButton,
               selectedTab === 'bulk' && styles.tradeTypeButtonActive,
             ]}
-            onPress={() => setSelectedTab('bulk')}
-            activeOpacity={0.8}
+            onPress={() => {
+              setSelectedType('bulk');
+              setIsFabOpen(false);
+            }}
           >
             <Text
               style={[
@@ -372,8 +420,10 @@ export default function MarketPage() {
               styles.tradeTypeButton,
               selectedTab === 'ticket' && styles.tradeTypeButtonActive,
             ]}
-            onPress={() => setSelectedTab('ticket')}
-            activeOpacity={0.8}
+            onPress={() => {
+              setSelectedType('ticket');
+              setIsFabOpen(false);
+            }}
           >
             <Text
               style={[
@@ -521,7 +571,7 @@ export default function MarketPage() {
                   />
 
                   <Text style={styles.ticketMeta}>
-                    {item.country} · {item.semester} 파견생 · {item.time}
+                    {item.country} 파견생 · {item.time}
                   </Text>
 
                   <View style={styles.ticketTag}>
@@ -591,19 +641,16 @@ export default function MarketPage() {
                 </View>
               </Pressable>
             ))}
-            {filteredTickets.length === 0 && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyTitle}>등록된 티켓 양도글이 없어요</Text>
-                <Text style={styles.emptyText}>
-                  티켓 양도하기로 첫 글을 등록해보세요.
-                </Text>
+            {ticketLoadingMore && (
+              <View style={styles.ticketLoadingMore}>
+                <ActivityIndicator color={BLUE} />
               </View>
             )}
           </View>
         )}
       </ScrollView>
 
-      {isFabOpen && (
+      {isFabOpen && selectedType === 'bulk' && (
         <View style={styles.fabMenu}>
           <Pressable
             style={styles.fabMenuItem}
@@ -636,7 +683,7 @@ export default function MarketPage() {
 
       <Pressable
         style={[styles.fabButton, isFabOpen && styles.fabButtonOpen]}
-        onPress={() => setIsFabOpen((prev) => !prev)}
+        onPress={handleFabPress}
       >
         <Text style={styles.fabText}>{isFabOpen ? '−' : '+'}</Text>
       </Pressable>
@@ -743,10 +790,17 @@ const styles = StyleSheet.create({
   },
 
   bookmarkIconWrapper: {
-    width: 28,
-    height: 28,
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  bookmarkIcon: {
+    width: 27,
+    height: 27,
+    resizeMode: 'contain',
+    position: 'absolute',
   },
 
   ticketInfoItem: {
@@ -758,7 +812,7 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     resizeMode: 'contain',
-    marginRight: 5,
+    marginRight: 4,
   },
   header: {
     flexDirection: 'row',
@@ -984,8 +1038,13 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
 
+  ticketLoadingMore: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+
   ticketCard: {
-    paddingVertical: 15,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
@@ -993,7 +1052,7 @@ const styles = StyleSheet.create({
   ticketMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 9,
   },
 
   userCircle: {
@@ -1018,13 +1077,13 @@ const styles = StyleSheet.create({
   },
 
   ticketTag: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     height: 20,
     borderRadius: 10,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 6,
+    marginLeft: 5,
   },
 
   ticketTagText: {
@@ -1041,8 +1100,8 @@ const styles = StyleSheet.create({
 
   ticketTitle: {
     flex: 1,
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '900',
     color: '#111111',
   },
@@ -1055,7 +1114,7 @@ const styles = StyleSheet.create({
 
   ticketInfoRow: {
     flexDirection: 'row',
-    gap: 18,
+    gap: 16,
     marginTop: 9,
   },
 
@@ -1068,14 +1127,14 @@ const styles = StyleSheet.create({
   ticketPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 14,
   },
 
   ticketPrice: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '900',
     color: '#000000',
-    marginRight: 10,
+    marginRight: 8,
   },
 
   ticketOriginalPrice: {
@@ -1086,7 +1145,7 @@ const styles = StyleSheet.create({
 
   ticketLikeRow: {
     alignItems: 'flex-end',
-    marginTop: -4,
+    marginTop: -8,
   },
 
   ticketLike: {
@@ -1096,25 +1155,30 @@ const styles = StyleSheet.create({
 
   fabButton: {
     position: 'absolute',
-    right: 22,
-    bottom: 40,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    right: 24,
+    bottom: 42,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5,
   },
 
   fabButtonOpen: {
-    backgroundColor: '#555555',
+    backgroundColor: '#303030',
   },
 
   fabText: {
-    fontSize: 43,
-    lineHeight: 46,
+    fontSize: 30,
+    lineHeight: 33,
     color: '#FFFFFF',
-    fontWeight: '300',
+    fontWeight: '400',
   },
 
   fabMenu: {

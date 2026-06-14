@@ -1,5 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -13,15 +13,14 @@ import {
   View,
 } from 'react-native';
 
-import { AppBackButton } from '@/components/ui/app-back-button';
-import { logout } from '../../../src/api/auth';
+import { getMemberMe, logout } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
-const BLUE = '#1747AD';
-const SOFT_BLUE = '#EEF5FF';
-const CARD = '#F8FAFC';
-const LINE = '#E7EDF5';
-const MUTED = '#697789';
+const BLUE = '#2F66D0';
+const INK = '#111111';
+const MUTED = '#64748B';
+const SOFT = '#F6F8FC';
+const CARD = '#FAFBFC';
 
 type RouteTarget = unknown;
 
@@ -33,11 +32,17 @@ type QuickAction = {
 type MenuItem = {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
-  route?: RouteTarget;
+  route: RouteTarget;
   action?: 'logout';
 };
 
 const quickActions: QuickAction[] = [
+  { title: '좋아요한 글', icon: 'heart-outline', route: null },
+  { title: '좋아요한 파견교', icon: 'school-outline', route: '/(tabs)/home/my-school-info' },
+  { title: '여행 혜택', icon: 'sparkles-outline', route: '/(tabs)/home/guide' },
+];
+
+const activityItems: MenuItem[] = [
   {
     title: '좋아요한 글',
     route: {
@@ -46,45 +51,23 @@ const quickActions: QuickAction[] = [
     },
   },
   {
-    title: '좋아요한 파견교',
-    route: '/(tabs)/home/my-school-info',
-  },
-  {
-    title: '여행 혜택',
-    route: '/(tabs)/home/guide',
-  },
-];
-
-const activityItems: MenuItem[] = [
-  {
-    title: '커뮤니티 작성글',
-    icon: 'chatbubbles-outline',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'free' },
-    },
-  },
-  {
     title: '동행 모집글',
+    description: '출국, 여행, 정착 동행 모집 현황',
     icon: 'people-outline',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'companion' },
-    },
+    route: '/(tabs)/community',
   },
   {
     title: '중고거래 작성글',
+    description: '판매 중인 물품과 거래 상태 확인',
     icon: 'bag-handle-outline',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'market' },
-    },
+    route: '/(tabs)/market',
   },
 ];
 
 const accountItems: MenuItem[] = [
   {
     title: '파견교 인증',
+    description: '파견교 인증 상태 확인',
     icon: 'shield-checkmark-outline',
     route: '/verification',
   },
@@ -95,12 +78,15 @@ const accountItems: MenuItem[] = [
   },
   {
     title: '비밀번호 수정',
+    description: '이름, 학교, 파견 정보를 수정',
     icon: 'person-outline',
-    route: '/(tabs)/home/profile-password',
+    route: '/(tabs)/home/profile-edit',
   },
   {
     title: '로그아웃하기',
+    description: '현재 계정에서 로그아웃',
     icon: 'log-out-outline',
+    route: null,
     action: 'logout',
   },
 ];
@@ -113,13 +99,14 @@ const statusDisplayMap: Record<string, string> = {
 };
 
 export default function ProfileCardScreen() {
+  const [isVerified, setIsVerified] = useState(false);
   const [profile, setProfile] = useState({
-    nickname: '확인요구',
-    country: '프랑스',
-    region: '파리',
-    university: '파리 시테 대학교',
-    homeUniversity: '서울과기대',
-    status: '파견 중',
+    nickname: '닉네임',
+    country: '독일',
+    region: '베를린',
+    university: '베를린 자유대학교',
+    homeUniversity: '서울대학교',
+    status: '출국 준비 중',
     avatarUri: null as string | null,
   });
 
@@ -135,6 +122,8 @@ export default function ProfileCardScreen() {
           profileStatus,
           profileAvatarUri,
           exchangeStatus,
+          savedIsVerified,
+          savedOverrides,
         ] = await Promise.all([
           AsyncStorage.getItem('nickname'),
           AsyncStorage.getItem('dispatchedCountry'),
@@ -144,19 +133,50 @@ export default function ProfileCardScreen() {
           AsyncStorage.getItem('profileStatus'),
           AsyncStorage.getItem('profileAvatarUri'),
           AsyncStorage.getItem('exchangeStatus'),
+          AsyncStorage.getItem('isVerified'),
+          AsyncStorage.getItem('profileFieldOverrides'),
         ]);
+
+        setIsVerified(savedIsVerified === 'true');
+        const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
+
+        let apiProfile = {
+          nickname: null as string | null,
+          country: null as string | null,
+          region: null as string | null,
+          university: null as string | null,
+          homeUniversity: null as string | null,
+        };
+
+        try {
+          const memberRes = await getMemberMe();
+          const member = memberRes.data?.data;
+
+          if (member) {
+            apiProfile = {
+              nickname: member.nickname?.trim() || null,
+              country: member.dispatchedCountry || null,
+              region: member.dispatchedRegion || null,
+              university: member.dispatchedUniversity || null,
+              homeUniversity: member.homeUniversity || member.domesticUniversity || null,
+            };
+
+            if (apiProfile.nickname) {
+              await AsyncStorage.setItem('nickname', apiProfile.nickname);
+            }
+          }
+        } catch (error: any) {
+          console.log('회원 정보 조회 실패:', error.response?.data || error.message);
+        }
 
         setProfile((prev) => ({
           ...prev,
-          nickname: nickname || prev.nickname,
-          country: dispatchedCountry || prev.country,
-          region: dispatchedRegion || prev.region,
-          university: dispatchedUniversity || prev.university,
-          homeUniversity: homeUniversity || prev.homeUniversity,
-          status:
-            profileStatus ||
-            (exchangeStatus ? statusDisplayMap[exchangeStatus] : null) ||
-            prev.status,
+          nickname: overrides.nickname ? nickname || prev.nickname : apiProfile.nickname || nickname || prev.nickname,
+          country: overrides.country ? dispatchedCountry || prev.country : apiProfile.country || dispatchedCountry || prev.country,
+          region: overrides.region ? dispatchedRegion || prev.region : apiProfile.region || dispatchedRegion || prev.region,
+          university: overrides.dispatchedUniversity ? dispatchedUniversity || prev.university : apiProfile.university || dispatchedUniversity || prev.university,
+          homeUniversity: overrides.homeUniversity ? homeUniversity || prev.homeUniversity : apiProfile.homeUniversity || homeUniversity || prev.homeUniversity,
+          status: profileStatus || (exchangeStatus ? statusDisplayMap[exchangeStatus] : null) || prev.status,
           avatarUri: profileAvatarUri || prev.avatarUri,
         }));
       };
@@ -197,12 +217,31 @@ export default function ProfileCardScreen() {
     openRoute(item.route);
   };
 
+  const handleLogout = () => {
+    Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '로그아웃',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logout();
+          } catch (error) {
+            console.log('로그아웃 API 호출 실패:', error);
+          } finally {
+            await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+            router.replace('/login');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <AppBackButton style={styles.backButton} />
         <Text style={styles.headerTitle}>내 프로필</Text>
-        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -211,73 +250,107 @@ export default function ProfileCardScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.profileCard}>
-          <View style={styles.profileTop}>
-            <View style={styles.avatarBox}>
+          <TouchableOpacity
+            style={styles.profileMain}
+            onPress={() => router.push('/(tabs)/home/profile-edit' as any)}
+            activeOpacity={0.86}
+          >
+            <View style={styles.avatarWrap}>
               {profile.avatarUri ? (
                 <Image source={{ uri: profile.avatarUri }} style={styles.avatar} />
               ) : (
-                <Ionicons name="person" size={36} color="#111111" />
+                <Ionicons name="person" size={25} color={INK} />
               )}
+              {isVerified ? (
+                <View style={styles.exchangeBadge}>
+                  <Ionicons name="shield-checkmark" size={11} color={BLUE} />
+                </View>
+              ) : null}
             </View>
 
-            <View style={styles.profileTextBox}>
+            <View style={styles.profileInfo}>
               <Text style={styles.nickname}>{profile.nickname}</Text>
               <Text style={styles.profileMeta} numberOfLines={1}>
                 {profile.homeUniversity} · {profile.country} {profile.region}
               </Text>
             </View>
 
-            <Pressable
-              style={styles.editButton}
-              onPress={() => openRoute('/(tabs)/home/profile-edit')}
-              hitSlop={8}
-            >
-              <Ionicons name="pencil" size={20} color={NAVY} />
-            </Pressable>
-          </View>
+            <View style={styles.profileManage}>
+              <Ionicons name="pencil-outline" size={16} color={NAVY} />
+            </View>
+          </TouchableOpacity>
 
-          <View style={styles.profileDivider} />
-
-          <View style={styles.quickRow}>
+          <View style={styles.quickCard}>
             {quickActions.map((item) => (
-              <Pressable
+              <TouchableOpacity
                 key={item.title}
-                style={styles.quickButton}
+                style={styles.quickItem}
                 onPress={() => openRoute(item.route)}
+                activeOpacity={0.86}
               >
-                <Text style={styles.quickText}>{item.title}</Text>
-              </Pressable>
+                <Text style={styles.quickTitle}>{item.title}</Text>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        <Pressable
-          style={styles.verifyBanner}
-          onPress={() => openRoute('/verification')}
+        <TouchableOpacity
+          style={[
+            styles.verificationCard,
+            isVerified ? styles.verificationCardDone : styles.verificationCardPending,
+          ]}
+          onPress={() => {
+            if (!isVerified) {
+              router.push('/verification' as any);
+            }
+          }}
+          activeOpacity={isVerified ? 1 : 0.86}
         >
-          <View style={styles.verifyIconBox}>
-            <Ionicons name="shield-outline" size={25} color="#FFFFFF" />
+          <View
+            style={[
+              styles.verificationIconBox,
+              isVerified
+                ? styles.verificationIconBoxDone
+                : styles.verificationIconBoxPending,
+            ]}
+          >
+            <Ionicons
+              name={isVerified ? 'shield-checkmark' : 'shield-outline'}
+              size={20}
+              color="#FFFFFF"
+            />
           </View>
 
-          <View style={styles.verifyTextBox}>
-            <Text style={styles.verifyTitle}>교환학생 인증이 필요해요</Text>
-            <Text style={styles.verifyDesc}>
-              인증하고 중고거래·동행 모집 이용하기
+          <View style={styles.verificationTextBox}>
+            <Text style={styles.verificationTitle}>
+              {isVerified ? '교환학생 인증 완료' : '교환학생 인증이 필요해요'}
+            </Text>
+            <Text style={styles.verificationDesc} numberOfLines={2}>
+              {isVerified
+                ? '파견교 인증이 완료되어 안전한 교환학생 멤버로 표시됩니다.'
+                : '인증하고 중고거래·동행 모집 이용하기'}
             </Text>
           </View>
 
-          <Ionicons name="chevron-forward" size={25} color="#BBD1FF" />
-        </Pressable>
+          {isVerified ? (
+            <View style={styles.verificationPill}>
+              <Text style={styles.verificationPillText}>완료</Text>
+            </View>
+          ) : (
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.78)" />
+          )}
+        </TouchableOpacity>
 
         <MenuSection
           title="내 활동"
           items={activityItems}
-          onPressItem={handleMenuPress}
+          onPressItem={openRoute}
         />
         <MenuSection
           title="계정 / 설정"
           items={accountItems}
-          onPressItem={handleMenuPress}
+          onPressItem={openRoute}
+          onLogout={handleLogout}
         />
       </ScrollView>
     </View>
@@ -291,27 +364,33 @@ function MenuSection({
 }: {
   title: string;
   items: MenuItem[];
-  onPressItem: (item: MenuItem) => void;
+  onPressItem: (route: RouteTarget) => void;
+  onLogout?: () => void;
 }) {
   return (
-    <View style={styles.sectionCard}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={styles.section}>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{title}</Text>
 
-      {items.map((item, index) => (
-        <Pressable
-          key={item.title}
-          style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-          onPress={() => onPressItem(item)}
-        >
-          <View style={styles.menuIconCircle}>
-            <Ionicons name={item.icon} size={22} color={NAVY} />
-          </View>
+        {items.map((item, index) => (
+          <TouchableOpacity
+            key={item.title}
+            style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
+            onPress={() => (item.action === 'logout' ? onLogout?.() : onPressItem(item.route))}
+            activeOpacity={0.82}
+          >
+            <View style={styles.menuIconBox}>
+              <Ionicons name={item.icon} size={18} color={NAVY} />
+            </View>
 
-          <Text style={styles.menuTitle}>{item.title}</Text>
+            <View style={styles.menuTextBox}>
+              <Text style={styles.menuTitle}>{item.title}</Text>
+            </View>
 
-          <Ionicons name="chevron-forward" size={24} color="#111111" />
-        </Pressable>
-      ))}
+            <Ionicons name="chevron-forward" size={17} color={INK} />
+          </TouchableOpacity>
+        ))}
+      </View>
     </View>
   );
 }
@@ -327,174 +406,244 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: '#FFFFFF',
+    position: 'relative',
   },
   backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F5F7FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SOFT,
+    zIndex: 1,
   },
   headerTitle: {
-    fontSize: 22,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 17,
+    fontSize: 18,
     fontWeight: '900',
     color: NAVY,
-    letterSpacing: 0,
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
+    textAlign: 'center',
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
+    paddingTop: 7,
     paddingBottom: 130,
   },
   profileCard: {
-    borderRadius: 20,
-    backgroundColor: SOFT_BLUE,
+    borderRadius: 16,
+    backgroundColor: '#F2F7FF',
     paddingHorizontal: 14,
     paddingTop: 18,
-    paddingBottom: 18,
+    paddingBottom: 20,
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.025,
+    shadowRadius: 14,
+    elevation: 1,
   },
-  profileTop: {
-    minHeight: 66,
+  profileMain: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  avatarBox: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    backgroundColor: '#FFFFFF',
+  avatarWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
-    overflow: 'hidden',
+    marginRight: 12,
+    position: 'relative',
   },
   avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 33,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
-  profileTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  nickname: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#111111',
-  },
-  profileMeta: {
-    marginTop: 7,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    color: '#111111',
-  },
-  editButton: {
-    width: 34,
-    height: 34,
+  exchangeBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileDivider: {
-    height: 1,
-    backgroundColor: '#DDE8F7',
+  profileInfo: {
+    flex: 1,
+    alignItems: 'flex-start',
+    minWidth: 0,
+    paddingRight: 10,
+  },
+  nickname: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: INK,
+    textAlign: 'left',
+  },
+  profileMeta: {
+    marginTop: 8,
+    fontSize: 12,
+    fontWeight: '700',
+    color: INK,
+    textAlign: 'left',
+  },
+  profileManage: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  verificationCard: {
+    minHeight: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 18,
-    marginBottom: 16,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.025,
+    shadowRadius: 14,
+    elevation: 1,
+  },
+  verificationCardDone: {
+    backgroundColor: '#123F9F',
+  },
+  verificationCardPending: {
+    backgroundColor: '#123F9F',
+  },
+  verificationIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  verificationIconBoxDone: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  verificationIconBoxPending: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  verificationTextBox: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 10,
+  },
+  verificationTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 3,
+  },
+  verificationDesc: {
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 15,
+    color: 'rgba(255,255,255,0.78)',
+  },
+  verificationPill: {
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  verificationPillText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: BLUE,
   },
   quickRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e7f1ff',
     gap: 8,
   },
   quickButton: {
     flex: 1,
-    height: 48,
-    borderRadius: 9,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickText: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  verifyBanner: {
-    marginTop: 18,
-    minHeight: 62,
-    borderRadius: 11,
-    backgroundColor: BLUE,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    minHeight: 38,
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  verifyIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 13,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 4,
+    gap: 4,
   },
-  verifyTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  verifyTitle: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  verifyDesc: {
-    marginTop: 4,
-    fontSize: 13,
-    lineHeight: 18,
+  quickTitle: {
+    fontSize: 12.5,
     fontWeight: '700',
-    color: '#CFE0FF',
+    color: NAVY,
+    textAlign: 'center',
   },
-  sectionCard: {
+  section: {
     marginTop: 18,
-    borderRadius: 20,
-    backgroundColor: CARD,
-    overflow: 'hidden',
   },
   sectionTitle: {
-    paddingHorizontal: 17,
-    paddingTop: 17,
-    paddingBottom: 11,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     color: MUTED,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 6,
+  },
+  sectionCard: {
+    borderRadius: 18,
+    backgroundColor: CARD,
+    overflow: 'hidden',
+    shadowColor: NAVY,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.025,
+    shadowRadius: 14,
+    elevation: 1,
   },
   menuRow: {
-    minHeight: 62,
-    paddingHorizontal: 17,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 6,
   },
   menuDivider: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: LINE,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EAEDF2',
   },
-  menuIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  menuIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginRight: 10,
+  },
+  menuTextBox: {
+    flex: 1,
+    paddingRight: 10,
   },
   menuTitle: {
-    flex: 1,
-    fontSize: 17,
+    fontSize: 14,
     fontWeight: '900',
     color: NAVY,
   },
