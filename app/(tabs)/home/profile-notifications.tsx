@@ -2,13 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 
@@ -20,7 +14,12 @@ const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 const STORAGE_KEY = 'univ:profile:notification-settings';
 
-type NotificationKey = 'market' | 'community' | 'chat' | 'schedule' | 'marketing';
+type NotificationKey =
+  | 'market'
+  | 'community'
+  | 'chat'
+  | 'schedule'
+  | 'marketing';
 
 type NotificationSettings = Record<NotificationKey, boolean>;
 
@@ -119,18 +118,6 @@ export default function ProfileNotificationsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIconBox}>
-            <Ionicons name="notifications-outline" size={25} color={BLUE} />
-          </View>
-          <View style={styles.heroTextBox}>
-            <Text style={styles.heroTitle}>필요한 알림만 받을게요</Text>
-            <Text style={styles.heroDesc}>
-              원하는 알림 항목을 켜고 끌 수 있어요.
-            </Text>
-          </View>
-        </View>
-
         <View style={styles.sectionCard}>
           {notificationItems.map((item, index) => (
             <Pressable
