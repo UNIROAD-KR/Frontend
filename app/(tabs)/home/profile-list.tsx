@@ -44,6 +44,7 @@ type SavedTicket = {
   category?: string;
   date?: string;
   price?: string;
+  time?: string;
 };
 
 type RecentPost = {
@@ -147,6 +148,34 @@ const formatDate = (value?: string) => {
   return value.slice(0, 10).replaceAll('-', '.');
 };
 
+const formatRelativeTime = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const createdAt = new Date(value);
+
+  if (Number.isNaN(createdAt.getTime())) {
+    return formatDate(value);
+  }
+
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - createdAt.getTime()) / 60000),
+  );
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일 전`;
+
+  return formatDate(value);
+};
+
 const formatPrice = (value?: number) => {
   if (!value) {
     return '가격 미정';
@@ -184,10 +213,17 @@ export default function ProfileListScreen() {
             subtitle: [item.country, item.semester, item.region]
               .filter(Boolean)
               .join(' · '),
-            meta: [item.category, item.date, item.price].filter(Boolean).join(' · '),
+            meta: [item.category, item.date, item.price, item.time]
+              .filter(Boolean)
+              .join(' · '),
             badge: '티켓 양도',
             icon: 'bookmark-outline',
-            route: '/market/ticket-preview',
+            route: item.id
+              ? {
+                  pathname: '/market/ticket-preview',
+                  params: { id: String(item.id) },
+                }
+              : '/market/ticket-preview',
           })),
         );
         return;
@@ -247,7 +283,9 @@ export default function ProfileListScreen() {
             id: makeCardId('used', item.id),
             title: item.title,
             subtitle: `${item.region} · ${item.semester}`,
-            meta: formatPrice(item.price),
+            meta: [formatPrice(item.price), formatRelativeTime(item.createdAt)]
+              .filter(Boolean)
+              .join(' · '),
             badge: '일괄거래',
             icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
             route: {
@@ -259,10 +297,19 @@ export default function ProfileListScreen() {
             id: makeCardId('ticket', item.id),
             title: item.title,
             subtitle: `${item.location} · ${formatDate(item.eventDate)}`,
-            meta: `${item.quantity}매 · ${formatPrice(item.transferPrice)}`,
+            meta: [
+              `${item.quantity}매`,
+              formatPrice(item.transferPrice),
+              formatRelativeTime(item.createdAt ?? item.updatedAt),
+            ]
+              .filter(Boolean)
+              .join(' · '),
             badge: item.status === 'COMPLETED' ? '양도 완료' : '티켓 양도',
             icon: 'ticket-outline' as keyof typeof Ionicons.glyphMap,
-            route: '/market/ticket-preview',
+            route: {
+              pathname: '/market/ticket-preview',
+              params: { id: String(item.id) },
+            },
           })),
         ]);
         return;

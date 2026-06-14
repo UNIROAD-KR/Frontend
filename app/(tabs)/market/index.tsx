@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -15,65 +15,117 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
+import {
+  getTickets,
+  TicketTransferResponse,
+  TicketType,
+} from '../../../src/api/ticket';
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
-
-const ticketItems = [
-  {
-    id: 1,
-    country: '독일',
-    semester: '2026-1학기',
-    time: '7분 전',
-    region: '바르셀로나',
-    category: '관광',
-    title: '사그라다 파밀리아 표 양도',
-    date: '5월 9일 (목)',
-    count: '1매',
-    price: '€20',
-    originalPrice: '€26',
-    likes: 4,
-  },
-  {
-    id: 2,
-    country: '프랑스',
-    semester: '2026-1학기',
-    time: '31분 전',
-    region: '파리',
-    category: '관광',
-    title: '파리 롤랑가로스 아웃사이드 코트 티켓 양도',
-    date: '6월 2일 (화)',
-    count: '1매',
-    price: '€30',
-    originalPrice: '',
-    likes: 5,
-  },
-  {
-    id: 3,
-    country: '독일',
-    semester: '2026-1학기',
-    time: '1시간 전',
-    region: '뮌헨',
-    category: '콘서트',
-    title: '뮌헨 Coldplay 콘서트 티켓 양도',
-    date: '5월 24일 (토)',
-    count: '1매',
-    price: '€100',
-    originalPrice: '€130',
-    likes: 7,
-  },
-];
 
 const formatPrice = (price: number) => {
   if (!price) return '가격 미정';
   return `${price.toLocaleString()}원`;
 };
 
-type TicketItem = (typeof ticketItems)[number];
+type TicketItem = {
+  id: number;
+  country: string;
+  semester: string;
+  time: string;
+  region: string;
+  category: string;
+  title: string;
+  date: string;
+  count: string;
+  price: string;
+  originalPrice: string;
+  likes: number;
+};
 
-const saveBookmarkedTickets = async (ids: number[]) => {
-  const savedTickets = ticketItems.filter((item) => ids.includes(item.id));
+const ticketTypeLabels: Record<TicketType, string> = {
+  TOUR: '관광',
+  CONCERT: '공연',
+  TRAIN: '기차',
+  FLIGHT: '항공권',
+  ACCOMMODATION: '숙박',
+};
+
+const formatTicketPrice = (price?: number) => {
+  if (!price) {
+    return '가격 미정';
+  }
+
+  return `${price.toLocaleString()}원`;
+};
+
+const formatTicketDate = (value?: string) => {
+  if (!value) {
+    return '날짜 미정';
+  }
+
+  return value.replaceAll('-', '.');
+};
+
+const formatRelativeTime = (value?: string) => {
+  if (!value) {
+    return '방금 전';
+  }
+
+  const createdAt = new Date(value);
+
+  if (Number.isNaN(createdAt.getTime())) {
+    return '방금 전';
+  }
+
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - createdAt.getTime()) / 60000),
+  );
+
+  if (!Number.isFinite(diffMinutes) || diffMinutes < 1) {
+    return '방금 전';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}분 전`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}시간 전`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays < 7) {
+    return `${diffDays}일 전`;
+  }
+
+  return value.slice(0, 10).replaceAll('-', '.');
+};
+
+const mapTicketItem = (item: TicketTransferResponse): TicketItem => ({
+  id: item.id,
+  country: item.country || item.authorDispatchedCountry || '국가 미정',
+  semester: item.authorDispatchSemester
+    ? `${item.authorDispatchYear ?? ''}${item.authorDispatchYear ? '-' : ''}${item.authorDispatchSemester}`
+    : '파견생',
+  time: formatRelativeTime(item.createdAt ?? item.updatedAt),
+  region: item.location || item.authorDispatchedRegion || '장소 미정',
+  category: ticketTypeLabels[item.ticketType],
+  title: item.title,
+  date: formatTicketDate(item.eventDate),
+  count: `${item.quantity}매`,
+  price: formatTicketPrice(item.transferPrice),
+  originalPrice: item.originalPrice ? formatTicketPrice(item.originalPrice) : '',
+  likes: 0,
+});
+
+const saveBookmarkedTickets = async (ids: number[], tickets: TicketItem[]) => {
+  const savedTickets = tickets.filter((item) => ids.includes(item.id));
 
   await AsyncStorage.setItem(
     SAVED_TICKET_POSTS_STORAGE_KEY,
@@ -87,6 +139,7 @@ export default function MarketPage() {
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
+  const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
   useEffect(() => {
@@ -135,6 +188,19 @@ export default function MarketPage() {
     }
   };
 
+  const fetchTickets = async () => {
+    try {
+      const response = await getTickets({ size: 30 });
+      setTickets(response.data.data.items ?? []);
+    } catch (error: any) {
+      console.log(
+        '티켓 양도 목록 조회 실패:',
+        error.response?.data || error.message,
+      );
+      setTickets([]);
+    }
+  };
+
   const checkVerificationStatus = async () => {
     const showVerificationAlert = () => {
       Alert.alert(
@@ -172,6 +238,7 @@ export default function MarketPage() {
   useFocusEffect(
     useCallback(() => {
       fetchUsedItems();
+      fetchTickets();
       checkVerificationStatus();
     }, []),
   );
@@ -182,13 +249,18 @@ export default function MarketPage() {
     );
   };
 
+  const ticketItems = useMemo(
+    () => tickets.map(mapTicketItem),
+    [tickets],
+  );
+
   const toggleBookmark = (id: number) => {
     setBookmarkedIds((prev) => {
       const next = prev.includes(id)
         ? prev.filter((item) => item !== id)
         : [...prev, id];
 
-      saveBookmarkedTickets(next).catch((error) => {
+      saveBookmarkedTickets(next, ticketItems).catch((error) => {
         console.log('저장한 티켓 목록 저장 실패:', error);
       });
 
@@ -226,7 +298,7 @@ export default function MarketPage() {
     title: item.title,
     region: item.region,
     semester: item.semester,
-    time: '방금 전',
+    time: formatRelativeTime(item.createdAt ?? item.updatedAt),
     priceText: formatPrice(item.price),
     likes: 0,
     chats: 0,
@@ -435,7 +507,12 @@ export default function MarketPage() {
               <Pressable
                 key={item.id}
                 style={styles.ticketCard}
-                onPress={() => router.push('/market/ticket-preview' as any)}
+                onPress={() =>
+                  router.push({
+                    pathname: '/market/ticket-preview',
+                    params: { id: String(item.id) },
+                  } as any)
+                }
               >
                 <View style={styles.ticketMetaRow}>
                   <Image
@@ -514,6 +591,14 @@ export default function MarketPage() {
                 </View>
               </Pressable>
             ))}
+            {filteredTickets.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyTitle}>등록된 티켓 양도글이 없어요</Text>
+                <Text style={styles.emptyText}>
+                  티켓 양도하기로 첫 글을 등록해보세요.
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>

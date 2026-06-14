@@ -65,6 +65,34 @@ const formatReturnDate = (value: string) => {
   return `${year}. ${month}. ${day} (${weekday})`;
 };
 
+const formatRelativeTime = (value?: string) => {
+  if (!value) {
+    return '';
+  }
+
+  const createdAt = new Date(value);
+
+  if (Number.isNaN(createdAt.getTime())) {
+    return value.slice(0, 10).replaceAll('-', '.');
+  }
+
+  const diffMinutes = Math.max(
+    0,
+    Math.floor((Date.now() - createdAt.getTime()) / 60000),
+  );
+
+  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) return `${diffDays}일 전`;
+
+  return value.slice(0, 10).replaceAll('-', '.');
+};
+
 const getDdayText = (value: string) => {
   const date = parseDate(value);
 
@@ -218,7 +246,8 @@ export default function MarketDetailPage() {
       post.region || '지역 미정',
       post.semester || '학기 미정',
       getDdayText(post.returnDate),
-    ];
+      formatRelativeTime(post.createdAt),
+    ].filter(Boolean);
   }, [post]);
 
   const handleChangeTab = (nextTab: 'trade' | 'items' | 'seller') => {

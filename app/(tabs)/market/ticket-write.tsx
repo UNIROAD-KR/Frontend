@@ -59,6 +59,8 @@ const parseMoney = (value: string) => {
   return Number.isFinite(number) ? number : 0;
 };
 
+type PickerTarget = 'date' | 'time' | null;
+
 export default function TicketWriteScreen() {
   const [step, setStep] = useState<1 | 2>(1);
   const [verificationModalVisible, setVerificationModalVisible] = useState(false);
@@ -68,14 +70,14 @@ export default function TicketWriteScreen() {
   const [timeValue, setTimeValue] = useState(new Date());
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
+  const [country, setCountry] = useState('');
   const [location, setLocation] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [transferPrice, setTransferPrice] = useState('');
   const [originalPrice, setOriginalPrice] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
 
   useEffect(() => {
     const checkVerification = async () => {
@@ -95,8 +97,15 @@ export default function TicketWriteScreen() {
   }, []);
 
   const stepOneValid = useMemo(
-    () => Boolean(eventDate && eventTime && location.trim() && parseMoney(transferPrice) > 0),
-    [eventDate, eventTime, location, transferPrice],
+    () =>
+      Boolean(
+        eventDate &&
+          eventTime &&
+          country.trim() &&
+          location.trim() &&
+          parseMoney(transferPrice) > 0,
+      ),
+    [country, eventDate, eventTime, location, transferPrice],
   );
 
   const stepTwoValid = useMemo(
@@ -108,8 +117,9 @@ export default function TicketWriteScreen() {
     _event: DateTimePickerEvent,
     selectedDate?: Date,
   ) => {
-    if (Platform.OS !== 'ios') {
-      setDatePickerVisible(false);
+    if (_event.type === 'dismissed') {
+      setPickerTarget(null);
+      return;
     }
 
     if (!selectedDate) {
@@ -124,8 +134,9 @@ export default function TicketWriteScreen() {
     _event: DateTimePickerEvent,
     selectedTime?: Date,
   ) => {
-    if (Platform.OS !== 'ios') {
-      setTimePickerVisible(false);
+    if (_event.type === 'dismissed') {
+      setPickerTarget(null);
+      return;
     }
 
     if (!selectedTime) {
@@ -143,6 +154,7 @@ export default function TicketWriteScreen() {
         selectedType,
         eventDate,
         eventTime,
+        country,
         location,
         quantity,
         transferPrice,
@@ -173,6 +185,7 @@ export default function TicketWriteScreen() {
       ticketType: selectedType,
       title: title.trim(),
       content: content.trim(),
+      country: country.trim(),
       eventDate,
       eventTime,
       location: location.trim(),
@@ -267,7 +280,7 @@ export default function TicketWriteScreen() {
                   <Text style={styles.fieldLabel}>날짜</Text>
                   <Pressable
                     style={styles.selectInput}
-                    onPress={() => setDatePickerVisible(true)}
+                    onPress={() => setPickerTarget('date')}
                   >
                     <Text
                       style={[
@@ -285,7 +298,7 @@ export default function TicketWriteScreen() {
                   <Text style={styles.fieldLabel}>시간</Text>
                   <Pressable
                     style={styles.selectInput}
-                    onPress={() => setTimePickerVisible(true)}
+                    onPress={() => setPickerTarget('time')}
                   >
                     <Text
                       style={[
@@ -300,35 +313,44 @@ export default function TicketWriteScreen() {
                 </View>
               </View>
 
-              <View style={styles.twoColumnRow}>
-                <View style={styles.columnField}>
-                  <Text style={styles.fieldLabel}>장소</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="입력"
-                    placeholderTextColor="#9B9B9B"
-                    value={location}
-                    onChangeText={setLocation}
-                  />
-                </View>
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>국가</Text>
+                <TextInput
+                  style={styles.fullInput}
+                  placeholder="예: 독일"
+                  placeholderTextColor="#9B9B9B"
+                  value={country}
+                  onChangeText={setCountry}
+                />
+              </View>
 
-                <View style={styles.columnField}>
-                  <Text style={styles.fieldLabel}>양도 매수</Text>
-                  <View style={styles.quantityBox}>
-                    <Pressable
-                      style={styles.quantityButton}
-                      onPress={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                    >
-                      <Text style={styles.quantitySymbol}>−</Text>
-                    </Pressable>
-                    <Text style={styles.quantityText}>{quantity}</Text>
-                    <Pressable
-                      style={styles.quantityButton}
-                      onPress={() => setQuantity((prev) => prev + 1)}
-                    >
-                      <Text style={styles.quantitySymbol}>+</Text>
-                    </Pressable>
-                  </View>
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>장소</Text>
+                <TextInput
+                  style={styles.fullInput}
+                  placeholder="거래 장소 또는 행사 장소를 입력해주세요"
+                  placeholderTextColor="#9B9B9B"
+                  value={location}
+                  onChangeText={setLocation}
+                />
+              </View>
+
+              <View style={styles.fieldBlock}>
+                <Text style={styles.fieldLabel}>양도 매수</Text>
+                <View style={styles.fullQuantityBox}>
+                  <Pressable
+                    style={styles.quantityButton}
+                    onPress={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                  >
+                    <Text style={styles.quantitySymbol}>−</Text>
+                  </Pressable>
+                  <Text style={styles.quantityText}>{quantity}</Text>
+                  <Pressable
+                    style={styles.quantityButton}
+                    onPress={() => setQuantity((prev) => prev + 1)}
+                  >
+                    <Text style={styles.quantitySymbol}>+</Text>
+                  </Pressable>
                 </View>
               </View>
 
@@ -338,7 +360,7 @@ export default function TicketWriteScreen() {
                 <Text style={styles.fieldLabel}>양도 가격</Text>
                 <TextInput
                   style={styles.fullInput}
-                  placeholder="€ 양도 가격"
+                  placeholder="양도 가격"
                   placeholderTextColor="#9B9B9B"
                   keyboardType="numeric"
                   value={transferPrice}
@@ -350,7 +372,7 @@ export default function TicketWriteScreen() {
                 <Text style={styles.fieldLabel}>원가 (선택)</Text>
                 <TextInput
                   style={styles.fullInput}
-                  placeholder="€ 구매 당시 원가"
+                  placeholder="구매 당시 원가"
                   placeholderTextColor="#9B9B9B"
                   keyboardType="numeric"
                   value={originalPrice}
@@ -363,7 +385,7 @@ export default function TicketWriteScreen() {
               <View style={styles.fieldBlock}>
                 <Text style={styles.sectionTitle}>제목</Text>
                 <TextInput
-                  style={styles.fullInput}
+                  style={[styles.fullInput, styles.titleInputSpacing]}
                   placeholder="제목을 입력해주세요."
                   placeholderTextColor="#8E8E8E"
                   value={title}
@@ -415,23 +437,48 @@ export default function TicketWriteScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {datePickerVisible && (
-        <DateTimePicker
-          value={dateValue}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleDateChange}
+      <Modal
+        transparent
+        visible={pickerTarget !== null}
+        animationType="fade"
+        onRequestClose={() => setPickerTarget(null)}
+      >
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={() => setPickerTarget(null)}
         />
-      )}
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerHeader}>
+            <Pressable onPress={() => setPickerTarget(null)}>
+              <Text style={styles.pickerCancelText}>취소</Text>
+            </Pressable>
+            <Text style={styles.pickerTitle}>
+              {pickerTarget === 'date' ? '날짜 선택' : '시간 선택'}
+            </Text>
+            <Pressable onPress={() => setPickerTarget(null)}>
+              <Text style={styles.pickerDoneText}>완료</Text>
+            </Pressable>
+          </View>
 
-      {timePickerVisible && (
-        <DateTimePicker
-          value={timeValue}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleTimeChange}
-        />
-      )}
+          {pickerTarget === 'date' ? (
+            <DateTimePicker
+              value={dateValue}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+              style={styles.picker}
+            />
+          ) : (
+            <DateTimePicker
+              value={timeValue}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleTimeChange}
+              style={styles.picker}
+            />
+          )}
+        </View>
+      </Modal>
 
       <Modal transparent visible={verificationModalVisible} animationType="fade">
         <View style={styles.modalOverlay}>
@@ -627,6 +674,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111111',
   },
+  titleInputSpacing: {
+    marginTop: 16,
+  },
   quantityBox: {
     height: 50,
     borderRadius: 6,
@@ -636,6 +686,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 12,
+  },
+  fullQuantityBox: {
+    height: 50,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
   },
   quantityButton: {
     width: 34,
@@ -690,6 +750,48 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.16)',
+  },
+  pickerSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 28,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    height: 52,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F3',
+  },
+  pickerTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  pickerCancelText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#8A8A8A',
+  },
+  pickerDoneText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  picker: {
+    backgroundColor: '#FFFFFF',
   },
   modalOverlay: {
     flex: 1,

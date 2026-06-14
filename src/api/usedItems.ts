@@ -34,6 +34,8 @@ export interface UsedItemSummaryResponse {
   thumbnailImageUrl: string;
   authorName: string;
   memberId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TradeItemResponse {

@@ -1,8 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Alert,
-  Image,
   Keyboard,
   Pressable,
   ScrollView,
@@ -181,12 +181,12 @@ export default function MarketCategoryPage() {
   >(() => parseDraftItems(params.draftItemsByCategory) ?? makeInitialItems());
 
   const hasSelectedItem = useMemo(() => {
-    return categories.some((category) =>
+    return selectedCategories.some((category) =>
       itemsByCategory[category].some(
         (item) => item.checked && item.name.trim().length > 0,
       ),
     );
-  }, [itemsByCategory]);
+  }, [itemsByCategory, selectedCategories]);
 
   const toggleCategory = (category: CategoryName) => {
     setSelectedCategories((prev) =>
@@ -204,6 +204,7 @@ export default function MarketCategoryPage() {
           ? {
               ...item,
               checked: !item.checked,
+              editing: item.checked ? false : item.editing,
               quantity:
                 !item.checked && item.quantity === 0 ? 1 : item.quantity,
             }
@@ -227,7 +228,7 @@ export default function MarketCategoryPage() {
           quantity:
             type === 'plus'
               ? item.quantity + 1
-              : Math.max(0, item.quantity - 1),
+              : Math.max(1, item.quantity - 1),
         };
       }),
     }));
@@ -246,15 +247,6 @@ export default function MarketCategoryPage() {
     }));
   };
 
-  const startEditItem = (category: CategoryName, index: number) => {
-    setItemsByCategory((prev) => ({
-      ...prev,
-      [category]: prev[category].map((item, itemIndex) =>
-        itemIndex === index ? { ...item, editing: true } : item,
-      ),
-    }));
-  };
-
   const finishEditItem = (category: CategoryName, index: number) => {
     setItemsByCategory((prev) => ({
       ...prev,
@@ -264,10 +256,23 @@ export default function MarketCategoryPage() {
         return {
           ...item,
           name:
-            item.name.trim().length > 0 ? item.name.trim() : item.originalName,
+            item.name.trim().length > 0
+              ? item.name.trim()
+              : item.editable
+                ? ''
+                : item.originalName,
           editing: false,
         };
       }),
+    }));
+  };
+
+  const startEditItem = (category: CategoryName, index: number) => {
+    setItemsByCategory((prev) => ({
+      ...prev,
+      [category]: prev[category].map((item, itemIndex) =>
+        itemIndex === index ? { ...item, checked: true, editing: true } : item,
+      ),
     }));
   };
 
@@ -293,7 +298,7 @@ export default function MarketCategoryPage() {
   };
 
   const getSelectedGroups = () => {
-    return categories
+    return selectedCategories
       .map((category) => ({
         category,
         items: itemsByCategory[category]
@@ -374,7 +379,7 @@ export default function MarketCategoryPage() {
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={Keyboard.dismiss}
       >
-        <Text style={styles.sectionTitle}>보유 카테고리</Text>
+        <Text style={styles.sectionTitle}>카테고리 선택</Text>
 
         <View style={styles.categoryGrid}>
           {categories.map((category) => {
@@ -402,111 +407,138 @@ export default function MarketCategoryPage() {
           })}
         </View>
 
-        <View style={styles.titleRow}>
-          <Text style={styles.mainTitle}>물품 목록</Text>
-          <View style={styles.titleLine} />
-        </View>
-
-        {categories.map((category) => (
-          <View key={category} style={styles.categoryBox}>
-            <Text style={styles.categoryTitle}>{category}</Text>
-
-            <View style={styles.itemGrid}>
-              {itemsByCategory[category].map((item, index) => {
-                const selected = item.checked;
-
-                return (
-                  <View
-                    key={`${category}-${index}`}
-                    style={[styles.itemRow, selected && styles.itemRowSelected]}
-                  >
-                    <View style={styles.itemTopRow}>
-                      <Pressable
-                        style={[
-                          styles.checkBox,
-                          selected && styles.checkBoxSelected,
-                        ]}
-                        onPress={() => toggleItem(category, index)}
-                      >
-                        {selected && <Text style={styles.checkText}>✓</Text>}
-                      </Pressable>
-
-                      {item.editing ? (
-                        <TextInput
-                          style={styles.itemNameInput}
-                          value={item.name}
-                          placeholder="물품명"
-                          placeholderTextColor="#999999"
-                          autoFocus
-                          onChangeText={(value) =>
-                            changeItemName(category, index, value)
-                          }
-                          onSubmitEditing={() =>
-                            finishEditItem(category, index)
-                          }
-                          onBlur={() => finishEditItem(category, index)}
-                        />
-                      ) : (
-                        <Text style={styles.itemName} numberOfLines={2}>
-                          {item.name}
-                        </Text>
-                      )}
-
-                      {selected && !item.editing && (
-                        <Pressable
-                          onPress={() => startEditItem(category, index)}
-                          hitSlop={8}
-                        >
-                          <Image
-                            source={require('../../../assets/images/pen.png')}
-                            style={styles.penIcon}
-                          />
-                        </Pressable>
-                      )}
-                    </View>
-
-                    {selected && (
-                      <View style={styles.quantityRow}>
-                        <Text style={styles.quantityLabel}>수량</Text>
-
-                        <View style={styles.quantityBox}>
-                          <Pressable
-                            style={styles.quantityButton}
-                            onPress={() =>
-                              changeQuantity(category, index, 'minus')
-                            }
-                          >
-                            <Text style={styles.quantityText}>−</Text>
-                          </Pressable>
-
-                          <Text style={styles.quantityNumber}>
-                            {item.quantity}
-                          </Text>
-
-                          <Pressable
-                            style={styles.quantityButton}
-                            onPress={() =>
-                              changeQuantity(category, index, 'plus')
-                            }
-                          >
-                            <Text style={styles.quantityText}>＋</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+        {selectedCategories.length > 0 && (
+          <>
+            <View style={styles.titleRow}>
+              <Text style={styles.mainTitle}>물품 목록</Text>
+              <View style={styles.titleLine} />
             </View>
 
-            <Pressable
-              style={styles.addButton}
-              onPress={() => addCustomItem(category)}
-            >
-              <Text style={styles.addButtonText}>+ 추가하기</Text>
-            </Pressable>
-          </View>
-        ))}
+            {selectedCategories.map((category) => (
+              <View key={category} style={styles.categoryBox}>
+                <Text style={styles.categoryTitle}>{category}</Text>
+
+                <View style={styles.itemGrid}>
+                  {itemsByCategory[category].map((item, index) => {
+                    const selected = item.checked;
+
+                    if (selected) {
+                      return (
+                        <View
+                          key={`${category}-${index}`}
+                          style={styles.selectedItemCell}
+                        >
+                          <View style={styles.selectedItemTop}>
+                            <Pressable
+                              style={[styles.checkBox, styles.checkBoxSelected]}
+                              onPress={() => toggleItem(category, index)}
+                            >
+                              <Text style={styles.checkText}>✓</Text>
+                            </Pressable>
+
+                            {item.editing ? (
+                              <TextInput
+                                style={styles.selectedItemInput}
+                                value={item.name}
+                                placeholder="품목 입력"
+                                placeholderTextColor="#999999"
+                                autoFocus
+                                onChangeText={(value) =>
+                                  changeItemName(category, index, value)
+                                }
+                                onSubmitEditing={() =>
+                                  finishEditItem(category, index)
+                                }
+                                onBlur={() => finishEditItem(category, index)}
+                              />
+                            ) : (
+                              <>
+                                <Text
+                                  style={styles.selectedItemName}
+                                  numberOfLines={1}
+                                >
+                                  {item.name || '품목 입력'}
+                                </Text>
+
+                                <Pressable
+                                  style={styles.editNameButton}
+                                  onPress={() => startEditItem(category, index)}
+                                  hitSlop={8}
+                                >
+                                  <Ionicons
+                                    name="pencil"
+                                    size={14}
+                                    color="#555555"
+                                  />
+                                </Pressable>
+                              </>
+                            )}
+                          </View>
+
+                          <View style={styles.quantityRow}>
+                            <Text style={styles.quantityLabel}>수량</Text>
+
+                            <View style={styles.quantityControl}>
+                              <Pressable
+                                style={styles.quantityButton}
+                                onPress={() =>
+                                  changeQuantity(category, index, 'minus')
+                                }
+                              >
+                                <Text style={styles.quantityButtonText}>−</Text>
+                              </Pressable>
+
+                              <Text style={styles.quantityNumber}>
+                                {item.quantity}
+                              </Text>
+
+                              <Pressable
+                                style={styles.quantityButton}
+                                onPress={() =>
+                                  changeQuantity(category, index, 'plus')
+                                }
+                              >
+                                <Text style={styles.quantityButtonText}>＋</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    return (
+                      <Pressable
+                        key={`${category}-${index}`}
+                        style={styles.itemRow}
+                        onPress={() => toggleItem(category, index)}
+                      >
+                        <View
+                          style={[
+                            styles.checkBox,
+                            selected && styles.checkBoxSelected,
+                          ]}
+                        >
+                          {selected && <Text style={styles.checkText}>✓</Text>}
+                        </View>
+
+                        <Text style={styles.itemName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Pressable
+                  style={styles.addButton}
+                  onPress={() => addCustomItem(category)}
+                >
+                  <Text style={styles.addButtonText}>+ 추가하기</Text>
+                </Pressable>
+              </View>
+            ))}
+          </>
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -519,7 +551,7 @@ export default function MarketCategoryPage() {
         <Text
           style={[styles.nextText, hasSelectedItem && styles.nextTextActive]}
         >
-          다음
+          다음 (2/2)
         </Text>
       </Pressable>
     </View>
@@ -563,29 +595,32 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 22,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 120,
   },
 
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 14,
+    marginBottom: 15,
   },
 
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 9,
-    marginBottom: 32,
+    justifyContent: 'space-between',
+    rowGap: 10,
+    marginBottom: 30,
   },
 
   categoryChip: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 6,
-    backgroundColor: '#F4F4F4',
+    width: '48%',
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F2F2F2',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   categoryChipSelected: {
@@ -593,7 +628,7 @@ const styles = StyleSheet.create({
   },
 
   categoryChipText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#333333',
   },
@@ -605,14 +640,14 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 22,
+    marginBottom: 13,
   },
 
   mainTitle: {
-    fontSize: 23,
+    fontSize: 17,
     fontWeight: '900',
     color: '#111111',
-    marginRight: 16,
+    marginRight: 12,
   },
 
   titleLine: {
@@ -623,19 +658,19 @@ const styles = StyleSheet.create({
 
   categoryBox: {
     borderWidth: 1,
-    borderColor: '#D4D4D4',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingTop: 18,
-    paddingBottom: 16,
-    marginBottom: 22,
+    borderColor: '#D7D7D7',
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
+    marginBottom: 16,
   },
 
   categoryTitle: {
-    fontSize: 22,
+    fontSize: 14,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 18,
+    marginBottom: 10,
   },
 
   itemGrid: {
@@ -643,39 +678,27 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    rowGap: 8,
   },
 
   itemRow: {
     width: '48%',
-    minHeight: 40,
-    marginBottom: 12,
-  },
-
-  itemRowSelected: {
-    width: '48%',
-    backgroundColor: '#F7F7F7',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 7,
-    marginBottom: 12,
-  },
-
-  itemTopRow: {
+    height: 24,
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    minHeight: 30,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    overflow: 'hidden',
   },
 
   checkBox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: '#C9C9C9',
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#CFCFCF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 7,
-    marginTop: 1,
+    marginRight: 6,
   },
   checkBoxSelected: {
     backgroundColor: BLUE,
@@ -684,91 +707,130 @@ const styles = StyleSheet.create({
 
   checkText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: '900',
-    lineHeight: 18,
+    lineHeight: 12,
   },
 
   itemName: {
     flex: 1,
-    fontSize: 17,
-    lineHeight: 20,
+    minWidth: 0,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: '500',
     color: '#111111',
-    marginTop: 2,
   },
 
   itemNameInput: {
     flex: 1,
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 12,
+    lineHeight: 17,
     color: '#111111',
     paddingVertical: 0,
     borderBottomWidth: 1,
     borderBottomColor: '#BBBBBB',
   },
 
-  penIcon: {
-    width: 17,
-    height: 17,
-    resizeMode: 'contain',
-    marginLeft: 5,
+  selectedItemCell: {
+    width: '48%',
+    minHeight: 76,
+    borderRadius: 8,
+    backgroundColor: '#F7F7F7',
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+  },
+
+  selectedItemTop: {
+    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  selectedItemName: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
+    color: '#111111',
+  },
+
+  selectedItemInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 24,
+    paddingVertical: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BDBDBD',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#111111',
+  },
+
+  editNameButton: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 3,
   },
 
   quantityRow: {
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 9,
   },
 
   quantityLabel: {
-    fontSize: 13,
+    width: 27,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#555555',
-    marginRight: 6,
+    color: '#666666',
   },
 
-  quantityBox: {
+  quantityControl: {
     flex: 1,
-    height: 28,
-    borderRadius: 14,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: '#D9D9D9',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
   },
 
   quantityButton: {
-    width: 22,
-    height: 28,
+    width: 24,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  quantityText: {
-    fontSize: 17,
-    fontWeight: '800',
+  quantityButtonText: {
+    fontSize: 15,
+    lineHeight: 17,
+    fontWeight: '900',
     color: '#111111',
   },
 
   quantityNumber: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: '#777777',
   },
 
   addButton: {
-    height: 43,
-    borderRadius: 7,
+    height: 28,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#DDDDDD',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: 5,
   },
 
   addButtonText: {
-    fontSize: 17,
+    fontSize: 12,
     fontWeight: '800',
     color: BLUE,
   },

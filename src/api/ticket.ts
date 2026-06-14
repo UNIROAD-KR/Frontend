@@ -7,7 +7,9 @@ export interface TicketTransferRequest {
   ticketType: TicketType;
   title: string;
   content?: string;
+  country: string;
   eventDate: string;
+  eventEndDate?: string;
   eventTime: string;
   location: string;
   quantity: number;
@@ -18,16 +20,27 @@ export interface TicketTransferRequest {
 export interface TicketTransferResponse {
   id: number;
   authorName: string;
+  authorNickname?: string;
+  authorDispatchedCountry?: string;
+  authorDispatchedRegion?: string;
+  authorDispatchedUniversity?: string;
+  authorDispatchYear?: number;
+  authorDispatchSemester?: string;
+  authorDispatchStartDate?: string;
   ticketType: TicketType;
   title: string;
   content: string;
+  country: string;
   eventDate: string;
+  eventEndDate?: string;
   eventTime: string;
   location: string;
   quantity: number;
   transferPrice: number;
-  originalPrice: number;
+  originalPrice?: number;
   status: 'AVAILABLE' | 'COMPLETED';
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TicketTransferListResponse {
