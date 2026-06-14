@@ -353,13 +353,21 @@ export default function CommunityScreen() {
         <Text style={styles.headerTitle}>커뮤니티</Text>
 
         <View style={styles.headerRight}>
-          <Pressable style={styles.iconBtn}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../assets/images/alarm.png')}
               style={styles.icon}
             />
           </Pressable>
-          <Pressable style={styles.iconBtn}>
+          <Pressable
+            style={styles.iconBtn}
+            onPress={() => router.push('/more-menu' as any)}
+          >
             <Image
               source={require('../../assets/images/menu.png')}
               style={styles.icon}

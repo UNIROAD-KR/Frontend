@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import {
+  router,
+} from 'expo-router';
 import {
   Image,
   LayoutAnimation,
@@ -12,6 +14,7 @@ import {
   UIManager,
   View,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { getScholarships } from '../../../src/api/scholarships';
 
 if (
@@ -123,17 +126,17 @@ export default function ScholarshipInfoScreen() {
     <View style={styles.container}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={22} color="#0F2042" />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>장학금 정보</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../../assets/images/alarm.png')}
               style={styles.icon}

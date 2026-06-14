@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import {
   Image,
   Pressable,
@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 type AppBackButtonProps = {
+  fallbackHref?: Href;
   onPress?: PressableProps['onPress'];
   hitSlop?: PressableProps['hitSlop'];
   style?: StyleProp<ViewStyle>;
@@ -17,18 +18,35 @@ type AppBackButtonProps = {
 };
 
 export function AppBackButton({
+  fallbackHref,
   onPress,
   hitSlop = 15,
   style,
   iconStyle,
 }: AppBackButtonProps) {
+  const handlePress: PressableProps['onPress'] = (event) => {
+    if (onPress) {
+      onPress(event);
+      return;
+    }
+
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    if (fallbackHref) {
+      router.replace(fallbackHref);
+    }
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="뒤로가기"
       hitSlop={hitSlop}
-      onPress={onPress ?? (() => router.back())}
-      style={[styles.button, style]}
+      onPress={handlePress}
+      style={[style, styles.button]}
     >
       <Image
         source={require('../../assets/images/back.png')}
@@ -42,12 +60,13 @@ const styles = StyleSheet.create({
   button: {
     width: 40,
     height: 40,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 15,
+    height: 24,
     resizeMode: 'contain',
   },
 });

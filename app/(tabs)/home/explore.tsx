@@ -22,6 +22,7 @@ import {
   unlikeExchangeReview,
 } from '../../../src/api/exchangeReviews';
 import { getPopularCountries } from '../../../src/api/exchangeInfo';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const INFO_CARD_WIDTH = Math.min(342, SCREEN_WIDTH - 48);
@@ -537,7 +538,10 @@ export default function ExploreScreen() {
         <Text style={styles.headerTitle}>정보 탐색</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/notifications' as any)}
+          >
             <View style={styles.bellContainer}>
               <Image
                 source={require('../../../assets/images/alarm.png')}
@@ -545,7 +549,10 @@ export default function ExploreScreen() {
               />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/more-menu' as any)}
+          >
             <Image
               source={require('../../../assets/images/menu.png')}
               style={styles.icon}
@@ -1169,12 +1176,10 @@ export default function ExploreScreen() {
           <SafeAreaView style={styles.modalContainer}>
             {/* 모달 헤더 */}
             <View style={styles.modalHeader}>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
+              <AppBackButton
+                style={styles.modalBackBtn}
                 onPress={() => setSelectedReview(null)}
-              >
-                <Ionicons name="close" size={24} color="#0F2042" />
-              </TouchableOpacity>
+              />
               <Text style={styles.modalHeaderTitle} numberOfLines={1}>
                 {selectedReview.country} {selectedReview.type}
               </Text>
@@ -1331,8 +1336,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   icon: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     resizeMode: 'contain',
   },
   headerRight: {
@@ -2132,8 +2137,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  modalCloseBtn: {
-    padding: 4,
+  modalBackBtn: {
+    marginLeft: -4,
   },
   modalHeaderTitle: {
     fontSize: 15,

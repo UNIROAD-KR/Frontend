@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
@@ -32,7 +31,7 @@ import {
   getAccountBookDailyDetails,
   getAccountBookMonthlySummary
 } from '../../src/api/accountBook';
-import { getMemberMe, logout } from '../../src/api/auth';
+import { getMemberMe } from '../../src/api/auth';
 
 
 const { width } = Dimensions.get('window');
@@ -313,37 +312,6 @@ export default function MyPageScreen() {
     });
   };
 
-  // 로그아웃 처리
-  const handleLogout = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert(
-      '로그아웃',
-      '정말 로그아웃 하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '로그아웃',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (err) {
-              console.log('백엔드 로그아웃 API 호출 에러:', err);
-            } finally {
-              await AsyncStorage.removeItem('accessToken');
-              await AsyncStorage.removeItem('refreshToken');
-              await AsyncStorage.removeItem('nickname');
-              Alert.alert('로그아웃 완료', '정상적으로 로그아웃되었습니다.');
-              router.replace('/login');
-            }
-          },
-        },
-      ],
-      { cancelable: true }
-    );
-  };
-
-
   // 지출 카테고리 클릭 시 모달 오픈
   const openExpenseModal = (category: AccountBookCategory) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -424,7 +392,10 @@ export default function MyPageScreen() {
             <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
             <Text style={styles.headerTitle}>나의 지출 관리</Text>
           </View>
-          <Pressable style={styles.settingsButton} onPress={handleLogout}>
+          <Pressable
+            style={styles.settingsButton}
+            onPress={() => router.push('/(tabs)/home/profile-settings' as any)}
+          >
             <Ionicons name="settings-outline" size={26} color="#000" />
           </Pressable>
         </View>

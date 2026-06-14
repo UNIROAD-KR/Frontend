@@ -10,6 +10,7 @@ export default function MarketLayout() {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="verify" />
+      <Stack.Screen name="ticket-write" />
     </Stack>
   );
 }

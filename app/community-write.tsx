@@ -30,6 +30,7 @@ import {
 import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 import { BLUE } from '../src/data/community';
 import { canUseMarketWithoutVerification } from '../src/utils/verification';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 type DateTarget = 'start' | 'end' | null;
 const MAX_FREE_POST_PHOTOS = 10;
@@ -409,9 +410,10 @@ export default function CommunityWriteScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color="#111111" />
-        </Pressable>
+        <AppBackButton
+          onPress={() => router.back()}
+          style={styles.backButton}
+        />
         <Text style={styles.headerTitle}>{screenText.title}</Text>
         <View style={styles.headerSpacer} />
       </View>

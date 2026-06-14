@@ -34,6 +34,8 @@ export interface UsedItemSummaryResponse {
   thumbnailImageUrl: string;
   authorName: string;
   memberId?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface TradeItemResponse {
@@ -66,6 +68,14 @@ export interface UsedItemListResponse {
 
 export const getUsedItems = () => {
   return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items');
+};
+
+export const getMyUsedItems = (
+  params: { cursorId?: number; size?: number } = { size: 20 },
+) => {
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/my', {
+    params,
+  });
 };
 
 export const getUsedItemDetail = (id: number) => {

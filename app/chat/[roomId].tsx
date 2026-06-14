@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -19,6 +20,7 @@ import {
   sendChatMessage,
 } from '../../src/api/chat';
 import { getMemberMe } from '../../src/api/auth';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 type ChatMessage = {
   id: number;
@@ -55,6 +57,7 @@ export default function ChatRoomPage() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -113,12 +116,24 @@ export default function ChatRoomPage() {
     }
   };
 
+  const handleLeaveRoom = () => {
+    setMenuVisible(false);
+    Alert.alert('채팅방 나가기', '이 채팅방을 나가시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '나가기',
+        style: 'destructive',
+        onPress: () => router.back(),
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={15}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <View style={styles.headerSide}>
+          <AppBackButton />
+        </View>
 
         <View style={styles.nameRow}>
           <Text style={styles.name}>{sellerName ?? '채팅'}</Text>
@@ -128,11 +143,50 @@ export default function ChatRoomPage() {
           />
         </View>
 
-        <Image
-          source={require('../../assets/images/chat_menu.png')}
-          style={styles.menuIcon}
-        />
+        <Pressable
+          style={styles.headerSide}
+          onPress={() => setMenuVisible((prev) => !prev)}
+        >
+          <Image
+            source={require('../../assets/images/chat_menu.png')}
+            style={styles.menuIcon}
+          />
+        </Pressable>
       </View>
+
+      {menuVisible && (
+        <>
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setMenuVisible(false)}
+          />
+          <View style={styles.chatMenuPopover}>
+            <View style={styles.popoverArrow} />
+            <ChatMenuRow
+              icon="notifications-off-outline"
+              title="채팅 알림 끄기"
+              onPress={() => {
+                setMenuVisible(false);
+                Alert.alert('알림 설정', '이 채팅방 알림을 껐어요.');
+              }}
+            />
+            <ChatMenuRow
+              icon="flag-outline"
+              title="신고하기"
+              onPress={() => {
+                setMenuVisible(false);
+                Alert.alert('신고 접수', '운영팀이 대화 내용을 확인할게요.');
+              }}
+            />
+            <ChatMenuRow
+              icon="log-out-outline"
+              title="채팅방 나가기"
+              danger
+              onPress={handleLeaveRoom}
+            />
+          </View>
+        </>
+      )}
 
       <View style={styles.productCard}>
         <View style={styles.thumbnail}>
@@ -142,9 +196,7 @@ export default function ChatRoomPage() {
         </View>
 
         <View style={styles.productInfo}>
-          <Text style={styles.productTitle}>
-            {title ?? '중고거래 게시글'}
-          </Text>
+          <Text style={styles.productTitle}>{title ?? '중고거래 게시글'}</Text>
           <Text style={styles.productPrice}>{price ?? '가격 미정'}</Text>
         </View>
       </View>
@@ -264,6 +316,27 @@ export default function ChatRoomPage() {
   );
 }
 
+function ChatMenuRow({
+  icon,
+  title,
+  onPress,
+  danger = false,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable style={styles.chatMenuRow} onPress={onPress}>
+      <Ionicons name={icon} size={18} color={danger ? '#E5484D' : '#111111'} />
+      <Text style={[styles.chatMenuText, danger && styles.chatMenuDangerText]}>
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -273,25 +346,28 @@ const styles = StyleSheet.create({
 
   header: {
     height: 58,
-    paddingHorizontal: 30,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
 
-  back: {
-    fontSize: 34,
-    lineHeight: 36,
-    color: '#111111',
+  headerSide: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   nameRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
 
   name: {
-    fontSize: 28,
+    fontSize: 21,
     fontWeight: '800',
     color: '#111111',
   },
@@ -308,6 +384,60 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     resizeMode: 'contain',
+  },
+
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 8,
+  },
+
+  chatMenuPopover: {
+    position: 'absolute',
+    top: 108,
+    right: 18,
+    width: 178,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E7ECF3',
+    shadowColor: '#0F2042',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    elevation: 8,
+    zIndex: 9,
+  },
+
+  popoverArrow: {
+    position: 'absolute',
+    top: -7,
+    right: 18,
+    width: 14,
+    height: 14,
+    borderLeftWidth: 1,
+    borderTopWidth: 1,
+    borderColor: '#E7ECF3',
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '45deg' }],
+  },
+
+  chatMenuRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    gap: 10,
+  },
+
+  chatMenuText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#111111',
+  },
+
+  chatMenuDangerText: {
+    color: '#E5484D',
   },
 
   productCard: {
@@ -468,7 +598,7 @@ const styles = StyleSheet.create({
 
   inputRow: {
     height: 56,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -511,7 +641,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 2,
-    marginRight: -2,
+    marginRight: 3,
   },
 
   emojiIcon: {
@@ -521,16 +651,16 @@ const styles = StyleSheet.create({
   },
 
   sendButton: {
-    width: 32,
-    height: 38,
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 4,
+    marginLeft: 6,
   },
 
   sendIcon: {
-    width: 29,
-    height: 29,
+    width: 30,
+    height: 30,
     resizeMode: 'contain',
   },
 

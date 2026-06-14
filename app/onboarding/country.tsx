@@ -14,6 +14,8 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 const countries = [
   { flag: '🇩🇪', name: '독일' },
   { flag: '🇫🇷', name: '프랑스' },
@@ -94,9 +96,7 @@ export default function CountryPage() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <AppBackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -198,10 +198,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 20,
   },
 

@@ -6,8 +6,10 @@ export type TicketType = 'TOUR' | 'CONCERT' | 'TRAIN' | 'FLIGHT' | 'ACCOMMODATIO
 export interface TicketTransferRequest {
   ticketType: TicketType;
   title: string;
-  content: string;
+  content?: string;
+  country: string;
   eventDate: string;
+  eventEndDate?: string;
   eventTime: string;
   country: string;
   location: string;
@@ -30,15 +32,24 @@ export interface TicketTransferResponse {
   ticketType: TicketType;
   title: string;
   content: string;
+  country: string;
   eventDate: string;
+  eventEndDate?: string;
   eventTime: string;
   country: string;
   location: string;
   quantity: number;
   transferPrice: number;
-  originalPrice: number;
+  originalPrice?: number;
   status: 'AVAILABLE' | 'COMPLETED';
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TicketTransferListResponse {
+  items: TicketTransferResponse[];
+  hasNext: boolean;
+  nextCursorId: number | null;
 }
 
 // 티켓 양도 글 작성
@@ -55,6 +66,24 @@ export const getTickets = (cursorId?: number, size = 10) => {
 
 export const createTicket = (data: TicketTransferRequest) => {
   return api.post<BaseResponse<number>>('/api/tickets', data);
+};
+
+// 티켓 양도 목록 조회
+export const getTickets = (
+  params: { cursorId?: number; size?: number } = { size: 10 },
+) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets', {
+    params,
+  });
+};
+
+// 내 티켓 양도 글 조회
+export const getMyTickets = (
+  params: { cursorId?: number; size?: number } = { size: 20 },
+) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets/my', {
+    params,
+  });
 };
 
 // 티켓 양도 상세 조회

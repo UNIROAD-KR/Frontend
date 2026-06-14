@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function ProfilePage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
 
@@ -38,9 +40,7 @@ export default function ProfilePage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <AppBackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -164,10 +164,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 

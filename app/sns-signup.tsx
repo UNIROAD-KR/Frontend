@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
@@ -131,9 +132,7 @@ export default function SnsSignupPage() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton fallbackHref="/login" />
 
         <Text style={styles.title}>회원가입</Text>
 

@@ -6,10 +6,10 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   Image,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -22,18 +22,15 @@ const MUTED = '#64748B';
 const SOFT = '#F6F8FC';
 const CARD = '#FAFBFC';
 
-type RouteTarget = string | null;
-type LifecycleStatus = '지원 준비 중' | '출국 준비 중' | '파견 중' | '귀국';
+type RouteTarget = unknown;
 
 type QuickAction = {
   title: string;
-  icon: keyof typeof Ionicons.glyphMap;
   route: RouteTarget;
 };
 
 type MenuItem = {
   title: string;
-  description: string;
   icon: keyof typeof Ionicons.glyphMap;
   route: RouteTarget;
   action?: 'logout';
@@ -47,10 +44,11 @@ const quickActions: QuickAction[] = [
 
 const activityItems: MenuItem[] = [
   {
-    title: '커뮤니티 작성글',
-    description: '질문, 후기, 정보 공유 글 관리',
-    icon: 'chatbubbles-outline',
-    route: '/(tabs)/community',
+    title: '좋아요한 글',
+    route: {
+      pathname: '/(tabs)/home/profile-list',
+      params: { type: 'saved' },
+    },
   },
   {
     title: '동행 모집글',
@@ -75,9 +73,8 @@ const accountItems: MenuItem[] = [
   },
   {
     title: '알림 설정',
-    description: '관심 글과 거래 알림 관리',
     icon: 'notifications-outline',
-    route: null,
+    route: '/(tabs)/home/profile-notifications',
   },
   {
     title: '비밀번호 수정',
@@ -94,7 +91,7 @@ const accountItems: MenuItem[] = [
   },
 ];
 
-const statusDisplayMap: Record<string, LifecycleStatus> = {
+const statusDisplayMap: Record<string, string> = {
   preparing: '지원 준비 중',
   accepted: '출국 준비 중',
   dispatched: '파견 중',
@@ -188,13 +185,36 @@ export default function ProfileCardScreen() {
     }, []),
   );
 
-  const openRoute = (route: RouteTarget) => {
-    if (!route) {
-      Alert.alert('준비 중', '이 목록 화면은 곧 연결될 예정입니다.');
+  const openRoute = (route?: RouteTarget) => {
+    if (!route) return;
+    router.push(route as any);
+  };
+
+  const performLogout = async () => {
+    try {
+      await logout();
+    } catch (error: any) {
+      console.log('로그아웃 API 실패:', error.response?.data || error.message);
+    } finally {
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+      router.replace('/login' as any);
+    }
+  };
+
+  const confirmLogout = () => {
+    Alert.alert('로그아웃', '로그아웃 하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      { text: '확인', style: 'destructive', onPress: performLogout },
+    ]);
+  };
+
+  const handleMenuPress = (item: MenuItem) => {
+    if (item.action === 'logout') {
+      confirmLogout();
       return;
     }
 
-    router.push(route as any);
+    openRoute(item.route);
   };
 
   const handleLogout = () => {
@@ -220,10 +240,7 @@ export default function ProfileCardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
-
+        <AppBackButton style={styles.backButton} />
         <Text style={styles.headerTitle}>내 프로필</Text>
       </View>
 
@@ -384,6 +401,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
+    height: 104,
+    paddingTop: 48,
+    paddingHorizontal: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -393,7 +413,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     position: 'relative',
   },
-  iconBtn: {
+  backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -551,7 +571,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: BLUE,
   },
-  quickCard: {
+  quickRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 12,
@@ -560,7 +580,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e7f1ff',
     gap: 8,
   },
-  quickItem: {
+  quickButton: {
     flex: 1,
     minHeight: 38,
     flexDirection: 'row',

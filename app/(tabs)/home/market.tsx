@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 export default function MarketScreen() {
   const [isVerified, setIsVerified] = useState(false);
@@ -37,19 +38,29 @@ export default function MarketScreen() {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerLeft}>
+            <AppBackButton />
+          </View>
 
           <Text style={styles.headerTitle}>중고 거래</Text>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.icon}
               />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.icon}
@@ -293,7 +304,7 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 20,
-    paddingTop: 30,
+    paddingTop: 50,
     paddingBottom: 130,
   },
 
@@ -302,8 +313,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  headerSpacer: {
+  headerLeft: {
     width: 88,
+    alignItems: 'flex-start',
   },
 
   headerTitle: {

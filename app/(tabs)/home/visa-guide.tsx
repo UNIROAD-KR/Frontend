@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -394,9 +394,7 @@ export default function VisaGuideScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>국가별 출국 가이드</Text>
 
@@ -538,9 +536,7 @@ function BankAccountGuide({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton onPress={onBack} style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>은행/카드 가이드</Text>
 
@@ -617,9 +613,7 @@ function BlockedAccountGuide({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton onPress={onBack} style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>슈페어콘토 개설</Text>
 
@@ -781,9 +775,7 @@ function SimGuide({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton onPress={onBack} style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>유심/eSIM 가이드</Text>
 
@@ -898,9 +890,7 @@ function InsuranceGuide({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={onBack}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton onPress={onBack} style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>보험 가이드</Text>
 
@@ -1295,12 +1285,10 @@ function VisaApplicationGuide({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <AppBackButton
           style={styles.iconBtn}
           onPress={activeSection === 'overview' ? onBack : () => setActiveSection('overview')}
-        >
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        />
 
         <Text style={styles.headerTitle}>독일 학생비자 가이드</Text>
 

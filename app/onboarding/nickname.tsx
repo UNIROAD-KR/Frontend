@@ -9,6 +9,8 @@ import {
   Image,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function NicknamePage() {
   const [nickname, setNickname] = useState('');
 
@@ -16,9 +18,7 @@ export default function NicknamePage() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()}>
-        <Text style={styles.back}>‹</Text>
-      </Pressable>
+      <AppBackButton style={styles.backButton} />
 
       <View style={styles.progressRow}>
         <View style={styles.progressActive} />
@@ -113,10 +113,7 @@ const styles = StyleSheet.create({
     paddingTop: 52,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 

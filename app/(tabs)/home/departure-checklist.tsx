@@ -18,6 +18,7 @@ import {
   View,
   type KeyboardEvent,
 } from 'react-native';
+import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
 const PREP_DATES_STORAGE_KEY = 'departurePrepDueDates';
@@ -403,14 +404,17 @@ export default function DepartureChecklistScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>나의 출국 준비</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Ionicons name="notifications-outline" size={21} color={NAVY} />
           </TouchableOpacity>
         </View>

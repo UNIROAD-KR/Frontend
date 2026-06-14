@@ -13,6 +13,7 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { getPartnerSchools } from '../../../src/api/partnerSchools';
 
 if (
@@ -209,14 +210,17 @@ export default function SchoolInfoScreen() {
     <View style={styles.container}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#0F2042" />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>파견교 정보</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../../assets/images/alarm.png')}
               style={styles.icon}

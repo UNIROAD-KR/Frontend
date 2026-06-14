@@ -9,31 +9,33 @@ import {
   TextInput,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function GuideScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.dismissTo('/(tabs)/home/explore')}
-          >
-            <Image
-              source={require('../../../assets/images/back.png')}
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          <AppBackButton style={styles.iconBtn} />
 
           <Text style={styles.headerTitle}>교환학생 가이드</Text>
 
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.icon}
               />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.icon}

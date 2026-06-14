@@ -1,9 +1,13 @@
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+
 export default function VerificationCompletePage() {
   return (
     <View style={styles.container}>
+      <AppBackButton fallbackHref="/home" style={styles.backButton} />
+
       <View style={styles.centerArea}>
         <Image
           source={require('../assets/images/school_icon.png')}
@@ -35,6 +39,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
+  },
+
+  backButton: {
+    position: 'absolute',
+    top: 52,
+    left: 24,
+    zIndex: 10,
   },
 
   centerArea: {

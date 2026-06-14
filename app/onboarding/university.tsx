@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,6 +15,48 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { AppBackButton } from '@/components/ui/app-back-button';
+
+type ExchangeStatus = 'preparing' | 'accepted' | 'dispatched';
+
+const statusOptions: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: ExchangeStatus;
+}[] = [
+  {
+    label: '지원 준비 중',
+    value: 'preparing',
+  },
+  {
+    icon: 'airplane-outline',
+    label: '출국 준비 중',
+    value: 'accepted',
+  },
+  {
+    label: '파견 중',
+    value: 'dispatched',
+  },
+];
+
+const createDate = (year: number, month: number, day: number) =>
+  new Date(year, month - 1, day);
+
+const DEFAULT_DEPARTURE_DATE = createDate(2026, 8, 21);
+
+const toStorageDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const formatDisplayDate = (date: Date) =>
+  `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
 
 const universities = [
   '서울대학교',
@@ -70,7 +115,10 @@ export default function UniversityPage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
 
   const [university, setUniversity] = useState('');
-  const [status, setStatus] = useState<'preparing' | 'dispatched' | ''>('');
+  const [status, setStatus] = useState<ExchangeStatus | ''>('');
+  const [departureDate, setDepartureDate] = useState<Date | null>(null);
+  const [draftDate, setDraftDate] = useState(DEFAULT_DEPARTURE_DATE);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const isValid = university !== '' && status !== '';
@@ -87,19 +135,37 @@ export default function UniversityPage() {
     setShowSuggestions(false);
   };
 
+  const openDatePicker = () => {
+    setDraftDate(departureDate ?? DEFAULT_DEPARTURE_DATE);
+    setShowDatePicker(true);
+  };
+
+  const handleConfirmDate = () => {
+    setDepartureDate(draftDate);
+    setShowDatePicker(false);
+  };
+
   const handleNext = async () => {
     if (!isValid) {
       return;
     }
 
     await AsyncStorage.setItem('university', university);
-    await AsyncStorage.setItem('exchangeStatus', status);
+    await AsyncStorage.setItem('onboardingSituation', status);
+    await AsyncStorage.setItem(
+      'departureDate',
+      departureDate ? toStorageDate(departureDate) : '',
+    );
+    await AsyncStorage.setItem(
+      'exchangeStatus',
+      status === 'dispatched' ? 'dispatched' : 'preparing',
+    );
     await AsyncStorage.setItem(
       'profileStatus',
-      status === 'preparing' ? '지원 준비 중' : '파견 중',
+      status === 'dispatched' ? '파견 중' : '지원 준비 중',
     );
 
-    if (status === 'preparing') {
+    if (status !== 'dispatched') {
       router.push({
         pathname: '/onboarding/country',
         params: { nickname },
@@ -123,9 +189,7 @@ export default function UniversityPage() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable onPress={() => router.back()}>
-          <Text style={styles.back}>‹</Text>
-        </Pressable>
+        <AppBackButton style={styles.backButton} />
 
         <View style={styles.progressRow}>
           <View style={styles.progressActive} />
@@ -186,31 +250,68 @@ export default function UniversityPage() {
         <Text style={styles.statusLabel}>현재 상황</Text>
 
         <View style={styles.statusRow}>
-          <Pressable
-            style={[
-              styles.statusCard,
-              status === 'preparing' && styles.selectedCard,
-            ]}
-            onPress={() => setStatus('preparing')}
-          >
-            <Image
-              source={require('../../assets/images/ready.png')}
-              style={styles.statusImage}
-            />
-            <Text style={styles.statusText}>교환학생 준비 중</Text>
-          </Pressable>
+          {statusOptions.map((item) => {
+            const selected = status === item.value;
 
-          <Pressable
-            style={[
-              styles.statusCard,
-              status === 'dispatched' && styles.selectedCard,
-            ]}
-            onPress={() => setStatus('dispatched')}
-          >
-            <Text style={styles.emoji}>🧚</Text>
-            <Text style={styles.statusText}>현재 파견 중</Text>
-          </Pressable>
+            return (
+              <Pressable
+                key={item.value}
+                style={[
+                  styles.statusCard,
+                  selected && styles.selectedCard,
+                ]}
+                onPress={() => setStatus(item.value)}
+              >
+                {item.value === 'preparing' ? (
+                  <Image
+                    source={require('../../assets/images/ready.png')}
+                    style={styles.statusImage}
+                  />
+                ) : item.value === 'dispatched' ? (
+                  <Text style={styles.emoji}>🧚</Text>
+                ) : (
+                  <View
+                    style={[
+                      styles.statusIconCircle,
+                      selected && styles.statusIconCircleSelected,
+                    ]}
+                  >
+                    <Ionicons
+                      name={item.icon ?? 'airplane-outline'}
+                      size={20}
+                      color={selected ? '#FFFFFF' : BLUE}
+                    />
+                  </View>
+                )}
+                <Text
+                  style={[
+                    styles.statusText,
+                    selected && styles.statusTextSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Text style={styles.dateLabel}>출국 예정일</Text>
+
+        <Pressable style={styles.dateField} onPress={openDatePicker}>
+          <View style={styles.dateIconBox}>
+            <Ionicons name="calendar-outline" size={19} color={BLUE} />
+          </View>
+          <Text
+            style={[
+              styles.dateText,
+              !departureDate && styles.datePlaceholderText,
+            ]}
+          >
+            {departureDate ? formatDisplayDate(departureDate) : '날짜 선택'}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#777777" />
+        </Pressable>
 
         <View style={styles.bottomSpacer} />
 
@@ -224,6 +325,66 @@ export default function UniversityPage() {
           </Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={showDatePicker}
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <Pressable
+            style={styles.datePickerBackdrop}
+            onPress={() => setShowDatePicker(false)}
+          />
+
+          <View style={styles.datePickerSheet}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.datePickerHeader}>
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.datePickerCancel}>취소</Text>
+              </Pressable>
+
+              <Text style={styles.datePickerTitle}>출국 예정일 선택</Text>
+
+              <Pressable onPress={handleConfirmDate}>
+                <Text style={styles.datePickerDone}>완료</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.datePickerFrame}>
+              <DateTimePicker
+                value={draftDate}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
+                locale="ko-KR"
+                themeVariant="light"
+                textColor="#111111"
+                accentColor={BLUE}
+                style={styles.datePicker}
+                onChange={(_, selectedDate) => {
+                  if (!selectedDate) {
+                    if (Platform.OS !== 'ios') {
+                      setShowDatePicker(false);
+                    }
+                    return;
+                  }
+
+                  if (Platform.OS === 'ios') {
+                    setDraftDate(selectedDate);
+                    return;
+                  }
+
+                  setDepartureDate(selectedDate);
+                  setDraftDate(selectedDate);
+                  setShowDatePicker(false);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -243,10 +404,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  back: {
-    fontSize: 30,
-    lineHeight: 32,
-    color: '#000',
+  backButton: {
     marginBottom: 35,
   },
 
@@ -354,28 +512,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#111111',
-    marginTop: 48,
-    marginBottom: 16,
+    marginTop: 42,
+    marginBottom: 14,
   },
 
   statusRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
 
   statusCard: {
     flex: 1,
-    height: 110,
+    minHeight: 104,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 8,
+    borderColor: '#E2E7F0',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
   },
 
   selectedCard: {
     borderColor: BLUE,
     borderWidth: 2,
+    backgroundColor: '#F3F7FF',
+  },
+
+  statusIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EEF4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+
+  statusIconCircleSelected: {
+    backgroundColor: BLUE,
   },
 
   statusImage: {
@@ -391,9 +567,56 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
-    fontSize: 15,
+    fontSize: 12,
+    lineHeight: 17,
     color: '#111111',
     fontWeight: '800',
+    textAlign: 'center',
+  },
+
+  statusTextSelected: {
+    color: BLUE,
+  },
+
+  dateLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111111',
+    marginTop: 28,
+    marginBottom: 12,
+  },
+
+  dateField: {
+    height: 54,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 5,
+    paddingHorizontal: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  dateIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#EEF4FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  dateText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111111',
+  },
+
+  datePlaceholderText: {
+    fontWeight: '600',
+    color: '#777777',
   },
 
   bottomSpacer: {
@@ -421,5 +644,71 @@ const styles = StyleSheet.create({
 
   nextTextActive: {
     color: '#FFFFFF',
+  },
+
+  datePickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(17, 24, 39, 0.24)',
+  },
+
+  datePickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  datePickerSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 24,
+  },
+
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D9DEE8',
+    marginBottom: 16,
+  },
+
+  datePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  datePickerCancel: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#8A8A8A',
+  },
+
+  datePickerTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111111',
+  },
+
+  datePickerDone: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: BLUE,
+  },
+
+  datePickerFrame: {
+    minHeight: 322,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+
+  datePicker: {
+    width: '100%',
+    minHeight: 320,
   },
 });

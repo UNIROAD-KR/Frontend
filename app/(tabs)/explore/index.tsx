@@ -14,32 +14,24 @@ export default function ExploreScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.navigate('/(tabs)/home');
-            }
-          }}
-        >
-          <Image
-            source={require('../../../assets/images/back.png')}
-            style={styles.icon}
-          />
-        </TouchableOpacity>
-
         <Text style={styles.title}>교환학생 정보 탐색</Text>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() =>
+              router.push('/notifications' as any)
+            }
+          >
             <Image
               source={require('../../../assets/images/alarm.png')}
               style={styles.icon}
             />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.push('/more-menu' as any)}
+          >
             <Image
               source={require('../../../assets/images/menu.png')}
               style={styles.icon}
@@ -126,7 +118,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
-  back: { fontSize: 22 },
   title: {
     flex: 1,
     textAlign: 'center',

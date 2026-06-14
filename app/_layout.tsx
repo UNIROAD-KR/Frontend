@@ -14,7 +14,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+        }}
+      >
         <Stack.Screen name="login" />
         <Stack.Screen name="signup" />
         <Stack.Screen name="verification" />
@@ -28,6 +33,8 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/dispatched-interests" />
         <Stack.Screen name="onboarding/complete" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="notifications" options={{ animation: 'none' }} />
+        <Stack.Screen name="more-menu" options={{ animation: 'none' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="sns-signup" />
       </Stack>

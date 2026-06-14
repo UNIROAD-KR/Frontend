@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -13,6 +15,7 @@ import {
   Text,
   TextInput,
   View,
+  TouchableOpacity,
 } from 'react-native';
 
 import {
@@ -22,53 +25,8 @@ import {
 } from '../../../src/api/ticket';
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
-
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
-
-const ticketItems = [
-  {
-    id: 1,
-    country: '독일',
-    semester: '2026-1학기',
-    time: '7분 전',
-    region: '바르셀로나',
-    category: '관광',
-    title: '사그라다 파밀리아 표 양도',
-    date: '5월 9일 (목)',
-    count: '1매',
-    price: '€20',
-    originalPrice: '€26',
-    likes: 4,
-  },
-  {
-    id: 2,
-    country: '프랑스',
-    semester: '2026-1학기',
-    time: '31분 전',
-    region: '파리',
-    category: '관광',
-    title: '파리 롤랑가로스 아웃사이드 코트 티켓 양도',
-    date: '6월 2일 (화)',
-    count: '1매',
-    price: '€30',
-    originalPrice: '',
-    likes: 5,
-  },
-  {
-    id: 3,
-    country: '독일',
-    semester: '2026-1학기',
-    time: '1시간 전',
-    region: '뮌헨',
-    category: '콘서트',
-    title: '뮌헨 Coldplay 콘서트 티켓 양도',
-    date: '5월 24일 (토)',
-    count: '1매',
-    price: '€100',
-    originalPrice: '€130',
-    likes: 7,
-  },
-];
+const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
 
 const formatPrice = (price: number) => {
   if (!price) return '가격 미정';
@@ -135,6 +93,7 @@ const formatTicketCreatedTime = (createdAt?: string) => {
 };
 
 export default function MarketPage() {
+  const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
@@ -149,14 +108,38 @@ export default function MarketPage() {
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
-
   useEffect(() => {
     if (tab === 'ticket') {
-      setSelectedType('ticket');
+      setSelectedTab('ticket');
     } else {
-      setSelectedType('bulk');
+      setSelectedTab('bulk');
     }
   }, [tab]);
+
+  useEffect(() => {
+    const loadBookmarkedTickets = async () => {
+      const savedTickets = await AsyncStorage.getItem(
+        SAVED_TICKET_POSTS_STORAGE_KEY,
+      );
+
+      if (!savedTickets) {
+        return;
+      }
+
+      try {
+        const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
+        const ids = parsedTickets
+          .map((item) => item.id)
+          .filter((id): id is number => typeof id === 'number');
+
+        setBookmarkedIds(ids);
+      } catch {
+        await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
+      }
+    };
+
+    loadBookmarkedTickets();
+  }, []);
 
   const fetchUsedItems = async () => {
     try {
@@ -283,10 +266,23 @@ export default function MarketPage() {
     );
   };
 
+  const ticketItems = useMemo(
+    () => tickets.map(mapTicketItem),
+    [tickets],
+  );
+
   const toggleBookmark = (id: number) => {
-    setBookmarkedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
+    setBookmarkedIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+
+      saveBookmarkedTickets(next, ticketItems).catch((error) => {
+        console.log('저장한 티켓 목록 저장 실패:', error);
+      });
+
+      return next;
+    });
   };
 
   const handleFabPress = () => {
@@ -316,7 +312,10 @@ export default function MarketPage() {
       '중고거래를 이용하려면 교환학생 신원 인증이 필요해요.',
       [
         { text: '취소', style: 'cancel' },
-        { text: '신원 인증하기', onPress: () => router.push('/verification' as any) },
+        {
+          text: '신원 인증하기',
+          onPress: () => router.push('/verification' as any),
+        },
       ],
     );
   };
@@ -326,7 +325,7 @@ export default function MarketPage() {
     title: item.title,
     region: item.region,
     semester: item.semester,
-    time: '방금 전',
+    time: formatRelativeTime(item.createdAt ?? item.updatedAt),
     priceText: formatPrice(item.price),
     likes: 0,
     chats: 0,
@@ -373,14 +372,20 @@ export default function MarketPage() {
           <Text style={styles.title}>교환학생 전용 거래</Text>
 
           <View style={styles.headerIcons}>
-            <Pressable>
+            <Pressable
+              onPress={() =>
+                router.push('/notifications' as any)
+              }
+            >
               <Image
                 source={require('../../../assets/images/alarm.png')}
                 style={styles.headerIconImage}
               />
             </Pressable>
 
-            <Pressable>
+            <Pressable
+              onPress={() => router.push('/more-menu' as any)}
+            >
               <Image
                 source={require('../../../assets/images/menu.png')}
                 style={styles.headerIconImage}
@@ -389,11 +394,11 @@ export default function MarketPage() {
           </View>
         </View>
 
-        <View style={styles.tradeTypeBox}>
-          <Pressable
+        <View style={styles.tradeTypeWrapper}>
+          <TouchableOpacity
             style={[
               styles.tradeTypeButton,
-              selectedType === 'bulk' && styles.tradeTypeActive,
+              selectedTab === 'bulk' && styles.tradeTypeButtonActive,
             ]}
             onPress={() => {
               setSelectedType('bulk');
@@ -403,17 +408,17 @@ export default function MarketPage() {
             <Text
               style={[
                 styles.tradeTypeText,
-                selectedType === 'bulk' && styles.tradeTypeTextActive,
+                selectedTab === 'bulk' && styles.tradeTypeTextActive,
               ]}
             >
               귀국 전 일괄 거래
             </Text>
-          </Pressable>
+          </TouchableOpacity>
 
-          <Pressable
+          <TouchableOpacity
             style={[
               styles.tradeTypeButton,
-              selectedType === 'ticket' && styles.tradeTypeActive,
+              selectedTab === 'ticket' && styles.tradeTypeButtonActive,
             ]}
             onPress={() => {
               setSelectedType('ticket');
@@ -423,12 +428,12 @@ export default function MarketPage() {
             <Text
               style={[
                 styles.tradeTypeText,
-                selectedType === 'ticket' && styles.tradeTypeTextActive,
+                selectedTab === 'ticket' && styles.tradeTypeTextActive,
               ]}
             >
               티켓 양도
             </Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBox}>
@@ -464,7 +469,7 @@ export default function MarketPage() {
           })}
         </View>
 
-        {selectedType === 'bulk' ? (
+        {selectedTab === 'bulk' ? (
           filteredItems.length > 0 ? (
             <View style={styles.postList}>
               {filteredItems.map((item) => (
@@ -588,13 +593,16 @@ export default function MarketPage() {
                     }}
                   >
                     <View style={styles.bookmarkIconWrapper}>
-                      <Image
-                        source={
+                      <Ionicons
+                        name={
                           bookmarkedIds.includes(item.id)
-                            ? require('../../../assets/images/filled_book_mark.png')
-                            : require('../../../assets/images/book_mark.png')
+                            ? 'bookmark'
+                            : 'bookmark-outline'
                         }
-                        style={styles.bookmarkIcon}
+                        size={24}
+                        color={
+                          bookmarkedIds.includes(item.id) ? BLUE : '#111111'
+                        }
                       />
                     </View>
                   </Pressable>
@@ -659,7 +667,10 @@ export default function MarketPage() {
 
           <Pressable
             style={styles.fabMenuItem}
-            onPress={() => requireVerificationBefore('/market/ticket-preview')}
+            onPress={() => {
+              setIsFabOpen(false);
+              router.push('/market/ticket-write' as any);
+            }}
           >
             <Image
               source={require('../../../assets/images/used_each.png')}
@@ -687,7 +698,74 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  segmentContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F2F4F7',
+    borderRadius: 14,
+    padding: 4,
+    marginHorizontal: 20,
+    marginTop: 20,
+  },
+  tradeTypeContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F3F6',
+    borderRadius: 12,
+    padding: 5,
+    marginHorizontal: 22,
+    marginTop: 16,
+    marginBottom: 16,
+    height: 56,
+  },
 
+  tradeTypeButton: {
+    flex: 1,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tradeTypeWrapper: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F3F6',
+    borderRadius: 15,
+    padding: 5,
+    marginTop: 16,
+    marginBottom: 16,
+    height: 54,
+  },
+  tradeTypeButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  tradeTypeText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#9B9B9B',
+  },
+
+  tradeTypeTextActive: {
+    color: '#003CFF',
+  },
+  segmentButton: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  segmentButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+
+  segmentText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#999999',
+  },
+
+  segmentTextActive: {
+    color: '#003CFF',
+  },
   scroll: {
     flex: 1,
   },
@@ -770,28 +848,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  tradeTypeButton: {
-    flex: 1,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  tradeTypeActive: {
-    backgroundColor: '#FFFFFF',
-  },
-
-  tradeTypeText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#8F8F8F',
-  },
-
-  tradeTypeTextActive: {
-    color: '#111111',
-    fontWeight: '900',
-  },
-
   searchBox: {
     height: 47,
     borderWidth: 1,
@@ -847,7 +903,7 @@ const styles = StyleSheet.create({
   },
 
   postList: {
-    gap: 20,
+    gap: 16,
   },
 
   emptyState: {
@@ -876,11 +932,11 @@ const styles = StyleSheet.create({
   },
 
   thumbnail: {
-    width: 144,
-    height: 144,
+    width: 118,
+    height: 118,
     borderRadius: 10,
     backgroundColor: '#D9D9D9',
-    marginRight: 16,
+    marginRight: 13,
     overflow: 'hidden',
   },
 
@@ -892,32 +948,32 @@ const styles = StyleSheet.create({
 
   heartCircle: {
     position: 'absolute',
-    right: 9,
-    top: 8,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    right: 7,
+    top: 7,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#444444',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   heartCircleActive: {
-    backgroundColor: '#FFE3EC',
+    backgroundColor: '#EAF1FF',
   },
 
   heart: {
     color: '#FFFFFF',
-    fontSize: 21,
+    fontSize: 19,
   },
 
   heartActive: {
-    color: '#FF4F7B',
+    color: BLUE,
   },
 
   postInfo: {
     flex: 1,
-    paddingTop: 6,
+    paddingTop: 2,
   },
 
   postTop: {
@@ -927,28 +983,28 @@ const styles = StyleSheet.create({
 
   postTitle: {
     flex: 1,
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '700',
     color: '#111111',
   },
 
   arrow: {
-    fontSize: 34,
+    fontSize: 28,
     color: '#777777',
   },
 
   meta: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#777777',
-    marginTop: 8,
+    marginTop: 5,
   },
 
   price: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '900',
     color: '#000000',
-    marginTop: 6,
+    marginTop: 4,
   },
 
   reactionRow: {
@@ -956,7 +1012,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 8,
-    marginTop: 26,
+    marginTop: 15,
   },
 
   reactionItem: {

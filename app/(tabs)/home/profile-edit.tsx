@@ -405,9 +405,7 @@ export default function ProfileEditScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={NAVY} />
-        </TouchableOpacity>
+        <AppBackButton style={styles.iconBtn} />
 
         <Text style={styles.headerTitle}>프로필 수정</Text>
       </View>

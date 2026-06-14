@@ -1,4 +1,5 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,6 +19,9 @@ import {
 } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { saveMarketDraft } from '../../../src/storage/marketDraft';
+import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+
+const MAX_MARKET_PHOTOS = 10;
 
 const parsePhotos = (value?: string) => {
   if (!value) return [];
@@ -38,10 +42,13 @@ const parseDate = (value?: string) => {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
-import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
-
 export default function MarketWritePage() {
   const handlePickImages = async () => {
+    if (photos.length >= MAX_MARKET_PHOTOS) {
+      Alert.alert('사진 제한', `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`);
+      return;
+    }
+
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
@@ -53,15 +60,21 @@ export default function MarketWritePage() {
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 0.8,
+      selectionLimit: MAX_MARKET_PHOTOS - photos.length,
     });
 
     if (result.canceled) return;
 
     const selectedUris = result.assets.map((asset) => asset.uri);
 
-    setPhotos((prev) => [...prev, ...selectedUris].slice(0, 10));
+    setPhotos((prev) => [...prev, ...selectedUris].slice(0, MAX_MARKET_PHOTOS));
   };
   const handleTakePhoto = async () => {
+    if (photos.length >= MAX_MARKET_PHOTOS) {
+      Alert.alert('사진 제한', `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`);
+      return;
+    }
+
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
@@ -78,7 +91,7 @@ export default function MarketWritePage() {
 
     const uri = result.assets[0].uri;
 
-    setPhotos((prev) => [...prev, uri].slice(0, 10));
+    setPhotos((prev) => [...prev, uri].slice(0, MAX_MARKET_PHOTOS));
   };
   const scrollRef = useRef<ScrollView>(null);
 
@@ -218,15 +231,21 @@ export default function MarketWritePage() {
           <View style={styles.progress} />
         </View>
 
-        <Text style={styles.sectionTitle}>대표 사진</Text>
+        <View style={styles.photoHeader}>
+          <Text style={styles.sectionTitle}>사진</Text>
+          <Text style={styles.photoCount}>
+            {photos.length}/{MAX_MARKET_PHOTOS}
+          </Text>
+        </View>
 
-        <View style={styles.photoBox}>
+        <View style={styles.photoArea}>
           {photos.length === 0 ? (
-            <View style={styles.photoButtonRow}>
+            <View style={styles.photoActionRow}>
               <Pressable
                 style={styles.photoActionButton}
                 onPress={handleTakePhoto}
               >
+                <Ionicons name="camera-outline" size={18} color={BLUE} />
                 <Text style={styles.photoText}>사진 촬영</Text>
               </Pressable>
 
@@ -234,11 +253,16 @@ export default function MarketWritePage() {
                 style={styles.photoActionButton}
                 onPress={handlePickImages}
               >
-                <Text style={styles.photoText}>앨범에서 선택</Text>
+                <Ionicons name="images-outline" size={18} color={BLUE} />
+                <Text style={styles.photoText}>앨범 선택</Text>
               </Pressable>
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.photoPreviewList}
+            >
               {photos.map((uri, index) => (
                 <View key={`${uri}-${index}`} style={styles.photoPreviewWrap}>
                   <Image source={{ uri }} style={styles.photoPreview} />
@@ -252,12 +276,13 @@ export default function MarketWritePage() {
                 </View>
               ))}
 
-              {photos.length < 10 && (
+              {photos.length < MAX_MARKET_PHOTOS && (
                 <Pressable
                   style={styles.addMorePhoto}
                   onPress={handlePickImages}
                 >
-                  <Text style={styles.addMorePhotoText}>+ 추가</Text>
+                  <Ionicons name="add" size={24} color={BLUE} />
+                  <Text style={styles.addMorePhotoText}>추가</Text>
                 </Pressable>
               )}
             </ScrollView>
@@ -498,36 +523,49 @@ const styles = StyleSheet.create({
     color: '#222222',
   },
 
-  photoBox: {
-    minHeight: 142,
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    marginTop: 18,
-    marginBottom: 58,
-    padding: 14,
+  photoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
 
-  photoButtonRow: {
+  photoCount: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#8A8A8A',
+  },
+
+  photoArea: {
+    marginBottom: 48,
+  },
+
+  photoActionRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 12,
   },
 
   photoActionButton: {
-    width: 120,
-    height: 44,
-    borderRadius: 6,
-    backgroundColor: '#F1F1F1',
+    flex: 1,
+    height: 72,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DCE5F3',
+    backgroundColor: '#F8FAFF',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
 
   photoText: {
-    fontSize: 14,
-    color: '#555555',
-    fontWeight: '700',
+    fontSize: 13,
+    color: BLUE,
+    fontWeight: '900',
+  },
+
+  photoPreviewList: {
+    gap: 10,
+    paddingRight: 4,
   },
 
   photoPreviewWrap: {
@@ -565,9 +603,12 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 8,
-    backgroundColor: '#F1F1F1',
+    borderWidth: 1,
+    borderColor: '#DCE5F3',
+    backgroundColor: '#F8FAFF',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 5,
   },
 
   addMorePhotoText: {

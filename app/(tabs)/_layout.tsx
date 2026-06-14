@@ -126,7 +126,7 @@ export default function TabLayout() {
               return;
             }
 
-            router.replace('/(tabs)/market');
+            router.push('/(tabs)/market' as any);
           },
         }}
         options={{

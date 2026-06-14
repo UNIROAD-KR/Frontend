@@ -660,7 +660,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionTitle}>빠른 메뉴</Text>
           <TouchableOpacity
             style={styles.quickMoreButton}
-            onPress={() => router.push('/(tabs)/home/more-menu' as any)}
+            onPress={() => router.push('/more-menu' as any)}
             activeOpacity={0.82}
           >
             <Text style={styles.moreText}>더보기</Text>

@@ -1,6 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -252,6 +255,11 @@ export default function TicketPreviewPage() {
           <View style={styles.tag}>
             <Text style={styles.tagText}>{category}</Text>
           </View>
+          {postedTime ? (
+            <View style={styles.tag}>
+              <Text style={styles.tagText}>{postedTime}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.titleRow}>
@@ -400,6 +408,12 @@ export default function TicketPreviewPage() {
 }
 
 const styles = StyleSheet.create({
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -444,23 +458,24 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   tag: {
-    height: 22,
+    height: 24,
     minWidth: 62,
     paddingHorizontal: 10,
-    borderRadius: 11,
+    borderRadius: 12,
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tagText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '800',
     color: '#777777',
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
+    gap: 12,
   },
   title: {
     flex: 1,
@@ -546,9 +561,15 @@ const styles = StyleSheet.create({
     minWidth: '47%',
     minHeight: 82,
     backgroundColor: '#FAFAFA',
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 12,
+  },
+  infoLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 9,
   },
   infoLabel: {
     fontSize: 12,
@@ -570,14 +591,14 @@ const styles = StyleSheet.create({
   },
   contentBox: {
     minHeight: 143,
-    borderRadius: 3,
+    borderRadius: 6,
     backgroundColor: '#FAFAFA',
     paddingHorizontal: 21,
     paddingVertical: 22,
   },
   contentText: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 21,
     fontWeight: '600',
     color: '#111111',
   },
