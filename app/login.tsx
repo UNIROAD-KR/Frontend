@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 
 import { login, socialLogin } from '../src/api/auth';
+import { registerDeviceForPushNotifications } from '../src/notifications/push';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -56,6 +57,9 @@ export default function LoginPage() {
       // 토큰 저장
       await AsyncStorage.setItem('accessToken', accessToken);
       await AsyncStorage.setItem('refreshToken', refreshToken);
+      registerDeviceForPushNotifications({ force: true }).catch((error) => {
+        console.log('FCM 토큰 등록 실패:', error.response?.data || error.message);
+      });
 
       // 로그인은 무조건 홈으로
       router.replace('/home');
@@ -140,6 +144,9 @@ export default function LoginPage() {
       // 3. 발급받은 서비스 토큰 저장
       await AsyncStorage.setItem('accessToken', accessToken);
       await AsyncStorage.setItem('refreshToken', refreshToken);
+      registerDeviceForPushNotifications({ force: true }).catch((error) => {
+        console.log('FCM 토큰 등록 실패:', error.response?.data || error.message);
+      });
 
       // 4. 상태(status)에 따라 라우팅
       if (status === 'NEED_SIGNUP') {

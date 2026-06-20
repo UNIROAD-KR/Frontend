@@ -11,12 +11,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.uniroad.mobile",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.uniroad.mobile",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -33,6 +35,8 @@
     "plugins": [
       "expo-router",
       "./plugins/with-ios-modular-headers",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "@react-native-seoul/kakao-login",
         {
@@ -55,6 +59,7 @@
         }
       ],
       "expo-apple-authentication",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "803840308244",
+    "project_id": "project-ae3c11c9-7339-47a8-a9b",
+    "storage_bucket": "project-ae3c11c9-7339-47a8-a9b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803840308244:android:addd0aa77073f83f6e6301",
+        "android_client_info": {
+          "package_name": "com.uniroad.mobile"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4yXCkG7VIPu7Ebg_7FGF-Jm1bnMgIyiM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803840308244-t22hp62jj87ltmq7lkqh0ru27quktc6f.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "803840308244-onouauek1qv66kqirf9hjmqlb96dck2n.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.uniroad.mobile"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

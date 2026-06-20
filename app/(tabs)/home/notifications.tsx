@@ -1,10 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +14,14 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import {
+  getNotifications,
+  getUnreadNotificationCount,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+  NotificationResponse,
+  NotificationType,
+} from '@/src/api/notifications';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -19,137 +29,147 @@ const INK = '#111111';
 const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
-const READ_STORAGE_KEY = 'univ:notifications:read-ids';
-
-type NotificationItem = {
-  id: string;
-  title: string;
-  body: string;
-  time: string;
-  type: 'chat' | 'market' | 'community' | 'schedule';
-  route?: unknown;
-};
-
-const notificationSeed: NotificationItem[] = [
-  {
-    id: 'chat-1',
-    title: '새 채팅 메시지',
-    body: '관심 있어서 문의 드려요. 구매 가능할까요?',
-    time: '방금 전',
-    type: 'chat',
-  },
-  {
-    id: 'market-1',
-    title: '저장한 티켓 양도 글',
-    body: '사그라다 파밀리아 표 양도 글을 다시 확인해보세요.',
-    time: '12분 전',
-    type: 'market',
-    route: '/market/ticket-preview',
-  },
-  {
-    id: 'community-1',
-    title: '내 글에 새 댓글',
-    body: '커뮤니티 작성글에 새로운 댓글이 달렸어요.',
-    time: '오늘',
-    type: 'community',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'free' },
-    },
-  },
-  {
-    id: 'schedule-1',
-    title: '출국 준비 체크',
-    body: '비자 서류와 항공권 준비 상태를 한 번 더 확인해보세요.',
-    time: '어제',
-    type: 'schedule',
-    route: '/(tabs)/home/departure-checklist',
-  },
-];
 
 const notificationMeta: Record<
-  NotificationItem['type'],
+  NotificationType,
   { icon: keyof typeof Ionicons.glyphMap; label: string; color: string; bg: string }
 > = {
-  chat: {
+  CHAT: {
     icon: 'chatbubble-ellipses-outline',
     label: '채팅',
     color: '#1D4FBA',
     bg: '#EAF1FF',
   },
-  market: {
-    icon: 'bag-handle-outline',
-    label: '거래',
+  MATCH: {
+    icon: 'people-outline',
+    label: '매칭',
     color: '#1D4FBA',
     bg: '#EAF1FF',
   },
-  community: {
-    icon: 'people-outline',
-    label: '커뮤니티',
+  LIKE: {
+    icon: 'heart-outline',
+    label: '반응',
     color: '#238451',
     bg: '#E8F6EE',
   },
-  schedule: {
-    icon: 'calendar-outline',
-    label: '준비',
+  NOTICE: {
+    icon: 'megaphone-outline',
+    label: '공지',
     color: '#F28A2E',
     bg: '#FFF1DF',
+  },
+  SYSTEM: {
+    icon: 'notifications-outline',
+    label: '시스템',
+    color: '#6D4CC2',
+    bg: '#F0ECFF',
   },
 };
 
 export default function NotificationsScreen() {
-  const [readIds, setReadIds] = useState<string[]>([]);
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchNotifications = useCallback(async (showSpinner = false) => {
+    if (showSpinner) {
+      setLoading(true);
+    }
+
+    try {
+      const [listResponse, countResponse] = await Promise.all([
+        getNotifications({ page: 0, size: 30, sort: ['createdAt,desc'] }),
+        getUnreadNotificationCount(),
+      ]);
+
+      setNotifications(listResponse.data.data.content ?? []);
+      setUnreadCount(countResponse.data.data.count ?? 0);
+    } catch (error: any) {
+      console.log('알림 조회 실패:', error.response?.data || error.message);
+      Alert.alert('알림 조회 실패', '알림을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      const loadReadIds = async () => {
-        const raw = await AsyncStorage.getItem(READ_STORAGE_KEY);
-
-        if (!raw) {
-          return;
-        }
-
-        try {
-          setReadIds(JSON.parse(raw));
-        } catch {
-          await AsyncStorage.removeItem(READ_STORAGE_KEY);
-        }
-      };
-
-      loadReadIds();
-    }, []),
+      fetchNotifications(true);
+    }, [fetchNotifications]),
   );
 
-  const unreadCount = useMemo(
-    () => notificationSeed.filter((item) => !readIds.includes(item.id)).length,
-    [readIds],
-  );
-
-  const saveReadIds = (next: string[]) => {
-    setReadIds(next);
-    AsyncStorage.setItem(READ_STORAGE_KEY, JSON.stringify(next)).catch((error) => {
-      console.log('알림 읽음 상태 저장 실패:', error);
-    });
+  const refresh = () => {
+    setRefreshing(true);
+    fetchNotifications();
   };
 
-  const markAsRead = (id: string) => {
-    if (readIds.includes(id)) {
+  const markAllAsRead = async () => {
+    if (unreadCount === 0) {
       return;
     }
 
-    saveReadIds([...readIds, id]);
-  };
-
-  const markAllAsRead = () => {
-    saveReadIds(notificationSeed.map((item) => item.id));
-  };
-
-  const openNotification = (item: NotificationItem) => {
-    markAsRead(item.id);
-
-    if (item.route) {
-      router.push(item.route as any);
+    try {
+      await markAllNotificationsAsRead();
+      await fetchNotifications();
+    } catch (error: any) {
+      console.log('전체 알림 읽음 처리 실패:', error.response?.data || error.message);
+      Alert.alert('처리 실패', '알림 읽음 처리에 실패했습니다.');
     }
+  };
+
+  const openNotification = async (item: NotificationResponse) => {
+    try {
+      await markNotificationAsRead(item.notificationId);
+      await fetchNotifications();
+    } catch (error: any) {
+      console.log('알림 읽음 처리 실패:', error.response?.data || error.message);
+    }
+
+    if (item.type === 'CHAT') {
+      const roomId = item.roomId ?? item.referenceId;
+
+      if (roomId) {
+        router.push({
+          pathname: '/chat/[roomId]',
+          params: { roomId: String(roomId) },
+        } as any);
+      }
+    }
+  };
+
+  const formatTime = (value: string) => {
+    const created = new Date(value);
+
+    if (Number.isNaN(created.getTime())) {
+      return '';
+    }
+
+    const diffMs = Date.now() - created.getTime();
+    const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+    if (diffMinutes < 1) {
+      return '방금 전';
+    }
+
+    if (diffMinutes < 60) {
+      return `${diffMinutes}분 전`;
+    }
+
+    const diffHours = Math.floor(diffMinutes / 60);
+
+    if (diffHours < 24) {
+      return `${diffHours}시간 전`;
+    }
+
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays < 7) {
+      return `${diffDays}일 전`;
+    }
+
+    return `${created.getMonth() + 1}.${created.getDate()}`;
   };
 
   return (
@@ -166,6 +186,9 @@ export default function NotificationsScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} />
+        }
       >
         <View style={styles.summaryCard}>
           <View style={styles.summaryIconBox}>
@@ -180,14 +203,26 @@ export default function NotificationsScreen() {
         </View>
 
         <View style={styles.list}>
-          {notificationSeed.map((item) => {
+          {loading ? (
+            <View style={styles.stateBox}>
+              <ActivityIndicator color={BLUE} />
+            </View>
+          ) : notifications.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Ionicons name="checkmark-circle-outline" size={34} color={BLUE} />
+              <Text style={styles.emptyTitle}>새 알림이 없어요</Text>
+              <Text style={styles.emptyDesc}>
+                읽지 않은 알림이 생기면 이곳에 표시됩니다.
+              </Text>
+            </View>
+          ) : (
+            notifications.map((item) => {
             const meta = notificationMeta[item.type];
-            const unread = !readIds.includes(item.id);
 
             return (
               <Pressable
-                key={item.id}
-                style={[styles.card, unread && styles.unreadCard]}
+                key={item.notificationId}
+                style={[styles.card, styles.unreadCard]}
                 onPress={() => openNotification(item)}
               >
                 <View style={[styles.cardIconBox, { backgroundColor: meta.bg }]}>
@@ -197,10 +232,10 @@ export default function NotificationsScreen() {
                 <View style={styles.cardTextBox}>
                   <View style={styles.cardTopRow}>
                     <Text style={styles.cardTitle}>{item.title}</Text>
-                    <Text style={styles.cardTime}>{item.time}</Text>
+                    <Text style={styles.cardTime}>{formatTime(item.createdAt)}</Text>
                   </View>
                   <Text style={styles.cardBody} numberOfLines={2}>
-                    {item.body}
+                    {item.content}
                   </Text>
                   <View style={styles.cardBottomRow}>
                     <View style={[styles.badge, { backgroundColor: meta.bg }]}>
@@ -208,12 +243,12 @@ export default function NotificationsScreen() {
                         {meta.label}
                       </Text>
                     </View>
-                    {unread && <View style={styles.unreadDot} />}
+                    <View style={styles.unreadDot} />
                   </View>
                 </View>
               </Pressable>
             );
-          })}
+          }))}
         </View>
       </ScrollView>
     </View>
@@ -305,6 +340,34 @@ const styles = StyleSheet.create({
   list: {
     marginTop: 16,
     gap: 10,
+  },
+  stateBox: {
+    minHeight: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyBox: {
+    minHeight: 180,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: LINE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  emptyTitle: {
+    marginTop: 10,
+    fontSize: 16,
+    fontWeight: '900',
+    color: INK,
+  },
+  emptyDesc: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: MUTED,
+    textAlign: 'center',
   },
   card: {
     borderRadius: 18,
