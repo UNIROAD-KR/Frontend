@@ -36,11 +36,17 @@ type MenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
   description?: string;
   route: RouteTarget;
-  action?: 'logout';
+  action?: 'logout' | 'notice';
+  noticeMessage?: string;
+};
+
+const savedPostsRoute = {
+  pathname: '/(tabs)/home/profile-list',
+  params: { type: 'saved' },
 };
 
 const quickActions: QuickAction[] = [
-  { title: '좋아요한 글', icon: 'heart-outline', route: null },
+  { title: '좋아요한 글', icon: 'heart-outline', route: savedPostsRoute },
   { title: '좋아요한 파견교', icon: 'school-outline', route: '/(tabs)/home/my-school-info' },
   { title: '여행 혜택', icon: 'sparkles-outline', route: '/(tabs)/home/guide' },
 ];
@@ -49,10 +55,7 @@ const activityItems: MenuItem[] = [
   {
     title: '좋아요한 글',
     icon: 'heart-outline',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'saved' },
-    },
+    route: savedPostsRoute,
   },
   {
     title: '동행 모집글',
@@ -92,6 +95,42 @@ const accountItems: MenuItem[] = [
     icon: 'log-out-outline',
     route: null,
     action: 'logout',
+  },
+];
+
+const serviceItems: MenuItem[] = [
+  {
+    title: '전체 서비스',
+    description: '유니로드의 모든 기능 보기',
+    icon: 'apps-outline',
+    route: '/(tabs)/home/more-menu',
+  },
+  {
+    title: '공지사항',
+    description: '서비스 업데이트와 운영 안내',
+    icon: 'megaphone-outline',
+    route: null,
+    action: 'notice',
+    noticeMessage: '공지사항은 곧 확인할 수 있도록 연결할게요.',
+  },
+];
+
+const policyItems: MenuItem[] = [
+  {
+    title: '서비스 이용약관',
+    description: '유니로드 이용 약관 확인',
+    icon: 'document-text-outline',
+    route: null,
+    action: 'notice',
+    noticeMessage: '서비스 이용약관은 곧 확인할 수 있도록 연결할게요.',
+  },
+  {
+    title: '개인정보 처리방침',
+    description: '개인정보 수집 및 이용 안내',
+    icon: 'shield-outline',
+    route: null,
+    action: 'notice',
+    noticeMessage: '개인정보 처리방침은 곧 확인할 수 있도록 연결할게요.',
   },
 ];
 
@@ -218,6 +257,11 @@ export default function ProfileCardScreen() {
       return;
     }
 
+    if (item.action === 'notice') {
+      Alert.alert(item.title, item.noticeMessage);
+      return;
+    }
+
     openRoute(item.route);
   };
 
@@ -334,6 +378,16 @@ export default function ProfileCardScreen() {
         <MenuSection
           title="계정 / 설정"
           items={accountItems}
+          onPressItem={handleMenuPress}
+        />
+        <MenuSection
+          title="서비스"
+          items={serviceItems}
+          onPressItem={handleMenuPress}
+        />
+        <MenuSection
+          title="앱 정보"
+          items={policyItems}
           onPressItem={handleMenuPress}
         />
       </ScrollView>

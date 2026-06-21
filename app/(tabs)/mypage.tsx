@@ -3,7 +3,6 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -81,7 +80,6 @@ const CATEGORIES: {
 ];
 
 export default function MyPageScreen() {
-  const router = useRouter();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isTabletDatePicker = Platform.OS === 'ios' && Math.min(windowWidth, windowHeight) >= 768;
   const [userName, setUserName] = useState<string>('사용자');
@@ -392,12 +390,6 @@ export default function MyPageScreen() {
             <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
             <Text style={styles.headerTitle}>나의 지출 관리</Text>
           </View>
-          <Pressable
-            style={styles.settingsButton}
-            onPress={() => router.push('/(tabs)/home/profile-settings' as any)}
-          >
-            <Ionicons name="settings-outline" size={26} color="#000" />
-          </Pressable>
         </View>
 
         {/* 잔액 & 예산 블루 카드 */}
@@ -795,14 +787,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#1C1C1E',
     marginTop: 4,
-  },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F2F2F7',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   balanceCard: {
     marginHorizontal: 20,
