@@ -1,5 +1,5 @@
 import { api } from './client';
-import { BaseResponse, PageResponse } from './types';
+import { PageResponse } from './types';
 
 export type ChatReferenceType = 'TRADE' | 'MENTOR';
 
@@ -35,6 +35,7 @@ export const getChatMessages = (roomId: number) => {
   return api.get<ChatMessageResponse[] | PageResponse<ChatMessageResponse>>(
     `/api/v1/chat/rooms/${roomId}/messages`,
     {
+      
       params: {
         page: 0,
         size: 30,
@@ -45,7 +46,7 @@ export const getChatMessages = (roomId: number) => {
 };
 
 export const sendChatMessage = (roomId: number, message: string) => {
-  return api.post<BaseResponse<ChatMessageResponse>>(
+  return api.post<ChatMessageResponse>(
     `/api/v1/chat/rooms/${roomId}/messages`,
     {
       message,

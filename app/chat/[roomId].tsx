@@ -14,13 +14,13 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
+import { getMemberMe } from '../../src/api/auth';
 import {
   ChatMessageResponse,
   getChatMessages,
   sendChatMessage,
 } from '../../src/api/chat';
-import { getMemberMe } from '../../src/api/auth';
-import { AppBackButton } from '@/components/ui/app-back-button';
 
 type ChatMessage = {
   id: number;
@@ -103,7 +103,10 @@ export default function ChatRoomPage() {
     try {
       setSending(true);
       const response = await sendChatMessage(Number(roomId), text);
-      setMessages((prev) => [...prev, normalizeMessage(response.data.data)]);
+
+      console.log(response.data);
+
+      setMessages((prev) => [...prev, normalizeMessage(response.data)]);
       setMessage('');
     } catch (error: any) {
       console.log('메시지 전송 실패:', error.response?.data || error.message);
