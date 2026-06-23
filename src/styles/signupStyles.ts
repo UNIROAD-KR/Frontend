@@ -107,6 +107,11 @@ export const signupStyles = StyleSheet.create({
     borderColor: BLUE,
   },
 
+  checkButtonDone: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D6DCE5',
+  },
+
   checkButtonText: {
     fontSize: 13,
     fontWeight: '700',
@@ -115,6 +120,11 @@ export const signupStyles = StyleSheet.create({
 
   checkButtonTextActive: {
     color: '#FFFFFF',
+    fontWeight: '700',
+  },
+
+  checkButtonTextDone: {
+    color: '#667085',
     fontWeight: '700',
   },
 
@@ -478,6 +488,12 @@ export const signupStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: '#D94A45',
+  },
+
+  successText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: BLUE,
   },
 
   passwordMatchSuccess: {

@@ -63,6 +63,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [passwordCheck, setPasswordCheck] = useState('');
   const [phone, setPhone] = useState('');
+  const [isUsernameChecked, setIsUsernameChecked] = useState(false);
   const [agreeService, setAgreeService] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
@@ -81,6 +82,7 @@ export default function SignupPage() {
   const isInputValid =
     cleanedUsername.length > 0 &&
     !usernameError &&
+    isUsernameChecked &&
     name.trim().length > 0 &&
     password.length > 0 &&
     !passwordError &&
@@ -101,8 +103,10 @@ export default function SignupPage() {
 
     try {
       await checkUsername(cleanedUsername);
+      setIsUsernameChecked(true);
       Alert.alert('확인 완료', '사용 가능한 아이디입니다.');
     } catch (error: any) {
+      setIsUsernameChecked(false);
       Alert.alert('중복 확인 실패', '이미 사용 중인 아이디입니다.');
     }
   };
@@ -205,7 +209,10 @@ export default function SignupPage() {
           placeholder="아이디"
           placeholderTextColor="#9A9A9A"
           value={username}
-          onChangeText={setUsername}
+          onChangeText={(text) => {
+            setUsername(text);
+            setIsUsernameChecked(false);
+          }}
           autoCapitalize="none"
           onFocus={() => setFocusedField('username')}
           onBlur={() => setFocusedField('')}
@@ -214,14 +221,21 @@ export default function SignupPage() {
         <Pressable
           style={[
             styles.checkButton,
-            cleanedUsername.length > 0 ? styles.checkButtonActive : null,
+            cleanedUsername.length > 0 && !usernameError
+              ? styles.checkButtonActive
+              : null,
+            isUsernameChecked ? styles.checkButtonDone : null,
           ]}
+          disabled={!cleanedUsername || !!usernameError || isUsernameChecked}
           onPress={handleCheckUsername}
         >
           <Text
             style={[
               styles.checkButtonText,
-              cleanedUsername.length > 0 ? styles.checkButtonTextActive : null,
+              cleanedUsername.length > 0 && !usernameError
+                ? styles.checkButtonTextActive
+                : null,
+              isUsernameChecked ? styles.checkButtonTextDone : null,
             ]}
           >
             중복확인
@@ -234,6 +248,8 @@ export default function SignupPage() {
           <Text style={styles.errorBadge}>!</Text>
           <Text style={styles.errorText}>{usernameError}</Text>
         </View>
+      ) : isUsernameChecked ? (
+        <Text style={styles.successText}>사용 가능한 아이디입니다.</Text>
       ) : (
         <Text style={styles.helpText}>4~12자 / 영문 소문자(숫자 조합 가능)</Text>
       )}
