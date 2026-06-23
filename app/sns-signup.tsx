@@ -1,62 +1,94 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Image,
-  Modal,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
+const getUsernameError = (value: string) => {
+  const cleanedValue = value.trim();
+
+  if (!cleanedValue) {
+    return '';
+  }
+
+  if (cleanedValue.length < 4 || cleanedValue.length > 12) {
+    return '아이디는 4~12자로 입력해주세요.';
+  }
+
+  if (!/^[a-z0-9]+$/.test(cleanedValue)) {
+    return '아이디는 영문 소문자와 숫자만 사용할 수 있습니다.';
+  }
+
+  return '';
+};
+
+const getPasswordError = (value: string) => {
+  if (!value) {
+    return '';
+  }
+
+  if (value.length < 8 || value.length > 20) {
+    return '비밀번호는 8~20자로 입력해주세요.';
+  }
+
+  if (!/^[A-Za-z0-9@$!%*#?&^_-]+$/.test(value)) {
+    return '비밀번호에 사용할 수 없는 문자가 포함되어 있습니다.';
+  }
+
+  if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) {
+    return '비밀번호는 영문과 숫자를 모두 포함해야 합니다.';
+  }
+
+  return '';
+};
+
 export default function SnsSignupPage() {
+  const scrollRef = useRef<ScrollView>(null);
+  const [focusedField, setFocusedField] = useState('');
   const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [passwordCheck, setPasswordCheck] = useState('');
-  const [emailId, setEmailId] = useState('');
-  const [emailDomain, setEmailDomain] = useState('');
-  const [isCustomDomain, setIsCustomDomain] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordCheck, setShowPasswordCheck] = useState(false);
 
-  const fullEmail = emailId && emailDomain ? `${emailId}@${emailDomain}` : '';
-
-  const passwordRegex =
-    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,20}$/;
-  const isPasswordValid = passwordRegex.test(password);
+  const usernameError = getUsernameError(username);
+  const passwordError = getPasswordError(password);
+  const passwordCheckError =
+    passwordCheck.length > 0 && password !== passwordCheck
+      ? '비밀번호가 일치하지 않습니다.'
+      : '';
 
   const canSubmit =
-    username.trim().length >= 4 &&
+    username.trim().length > 0 &&
+    !usernameError &&
     name.trim().length > 0 &&
-    isPasswordValid &&
-    password === passwordCheck;
-
-  const [domainModalVisible, setDomainModalVisible] = useState(false);
-
-  const emailDomains = [
-    'gmail.com',
-    'naver.com',
-    'daum.net',
-    'kakao.com',
-    'hanmail.net',
-    'nate.com',
-    'icloud.com',
-    '직접 입력',
-  ];
+    password.length > 0 &&
+    !passwordError &&
+    passwordCheck.length > 0 &&
+    !passwordCheckError;
 
   const handleCheckUsername = async () => {
     const cleanedUsername = username.trim();
 
     if (!cleanedUsername) {
       Alert.alert('입력 오류', '아이디를 입력해주세요.');
+      return;
+    }
+
+    if (usernameError) {
+      Alert.alert('입력 오류', usernameError);
       return;
     }
 
@@ -70,6 +102,21 @@ export default function SnsSignupPage() {
   };
 
   const handleSubmit = async () => {
+    if (usernameError) {
+      Alert.alert('입력 오류', usernameError);
+      return;
+    }
+
+    if (passwordError) {
+      Alert.alert('입력 오류', passwordError);
+      return;
+    }
+
+    if (passwordCheckError) {
+      Alert.alert('입력 오류', passwordCheckError);
+      return;
+    }
+
     if (!canSubmit) {
       Alert.alert('입력 확인', '아이디, 이름, 비밀번호를 확인해주세요.');
       return;
@@ -88,16 +135,11 @@ export default function SnsSignupPage() {
         username: string;
         password: string;
         name: string;
-        email?: string;
       } = {
         username: username.trim(),
         password,
         name: name.trim(),
       };
-
-      if (fullEmail.trim()) {
-        signUpData.email = fullEmail.trim();
-      }
 
       await socialSignUp(signUpData);
 
@@ -109,7 +151,6 @@ export default function SnsSignupPage() {
               pathname: '/onboarding/nickname',
               params: {
                 username: username.trim(),
-                email: signUpData.email || '',
               },
             } as any);
           },
@@ -124,55 +165,89 @@ export default function SnsSignupPage() {
     }
   };
 
+  const handlePasswordCheckFocus = () => {
+    setFocusedField('passwordCheck');
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: 120, animated: true });
+    }, 80);
+  };
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <View style={styles.header}>
-        <AppBackButton fallbackHref="/login" />
+      <ScrollView
+        ref={scrollRef}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <View style={styles.header}>
+          <AppBackButton fallbackHref="/login" />
 
-        <Text style={styles.title}>회원가입</Text>
+          <Text style={styles.title}>회원가입</Text>
 
-        <View style={styles.headerBlank} />
-      </View>
+          <View style={styles.headerBlank} />
+        </View>
 
       <Text style={styles.label}>아이디</Text>
 
       <View style={styles.idRow}>
         <TextInput
-          style={[styles.input, styles.idInput]}
+          style={[
+            styles.input,
+            styles.idInput,
+            focusedField === 'username' && !usernameError
+              ? styles.inputFocused
+              : null,
+            usernameError ? styles.inputError : null,
+          ]}
           placeholder="아이디"
           placeholderTextColor="#8F8F8F"
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
+          onFocus={() => setFocusedField('username')}
+          onBlur={() => setFocusedField('')}
         />
 
-        <Pressable style={styles.checkButton} onPress={handleCheckUsername}>
-          <Text style={styles.checkButtonText}>중복확인</Text>
+        <Pressable
+          style={[
+            styles.checkButton,
+            username.trim().length > 0 ? styles.checkButtonActive : null,
+          ]}
+          onPress={handleCheckUsername}
+        >
+          <Text
+            style={[
+              styles.checkButtonText,
+              username.trim().length > 0 ? styles.checkButtonTextActive : null,
+            ]}
+          >
+            중복확인
+          </Text>
         </Pressable>
       </View>
 
-      <Text style={styles.helpText}>4~12자/영문 소문자(숫자 조합 가능)</Text>
-
-      <Text style={[styles.label, styles.emailSection]}>이름</Text>
-
-      <View style={styles.row}>
-        <TextInput
-          style={[styles.input, styles.flexInput]}
-          placeholder="이름 (실명)"
-          placeholderTextColor="#9A9A9A"
-          value={name}
-          onChangeText={setName}
-        />
-      </View>
+      {usernameError ? (
+        <View style={styles.feedbackRow}>
+          <Text style={styles.errorBadge}>!</Text>
+          <Text style={styles.errorText}>{usernameError}</Text>
+        </View>
+      ) : (
+        <Text style={styles.helpText}>4~12자/영문 소문자(숫자 조합 가능)</Text>
+      )}
 
       <Text style={[styles.label, styles.passwordLabel]}>비밀번호</Text>
 
-      <View style={styles.passwordInputBox}>
+      <View
+        style={[
+          styles.passwordInputBox,
+          focusedField === 'password' && !passwordError
+            ? styles.inputFocused
+            : null,
+          passwordError ? styles.inputError : null,
+        ]}
+      >
         <TextInput
           style={styles.passwordInput}
           placeholder="비밀번호"
@@ -180,6 +255,8 @@ export default function SnsSignupPage() {
           secureTextEntry={!showPassword}
           value={password}
           onChangeText={setPassword}
+          onFocus={() => setFocusedField('password')}
+          onBlur={() => setFocusedField('')}
         />
 
         <Pressable onPress={() => setShowPassword((prev) => !prev)}>
@@ -194,7 +271,27 @@ export default function SnsSignupPage() {
         </Pressable>
       </View>
 
-      <View style={styles.passwordInputBox}>
+      {passwordError ? (
+        <View style={styles.feedbackRow}>
+          <Text style={styles.errorBadge}>!</Text>
+          <Text style={styles.errorText}>{passwordError}</Text>
+        </View>
+      ) : (
+        <Text style={styles.helpText}>
+          8~20자/영문과 숫자 포함
+        </Text>
+      )}
+
+      <View
+        style={[
+          styles.passwordInputBox,
+          styles.passwordConfirmBox,
+          focusedField === 'passwordCheck' && !passwordCheckError
+            ? styles.inputFocused
+            : null,
+          passwordCheckError ? styles.inputError : null,
+        ]}
+      >
         <TextInput
           style={styles.passwordInput}
           placeholder="비밀번호 확인"
@@ -202,6 +299,8 @@ export default function SnsSignupPage() {
           secureTextEntry={!showPasswordCheck}
           value={passwordCheck}
           onChangeText={setPasswordCheck}
+          onFocus={handlePasswordCheckFocus}
+          onBlur={() => setFocusedField('')}
         />
 
         <Pressable onPress={() => setShowPasswordCheck((prev) => !prev)}>
@@ -216,65 +315,40 @@ export default function SnsSignupPage() {
         </Pressable>
       </View>
       {passwordCheck.length > 0 && (
-        <Text
-          style={[
-            styles.passwordMatchText,
-            password === passwordCheck
-              ? styles.passwordMatchSuccess
-              : styles.passwordMatchError,
-          ]}
-        >
-          {password === passwordCheck
-            ? '비밀번호가 일치합니다.'
-            : '비밀번호가 일치하지 않습니다.'}
-        </Text>
+        passwordCheckError ? (
+          <View style={styles.feedbackRow}>
+            <Text style={styles.errorBadge}>!</Text>
+            <Text style={[styles.passwordMatchText, styles.passwordMatchError]}>
+              {passwordCheckError}
+            </Text>
+          </View>
+        ) : (
+          <Text
+            style={[styles.passwordMatchText, styles.passwordMatchSuccess]}
+          >
+            비밀번호가 일치합니다.
+          </Text>
+        )
       )}
 
-      <Text style={styles.helpText}>8~20자/영문, 숫자, 특수문자 필수 조합</Text>
+      <Text style={[styles.label, styles.emailSection]}>이름</Text>
 
-      <Text style={[styles.label, styles.emailLabel]}>이메일 (선택)</Text>
-
-      <View style={styles.emailRow}>
+      <View style={styles.row}>
         <TextInput
-          style={[styles.input, styles.emailIdInput]}
-          placeholder="이메일"
+          style={[
+            styles.input,
+            styles.flexInput,
+            focusedField === 'name' ? styles.inputFocused : null,
+          ]}
+          placeholder="이름"
           placeholderTextColor="#9A9A9A"
-          value={emailId}
-          onChangeText={setEmailId}
-          autoCapitalize="none"
+          value={name}
+          onChangeText={setName}
+          onFocus={() => setFocusedField('name')}
+          onBlur={() => setFocusedField('')}
         />
-
-        <Text style={styles.at}>@</Text>
-
-        {isCustomDomain ? (
-          <TextInput
-            style={[styles.input, styles.customDomainInput]}
-            placeholder="직접 입력"
-            placeholderTextColor="#9A9A9A"
-            value={emailDomain}
-            onChangeText={setEmailDomain}
-            autoCapitalize="none"
-          />
-        ) : (
-          <Pressable
-            style={styles.domainBox}
-            onPress={() => setDomainModalVisible(true)}
-          >
-            <Text
-              style={[
-                styles.domainText,
-                emailDomain && styles.domainTextActive,
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {emailDomain || '선택'}
-            </Text>
-
-            <Text style={styles.chevron}>⌄</Text>
-          </Pressable>
-        )}
       </View>
+
       <View style={styles.bottomSpacer} />
       <Pressable
         style={[styles.submitButton, canSubmit && styles.submitButtonActive]}
@@ -285,39 +359,6 @@ export default function SnsSignupPage() {
           가입하기
         </Text>
       </Pressable>
-      <Modal
-        transparent
-        visible={domainModalVisible}
-        animationType="fade"
-        onRequestClose={() => setDomainModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setDomainModalVisible(false)}
-        >
-          <View style={styles.domainModal}>
-            {emailDomains.map((domain) => (
-              <Pressable
-                key={domain}
-                style={styles.domainOption}
-                onPress={() => {
-                  if (domain === '직접 입력') {
-                    setIsCustomDomain(true);
-                    setEmailDomain('');
-                  } else {
-                    setIsCustomDomain(false);
-                    setEmailDomain(domain);
-                  }
-
-                  setDomainModalVisible(false);
-                }}
-              >
-                <Text style={styles.domainOptionText}>{domain}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-    </ScrollView>
+      </ScrollView>
   );
 }
