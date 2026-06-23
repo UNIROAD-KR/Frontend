@@ -168,7 +168,186 @@ export const signupStyles = StyleSheet.create({
 
   bottomSpacer: {
     flex: 1,
-    minHeight: 120,
+    minHeight: 56,
+  },
+
+  termsSummary: {
+    marginTop: 24,
+    minHeight: 58,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E4E8EF',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  termsSummaryTextBox: {
+    flex: 1,
+  },
+
+  termsSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1D2939',
+  },
+
+  termsSummaryDesc: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+    color: '#667085',
+  },
+
+  termsSummaryArrow: {
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: '300',
+    color: '#98A2B3',
+    marginLeft: 8,
+  },
+
+  termsDivider: {
+    height: 1,
+    backgroundColor: '#EEF1F5',
+    marginVertical: 4,
+  },
+
+  termRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  termPressArea: {
+    flex: 1,
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#CBD3DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+
+  checkboxCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderColor: '#D9DEE7',
+    backgroundColor: '#D9DEE7',
+    marginRight: 12,
+  },
+
+  checkboxChecked: {
+    borderColor: BLUE,
+    backgroundColor: BLUE,
+  },
+
+  checkboxCheckText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  termCheckMark: {
+    width: 24,
+    marginRight: 12,
+    fontSize: 20,
+    lineHeight: 23,
+    fontWeight: '600',
+    color: '#D1D5DB',
+    textAlign: 'center',
+  },
+
+  termCheckMarkActive: {
+    color: BLUE,
+  },
+
+  termText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+
+  termAllText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  termLinkButton: {
+    minWidth: 38,
+    minHeight: 30,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+
+  termLinkText: {
+    fontSize: 24,
+    lineHeight: 24,
+    fontWeight: '300',
+    color: '#C4CAD4',
+  },
+
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+
+  termsSheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 34,
+  },
+
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D6DCE5',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+
+  sheetConfirmButton: {
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: '#D9DCE4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+
+  sheetConfirmButtonActive: {
+    backgroundColor: BLUE,
+  },
+
+  sheetConfirmText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  sheetConfirmTextActive: {
+    color: '#FFFFFF',
   },
 
   submitButton: {

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -62,6 +63,10 @@ export default function SnsSignupPage() {
   const [passwordCheck, setPasswordCheck] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordCheck, setShowPasswordCheck] = useState(false);
+  const [agreeService, setAgreeService] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const [termsVisible, setTermsVisible] = useState(false);
 
   const usernameError = getUsernameError(username);
   const passwordError = getPasswordError(password);
@@ -69,8 +74,10 @@ export default function SnsSignupPage() {
     passwordCheck.length > 0 && password !== passwordCheck
       ? '비밀번호가 일치하지 않습니다.'
       : '';
+  const allTermsChecked = agreeService && agreePrivacy && agreeMarketing;
+  const requiredTermsChecked = agreeService && agreePrivacy;
 
-  const canSubmit =
+  const isInputValid =
     username.trim().length > 0 &&
     !usernameError &&
     name.trim().length > 0 &&
@@ -101,7 +108,7 @@ export default function SnsSignupPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleOpenTerms = () => {
     if (usernameError) {
       Alert.alert('입력 오류', usernameError);
       return;
@@ -117,11 +124,15 @@ export default function SnsSignupPage() {
       return;
     }
 
-    if (!canSubmit) {
+    if (!isInputValid) {
       Alert.alert('입력 확인', '아이디, 이름, 비밀번호를 확인해주세요.');
       return;
     }
 
+    openTermsSheet();
+  };
+
+  const handleSubmit = async () => {
     await AsyncStorage.multiRemove([
       'accessToken',
       'refreshToken',
@@ -172,7 +183,23 @@ export default function SnsSignupPage() {
     }, 80);
   };
 
+  const handleToggleAllTerms = () => {
+    const nextValue = !allTermsChecked;
+
+    setAgreeService(nextValue);
+    setAgreePrivacy(nextValue);
+    setAgreeMarketing(nextValue);
+  };
+
+  const openTermsSheet = () => {
+    setAgreeService(false);
+    setAgreePrivacy(false);
+    setAgreeMarketing(false);
+    setTermsVisible(true);
+  };
+
   return (
+    <>
       <ScrollView
         ref={scrollRef}
         style={styles.container}
@@ -351,14 +378,124 @@ export default function SnsSignupPage() {
 
       <View style={styles.bottomSpacer} />
       <Pressable
-        style={[styles.submitButton, canSubmit && styles.submitButtonActive]}
-        disabled={!canSubmit}
-        onPress={handleSubmit}
+        style={[styles.submitButton, isInputValid && styles.submitButtonActive]}
+        onPress={handleOpenTerms}
       >
-        <Text style={[styles.submitText, canSubmit && styles.submitTextActive]}>
+        <Text style={[styles.submitText, isInputValid && styles.submitTextActive]}>
           가입하기
         </Text>
       </Pressable>
       </ScrollView>
+      <Modal
+        transparent
+        visible={termsVisible}
+        animationType="slide"
+        onRequestClose={() => setTermsVisible(false)}
+      >
+        <Pressable
+          style={styles.sheetOverlay}
+          onPress={() => setTermsVisible(false)}
+        >
+          <Pressable style={styles.termsSheet}>
+            <View style={styles.sheetHandle} />
+            <TermAgreementRow
+              label="전체 동의"
+              checked={allTermsChecked}
+              onPress={handleToggleAllTerms}
+              emphasized
+            />
+
+            <View style={styles.termsDivider} />
+
+            <TermAgreementRow
+              label="[필수] 서비스 이용약관 동의"
+              checked={agreeService}
+              onPress={() => setAgreeService((prev) => !prev)}
+              showLink
+            />
+            <TermAgreementRow
+              label="[필수] 개인정보 수집 및 이용 동의"
+              checked={agreePrivacy}
+              onPress={() => setAgreePrivacy((prev) => !prev)}
+              showLink
+            />
+            <TermAgreementRow
+              label="[선택] 마케팅 정보 수신 동의"
+              checked={agreeMarketing}
+              onPress={() => setAgreeMarketing((prev) => !prev)}
+              showLink
+            />
+
+            <Pressable
+              style={[
+                styles.sheetConfirmButton,
+                requiredTermsChecked ? styles.sheetConfirmButtonActive : null,
+              ]}
+              onPress={handleSubmit}
+              disabled={!requiredTermsChecked}
+            >
+              <Text
+                style={[
+                  styles.sheetConfirmText,
+                  requiredTermsChecked ? styles.sheetConfirmTextActive : null,
+                ]}
+              >
+                가입하기
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
+function TermAgreementRow({
+  label,
+  checked,
+  onPress,
+  emphasized = false,
+  showLink = false,
+}: {
+  label: string;
+  checked: boolean;
+  onPress: () => void;
+  emphasized?: boolean;
+  showLink?: boolean;
+}) {
+  return (
+    <View style={styles.termRow}>
+      <Pressable style={styles.termPressArea} onPress={onPress}>
+        {emphasized ? (
+          <View
+            style={[
+              styles.checkbox,
+              styles.checkboxCircle,
+              checked ? styles.checkboxChecked : null,
+            ]}
+          >
+            <Text style={styles.checkboxCheckText}>✓</Text>
+          </View>
+        ) : (
+          <Text
+            style={[
+              styles.termCheckMark,
+              checked ? styles.termCheckMarkActive : null,
+            ]}
+          >
+            ✓
+          </Text>
+        )}
+        <Text style={[styles.termText, emphasized ? styles.termAllText : null]}>
+          {label}
+        </Text>
+      </Pressable>
+
+      {showLink && (
+        <Pressable style={styles.termLinkButton}>
+          <Text style={styles.termLinkText}>›</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
