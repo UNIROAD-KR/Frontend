@@ -57,6 +57,7 @@ export default function RootLayout() {
         <Stack.Screen name="more-menu" options={{ animation: 'none' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="sns-signup" />
+        <Stack.Screen name="id-login" />
       </Stack>
 
       <StatusBar style="auto" />
