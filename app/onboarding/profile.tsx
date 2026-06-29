@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -12,13 +11,16 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { ONBOARDING_NICKNAME_KEY } from '@/src/constants/onboarding';
+
+type Gender = 'female' | 'male' | '';
 
 export default function ProfilePage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
 
   const [birthYear, setBirthYear] = useState('');
   const [yearModalVisible, setYearModalVisible] = useState(false);
-  const [gender, setGender] = useState<'female' | 'male' | ''>('');
+  const [gender, setGender] = useState<Gender>('');
 
   const years = Array.from({ length: 60 }, (_, index) =>
     String(new Date().getFullYear() - index),
@@ -26,15 +28,54 @@ export default function ProfilePage() {
 
   const isValid = birthYear !== '' && gender !== '';
 
-  const handleNext = async () => {
-    if (!isValid) return;
+  useEffect(() => {
+    const loadProfile = async () => {
+      const [[, savedBirthYear], [, savedGender]] = await AsyncStorage.multiGet([
+        'birthYear',
+        'gender',
+      ]);
 
-    await AsyncStorage.setItem('birthYear', birthYear);
-    await AsyncStorage.setItem('gender', gender);
+      if (savedBirthYear) {
+        setBirthYear(savedBirthYear);
+      }
+
+      if (savedGender === 'female' || savedGender === 'male') {
+        setGender(savedGender);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleSelectBirthYear = async (year: string) => {
+    setBirthYear(year);
+    await AsyncStorage.setItem('birthYear', year);
+    setYearModalVisible(false);
+  };
+
+  const handleSelectGender = async (nextGender: Exclude<Gender, ''>) => {
+    setGender(nextGender);
+    await AsyncStorage.setItem('gender', nextGender);
+  };
+
+  const handleNext = async () => {
+    if (!isValid) {
+      return;
+    }
+
+    await AsyncStorage.multiSet([
+      ['birthYear', birthYear],
+      ['gender', gender],
+    ]);
+
+    const savedNickname =
+      nickname?.trim() ||
+      (await AsyncStorage.getItem(ONBOARDING_NICKNAME_KEY)) ||
+      '';
 
     router.push({
       pathname: '/onboarding/university',
-      params: { nickname },
+      params: { nickname: savedNickname },
     });
   };
 
@@ -47,12 +88,11 @@ export default function ProfilePage() {
         <View style={styles.progressActive} />
         <View style={styles.progress} />
         <View style={styles.progress} />
-        <View style={styles.progress} />
       </View>
 
       <Text style={styles.title}>출생년도와 성별을{'\n'}알려주세요.</Text>
 
-      <Text style={styles.subtitle}>정보는 ~외에 사용되지 않습니다.</Text>
+      <Text style={styles.subtitle}>정보는 맞춤형 서비스 제공에만 사용돼요.</Text>
 
       <Text style={styles.label}>출생년도</Text>
 
@@ -75,26 +115,36 @@ export default function ProfilePage() {
             styles.genderCard,
             gender === 'female' && styles.selectedCard,
           ]}
-          onPress={() => setGender('female')}
+          onPress={() => handleSelectGender('female')}
         >
-          <Image
-            source={require('../../assets/images/woman.png')}
-            style={styles.genderImage}
-          />
-          <Text style={styles.genderText}>여자</Text>
+          <Text style={styles.genderEmoji}>👩</Text>
+          <Text
+            style={[
+              styles.genderText,
+              gender === 'female' && styles.genderTextSelected,
+            ]}
+          >
+            여자
+          </Text>
         </Pressable>
 
         <Pressable
           style={[styles.genderCard, gender === 'male' && styles.selectedCard]}
-          onPress={() => setGender('male')}
+          onPress={() => handleSelectGender('male')}
         >
-          <Image
-            source={require('../../assets/images/man.png')}
-            style={styles.genderImage}
-          />
-          <Text style={styles.genderText}>남자</Text>
+          <Text style={styles.genderEmoji}>👨</Text>
+          <Text
+            style={[
+              styles.genderText,
+              gender === 'male' && styles.genderTextSelected,
+            ]}
+          >
+            남자
+          </Text>
         </Pressable>
       </View>
+
+      <View style={styles.bottomSpacer} />
 
       <Pressable
         style={[styles.nextButton, isValid && styles.nextButtonActive]}
@@ -102,7 +152,7 @@ export default function ProfilePage() {
         onPress={handleNext}
       >
         <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
-          다음 (1/4)
+          다음
         </Text>
       </Pressable>
 
@@ -130,11 +180,7 @@ export default function ProfilePage() {
                     styles.yearOption,
                     birthYear === year && styles.yearOptionActive,
                   ]}
-                  onPress={async () => {
-                    setBirthYear(year);
-                    await AsyncStorage.setItem('birthYear', year);
-                    setYearModalVisible(false);
-                  }}
+                  onPress={() => handleSelectBirthYear(year)}
                 >
                   <Text
                     style={[
@@ -192,7 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 36,
     fontWeight: '900',
-    color: '#000',
+    color: '#000000',
     marginBottom: 18,
   },
 
@@ -248,42 +294,49 @@ const styles = StyleSheet.create({
 
   genderCard: {
     flex: 1,
-    height: 66,
+    height: 88,
     borderWidth: 1,
     borderColor: '#D0D0D0',
-    borderRadius: 7,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
 
   selectedCard: {
     borderColor: BLUE,
     borderWidth: 2,
+    backgroundColor: '#F3F7FF',
   },
 
-  genderImage: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-    marginBottom: 3,
+  genderEmoji: {
+    fontSize: 30,
+    marginBottom: 6,
   },
 
   genderText: {
     fontSize: 13,
     color: '#111111',
-    fontWeight: '600',
+    fontWeight: '700',
+  },
+
+  genderTextSelected: {
+    color: BLUE,
+    fontWeight: '900',
+  },
+
+  bottomSpacer: {
+    flex: 1,
+    minHeight: 120,
   },
 
   nextButton: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 40,
     height: 52,
     borderRadius: 5,
     backgroundColor: '#D8D8D8',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 40,
   },
 
   nextButtonActive: {

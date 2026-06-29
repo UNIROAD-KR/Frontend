@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Alert,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -15,197 +16,279 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
+import {
+  countryOptions,
+  CUSTOM_COUNTRY_OPTION,
+  ONBOARDING_NICKNAME_KEY,
+} from '@/src/constants/onboarding';
 
-const countries = [
-  { flag: '🇩🇪', name: '독일' },
-  { flag: '🇫🇷', name: '프랑스' },
-  { flag: '🇨🇿', name: '체코' },
-  { flag: '🇪🇸', name: '스페인' },
-  { flag: '🇵🇹', name: '포르투갈' },
-  { flag: '🇮🇹', name: '이탈리아' },
-  { flag: '🇧🇪', name: '벨기에' },
-  { flag: '🇳🇱', name: '네덜란드' },
-  { flag: '🇵🇱', name: '폴란드' },
-  { flag: '🇫🇮', name: '핀란드' },
-  { flag: '🇳🇴', name: '노르웨이' },
-  { flag: '🇸🇪', name: '스웨덴' },
-  { flag: '🇬🇧', name: '영국' },
-  { flag: '🇮🇪', name: '아일랜드' },
-  { flag: '🇩🇰', name: '덴마크' },
-  { flag: '🇱🇹', name: '리투아니아' },
-  { flag: '🇦🇹', name: '오스트리아' },
-  { flag: '🇨🇭', name: '스위스' },
-  { image: require('../../assets/images/etc.png'), name: '기타' },
-  { flag: '❓', name: '미정' },
-];
+const resolveCountrySelection = (savedCountry: string | null) => {
+  if (!savedCountry) {
+    return { selectedCountry: '', customCountry: '' };
+  }
+
+  if (countryOptions.includes(savedCountry)) {
+    return { selectedCountry: savedCountry, customCountry: '' };
+  }
+
+  return {
+    selectedCountry: CUSTOM_COUNTRY_OPTION,
+    customCountry: savedCountry,
+  };
+};
 
 export default function CountryPage() {
-  const scrollRef = useRef<ScrollView>(null);
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
+  const scrollRef = useResetScrollOnFocus();
 
   const [selectedCountry, setSelectedCountry] = useState('');
   const [customCountry, setCustomCountry] = useState('');
-  const [isCustomCountry, setIsCustomCountry] = useState(false);
-  
-  // 파견 지역, 파견 대학 추가 (준비 중인 학생도 목표 대학/지역을 입력할 수 있도록 함)
   const [region, setRegion] = useState('');
   const [university, setUniversity] = useState('');
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
 
+  const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const finalCountry = isCustomCountry ? customCountry.trim() : selectedCountry;
-  // 파견 국가만 필수이거나 지역/대학도 입력 받도록 유도할 수 있습니다.
   const isValid = finalCountry.length > 0;
 
-  const handleSelectCountry = (countryName: string) => {
+  useEffect(() => {
+    const loadCountryStep = async () => {
+      const [
+        [, savedCountry],
+        [, savedRegion],
+        [, savedUniversity],
+      ] = await AsyncStorage.multiGet([
+        'dispatchedCountry',
+        'dispatchedRegion',
+        'dispatchedUniversity',
+      ]);
+
+      const countrySelection = resolveCountrySelection(savedCountry);
+      setSelectedCountry(countrySelection.selectedCountry);
+      setCustomCountry(countrySelection.customCountry);
+      setRegion(savedRegion ?? '');
+      setUniversity(savedUniversity ?? '');
+    };
+
+    loadCountryStep();
+  }, []);
+
+  const handleSelectCountry = async (countryName: string) => {
     setSelectedCountry(countryName);
+    setCountryModalVisible(false);
 
-    if (countryName === '미정') {
-      setIsCustomCountry(true);
+    if (countryName === CUSTOM_COUNTRY_OPTION) {
       setCustomCountry('');
-
-      setTimeout(() => {
-        scrollRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } else {
-      setIsCustomCountry(false);
-      setCustomCountry('');
-    }
-  };
-
-  const handleNext = async () => {
-    if (!isValid) {
-      Alert.alert('입력 오류', '파견 국가를 선택하거나 입력해주세요.');
+      await AsyncStorage.setItem('dispatchedCountry', '');
       return;
     }
 
-    await AsyncStorage.setItem('dispatchedCountry', finalCountry);
-    await AsyncStorage.setItem('dispatchedRegion', region.trim());
-    await AsyncStorage.setItem('dispatchedUniversity', university.trim());
+    setCustomCountry('');
+    await AsyncStorage.setItem('dispatchedCountry', countryName);
+  };
+
+  const handleChangeCustomCountry = (value: string) => {
+    setCustomCountry(value);
+    AsyncStorage.setItem('dispatchedCountry', value.trim()).catch(() => {});
+  };
+
+  const handleChangeRegion = (value: string) => {
+    setRegion(value);
+    AsyncStorage.setItem('dispatchedRegion', value.trim()).catch(() => {});
+  };
+
+  const handleChangeUniversity = (value: string) => {
+    setUniversity(value);
+    AsyncStorage.setItem('dispatchedUniversity', value.trim()).catch(() => {});
+  };
+
+  const handleComplete = async () => {
+    if (!isValid) {
+      return;
+    }
+
+    Keyboard.dismiss();
+
+    await AsyncStorage.multiSet([
+      ['dispatchedCountry', finalCountry],
+      ['dispatchedRegion', region.trim()],
+      ['dispatchedUniversity', university.trim()],
+    ]);
+
+    const savedNickname =
+      nickname?.trim() ||
+      (await AsyncStorage.getItem(ONBOARDING_NICKNAME_KEY)) ||
+      '';
 
     router.push({
-      pathname: '/onboarding/interests',
-      params: {
-        nickname,
-        country: finalCountry,
-      },
+      pathname: '/onboarding/complete',
+      params: { nickname: savedNickname },
     });
   };
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <AppBackButton style={styles.backButton} />
-
-      <View style={styles.progressRow}>
-        <View style={styles.progressActive} />
-        <View style={styles.progressActive} />
-        <View style={styles.progressActive} />
-        <View style={styles.progressActive} />
-        <View style={styles.progress} />
-      </View>
-
-      <Text style={styles.title}>어느 나라를{'\n'}생각하고 계신가요?</Text>
-
-      <Text style={styles.subtitle}>원하는 파견 지역을 알려주세요.</Text>
-
       <ScrollView
         ref={scrollRef}
-        style={styles.countryScroll}
-        contentContainerStyle={styles.countryGrid}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {countries.map((item) => {
-          const selected = selectedCountry === item.name;
+        <AppBackButton style={styles.backButton} />
 
-          return (
-            <Pressable
-              key={item.name}
-              style={[styles.countryCard, selected && styles.selectedCard]}
-              onPress={() => handleSelectCountry(item.name)}
-            >
-              {'image' in item ? (
-                <Image source={item.image} style={styles.countryImage} />
-              ) : (
-                <Text style={styles.flag}>{item.flag}</Text>
-              )}
+        <View style={styles.progressRow}>
+          <View style={styles.progressActive} />
+          <View style={styles.progressActive} />
+          <View style={styles.progressActive} />
+          <View style={styles.progressActive} />
+        </View>
 
-              <Text style={styles.countryName}>{item.name}</Text>
-            </Pressable>
-          );
-        })}
+        <Text style={styles.title}>어느 나라를{'\n'}생각하고 계신가요?</Text>
+
+        <Text style={styles.subtitle}>희망하거나 예정된 파견 정보를 알려주세요.</Text>
+
+        <Text style={styles.label}>파견 국가</Text>
+
+        <Pressable
+          style={styles.selectBox}
+          onPress={() => setCountryModalVisible(true)}
+        >
+          <Text
+            style={[styles.selectText, selectedCountry && styles.selectTextActive]}
+          >
+            {selectedCountry || '파견 국가 선택'}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#777777" />
+        </Pressable>
 
         {isCustomCountry && (
-          <View style={styles.customInputWrap}>
-            <Text style={styles.customLabel}>파견 국가 직접 입력</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>파견 국가 직접 입력</Text>
 
-            <TextInput
-              style={styles.customInput}
-              placeholder="예: 캐나다, 호주, 일본"
-              placeholderTextColor="#9A9A9A"
-              value={customCountry}
-              onChangeText={setCustomCountry}
-            />
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="예: 캐나다, 호주, 일본"
+                placeholderTextColor="#9A9A9A"
+                value={customCountry}
+                onChangeText={handleChangeCustomCountry}
+                returnKeyType="next"
+              />
+
+              {customCountry.length > 0 && (
+                <Pressable onPress={() => handleChangeCustomCountry('')}>
+                  <Image
+                    source={require('../../assets/images/x.png')}
+                    style={styles.clearIcon}
+                  />
+                </Pressable>
+              )}
+            </View>
           </View>
         )}
 
-        <View style={styles.extraInputWrap}>
-          <Text style={styles.customLabel}>희망/예정 파견 지역</Text>
-          <TextInput
-            style={styles.customInput}
-            placeholder="예: 도쿄, 뉴욕 (선택 사항)"
-            placeholderTextColor="#9A9A9A"
-            value={region}
-            onChangeText={setRegion}
-          />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>파견 지역</Text>
+
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="예: 도쿄, 뉴욕"
+              placeholderTextColor="#9A9A9A"
+              value={region}
+              onChangeText={handleChangeRegion}
+              returnKeyType="next"
+            />
+
+            {region.length > 0 && (
+              <Pressable onPress={() => handleChangeRegion('')}>
+                <Image
+                  source={require('../../assets/images/x.png')}
+                  style={styles.clearIcon}
+                />
+              </Pressable>
+            )}
+          </View>
         </View>
 
-        <View style={styles.extraInputWrap}>
-          <Text style={styles.customLabel}>희망/예정 파견 대학</Text>
-          <TextInput
-            style={styles.customInput}
-            placeholder="파견 예정이거나 희망하는 대학 입력 (선택 사항)"
-            placeholderTextColor="#9A9A9A"
-            value={university}
-            onChangeText={setUniversity}
-          />
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>파견 대학</Text>
+
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="희망하거나 예정된 대학 입력"
+              placeholderTextColor="#9A9A9A"
+              value={university}
+              onChangeText={handleChangeUniversity}
+              returnKeyType="done"
+              onSubmitEditing={handleComplete}
+            />
+
+            {university.length > 0 && (
+              <Pressable onPress={() => handleChangeUniversity('')}>
+                <Image
+                  source={require('../../assets/images/x.png')}
+                  style={styles.clearIcon}
+                />
+              </Pressable>
+            )}
+          </View>
         </View>
+
+        <View style={styles.bottomSpacer} />
+
+        <Pressable
+          style={[styles.nextButton, isValid && styles.nextButtonActive]}
+          disabled={!isValid}
+          onPress={handleComplete}
+        >
+          <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
+            완료
+          </Text>
+        </Pressable>
       </ScrollView>
 
-      <Pressable
-        style={[styles.nextButton, isValid && styles.nextButtonActive]}
-        disabled={!isValid}
-        onPress={handleNext}
-      >
-        <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
-          다음 (3/4)
-        </Text>
-      </Pressable>
+      <OnboardingSelectModal
+        visible={countryModalVisible}
+        title="파견 국가 선택"
+        options={countryOptions}
+        selectedValue={selectedCountry}
+        onClose={() => setCountryModalVisible(false)}
+        onSelect={handleSelectCountry}
+      />
     </KeyboardAvoidingView>
   );
 }
 
 const BLUE = '#123F9F';
-const CARD_WIDTH = '30%';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+
+  content: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 52,
+    paddingBottom: 36,
   },
 
   backButton: {
-    marginBottom: 20,
+    marginBottom: 35,
   },
 
   progressRow: {
     flexDirection: 'row',
     gap: 5,
-    marginBottom: 72,
+    marginBottom: 68,
   },
 
   progress: {
@@ -226,89 +309,80 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 36,
     fontWeight: '900',
-    color: '#000',
+    color: '#000000',
     marginBottom: 18,
   },
 
   subtitle: {
     fontSize: 13,
     color: '#B0B0B0',
-    marginBottom: 34,
+    marginBottom: 42,
   },
 
-  countryScroll: {
-    flex: 1,
-    marginBottom: 10,
-  },
-
-  countryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    columnGap: 13,
-    rowGap: 13,
-    paddingBottom: 10,
-  },
-
-  countryCard: {
-    width: CARD_WIDTH,
-    height: 62,
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  selectedCard: {
-    borderColor: BLUE,
-    borderWidth: 1.5,
-  },
-
-  flag: {
-    fontSize: 22,
-    marginBottom: 5,
-  },
-
-  countryImage: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-    marginBottom: 5,
-  },
-
-  countryName: {
-    fontSize: 12,
-    color: '#111',
-  },
-
-  customInputWrap: {
-    width: '100%',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-
-  extraInputWrap: {
-    width: '100%',
-    marginBottom: 16,
-  },
-
-  customLabel: {
-    fontSize: 13,
+  label: {
+    fontSize: 15,
     fontWeight: '700',
-    color: '#333333',
-    marginBottom: 8,
+    color: '#111111',
+    marginBottom: 12,
   },
 
-  customInput: {
-    width: '100%',
-    height: 48,
+  selectBox: {
+    height: 52,
     borderWidth: 1,
     borderColor: '#D0D0D0',
     borderRadius: 6,
     paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 28,
+  },
+
+  selectText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#777777',
+  },
+
+  selectTextActive: {
+    color: '#111111',
+    fontWeight: '800',
+  },
+
+  inputGroup: {
+    marginBottom: 28,
+  },
+
+  inputBox: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 6,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+
+  textInput: {
+    flex: 1,
     fontSize: 15,
     color: '#111111',
+    paddingVertical: 0,
+  },
+
+  clearIcon: {
+    width: 18,
+    height: 18,
+    resizeMode: 'contain',
+    marginLeft: 8,
+  },
+
+  bottomSpacer: {
+    flex: 1,
+    minHeight: 92,
   },
 
   nextButton: {
@@ -317,7 +391,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#D5D5D5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 36,
   },
 
   nextButtonActive: {
