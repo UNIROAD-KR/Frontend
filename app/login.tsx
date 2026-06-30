@@ -213,7 +213,7 @@ export default function LoginPage() {
       });
 
       if (status === 'NEED_SIGNUP') {
-        router.replace('/sns-signup');
+        router.push('/sns-signup');
       } else if (status === 'NEED_ONBOARDING') {
         router.replace('/onboarding/nickname');
       } else {

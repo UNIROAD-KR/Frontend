@@ -137,12 +137,6 @@ export default function SnsSignupPage() {
   };
 
   const handleSubmit = async () => {
-    await AsyncStorage.multiRemove([
-      'accessToken',
-      'refreshToken',
-      'isVerified',
-    ]);
-
     await AsyncStorage.setItem('isVerified', 'false');
 
     try {
