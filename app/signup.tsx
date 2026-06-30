@@ -13,6 +13,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { checkUsername, signUp } from '../src/api/auth';
+import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
 const getUsernameError = (value: string) => {
@@ -146,6 +147,7 @@ export default function SignupPage() {
         name: name.trim(),
       });
 
+      await clearOnboardingDraft();
       Alert.alert('가입 완료', '회원가입이 완료되었습니다.');
       router.replace('/onboarding/nickname');
     } catch (error: any) {

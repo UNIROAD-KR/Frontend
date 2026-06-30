@@ -2,9 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -12,38 +11,96 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
+import {
+  ExchangeStatus,
+  ONBOARDING_NICKNAME_KEY,
+  universityOptions,
+} from '@/src/constants/onboarding';
 
-type ExchangeStatus = 'preparing' | 'accepted' | 'dispatched';
+type DateStorageKey =
+  | 'applicationDeadline'
+  | 'departureDate'
+  | 'dispatchStartDate';
 
-const statusOptions: {
-  icon?: keyof typeof Ionicons.glyphMap;
-  label: string;
+type StatusOption = {
   value: ExchangeStatus;
-}[] = [
+  label: string;
+  emoji: string;
+  dateLabel: string;
+  datePlaceholder: string;
+  storageKey: DateStorageKey;
+  profileStatus: string;
+};
+
+const statusOptions: StatusOption[] = [
   {
-    label: '지원 준비 중',
     value: 'preparing',
+    label: '지원 준비 중',
+    emoji: '📝',
+    dateLabel: '지원 마감일',
+    datePlaceholder: '지원 마감일 선택',
+    storageKey: 'applicationDeadline',
+    profileStatus: '지원 준비 중',
   },
   {
-    icon: 'airplane-outline',
-    label: '출국 준비 중',
     value: 'accepted',
+    label: '출국 준비 중',
+    emoji: '✈️',
+    dateLabel: '출국 예정일',
+    datePlaceholder: '출국 예정일 선택',
+    storageKey: 'departureDate',
+    profileStatus: '출국 준비 중',
   },
   {
-    label: '파견 중',
     value: 'dispatched',
+    label: '파견 중',
+    emoji: '🎓',
+    dateLabel: '파견 시작일',
+    datePlaceholder: '파견 시작일 선택',
+    storageKey: 'dispatchStartDate',
+    profileStatus: '파견 중',
   },
 ];
 
-const createDate = (year: number, month: number, day: number) =>
-  new Date(year, month - 1, day);
+const emptyStatusDates: Record<ExchangeStatus, string> = {
+  preparing: '',
+  accepted: '',
+  dispatched: '',
+};
 
-const DEFAULT_DEPARTURE_DATE = createDate(2026, 8, 21);
+const startOfToday = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+};
+
+const parseStorageDate = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+};
+
+const clampToToday = (date: Date) => {
+  const today = startOfToday();
+  const nextDate = new Date(date);
+  nextDate.setHours(0, 0, 0, 0);
+
+  return nextDate < today ? today : nextDate;
+};
 
 const toStorageDate = (date: Date) => {
   const year = date.getFullYear();
@@ -53,130 +110,140 @@ const toStorageDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatDisplayDate = (date: Date) =>
-  `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
-    date.getDate(),
-  ).padStart(2, '0')}`;
+const formatDisplayDate = (value: string) => {
+  const parsedDate = parseStorageDate(value);
 
-const universities = [
-  '서울대학교',
-  '서울과학기술대학교',
-  '서울시립대학교',
-  '서울여자대학교',
-  '연세대학교',
-  '고려대학교',
-  '성균관대학교',
-  '한양대학교',
-  '중앙대학교',
-  '경희대학교',
-  '한국외국어대학교',
-  '이화여자대학교',
-  '건국대학교',
-  '동국대학교',
-  '홍익대학교',
-  '숭실대학교',
-  '국민대학교',
-  '세종대학교',
-  '숙명여자대학교',
-  '광운대학교',
-  '명지대학교',
-  '상명대학교',
-  '가천대학교',
-  '인하대학교',
-  '아주대학교',
-  '단국대학교',
-  '한국항공대학교',
-  '한국공학대학교',
-  '한국교원대학교',
-  '부산대학교',
-  '경북대학교',
-  '전남대학교',
-  '전북대학교',
-  '충남대학교',
-  '충북대학교',
-  '강원대학교',
-  '제주대학교',
-  '부경대학교',
-  '영남대학교',
-  '동아대학교',
-  '계명대학교',
-  '조선대학교',
-  '원광대학교',
-  '울산대학교',
-  '인천대학교',
-  '한림대학교',
-  '가톨릭대학교',
-  '덕성여자대학교',
-  '동덕여자대학교',
-  '성신여자대학교',
-];
+  if (!parsedDate) {
+    return '';
+  }
+
+  return `${parsedDate.getFullYear()}.${String(
+    parsedDate.getMonth() + 1,
+  ).padStart(2, '0')}.${String(parsedDate.getDate()).padStart(2, '0')}`;
+};
+
+const isExchangeStatus = (value: string | null): value is ExchangeStatus =>
+  value === 'preparing' || value === 'accepted' || value === 'dispatched';
 
 export default function UniversityPage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
+  const scrollRef = useResetScrollOnFocus();
 
   const [university, setUniversity] = useState('');
   const [status, setStatus] = useState<ExchangeStatus | ''>('');
-  const [departureDate, setDepartureDate] = useState<Date | null>(null);
-  const [draftDate, setDraftDate] = useState(DEFAULT_DEPARTURE_DATE);
+  const [statusDates, setStatusDates] =
+    useState<Record<ExchangeStatus, string>>(emptyStatusDates);
+  const [draftDate, setDraftDate] = useState(startOfToday);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [universityModalVisible, setUniversityModalVisible] = useState(false);
 
-  const isValid = university !== '' && status !== '';
-  const filteredUniversities = useMemo(() => {
-    if (!showSuggestions || university.trim().length === 0) {
-      return [];
-    }
+  const selectedStatusOption = useMemo(
+    () => statusOptions.find((item) => item.value === status) ?? null,
+    [status],
+  );
+  const selectedStatusDate = status ? statusDates[status] : '';
+  const isValid = university !== '' && status !== '' && selectedStatusDate !== '';
 
-    return universities.filter((item) => item.includes(university.trim()));
-  }, [showSuggestions, university]);
+  useEffect(() => {
+    const loadUniversityStep = async () => {
+      const [
+        [, savedUniversity],
+        [, savedStatus],
+        [, savedApplicationDeadline],
+        [, savedDepartureDate],
+        [, savedDispatchStartDate],
+      ] = await AsyncStorage.multiGet([
+        'university',
+        'onboardingSituation',
+        'applicationDeadline',
+        'departureDate',
+        'dispatchStartDate',
+      ]);
 
-  const handleSelectUniversity = (selectedUniversity: string) => {
+      if (savedUniversity) {
+        setUniversity(savedUniversity);
+      }
+
+      if (isExchangeStatus(savedStatus)) {
+        setStatus(savedStatus);
+      }
+
+      setStatusDates({
+        preparing: savedApplicationDeadline ?? '',
+        accepted: savedDepartureDate ?? '',
+        dispatched: savedDispatchStartDate ?? '',
+      });
+    };
+
+    loadUniversityStep();
+  }, []);
+
+  const handleSelectUniversity = async (selectedUniversity: string) => {
     setUniversity(selectedUniversity);
-    setShowSuggestions(false);
+    await AsyncStorage.setItem('university', selectedUniversity);
+    setUniversityModalVisible(false);
+  };
+
+  const handleSelectStatus = async (nextStatus: ExchangeStatus) => {
+    setStatus(nextStatus);
+    await AsyncStorage.setItem('onboardingSituation', nextStatus);
   };
 
   const openDatePicker = () => {
-    setDraftDate(departureDate ?? DEFAULT_DEPARTURE_DATE);
+    if (!status) {
+      return;
+    }
+
+    setDraftDate(parseStorageDate(statusDates[status]) ?? startOfToday());
     setShowDatePicker(true);
   };
 
-  const handleConfirmDate = () => {
-    setDepartureDate(draftDate);
+  const saveDateForStatus = async (date: Date) => {
+    if (!status || !selectedStatusOption) {
+      return;
+    }
+
+    const nextDate = toStorageDate(clampToToday(date));
+
+    setStatusDates((prev) => ({
+      ...prev,
+      [status]: nextDate,
+    }));
+    await AsyncStorage.setItem(selectedStatusOption.storageKey, nextDate);
+  };
+
+  const handleConfirmDate = async () => {
+    await saveDateForStatus(draftDate);
     setShowDatePicker(false);
   };
 
   const handleNext = async () => {
-    if (!isValid) {
+    if (!isValid || !selectedStatusOption) {
       return;
     }
 
-    await AsyncStorage.setItem('university', university);
-    await AsyncStorage.setItem('onboardingSituation', status);
-    await AsyncStorage.setItem(
-      'departureDate',
-      departureDate ? toStorageDate(departureDate) : '',
-    );
-    await AsyncStorage.setItem(
-      'exchangeStatus',
-      status === 'dispatched' ? 'dispatched' : 'preparing',
-    );
-    await AsyncStorage.setItem(
-      'profileStatus',
-      status === 'dispatched' ? '파견 중' : '지원 준비 중',
-    );
+    await AsyncStorage.multiSet([
+      ['university', university],
+      ['onboardingSituation', status],
+      ['exchangeStatus', status],
+      ['profileStatus', selectedStatusOption.profileStatus],
+      ['applicationDeadline', status === 'preparing' ? statusDates.preparing : ''],
+      ['departureDate', status === 'accepted' ? statusDates.accepted : ''],
+      ['dispatchStartDate', status === 'dispatched' ? statusDates.dispatched : ''],
+    ]);
 
-    if (status !== 'dispatched') {
-      router.push({
-        pathname: '/onboarding/country',
-        params: { nickname },
-      });
-      return;
-    }
+    const savedNickname =
+      nickname?.trim() ||
+      (await AsyncStorage.getItem(ONBOARDING_NICKNAME_KEY)) ||
+      '';
 
     router.push({
-      pathname: '/onboarding/dispatched-country',
-      params: { nickname },
-    });
+      pathname:
+        status === 'preparing'
+          ? '/onboarding/country'
+          : '/onboarding/dispatched-country',
+      params: { nickname: savedNickname },
+    } as any);
   };
 
   return (
@@ -185,6 +252,7 @@ export default function UniversityPage() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -196,7 +264,6 @@ export default function UniversityPage() {
           <View style={styles.progressActive} />
           <View style={styles.progressActive} />
           <View style={styles.progress} />
-          <View style={styles.progress} />
         </View>
 
         <Text style={styles.title}>
@@ -207,45 +274,15 @@ export default function UniversityPage() {
 
         <Text style={styles.label}>소속대학</Text>
 
-        <View style={styles.inputArea}>
-          <TextInput
-            style={styles.universityInput}
-            placeholder="소속대학 입력"
-            placeholderTextColor="#555555"
-            value={university}
-            onFocus={() => setShowSuggestions(true)}
-            onChangeText={(text) => {
-              setUniversity(text);
-              setShowSuggestions(true);
-            }}
-          />
-
-          {university.length > 0 && (
-            <Pressable
-              style={styles.clearButton}
-              onPress={() => {
-                setUniversity('');
-                setShowSuggestions(false);
-              }}
-            >
-              <Text style={styles.clearText}>×</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {filteredUniversities.length > 0 && (
-          <View style={styles.suggestionBox}>
-            {filteredUniversities.map((item) => (
-              <Pressable
-                key={item}
-                style={styles.suggestionItem}
-                onPress={() => handleSelectUniversity(item)}
-              >
-                <Text style={styles.suggestionText}>{item}</Text>
-              </Pressable>
-            ))}
-          </View>
-        )}
+        <Pressable
+          style={styles.selectBox}
+          onPress={() => setUniversityModalVisible(true)}
+        >
+          <Text style={[styles.selectText, university && styles.selectTextActive]}>
+            {university || '소속대학 선택'}
+          </Text>
+          <Ionicons name="chevron-down" size={18} color="#777777" />
+        </Pressable>
 
         <Text style={styles.statusLabel}>현재 상황</Text>
 
@@ -256,33 +293,10 @@ export default function UniversityPage() {
             return (
               <Pressable
                 key={item.value}
-                style={[
-                  styles.statusCard,
-                  selected && styles.selectedCard,
-                ]}
-                onPress={() => setStatus(item.value)}
+                style={[styles.statusCard, selected && styles.selectedCard]}
+                onPress={() => handleSelectStatus(item.value)}
               >
-                {item.value === 'preparing' ? (
-                  <Image
-                    source={require('../../assets/images/ready.png')}
-                    style={styles.statusImage}
-                  />
-                ) : item.value === 'dispatched' ? (
-                  <Text style={styles.emoji}>🧚</Text>
-                ) : (
-                  <View
-                    style={[
-                      styles.statusIconCircle,
-                      selected && styles.statusIconCircleSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name={item.icon ?? 'airplane-outline'}
-                      size={20}
-                      color={selected ? '#FFFFFF' : BLUE}
-                    />
-                  </View>
-                )}
+                <Text style={styles.statusEmoji}>{item.emoji}</Text>
                 <Text
                   style={[
                     styles.statusText,
@@ -296,22 +310,28 @@ export default function UniversityPage() {
           })}
         </View>
 
-        <Text style={styles.dateLabel}>출국 예정일</Text>
+        {selectedStatusOption && (
+          <View style={styles.dateSection}>
+            <Text style={styles.dateLabel}>{selectedStatusOption.dateLabel}</Text>
 
-        <Pressable style={styles.dateField} onPress={openDatePicker}>
-          <View style={styles.dateIconBox}>
-            <Ionicons name="calendar-outline" size={19} color={BLUE} />
+            <Pressable style={styles.dateField} onPress={openDatePicker}>
+              <View style={styles.dateIconBox}>
+                <Ionicons name="calendar-outline" size={19} color={BLUE} />
+              </View>
+              <Text
+                style={[
+                  styles.dateText,
+                  !selectedStatusDate && styles.datePlaceholderText,
+                ]}
+              >
+                {selectedStatusDate
+                  ? formatDisplayDate(selectedStatusDate)
+                  : selectedStatusOption.datePlaceholder}
+              </Text>
+              <Ionicons name="chevron-down" size={18} color="#777777" />
+            </Pressable>
           </View>
-          <Text
-            style={[
-              styles.dateText,
-              !departureDate && styles.datePlaceholderText,
-            ]}
-          >
-            {departureDate ? formatDisplayDate(departureDate) : '날짜 선택'}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color="#777777" />
-        </Pressable>
+        )}
 
         <View style={styles.bottomSpacer} />
 
@@ -321,10 +341,19 @@ export default function UniversityPage() {
           onPress={handleNext}
         >
           <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
-            다음 (2/4)
+            다음
           </Text>
         </Pressable>
       </ScrollView>
+
+      <OnboardingSelectModal
+        visible={universityModalVisible}
+        title="소속대학 선택"
+        options={universityOptions}
+        selectedValue={university}
+        onClose={() => setUniversityModalVisible(false)}
+        onSelect={handleSelectUniversity}
+      />
 
       <Modal
         transparent
@@ -346,7 +375,9 @@ export default function UniversityPage() {
                 <Text style={styles.datePickerCancel}>취소</Text>
               </Pressable>
 
-              <Text style={styles.datePickerTitle}>출국 예정일 선택</Text>
+              <Text style={styles.datePickerTitle}>
+                {selectedStatusOption?.dateLabel ?? '날짜'} 선택
+              </Text>
 
               <Pressable onPress={handleConfirmDate}>
                 <Text style={styles.datePickerDone}>완료</Text>
@@ -359,6 +390,7 @@ export default function UniversityPage() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
                 locale="ko-KR"
+                minimumDate={startOfToday()}
                 themeVariant="light"
                 textColor="#111111"
                 accentColor={BLUE}
@@ -371,13 +403,15 @@ export default function UniversityPage() {
                     return;
                   }
 
+                  const nextDate = clampToToday(selectedDate);
+
                   if (Platform.OS === 'ios') {
-                    setDraftDate(selectedDate);
+                    setDraftDate(nextDate);
                     return;
                   }
 
-                  setDepartureDate(selectedDate);
-                  setDraftDate(selectedDate);
+                  setDraftDate(nextDate);
+                  saveDateForStatus(nextDate);
                   setShowDatePicker(false);
                 }}
               />
@@ -411,7 +445,7 @@ const styles = StyleSheet.create({
   progressRow: {
     flexDirection: 'row',
     gap: 5,
-    marginBottom: 92,
+    marginBottom: 68,
   },
 
   progress: {
@@ -432,7 +466,7 @@ const styles = StyleSheet.create({
     fontSize: 25,
     lineHeight: 36,
     fontWeight: '900',
-    color: '#000',
+    color: '#000000',
     marginBottom: 18,
   },
 
@@ -449,63 +483,28 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  inputArea: {
-    height: 54,
+  selectBox: {
+    height: 52,
     borderWidth: 1,
     borderColor: '#D0D0D0',
-    borderRadius: 5,
+    borderRadius: 6,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
   },
 
-  universityInput: {
+  selectText: {
     flex: 1,
     fontSize: 14,
-    color: '#111111',
-    paddingVertical: 0,
-  },
-
-  clearButton: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#BDBDBD',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-
-  clearText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '800',
-    lineHeight: 18,
-    marginTop: -1,
-  },
-
-  suggestionBox: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#D0D0D0',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    maxHeight: 230,
-    overflow: 'hidden',
-  },
-
-  suggestionItem: {
-    height: 42,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-
-  suggestionText: {
-    fontSize: 14,
-    color: '#111111',
     fontWeight: '600',
+    color: '#777777',
+  },
+
+  selectTextActive: {
+    color: '#111111',
+    fontWeight: '800',
   },
 
   statusLabel: {
@@ -523,10 +522,10 @@ const styles = StyleSheet.create({
 
   statusCard: {
     flex: 1,
-    minHeight: 104,
+    minHeight: 102,
     borderWidth: 1,
     borderColor: '#E2E7F0',
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -540,29 +539,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F7FF',
   },
 
-  statusIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#EEF4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-
-  statusIconCircleSelected: {
-    backgroundColor: BLUE,
-  },
-
-  statusImage: {
-    width: 34,
-    height: 34,
-    resizeMode: 'contain',
-    marginBottom: 9,
-  },
-
-  emoji: {
-    fontSize: 34,
+  statusEmoji: {
+    fontSize: 32,
     marginBottom: 9,
   },
 
@@ -578,11 +556,14 @@ const styles = StyleSheet.create({
     color: BLUE,
   },
 
+  dateSection: {
+    marginTop: 28,
+  },
+
   dateLabel: {
     fontSize: 15,
     fontWeight: '700',
     color: '#111111',
-    marginTop: 28,
     marginBottom: 12,
   },
 
@@ -590,7 +571,7 @@ const styles = StyleSheet.create({
     height: 54,
     borderWidth: 1,
     borderColor: '#D0D0D0',
-    borderRadius: 5,
+    borderRadius: 6,
     paddingHorizontal: 13,
     flexDirection: 'row',
     alignItems: 'center',

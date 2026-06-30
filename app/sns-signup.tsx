@@ -14,6 +14,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { checkUsername, socialSignUp } from '../src/api/auth';
+import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 import { signupStyles as styles } from '../src/styles/signupStyles';
 
 const getUsernameError = (value: string) => {
@@ -151,6 +152,7 @@ export default function SnsSignupPage() {
       };
 
       await socialSignUp(signUpData);
+      await clearOnboardingDraft();
 
       Alert.alert('가입 완료', '아이디와 비밀번호 설정이 완료되었습니다.', [
         {

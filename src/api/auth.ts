@@ -35,6 +35,9 @@ export interface OnboardingRequest {
   dispatchedUniversity?: string;
   dispatchedCountry?: string;
   dispatchedRegion?: string;
+  applicationDeadline?: string;
+  departureDate?: string;
+  dispatchStartDate?: string;
 }
 
 export interface MemberProfileUpdateRequest {
@@ -72,6 +75,9 @@ export interface MemberResponse {
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;
+  applicationDeadline?: string | null;
+  departureDate?: string | null;
+  dispatchStartDate?: string | null;
   role: string;
   status: AuthStatus;
   balance: number;

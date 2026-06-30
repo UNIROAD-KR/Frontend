@@ -21,6 +21,7 @@ import {
 
 import { socialLogin } from '../src/api/auth';
 import { registerDeviceForPushNotifications } from '../src/notifications/push';
+import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,6 +57,7 @@ const CAROUSEL_ITEMS = [
 ];
 
 type SheetType = 'login' | 'signup' | null;
+type SocialIntent = 'login' | 'signup';
 
 export default function LoginPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -160,7 +162,7 @@ export default function LoginPage() {
     closeSheet(() => router.push('/email-login'));
   };
 
-  const handleSocialLogin = async (provider: string) => {
+  const handleSocialLogin = async (provider: string, intent: SocialIntent) => {
     try {
       let sdkAccessToken = '';
 
@@ -206,6 +208,15 @@ export default function LoginPage() {
       const response = await socialLogin(provider, sdkAccessToken);
       const { accessToken, refreshToken, status } = response.data.data;
 
+      if (intent === 'signup' && status === 'ACTIVE') {
+        await AsyncStorage.multiRemove(['accessToken', 'refreshToken']);
+        Alert.alert(
+          '이미 가입된 계정',
+          '이 SNS 계정은 이미 가입되어 있어요. 로그인 버튼에서 다시 이용해주세요.',
+        );
+        return;
+      }
+
       await AsyncStorage.setItem('accessToken', accessToken);
       await AsyncStorage.setItem('refreshToken', refreshToken);
       registerDeviceForPushNotifications({ force: true }).catch((error) => {
@@ -213,8 +224,10 @@ export default function LoginPage() {
       });
 
       if (status === 'NEED_SIGNUP') {
-        router.push('/sns-signup');
+        await clearOnboardingDraft();
+        router.replace('/sns-signup');
       } else if (status === 'NEED_ONBOARDING') {
+        await clearOnboardingDraft();
         router.replace('/onboarding/nickname');
       } else {
         router.replace('/home');
@@ -222,7 +235,10 @@ export default function LoginPage() {
     } catch (error: any) {
       console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
       if (error.code === 'ERR_REQUEST_CANCELED') return;
-      Alert.alert('소셜 로그인 실패', '로그인 처리 중 문제가 발생했습니다.');
+      Alert.alert(
+        intent === 'signup' ? '소셜 회원가입 실패' : '소셜 로그인 실패',
+        '처리 중 문제가 발생했습니다.',
+      );
     }
   };
 
@@ -242,24 +258,24 @@ export default function LoginPage() {
   );
 
   // Social buttons used in both sheets
-  const SocialButtons = () => (
+  const SocialButtons = ({ intent }: { intent: SocialIntent }) => (
     <View style={styles.socialRow}>
       <TouchableOpacity
         style={[styles.socialCircle, styles.naverBg]}
-        onPress={() => handleSocialLogin('naver')}
+        onPress={() => handleSocialLogin('naver', intent)}
       >
         <Text style={styles.naverText}>N</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => handleSocialLogin('google')}>
+      <TouchableOpacity onPress={() => handleSocialLogin('google', intent)}>
         <Image source={require('../assets/images/google.png')} style={styles.socialImage} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => handleSocialLogin('kakao')}>
+      <TouchableOpacity onPress={() => handleSocialLogin('kakao', intent)}>
         <Image source={require('../assets/images/kakao.png')} style={styles.socialImage} />
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => handleSocialLogin('apple')}>
+      <TouchableOpacity onPress={() => handleSocialLogin('apple', intent)}>
     <Image source={require('../assets/images/apple.png')} style={styles.appleImage}/>
     </TouchableOpacity>
 
@@ -326,7 +342,7 @@ export default function LoginPage() {
             {activeSheet === 'login' && (
               <>
                 <Text style={styles.sheetTitle}>로그인 방법 선택</Text>
-                <SocialButtons />
+                <SocialButtons intent="login" />
                 <View style={styles.dividerRow}>
                   <View style={styles.dividerLine} />
                   <Text style={styles.dividerText}>또는</Text>
@@ -345,7 +361,7 @@ export default function LoginPage() {
                 <Text style={styles.sheetSubtitle}>
                   소셜 계정으로 간편하게 시작하세요
                 </Text>
-                <SocialButtons />
+                <SocialButtons intent="signup" />
               </>
             )}
           </Animated.View>

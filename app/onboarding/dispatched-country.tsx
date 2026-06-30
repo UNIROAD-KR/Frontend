@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Keyboard,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -15,66 +16,151 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
+import {
+  countryOptions,
+  CUSTOM_COUNTRY_OPTION,
+  ExchangeStatus,
+  ONBOARDING_NICKNAME_KEY,
+} from '@/src/constants/onboarding';
 
-const countries = [
-  '독일',
-  '프랑스',
-  '스페인',
-  '이탈리아',
-  '미국',
-  '영국',
-  '일본',
-  '캐나다',
-  '호주',
-  '네덜란드',
-];
+const resolveCountrySelection = (savedCountry: string | null) => {
+  if (!savedCountry) {
+    return { selectedCountry: '', customCountry: '' };
+  }
 
-const regions = [
-  '베를린',
-  '뮌헨',
-  '파리',
-  '바르셀로나',
-  '로마',
-  '뉴욕',
-  '런던',
-  '도쿄',
-  '토론토',
-  '암스테르담',
-];
+  if (countryOptions.includes(savedCountry)) {
+    return { selectedCountry: savedCountry, customCountry: '' };
+  }
+
+  return {
+    selectedCountry: CUSTOM_COUNTRY_OPTION,
+    customCountry: savedCountry,
+  };
+};
+
+const isExchangeStatus = (value: string | null): value is ExchangeStatus =>
+  value === 'preparing' || value === 'accepted' || value === 'dispatched';
 
 export default function DispatchedCountryPage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
+  const scrollRef = useResetScrollOnFocus();
 
-  const [country, setCountry] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [customCountry, setCustomCountry] = useState('');
   const [region, setRegion] = useState('');
   const [university, setUniversity] = useState('');
-
+  const [status, setStatus] = useState<ExchangeStatus>('dispatched');
   const [countryModalVisible, setCountryModalVisible] = useState(false);
-  const [regionModalVisible, setRegionModalVisible] = useState(false);
 
+  const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
+  const finalCountry = isCustomCountry ? customCountry.trim() : selectedCountry;
   const isValid =
-    country.length > 0 && region.length > 0 && university.trim().length > 0;
+    finalCountry.length > 0 && region.trim().length > 0 && university.trim().length > 0;
 
-  const handleNext = async () => {
-    if (!isValid) return;
+  const copy = useMemo(() => {
+    if (status === 'accepted') {
+      return {
+        title: '출국 예정인{break}지역이 어디인가요?',
+        subtitle: '예정된 파견 국가, 지역, 대학을 알려주세요.',
+      };
+    }
 
-    await AsyncStorage.setItem('dispatchedCountry', country);
-    await AsyncStorage.setItem('dispatchedRegion', region);
-    await AsyncStorage.setItem('dispatchedUniversity', university.trim());
+    return {
+      title: '현재 파견 중인{break}지역이 어디인가요?',
+      subtitle: '파견 중인 국가, 지역, 대학을 알려주세요.',
+    };
+  }, [status]);
+
+  useEffect(() => {
+    const loadCountryStep = async () => {
+      const [
+        [, savedCountry],
+        [, savedRegion],
+        [, savedUniversity],
+        [, savedStatus],
+      ] = await AsyncStorage.multiGet([
+        'dispatchedCountry',
+        'dispatchedRegion',
+        'dispatchedUniversity',
+        'onboardingSituation',
+      ]);
+
+      const countrySelection = resolveCountrySelection(savedCountry);
+      setSelectedCountry(countrySelection.selectedCountry);
+      setCustomCountry(countrySelection.customCountry);
+      setRegion(savedRegion ?? '');
+      setUniversity(savedUniversity ?? '');
+
+      if (isExchangeStatus(savedStatus)) {
+        setStatus(savedStatus);
+      }
+    };
+
+    loadCountryStep();
+  }, []);
+
+  const handleSelectCountry = async (countryName: string) => {
+    setSelectedCountry(countryName);
+    setCountryModalVisible(false);
+
+    if (countryName === CUSTOM_COUNTRY_OPTION) {
+      setCustomCountry('');
+      await AsyncStorage.setItem('dispatchedCountry', '');
+      return;
+    }
+
+    setCustomCountry('');
+    await AsyncStorage.setItem('dispatchedCountry', countryName);
+  };
+
+  const handleChangeCustomCountry = (value: string) => {
+    setCustomCountry(value);
+    AsyncStorage.setItem('dispatchedCountry', value.trim()).catch(() => {});
+  };
+
+  const handleChangeRegion = (value: string) => {
+    setRegion(value);
+    AsyncStorage.setItem('dispatchedRegion', value.trim()).catch(() => {});
+  };
+
+  const handleChangeUniversity = (value: string) => {
+    setUniversity(value);
+    AsyncStorage.setItem('dispatchedUniversity', value.trim()).catch(() => {});
+  };
+
+  const handleComplete = async () => {
+    if (!isValid) {
+      return;
+    }
+
+    Keyboard.dismiss();
+
+    await AsyncStorage.multiSet([
+      ['dispatchedCountry', finalCountry],
+      ['dispatchedRegion', region.trim()],
+      ['dispatchedUniversity', university.trim()],
+    ]);
+
+    const savedNickname =
+      nickname?.trim() ||
+      (await AsyncStorage.getItem(ONBOARDING_NICKNAME_KEY)) ||
+      '';
 
     router.push({
-      pathname: '/onboarding/dispatched-interests',
-      params: { nickname },
-    } as any);
+      pathname: '/onboarding/complete',
+      params: { nickname: savedNickname },
+    });
   };
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -86,12 +172,15 @@ export default function DispatchedCountryPage() {
           <View style={styles.progressActive} />
           <View style={styles.progressActive} />
           <View style={styles.progressActive} />
-          <View style={styles.progress} />
         </View>
 
-        <Text style={styles.title}>현재 파견 중인{'\n'}지역이 어디인가요?</Text>
+        <Text style={styles.title}>
+          {copy.title.split('{break}')[0]}
+          {'\n'}
+          {copy.title.split('{break}')[1]}
+        </Text>
 
-        <Text style={styles.subtitle}>파견 중인 지역을 알려주세요.</Text>
+        <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
         <Text style={styles.label}>파견 국가</Text>
 
@@ -99,131 +188,111 @@ export default function DispatchedCountryPage() {
           style={styles.selectBox}
           onPress={() => setCountryModalVisible(true)}
         >
-          <Text style={[styles.selectText, country && styles.selectTextActive]}>
-            {country || '파견 국가 선택'}
+          <Text
+            style={[styles.selectText, selectedCountry && styles.selectTextActive]}
+          >
+            {selectedCountry || '파견 국가 선택'}
           </Text>
-          <Text style={styles.chevron}>⌄</Text>
+          <Ionicons name="chevron-down" size={18} color="#777777" />
         </Pressable>
 
-        <Text style={styles.label}>파견 지역</Text>
+        {isCustomCountry && (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>파견 국가 직접 입력</Text>
 
-        <Pressable
-          style={styles.selectBox}
-          onPress={() => setRegionModalVisible(true)}
-        >
-          <Text style={[styles.selectText, region && styles.selectTextActive]}>
-            {region || '파견 지역 선택'}
-          </Text>
-          <Text style={styles.chevron}>⌄</Text>
-        </Pressable>
-
-        <Text style={styles.label}>파견 대학</Text>
-
-        <View style={styles.universityInputBox}>
-          <TextInput
-            style={styles.universityInput}
-            placeholder="파견 대학 입력"
-            placeholderTextColor="#333333"
-            value={university}
-            onChangeText={setUniversity}
-          />
-
-          {university.length > 0 && (
-            <Pressable onPress={() => setUniversity('')}>
-              <Image
-                source={require('../../assets/images/x.png')}
-                style={styles.clearIcon}
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="예: 캐나다, 호주, 일본"
+                placeholderTextColor="#9A9A9A"
+                value={customCountry}
+                onChangeText={handleChangeCustomCountry}
+                returnKeyType="next"
               />
-            </Pressable>
-          )}
+
+              {customCountry.length > 0 && (
+                <Pressable onPress={() => handleChangeCustomCountry('')}>
+                  <Image
+                    source={require('../../assets/images/x.png')}
+                    style={styles.clearIcon}
+                  />
+                </Pressable>
+              )}
+            </View>
+          </View>
+        )}
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>파견 지역</Text>
+
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="예: 베를린, 파리"
+              placeholderTextColor="#9A9A9A"
+              value={region}
+              onChangeText={handleChangeRegion}
+              returnKeyType="next"
+            />
+
+            {region.length > 0 && (
+              <Pressable onPress={() => handleChangeRegion('')}>
+                <Image
+                  source={require('../../assets/images/x.png')}
+                  style={styles.clearIcon}
+                />
+              </Pressable>
+            )}
+          </View>
         </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>파견 대학</Text>
+
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="파견 대학 입력"
+              placeholderTextColor="#9A9A9A"
+              value={university}
+              onChangeText={handleChangeUniversity}
+              returnKeyType="done"
+              onSubmitEditing={handleComplete}
+            />
+
+            {university.length > 0 && (
+              <Pressable onPress={() => handleChangeUniversity('')}>
+                <Image
+                  source={require('../../assets/images/x.png')}
+                  style={styles.clearIcon}
+                />
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.bottomSpacer} />
 
         <Pressable
           style={[styles.nextButton, isValid && styles.nextButtonActive]}
           disabled={!isValid}
-          onPress={handleNext}
+          onPress={handleComplete}
         >
           <Text style={[styles.nextText, isValid && styles.nextTextActive]}>
-            다음 (3/4)
+            완료
           </Text>
         </Pressable>
       </ScrollView>
 
-      <SelectModal
+      <OnboardingSelectModal
         visible={countryModalVisible}
         title="파견 국가 선택"
-        data={countries}
-        selectedValue={country}
+        options={countryOptions}
+        selectedValue={selectedCountry}
         onClose={() => setCountryModalVisible(false)}
-        onSelect={(value) => {
-          setCountry(value);
-          setCountryModalVisible(false);
-        }}
-      />
-
-      <SelectModal
-        visible={regionModalVisible}
-        title="파견 지역 선택"
-        data={regions}
-        selectedValue={region}
-        onClose={() => setRegionModalVisible(false)}
-        onSelect={(value) => {
-          setRegion(value);
-          setRegionModalVisible(false);
-        }}
+        onSelect={handleSelectCountry}
       />
     </KeyboardAvoidingView>
-  );
-}
-
-function SelectModal({
-  visible,
-  title,
-  data,
-  selectedValue,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  title: string;
-  data: string[];
-  selectedValue: string;
-  onClose: () => void;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <Modal transparent visible={visible} animationType="fade">
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={styles.modalBox}>
-          <Text style={styles.modalTitle}>{title}</Text>
-
-          <ScrollView
-            style={styles.modalScroll}
-            showsVerticalScrollIndicator={false}
-          >
-            {data.map((item) => (
-              <Pressable
-                key={item}
-                style={[
-                  styles.modalOption,
-                  selectedValue === item && styles.modalOptionActive,
-                ]}
-                onPress={() => onSelect(item)}
-              >
-                <Text
-                  style={[
-                    styles.modalOptionText,
-                    selectedValue === item && styles.modalOptionTextActive,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
 
@@ -233,24 +302,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    paddingTop: 10,
   },
 
   content: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 42,
+    paddingTop: 52,
     paddingBottom: 36,
   },
 
   backButton: {
-    marginBottom: 36,
+    marginBottom: 35,
   },
 
   progressRow: {
     flexDirection: 'row',
     gap: 5,
-    marginBottom: 76,
+    marginBottom: 68,
   },
 
   progress: {
@@ -278,7 +346,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: '#B0B0B0',
-    marginBottom: 62,
+    marginBottom: 42,
   },
 
   label: {
@@ -289,45 +357,48 @@ const styles = StyleSheet.create({
   },
 
   selectBox: {
-    height: 46,
+    height: 52,
     borderWidth: 1,
     borderColor: '#D0D0D0',
-    borderRadius: 5,
+    borderRadius: 6,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 42,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 28,
   },
 
   selectText: {
+    flex: 1,
     fontSize: 14,
-    color: '#333333',
+    fontWeight: '600',
+    color: '#777777',
   },
 
   selectTextActive: {
     color: '#111111',
-    fontWeight: '600',
+    fontWeight: '800',
   },
 
-  chevron: {
-    fontSize: 24,
-    color: '#C4C4C4',
-    marginTop: -6,
+  inputGroup: {
+    marginBottom: 28,
   },
 
-  universityInputBox: {
-    height: 45,
-    borderBottomWidth: 2,
-    borderBottomColor: '#CFCFCF',
+  inputBox: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 6,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 82,
+    backgroundColor: '#FFFFFF',
   },
 
-  universityInput: {
+  textInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#111111',
     paddingVertical: 0,
   },
@@ -339,11 +410,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  bottomSpacer: {
+    flex: 1,
+    minHeight: 92,
+  },
+
   nextButton: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 36,
     height: 53,
     borderRadius: 5,
     backgroundColor: '#D5D5D5',
@@ -363,52 +435,5 @@ const styles = StyleSheet.create({
 
   nextTextActive: {
     color: '#FFFFFF',
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  modalBox: {
-    width: 250,
-    maxHeight: 380,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
-  },
-
-  modalTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111111',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-
-  modalScroll: {
-    maxHeight: 310,
-  },
-
-  modalOption: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  modalOptionActive: {
-    backgroundColor: '#F2F5FF',
-  },
-
-  modalOptionText: {
-    fontSize: 16,
-    color: '#111111',
-  },
-
-  modalOptionTextActive: {
-    color: BLUE,
-    fontWeight: '900',
   },
 });
