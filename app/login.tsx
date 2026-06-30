@@ -29,20 +29,20 @@ const CAROUSEL_ITEMS = [
     id: '1',
     category: '중고거래',
     title: '인증된 학생들과\n안전하게 거래하세요',
-    description: '교환학생이 직접 인증한 회원들과 티켓, 생활용품, 교재를 거래할 수 있어요.',
+    description: '교환학생이 직접 인증한 회원들과 티켓, 생활용품, 교재를\n 거래할 수 있어요.',
     image: require('../assets/images/illust_trade.png'),
   },
   {
     id: '2',
     category: '동행',
     title: '같이 가는 친구를\n쉽게 찾을 수 있어요',
-    description: '여행, 공연, 맛집 탐방까지 같은 학교 학생들과 동행을 구해보세요.',
+    description: '여행, 공연, 맛집 탐방까지 같은 학교 학생들과 동행을\n 구해보세요.',
     image: require('../assets/images/illust_companion.png'),
   },
   {
     id: '3',
     category: '커뮤니티',
-    title: '선배들의 경험을\n한눈에 확인하세요',
+    title: '교환학생 이야기를\n모아보세요',
     description: '기숙사, 수강신청, 생활 정보 등 실제 파견 학생들의 이야기를 만나보세요.',
     image: require('../assets/images/illust_community.png'),
   },
@@ -333,7 +333,6 @@ export default function LoginPage() {
                   <View style={styles.dividerLine} />
                 </View>
                 <TouchableOpacity style={styles.idButton} onPress={handleIdLogin}>
-                  <Text style={styles.idButtonIcon}>👤</Text>
                   <Text style={styles.idButtonText}>아이디로 로그인</Text>
                 </TouchableOpacity>
               </>
