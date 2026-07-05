@@ -14,6 +14,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getMemberMe, logout } from '../../../src/api/auth';
+import { openKakaoContact } from '../../../src/utils/contact';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -27,22 +28,22 @@ type SettingItem = {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   route?: unknown;
-  action?: 'logout' | 'notice';
+  action?: 'logout' | 'contact';
   danger?: boolean;
 };
 
 const accountItems: SettingItem[] = [
   {
+    title: '계정 설정',
+    description: '아이디 확인 및 비밀번호 변경',
+    icon: 'settings-outline',
+    route: '/home/account-settings',
+  },
+  {
     title: '알림 설정',
     description: '채팅, 거래, 출국 준비 알림 관리',
     icon: 'notifications-outline',
-    route: '/(tabs)/home/profile-notifications',
-  },
-  {
-    title: '비밀번호 관리',
-    description: '비밀번호 변경 및 보안 관리',
-    icon: 'lock-closed-outline',
-    route: '/(tabs)/home/profile-password',
+    route: '/home/profile-notifications',
   },
   {
     title: '학교 인증',
@@ -54,40 +55,46 @@ const accountItems: SettingItem[] = [
 
 const serviceItems: SettingItem[] = [
   {
-    title: '관심목록',
-    description: '저장한 게시글과 티켓 확인',
-    icon: 'heart-outline',
-    route: {
-      pathname: '/(tabs)/home/profile-list',
-      params: { type: 'saved' },
-    },
-  },
-  {
     title: '전체 서비스',
     description: '유니로드의 모든 기능 보기',
     icon: 'apps-outline',
-    route: '/(tabs)/home/more-menu',
+    route: '/home/more-menu',
+  },
+];
+
+const guideItems: SettingItem[] = [
+  {
+    title: '앱 버전',
+    description: '현재 앱 버전 확인',
+    icon: 'phone-portrait-outline',
+    route: '/home/app-info',
+  },
+  {
+    title: '문의하기',
+    description: '오픈채팅방으로 이동',
+    icon: 'chatbubble-ellipses-outline',
+    action: 'contact',
   },
   {
     title: '공지사항',
     description: '서비스 업데이트와 운영 안내',
     icon: 'megaphone-outline',
-    action: 'notice',
+    route: '/home/notices',
   },
-];
-
-const policyItems: SettingItem[] = [
   {
     title: '서비스 이용약관',
     description: '유니로드 이용 약관 확인',
     icon: 'document-text-outline',
-    action: 'notice',
+    route: '/home/terms',
   },
+];
+
+const extraItems: SettingItem[] = [
   {
     title: '개인정보 처리방침',
     description: '개인정보 수집 및 이용 안내',
     icon: 'shield-outline',
-    action: 'notice',
+    route: '/home/privacy-policy',
   },
   {
     title: '로그아웃',
@@ -157,8 +164,10 @@ export default function ProfileSettingsScreen() {
       return;
     }
 
-    if (item.action === 'notice') {
-      Alert.alert('준비 중', '곧 확인할 수 있도록 연결할게요.');
+    if (item.action === 'contact') {
+      openKakaoContact().catch(() => {
+        Alert.alert('연결 실패', '문의 링크를 열 수 없어요.');
+      });
       return;
     }
 
@@ -209,8 +218,13 @@ export default function ProfileSettingsScreen() {
           onPressItem={handleItemPress}
         />
         <SettingSection
-          title="앱 정보"
-          items={policyItems}
+          title="이용 안내"
+          items={guideItems}
+          onPressItem={handleItemPress}
+        />
+        <SettingSection
+          title="기타"
+          items={extraItems}
           onPressItem={handleItemPress}
         />
 

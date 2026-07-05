@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -9,10 +12,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { updatePassword } from '../../../src/api/auth';
+import { getMemberMe, updatePassword } from '../../../src/api/auth';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -39,7 +41,8 @@ const getPasswordError = (value: string) => {
   return '';
 };
 
-export default function ProfilePasswordScreen() {
+export default function AccountSettingsScreen() {
+  const [username, setUsername] = useState('로그인 계정');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -50,12 +53,26 @@ export default function ProfilePasswordScreen() {
       ? '비밀번호가 일치하지 않습니다.'
       : '';
 
+  useFocusEffect(
+    useCallback(() => {
+      const loadMember = async () => {
+        try {
+          const response = await getMemberMe();
+          setUsername(response.data.data.username || '로그인 계정');
+        } catch (error: any) {
+          console.log('계정 정보 조회 실패:', error.response?.data || error.message);
+          const savedNickname = await AsyncStorage.getItem('nickname');
+          setUsername(savedNickname || '로그인 계정');
+        }
+      };
+
+      loadMember();
+    }, []),
+  );
+
   const handleSubmit = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert(
-        '입력 필요',
-        '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.',
-      );
+      Alert.alert('입력 필요', '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.');
       return;
     }
 
@@ -76,7 +93,12 @@ export default function ProfilePasswordScreen() {
       Alert.alert('변경 완료', '비밀번호가 변경되었습니다.', [
         {
           text: '확인',
-          onPress: () => router.back(),
+          onPress: () => {
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+            router.back();
+          },
         },
       ]);
     } catch (error: any) {
@@ -94,7 +116,7 @@ export default function ProfilePasswordScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <AppBackButton style={styles.iconBtn} />
-        <Text style={styles.headerTitle}>비밀번호 관리</Text>
+        <Text style={styles.headerTitle}>계정 설정</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -104,7 +126,24 @@ export default function ProfilePasswordScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.readOnlyCard}>
+          <View style={styles.readOnlyIconBox}>
+            <Ionicons name="person-circle-outline" size={26} color={BLUE} />
+          </View>
+          <View style={styles.readOnlyTextBox}>
+            <Text style={styles.readOnlyLabel}>아이디</Text>
+            <Text style={styles.readOnlyValue} numberOfLines={1}>
+              {username}
+            </Text>
+          </View>
+          <View style={styles.lockPill}>
+            <Ionicons name="lock-closed" size={12} color={MUTED} />
+            <Text style={styles.lockText}>확인만 가능</Text>
+          </View>
+        </View>
+
         <View style={styles.formCard}>
+          <Text style={styles.sectionTitle}>비밀번호 수정</Text>
           <PasswordField
             label="현재 비밀번호"
             value={currentPassword}
@@ -133,22 +172,15 @@ export default function ProfilePasswordScreen() {
           />
 
           <View style={styles.ruleBox}>
-            <Ionicons
-              name="information-circle-outline"
-              size={18}
-              color={BLUE}
-            />
+            <Ionicons name="information-circle-outline" size={18} color={BLUE} />
             <Text style={styles.ruleText}>
-              회원가입과 동일하게 8~20자, 영문과 숫자를 포함해야 해요.
+              아이디는 보안을 위해 수정할 수 없고, 비밀번호만 변경할 수 있어요.
             </Text>
           </View>
         </View>
 
         <Pressable
-          style={[
-            styles.submitButton,
-            submitting && styles.submitButtonDisabled,
-          ]}
+          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={submitting}
         >
@@ -245,47 +277,68 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 130,
   },
-  heroCard: {
-    minHeight: 106,
-    borderRadius: 20,
+  readOnlyCard: {
+    minHeight: 88,
+    borderRadius: 18,
     backgroundColor: '#F4F8FF',
     borderWidth: 1,
     borderColor: '#DCE7FF',
-    padding: 18,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
   },
-  heroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+  readOnlyIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-  heroTextBox: {
+  readOnlyTextBox: {
     flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
   },
-  heroTitle: {
-    fontSize: 18,
+  readOnlyLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: MUTED,
+  },
+  readOnlyValue: {
+    marginTop: 5,
+    fontSize: 17,
     fontWeight: '900',
     color: INK,
   },
-  heroDesc: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: '700',
+  lockPill: {
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  lockText: {
+    fontSize: 11,
+    fontWeight: '900',
     color: MUTED,
   },
   formCard: {
-    marginTop: 16,
+    marginTop: 18,
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: LINE,
     padding: 18,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: NAVY,
+    marginBottom: 16,
   },
   field: {
     marginBottom: 16,
@@ -302,7 +355,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: SOFT,
     backgroundColor: SOFT,
-    paddingHorizontal: 15,
+    paddingHorizontal: 14,
     fontSize: 14,
     fontWeight: '800',
     color: INK,
@@ -350,31 +403,32 @@ const styles = StyleSheet.create({
     color: BLUE,
   },
   ruleBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
     borderRadius: 14,
     backgroundColor: '#F4F8FF',
-    paddingHorizontal: 13,
-    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#DCE7FF',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 8,
   },
   ruleText: {
     flex: 1,
     fontSize: 12,
-    lineHeight: 17,
+    lineHeight: 18,
     fontWeight: '800',
     color: MUTED,
   },
   submitButton: {
-    marginTop: 18,
+    marginTop: 22,
     height: 54,
-    borderRadius: 15,
-    backgroundColor: '#1D4FBA',
+    borderRadius: 16,
+    backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#A7B7D8',
+    backgroundColor: '#9AA4B2',
   },
   submitText: {
     fontSize: 16,

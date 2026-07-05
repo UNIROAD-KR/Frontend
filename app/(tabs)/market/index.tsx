@@ -17,6 +17,7 @@ import {
   View,
   TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   getTickets,
@@ -25,8 +26,10 @@ import {
 } from '../../../src/api/ticket';
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+import { AppBackButton } from '@/components/ui/app-back-button';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
+const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
 
 type TicketItem = {
   id: number;
@@ -38,6 +41,16 @@ type TicketItem = {
   date: string;
   price: string;
   time: string;
+};
+
+type LikedMarketPost = {
+  id: number;
+  title: string;
+  region: string;
+  semester: string;
+  price: string;
+  time: string;
+  imageUrl: string;
 };
 
 const formatPrice = (price: number) => {
@@ -132,9 +145,55 @@ const saveBookmarkedTickets = async (
   );
 };
 
+const saveLikedMarketPosts = async (
+  likedIds: number[],
+  marketItems: UsedItem[],
+) => {
+  const rawStoredPosts = await AsyncStorage.getItem(LIKED_MARKET_POSTS_STORAGE_KEY);
+  let storedPosts: LikedMarketPost[] = [];
+
+  try {
+    const parsedPosts = rawStoredPosts ? JSON.parse(rawStoredPosts) : [];
+    storedPosts = Array.isArray(parsedPosts)
+      ? (parsedPosts as LikedMarketPost[])
+      : [];
+  } catch {
+    storedPosts = [];
+  }
+
+  const marketItemIds = new Set(marketItems.map((item) => item.id));
+  const preservedStoredPosts = storedPosts.filter(
+    (item) =>
+      likedIds.includes(item.id) && !marketItemIds.has(item.id),
+  );
+  const likedPosts: LikedMarketPost[] = marketItems
+    .filter((item) => likedIds.includes(item.id))
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      region: item.region,
+      semester: item.semester,
+      price: formatPrice(item.price),
+      time: formatRelativeTime(item.createdAt ?? item.updatedAt),
+      imageUrl: item.thumbnailImageUrl ?? '',
+    }));
+
+  await AsyncStorage.setItem(
+    LIKED_MARKET_POSTS_STORAGE_KEY,
+    JSON.stringify([...likedPosts, ...preservedStoredPosts]),
+  );
+};
+
 export default function MarketPage() {
+  const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab, fromTab, fromHome } = useLocalSearchParams<{
+    tab?: string;
+    fromTab?: string;
+    fromHome?: string;
+  }>();
+  const openedFromTab = fromTab === 'true';
+  const openedFromHome = fromHome === 'true';
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
@@ -158,29 +217,44 @@ export default function MarketPage() {
     }
   }, [tab]);
 
-  useEffect(() => {
-    const loadBookmarkedTickets = async () => {
+  const loadStoredMarketInteractions = async () => {
+    try {
+      const likedMarketPosts = await AsyncStorage.getItem(
+        LIKED_MARKET_POSTS_STORAGE_KEY,
+      );
+
+      if (likedMarketPosts) {
+        const parsedPosts = JSON.parse(likedMarketPosts) as Partial<LikedMarketPost>[];
+        const ids = parsedPosts
+          .map((item) => item.id)
+          .filter((storedId): storedId is number => typeof storedId === 'number');
+
+        setLikedIds(ids);
+      }
+    } catch {
+      await AsyncStorage.removeItem(LIKED_MARKET_POSTS_STORAGE_KEY);
+    }
+
+    try {
       const savedTickets = await AsyncStorage.getItem(
         SAVED_TICKET_POSTS_STORAGE_KEY,
       );
 
-      if (!savedTickets) {
-        return;
-      }
+      if (!savedTickets) return;
 
-      try {
-        const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
-        const ids = parsedTickets
-          .map((item) => item.id)
-          .filter((id): id is number => typeof id === 'number');
+      const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
+      const ids = parsedTickets
+        .map((item) => item.id)
+        .filter((storedId): storedId is number => typeof storedId === 'number');
 
-        setBookmarkedIds(ids);
-      } catch {
-        await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
-      }
-    };
+      setBookmarkedIds(ids);
+    } catch {
+      await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
+    }
+  };
 
-    loadBookmarkedTickets();
+  useEffect(() => {
+    loadStoredMarketInteractions();
   }, []);
 
   const fetchUsedItems = async () => {
@@ -296,6 +370,7 @@ export default function MarketPage() {
 
   useFocusEffect(
     useCallback(() => {
+      loadStoredMarketInteractions();
       fetchUsedItems();
       fetchTickets();
       checkVerificationStatus();
@@ -303,9 +378,17 @@ export default function MarketPage() {
   );
 
   const toggleLike = (id: number) => {
-    setLikedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
+    setLikedIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id];
+
+      saveLikedMarketPosts(next, items).catch((error) => {
+        console.log('좋아요한 중고거래 목록 저장 실패:', error);
+      });
+
+      return next;
+    });
   };
 
   const ticketItems = useMemo(
@@ -405,13 +488,32 @@ export default function MarketPage() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(84, insets.top + 42),
+            paddingBottom: Math.max(120, insets.bottom + 110),
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={handleMarketScroll}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>교환학생 전용 거래</Text>
+          {!openedFromTab ? (
+            <AppBackButton
+              fallbackHref="/home"
+              onPress={
+                openedFromHome
+                  ? () => router.replace('/home' as any)
+                  : undefined
+              }
+              style={styles.headerBackButton}
+            />
+          ) : null}
+          <Text style={styles.title} numberOfLines={1}>
+            교환학생 전용 거래
+          </Text>
 
           <View style={styles.headerIcons}>
             <Pressable
@@ -558,7 +660,9 @@ export default function MarketPage() {
 
                   <View style={styles.postInfo}>
                     <View style={styles.postTop}>
-                      <Text style={styles.postTitle}>{item.title}</Text>
+                      <Text style={styles.postTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
                       <Text style={styles.arrow}>›</Text>
                     </View>
 
@@ -628,7 +732,9 @@ export default function MarketPage() {
                 </View>
 
                 <View style={styles.ticketTitleRow}>
-                  <Text style={styles.ticketTitle}>{item.title}</Text>
+                  <Text style={styles.ticketTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
                   <Pressable
                     style={styles.bookmarkButton}
                     onPress={(e) => {
@@ -816,8 +922,6 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 23,
-    paddingTop: 84,
-    paddingBottom: 120,
   },
   ticketProfileIcon: {
     width: 22,
@@ -862,13 +966,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    minHeight: 28,
     marginBottom: 24,
   },
 
   title: {
+    flex: 1,
     fontSize: 24,
     fontWeight: '900',
     color: '#111111',
+  },
+
+  headerBackButton: {
+    width: 24,
+    height: 24,
+    marginRight: 16,
   },
 
   headerIcons: {
@@ -973,6 +1085,7 @@ const styles = StyleSheet.create({
 
   postCard: {
     flexDirection: 'row',
+    minWidth: 0,
   },
 
   thumbnail: {
@@ -1017,11 +1130,13 @@ const styles = StyleSheet.create({
 
   postInfo: {
     flex: 1,
+    minWidth: 0,
     paddingTop: 2,
   },
 
   postTop: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
 
@@ -1096,6 +1211,8 @@ const styles = StyleSheet.create({
   ticketMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: 6,
     marginBottom: 9,
   },
 
@@ -1116,6 +1233,7 @@ const styles = StyleSheet.create({
 
   ticketMeta: {
     flex: 1,
+    minWidth: 120,
     fontSize: 10,
     color: '#777777',
   },

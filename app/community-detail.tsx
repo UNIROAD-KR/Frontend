@@ -37,8 +37,14 @@ import {
   GREEN,
 } from '../src/data/community';
 
+const LIKED_FREE_POSTS_STORAGE_KEY = 'univ:profile:liked-free-posts';
+
 type DetailType = 'free' | 'companion';
 type DetailPost = FreePostDetailResponse | CompanionPostResponse;
+type StoredLikedFreePost = FreePostDetailResponse & {
+  preview?: string;
+  thumbnailImageUrl?: string;
+};
 type FreeComment = {
   id: number;
   author: string;
@@ -81,11 +87,45 @@ const mapFreeComment = (comment: FreePostCommentResponse): FreeComment => ({
   mine: comment.mine,
 });
 
+const syncLikedFreePostStorage = async (
+  post: FreePostDetailResponse,
+  liked: boolean,
+) => {
+  const rawPosts = await AsyncStorage.getItem(LIKED_FREE_POSTS_STORAGE_KEY);
+  const savedPosts = rawPosts ? JSON.parse(rawPosts) as StoredLikedFreePost[] : [];
+  const nextPosts = savedPosts.filter((item) => item.id !== post.id);
+
+  if (liked) {
+    nextPosts.unshift({
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      preview: post.content?.slice(0, 80) ?? '',
+      country: post.country,
+      status: post.status,
+      authorName: post.authorName,
+      imageUrls: post.imageUrls,
+      thumbnailImageUrl: post.imageUrls?.[0],
+      likeCount: post.likeCount,
+      commentCount: post.commentCount,
+      liked: true,
+      mine: post.mine,
+      createdAt: post.createdAt,
+    });
+  }
+
+  await AsyncStorage.setItem(
+    LIKED_FREE_POSTS_STORAGE_KEY,
+    JSON.stringify(nextPosts.slice(0, 50)),
+  );
+};
+
 export default function CommunityDetailScreen() {
   const router = useRouter();
-  const { type = 'free', id } = useLocalSearchParams<{
+  const { type = 'free', id, fromProfileList } = useLocalSearchParams<{
     type?: DetailType;
     id?: string;
+    fromProfileList?: string;
   }>();
   const postId = Number(id);
   const detailType: DetailType = type === 'companion' ? 'companion' : 'free';
@@ -112,7 +152,12 @@ export default function CommunityDetailScreen() {
       }
 
       const response = await getFreePostDetail(postId);
-      setPost(response.data.data);
+      const nextPost = response.data.data;
+      setPost(nextPost);
+
+      if (nextPost.liked) {
+        await syncLikedFreePostStorage(nextPost, true);
+      }
     } catch (error: any) {
       console.log('게시글 상세 조회 실패:', error.response?.data || error.message);
       setPost(null);
@@ -260,11 +305,14 @@ export default function CommunityDetailScreen() {
 
     try {
       const response = await toggleFreePostLike(postId);
-      setPost({
+      const nextPost = {
         ...(post as FreePostDetailResponse),
         liked: response.data.data.liked,
         likeCount: response.data.data.likeCount,
-      });
+      };
+
+      setPost(nextPost);
+      await syncLikedFreePostStorage(nextPost, response.data.data.liked);
     } catch (error: any) {
       console.log('자유게시판 좋아요 실패:', error.response?.data || error.message);
       Alert.alert('처리 실패', '좋아요 상태를 변경하지 못했어요.');
@@ -427,7 +475,17 @@ export default function CommunityDetailScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <AppBackButton
-          onPress={() => router.back()}
+          onPress={() => {
+            if (fromProfileList === 'liked' || fromProfileList === 'free' || fromProfileList === 'companion') {
+              router.replace({
+                pathname: '/home/profile-list',
+                params: { type: fromProfileList },
+              } as never);
+              return;
+            }
+
+            router.back();
+          }}
           style={styles.headerIconButton}
         />
         <Text style={styles.headerTitle}>

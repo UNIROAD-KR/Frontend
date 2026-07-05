@@ -215,7 +215,7 @@ export default function MarketWritePage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <AppBackButton />
+          <AppBackButton style={styles.backButton} />
 
           <Text style={styles.headerTitle}>
             {type === 'all' ? '다음 교환학생에게 넘기기' : '개별 판매하기'}
@@ -483,6 +483,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 20,
+  },
+
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
   },
 
   headerTitle: {

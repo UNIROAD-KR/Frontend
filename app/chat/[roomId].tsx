@@ -135,7 +135,7 @@ export default function ChatRoomPage() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerSide}>
-          <AppBackButton />
+          <AppBackButton style={styles.backButton} />
         </View>
 
         <View style={styles.nameRow}>
@@ -360,6 +360,13 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
   },
 
   nameRow: {

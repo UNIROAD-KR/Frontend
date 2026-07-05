@@ -16,31 +16,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
-import { ONBOARDING_NICKNAME_KEY } from '@/src/constants/onboarding';
-
-const getNicknameError = (value: string) => {
-  if (!value) {
-    return '';
-  }
-
-  if (/\s/.test(value)) {
-    return '공백은 사용할 수 없어요.';
-  }
-
-  if (value.length < 2) {
-    return '2자 이상 입력해주세요.';
-  }
-
-  if (value.length > 12) {
-    return '12자 이하로 입력해주세요.';
-  }
-
-  if (!/^[가-힣a-zA-Z0-9_]+$/.test(value)) {
-    return '한글, 영문, 숫자, 밑줄만 사용할 수 있어요.';
-  }
-
-  return '';
-};
+import { getNicknameError, ONBOARDING_NICKNAME_KEY } from '@/src/constants/onboarding';
 
 export default function NicknamePage() {
   const scrollRef = useResetScrollOnFocus();

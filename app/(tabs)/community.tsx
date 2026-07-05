@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import {
   CompanionPostResponse,
   getCompanionPosts,
@@ -104,7 +105,10 @@ const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
 
 export default function CommunityScreen() {
   const router = useRouter();
-  const { tab } = useLocalSearchParams<{ tab?: string | string[] }>();
+  const { tab, fromTab } = useLocalSearchParams<{
+    tab?: string | string[];
+    fromTab?: string | string[];
+  }>();
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -243,6 +247,7 @@ export default function CommunityScreen() {
   );
 
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
+  const openedFromTab = (Array.isArray(fromTab) ? fromTab[0] : fromTab) === 'true';
 
   useEffect(() => {
     if (initialTab === 'companion') {
@@ -350,6 +355,9 @@ export default function CommunityScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
+        {!openedFromTab ? (
+          <AppBackButton fallbackHref="/home" style={styles.headerBackButton} />
+        ) : null}
         <Text style={styles.headerTitle}>커뮤니티</Text>
 
         <View style={styles.headerRight}>
@@ -853,6 +861,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 17,
+  },
+  headerBackButton: {
+    width: 24,
+    height: 24,
+    marginRight: 16,
   },
   iconBtn: {
     width: 22,

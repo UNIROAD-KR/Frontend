@@ -27,34 +27,37 @@ const quickActionsByStatus = {
     {
       title: '파견교 정보',
       icon: 'school-outline',
-      route: '/(tabs)/home/school-info',
+      route: '/home/school-info',
     },
     {
       title: '장학금 정보',
       icon: 'ribbon-outline',
-      route: '/(tabs)/home/scholarship-info',
+      route: '/home/scholarship-info',
     },
     {
       title: '지원 기준',
       icon: 'business-outline',
-      route: '/(tabs)/home/my-school-info',
+      route: '/home/my-school-info',
     },
   ],
   '출국 준비 중': [
     {
       title: '국가별 출국 가이드',
       icon: 'document-text-outline',
-      route: '/(tabs)/home/visa-guide',
+      route: '/home/visa-guide',
     },
     {
       title: '나의 출국 준비',
       icon: 'checkmark-done-outline',
-      route: '/(tabs)/home/departure-checklist',
+      route: '/home/departure-checklist',
     },
     {
       title: '중고 구매',
       icon: 'cart-outline',
-      route: '/market',
+      route: {
+        pathname: '/market',
+        params: { fromHome: 'true' },
+      },
     },
   ],
   '파견 중': [
@@ -62,20 +65,20 @@ const quickActionsByStatus = {
       title: '동행 구하기',
       icon: 'people-outline',
       route: {
-        pathname: '/(tabs)/community',
+        pathname: '/community',
         params: { tab: 'companion' },
       },
     },
     {
       title: '지출 관리',
       icon: 'wallet-outline',
-      route: '/(tabs)/mypage',
+      route: '/mypage',
     },
     {
       title: '티켓 양도하기',
       icon: 'ticket-outline',
       route: {
-        pathname: '/(tabs)/market',
+        pathname: '/market',
         params: { tab: 'ticket' },
       },
     },
@@ -84,17 +87,20 @@ const quickActionsByStatus = {
     {
       title: '후기 작성',
       icon: 'create-outline',
-      route: '/(tabs)/community',
+      route: '/community',
     },
     {
       title: '중고 판매',
       icon: 'storefront-outline',
-      route: '/market',
+      route: {
+        pathname: '/market',
+        params: { fromHome: 'true' },
+      },
     },
     {
       title: '후배 질문 답변',
       icon: 'chatbubbles-outline',
-      route: '/(tabs)/community',
+      route: '/community',
     },
   ],
 } as const;
@@ -498,7 +504,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.profileWrap}
-          onPress={() => router.push('/(tabs)/home/profile-card' as any)}
+          onPress={() => router.push('/home/profile-card' as any)}
           activeOpacity={0.82}
         >
           <Ionicons name="person" size={24} color={NAVY} />
@@ -555,7 +561,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={styles.heroButton}
-              onPress={() => router.push('/(tabs)/home/profile-card' as any)}
+              onPress={() => router.push('/home/profile-card' as any)}
               activeOpacity={0.9}
             >
               <Text style={styles.heroButtonText}>내 프로필 보기</Text>
@@ -645,7 +651,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={styles.heroButton}
-              onPress={() => router.push('/(tabs)/home/profile-card' as any)}
+              onPress={() => router.push('/home/profile-card' as any)}
               activeOpacity={0.9}
             >
               <Text style={styles.heroButtonText}>내 프로필 보기</Text>
@@ -695,7 +701,7 @@ export default function HomeScreen() {
                   ? '현지 생활 인기 게시글'
                   : '귀국 후 정리 팁'}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/community' as any)}>
+          <TouchableOpacity onPress={() => router.push('/community' as any)}>
             <Text style={styles.moreText}>전체보기</Text>
           </TouchableOpacity>
         </View>
@@ -747,7 +753,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             onPress={() =>
               router.push({
-                pathname: '/(tabs)/community',
+                pathname: '/community',
                 params: { tab: 'companion' },
               } as any)
             }
@@ -814,7 +820,14 @@ export default function HomeScreen() {
                 ? '최근 올라온 티켓 양도'
                 : '최근 올라온 일괄거래'}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/market' as any)}>
+          <TouchableOpacity
+            onPress={() =>
+              router.push({
+                pathname: '/market',
+                params: { fromHome: 'true' },
+              } as any)
+            }
+          >
             <Text style={styles.moreText}>전체보기</Text>
           </TouchableOpacity>
         </View>
@@ -824,7 +837,12 @@ export default function HomeScreen() {
             <TouchableOpacity
               key={item.title}
               style={[styles.tradeItem, index === tradeItems.length - 1 && styles.lastItem]}
-              onPress={() => router.push('/market' as any)}
+              onPress={() =>
+                router.push({
+                  pathname: '/market',
+                  params: { fromHome: 'true' },
+                } as any)
+              }
               activeOpacity={0.84}
             >
               <View style={styles.tradeThumb}>

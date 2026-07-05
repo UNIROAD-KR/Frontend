@@ -17,6 +17,7 @@ export default function HomeLayout() {
       <Stack.Screen name="visa-guide" />
       <Stack.Screen name="departure-checklist" />
       <Stack.Screen name="profile-card" />
+      <Stack.Screen name="account-settings" />
       <Stack.Screen name="profile-edit" />
       <Stack.Screen name="profile-field-edit" />
       <Stack.Screen name="notifications" />
@@ -25,6 +26,10 @@ export default function HomeLayout() {
       <Stack.Screen name="profile-password" />
       <Stack.Screen name="profile-settings" />
       <Stack.Screen name="more-menu" />
+      <Stack.Screen name="app-info" />
+      <Stack.Screen name="notices" />
+      <Stack.Screen name="terms" />
+      <Stack.Screen name="privacy-policy" />
       <Stack.Screen name="mentoring" />
       <Stack.Screen name="school-detail" />
       <Stack.Screen name="market" />

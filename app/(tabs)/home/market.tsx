@@ -39,7 +39,7 @@ export default function MarketScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <AppBackButton />
+            <AppBackButton style={styles.backButton} />
           </View>
 
           <Text style={styles.headerTitle}>중고 거래</Text>
@@ -316,6 +316,13 @@ const styles = StyleSheet.create({
   headerLeft: {
     width: 88,
     alignItems: 'flex-start',
+  },
+
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
   },
 
   headerTitle: {

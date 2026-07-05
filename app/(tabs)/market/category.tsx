@@ -363,7 +363,7 @@ export default function MarketCategoryPage() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <AppBackButton />
+        <AppBackButton style={styles.backButton} />
 
         <Text style={styles.headerTitle}>물품 카테고리 선택</Text>
 
@@ -571,6 +571,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
   },
 
   headerTitle: {

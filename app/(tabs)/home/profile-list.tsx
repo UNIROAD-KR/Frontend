@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import {
@@ -19,6 +20,9 @@ import {
 } from '../../../src/api/companion';
 import {
   FreePostSummaryResponse,
+  getFreePostDetail,
+  getFreePosts,
+  getLikedFreePosts,
   getMyFreePosts,
 } from '../../../src/api/freePosts';
 import { getMyTickets, TicketTransferResponse } from '../../../src/api/ticket';
@@ -32,8 +36,11 @@ const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
 const RECENT_POSTS_STORAGE_KEY = 'univ:profile:recent-posts';
+const LIKED_FREE_POSTS_STORAGE_KEY = 'univ:profile:liked-free-posts';
+const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
+const LIKED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:liked-ticket-posts';
 
-type ProfileListType = 'saved' | 'recent' | 'free' | 'market' | 'companion';
+type ProfileListType = 'saved' | 'recent' | 'liked' | 'free' | 'market' | 'companion';
 
 type SavedTicket = {
   id?: number;
@@ -45,6 +52,16 @@ type SavedTicket = {
   date?: string;
   price?: string;
   time?: string;
+};
+
+type LikedMarketPost = {
+  id?: number;
+  title?: string;
+  region?: string;
+  semester?: string;
+  price?: string;
+  time?: string;
+  imageUrl?: string;
 };
 
 type RecentPost = {
@@ -90,6 +107,13 @@ const screenConfig: Record<
     emptyText: '글 상세 화면을 둘러보면 최근 본 글 목록이 채워질 예정이에요.',
     icon: 'time-outline',
   },
+  liked: {
+    title: '좋아요한 글',
+    description: '내가 좋아요를 누르거나 저장한 글을 모아봤어요.',
+    emptyTitle: '좋아요한 글이 아직 없어요',
+    emptyText: '마음에 드는 커뮤니티/마켓 글에 좋아요를 누르면 여기에 표시돼요.',
+    icon: 'thumbs-up-outline',
+  },
   free: {
     title: '커뮤니티 작성글',
     description: '내가 쓴 질문, 후기, 정보 공유 글을 관리해요.',
@@ -113,15 +137,18 @@ const screenConfig: Record<
   },
 };
 
-const asListType = (value?: string): ProfileListType => {
+const asListType = (value?: string | string[]): ProfileListType => {
+  const normalizedValue = Array.isArray(value) ? value[0] : value;
+
   if (
-    value === 'saved' ||
-    value === 'recent' ||
-    value === 'free' ||
-    value === 'market' ||
-    value === 'companion'
+    normalizedValue === 'saved' ||
+    normalizedValue === 'recent' ||
+    normalizedValue === 'liked' ||
+    normalizedValue === 'free' ||
+    normalizedValue === 'market' ||
+    normalizedValue === 'companion'
   ) {
-    return value;
+    return normalizedValue;
   }
 
   return 'saved';
@@ -136,8 +163,23 @@ const extractItems = <T,>(payload: unknown): T[] => {
     return [];
   }
 
-  const data = payload as { items?: T[]; content?: T[] };
-  return data.items ?? data.content ?? [];
+  const data = payload as {
+    items?: T[];
+    content?: T[];
+    data?: unknown;
+    result?: unknown;
+    list?: T[];
+    posts?: T[];
+    freePosts?: T[];
+  };
+  const directItems =
+    data.items ?? data.content ?? data.list ?? data.posts ?? data.freePosts;
+
+  if (directItems) {
+    return directItems;
+  }
+
+  return extractItems<T>(data.data ?? data.result);
 };
 
 const formatDate = (value?: string) => {
@@ -187,12 +229,109 @@ const formatPrice = (value?: number) => {
 const makeCardId = (prefix: string, id?: number | string) =>
   `${prefix}-${id ?? Math.random().toString(36).slice(2)}`;
 
+const toFreePostCard = (
+  post: FreePostSummaryResponse,
+  prefix: string,
+  badge: string,
+): ListCard => ({
+  id: makeCardId(prefix, post.id),
+  title: post.title,
+  subtitle: post.preview || `${post.country} 커뮤니티 글`,
+  meta:
+    badge === '좋아요'
+      ? `${post.country} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`
+      : `${post.country} · ${post.status} · 댓글 ${post.commentCount}`,
+  badge,
+  icon: badge === '좋아요' ? 'thumbs-up-outline' : 'chatbubble-ellipses-outline',
+  route: {
+    pathname: '/community-detail',
+    params: { type: 'free', id: String(post.id), fromProfileList: prefix },
+  },
+});
+
+const toTicketCard = (
+  item: SavedTicket,
+  prefix: string,
+  badge = '티켓 양도',
+): ListCard => ({
+  id: makeCardId(prefix, item.id),
+  title: item.title || '티켓 양도 글',
+  subtitle:
+    [item.country, item.semester, item.region].filter(Boolean).join(' · ') ||
+    '티켓 양도 글',
+  meta:
+    [item.category, item.date, item.price, item.time].filter(Boolean).join(' · ') ||
+    '상세 정보를 확인해보세요.',
+  badge,
+  icon: prefix.includes('saved') ? 'bookmark-outline' : 'heart-outline',
+  route: item.id
+    ? {
+        pathname: '/market/ticket-preview',
+        params: {
+          id: String(item.id),
+          fromProfileList: prefix.includes('saved') ? 'saved' : 'liked',
+        },
+      }
+    : '/market/ticket-preview',
+});
+
+const toLikedMarketCard = (item: LikedMarketPost): ListCard => ({
+  id: makeCardId('liked-market', item.id),
+  title: item.title || '중고거래 글',
+  subtitle:
+    [item.region, item.semester].filter(Boolean).join(' · ') || '중고마켓 글',
+  meta: [item.price, item.time].filter(Boolean).join(' · ') || '좋아요한 중고거래',
+  badge: '중고마켓',
+  icon: 'heart-outline',
+  route: item.id
+    ? {
+        pathname: '/market/[id]',
+        params: { id: String(item.id), fromProfileList: 'liked' },
+      }
+    : '/market',
+});
+
+const mergePostsById = (posts: FreePostSummaryResponse[]) => {
+  const postMap = new Map<number, FreePostSummaryResponse>();
+
+  posts.forEach((post) => {
+    postMap.set(post.id, post);
+  });
+
+  return Array.from(postMap.values());
+};
+
+const mergeTicketsById = (tickets: SavedTicket[]) => {
+  const ticketMap = new Map<number, SavedTicket>();
+
+  tickets.forEach((ticket) => {
+    if (typeof ticket.id === 'number') {
+      ticketMap.set(ticket.id, ticket);
+    }
+  });
+
+  return Array.from(ticketMap.values());
+};
+
+const parseStoredList = <T,>(rawValue: string | null): T[] => {
+  if (!rawValue) return [];
+
+  try {
+    const parsedValue = JSON.parse(rawValue);
+
+    return Array.isArray(parsedValue) ? (parsedValue as T[]) : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function ProfileListScreen() {
-  const { type } = useLocalSearchParams<{ type?: string }>();
+  const { type } = useLocalSearchParams<{ type?: string | string[] }>();
   const listType = asListType(type);
   const config = screenConfig[listType];
   const [items, setItems] = useState<ListCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -202,30 +341,9 @@ export default function ProfileListScreen() {
         const rawSavedTickets = await AsyncStorage.getItem(
           SAVED_TICKET_POSTS_STORAGE_KEY,
         );
-        const savedTickets = rawSavedTickets
-          ? (JSON.parse(rawSavedTickets) as SavedTicket[])
-          : [];
+        const savedTickets = parseStoredList<SavedTicket>(rawSavedTickets);
 
-        setItems(
-          savedTickets.map((item) => ({
-            id: makeCardId('saved-ticket', item.id),
-            title: item.title || '저장한 티켓 양도 글',
-            subtitle: [item.country, item.semester, item.region]
-              .filter(Boolean)
-              .join(' · '),
-            meta: [item.category, item.date, item.price, item.time]
-              .filter(Boolean)
-              .join(' · '),
-            badge: '티켓 양도',
-            icon: 'bookmark-outline',
-            route: item.id
-              ? {
-                  pathname: '/market/ticket-preview',
-                  params: { id: String(item.id) },
-                }
-              : '/market/ticket-preview',
-          })),
-        );
+        setItems(savedTickets.map((item) => toTicketCard(item, 'saved-ticket')));
         return;
       }
 
@@ -252,19 +370,72 @@ export default function ProfileListScreen() {
         const posts = extractItems<FreePostSummaryResponse>(response.data.data);
 
         setItems(
-          posts.map((post) => ({
-            id: makeCardId('free', post.id),
-            title: post.title,
-            subtitle: post.preview || `${post.country} 커뮤니티 글`,
-            meta: `${post.country} · ${post.status} · 댓글 ${post.commentCount}`,
-            badge: '자유게시판',
-            icon: 'chatbubble-ellipses-outline',
-            route: {
-              pathname: '/community-detail',
-              params: { type: 'free', id: String(post.id) },
-            },
-          })),
+          posts.map((post) => toFreePostCard(post, 'free', '자유게시판')),
         );
+        return;
+      }
+
+      if (listType === 'liked') {
+        let posts: FreePostSummaryResponse[] = [];
+        const rawLocalLikedPosts = await AsyncStorage.getItem(LIKED_FREE_POSTS_STORAGE_KEY);
+        const rawLikedMarketPosts = await AsyncStorage.getItem(
+          LIKED_MARKET_POSTS_STORAGE_KEY,
+        );
+        const rawLikedTicketPosts = await AsyncStorage.getItem(
+          LIKED_TICKET_POSTS_STORAGE_KEY,
+        );
+        const rawSavedTickets = await AsyncStorage.getItem(
+          SAVED_TICKET_POSTS_STORAGE_KEY,
+        );
+        const localLikedPosts = rawLocalLikedPosts
+          ? (JSON.parse(rawLocalLikedPosts) as FreePostSummaryResponse[])
+          : [];
+        const likedMarketPosts =
+          parseStoredList<LikedMarketPost>(rawLikedMarketPosts);
+        const likedTickets = mergeTicketsById([
+          ...parseStoredList<SavedTicket>(rawLikedTicketPosts),
+          ...parseStoredList<SavedTicket>(rawSavedTickets),
+        ]);
+
+        try {
+          const response = await getLikedFreePosts({ size: 30 });
+          posts = extractItems<FreePostSummaryResponse>(response.data.data);
+          if (posts.length === 0) {
+            posts = extractItems<FreePostSummaryResponse>(response.data);
+          }
+        } catch (error: any) {
+          console.log('좋아요한 글 목록 API 실패:', error.response?.data || error.message);
+        }
+
+        if (posts.length === 0) {
+          try {
+            const response = await getFreePosts({ size: 50 });
+            const candidatePosts = extractItems<FreePostSummaryResponse>(response.data.data);
+            const candidates =
+              candidatePosts.length > 0
+                ? candidatePosts
+                : extractItems<FreePostSummaryResponse>(response.data);
+            const detailResults = await Promise.allSettled(
+              candidates.map((post) => getFreePostDetail(post.id)),
+            );
+
+            posts = detailResults.flatMap((result, index) => {
+              if (result.status !== 'fulfilled') return [];
+
+              return result.value.data.data.liked ? [candidates[index]] : [];
+            });
+          } catch (error: any) {
+            console.log('좋아요한 글 상세 확인 실패:', error.response?.data || error.message);
+          }
+        }
+
+        posts = mergePostsById([...localLikedPosts, ...posts]);
+
+        setItems([
+          ...posts.map((post) => toFreePostCard(post, 'liked', '좋아요')),
+          ...likedMarketPosts.map(toLikedMarketCard),
+          ...likedTickets.map((item) => toTicketCard(item, 'liked-ticket')),
+        ]);
         return;
       }
 
@@ -290,7 +461,7 @@ export default function ProfileListScreen() {
             icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/[id]',
-              params: { id: String(item.id) },
+              params: { id: String(item.id), fromProfileList: 'market' },
             },
           })),
           ...tickets.map((item) => ({
@@ -308,7 +479,7 @@ export default function ProfileListScreen() {
             icon: 'ticket-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/ticket-preview',
-              params: { id: String(item.id) },
+              params: { id: String(item.id), fromProfileList: 'market' },
             },
           })),
         ]);
@@ -328,7 +499,7 @@ export default function ProfileListScreen() {
           icon: 'people-circle-outline',
           route: {
             pathname: '/community-detail',
-            params: { type: 'companion', id: String(post.id) },
+            params: { type: 'companion', id: String(post.id), fromProfileList: 'companion' },
           },
         })),
       );
@@ -350,15 +521,25 @@ export default function ProfileListScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: Math.max(50, insets.top + 10) },
+        ]}
+      >
         <AppBackButton style={styles.iconBtn} />
-        <Text style={styles.headerTitle}>{config.title}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {config.title}
+        </Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Math.max(130, insets.bottom + 110) },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.heroCard}>
@@ -369,7 +550,9 @@ export default function ProfileListScreen() {
             <Text style={styles.heroTitle}>{config.title}</Text>
             <Text style={styles.heroDesc}>{config.description}</Text>
           </View>
-          <Text style={styles.countPill}>{itemCountLabel}</Text>
+          <Text style={styles.countPill} numberOfLines={1}>
+            {itemCountLabel}
+          </Text>
         </View>
 
         {loading ? (
@@ -404,7 +587,9 @@ export default function ProfileListScreen() {
                     </Text>
                     {item.badge ? (
                       <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.badge}</Text>
+                        <Text style={styles.badgeText} numberOfLines={1}>
+                          {item.badge}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
@@ -437,7 +622,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
     paddingBottom: 15,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -466,7 +650,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 130,
   },
   heroCard: {
     minHeight: 106,
@@ -489,6 +672,7 @@ const styles = StyleSheet.create({
   },
   heroTextBox: {
     flex: 1,
+    minWidth: 0,
   },
   heroTitle: {
     fontSize: 18,
@@ -503,6 +687,7 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   countPill: {
+    flexShrink: 0,
     borderRadius: 999,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
@@ -597,6 +782,8 @@ const styles = StyleSheet.create({
     color: INK,
   },
   badge: {
+    flexShrink: 1,
+    maxWidth: 96,
     borderRadius: 999,
     backgroundColor: '#EAF1FF',
     paddingHorizontal: 8,

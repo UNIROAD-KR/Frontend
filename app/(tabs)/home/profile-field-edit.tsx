@@ -16,10 +16,24 @@ import {
   View,
 } from 'react-native';
 
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import { AppBackButton } from '@/components/ui/app-back-button';
+import {
+  CUSTOM_COUNTRY_OPTION,
+  type DispatchSemesterTerm,
+  countryOptions,
+  dispatchSemesterTerms,
+  formatDispatchSemester,
+  getNicknameError,
+  parseDispatchSemester,
+  universityOptions,
+} from '@/src/constants/onboarding';
+
 const BLUE = '#2F66D0';
 const INK = '#111111';
 const MUTED = '#737373';
 const LINE = '#E5E7EB';
+const SOFT = '#F6F8FC';
 
 type FieldKey =
   | 'nickname'
@@ -27,13 +41,6 @@ type FieldKey =
   | 'country'
   | 'dispatchedUniversity'
   | 'dispatchSemester';
-
-const COUNTRY_GROUPS = {
-  유럽권: ['독일', '프랑스', '체코', '스페인', '이탈리아', '네덜란드', '영국'],
-  미주권: ['미국', '캐나다'],
-  아시아권: ['일본', '중국', '대만', '싱가포르', '홍콩'],
-  기타: ['호주', '뉴질랜드'],
-} as const;
 
 const fieldConfig: Record<
   FieldKey,
@@ -57,8 +64,8 @@ const fieldConfig: Record<
   homeUniversity: {
     title: '소속 대학 설정',
     label: '소속 대학',
-    placeholder: '소속 대학을 입력하세요',
-    helpText: '※ 정확한 학교명을 입력하면 맞춤 정보를 더 잘 받을 수 있습니다.',
+    placeholder: '소속 대학 선택',
+    helpText: '※ 온보딩과 같은 대학 목록에서 선택해 주세요.',
     buttonText: '변경하기',
     storageKeys: ['homeUniversity', 'university'],
   },
@@ -81,11 +88,31 @@ const fieldConfig: Record<
   dispatchSemester: {
     title: '파견 학기 설정',
     label: '파견 학기',
-    placeholder: 'ex) 2025-2학기',
-    helpText: '파견 학기를 직접 입력해 주세요.',
+    placeholder: '파견 학기 선택',
+    helpText: '※ 파견 년도와 학기를 선택해 주세요.',
     buttonText: '변경하기',
     storageKeys: ['dispatchSemester'],
   },
+};
+
+const currentYear = new Date().getFullYear();
+const dispatchYearOptions = Array.from({ length: 12 }, (_, index) =>
+  String(currentYear - 1 + index),
+);
+
+const resolveCountrySelection = (savedCountry: string) => {
+  if (!savedCountry) {
+    return { selectedCountry: '', customCountry: '' };
+  }
+
+  if (countryOptions.includes(savedCountry)) {
+    return { selectedCountry: savedCountry, customCountry: '' };
+  }
+
+  return {
+    selectedCountry: CUSTOM_COUNTRY_OPTION,
+    customCountry: savedCountry,
+  };
 };
 
 export default function ProfileFieldEditScreen() {
@@ -105,19 +132,91 @@ export default function ProfileFieldEditScreen() {
   const config = fieldConfig[safeField];
   const initialValue = useMemo(() => (typeof value === 'string' ? value : ''), [value]);
   const initialRegion = useMemo(() => (typeof region === 'string' ? region : ''), [region]);
+  const initialCountrySelection = useMemo(
+    () => resolveCountrySelection(initialValue.trim()),
+    [initialValue],
+  );
+  const initialDispatchSemester = useMemo(
+    () => parseDispatchSemester(initialValue),
+    [initialValue],
+  );
+  const normalizedInitialDispatchSemester = useMemo(
+    () =>
+      initialDispatchSemester.year && initialDispatchSemester.term
+        ? formatDispatchSemester(initialDispatchSemester.year, initialDispatchSemester.term)
+        : initialValue.trim(),
+    [initialDispatchSemester, initialValue],
+  );
   const [draft, setDraft] = useState(initialValue);
   const [regionDraft, setRegionDraft] = useState(initialRegion);
   const [countrySheetVisible, setCountrySheetVisible] = useState(false);
-  const [selectedCountryGroup, setSelectedCountryGroup] =
-    useState<keyof typeof COUNTRY_GROUPS>('유럽권');
+  const [selectedCountry, setSelectedCountry] = useState(
+    initialCountrySelection.selectedCountry,
+  );
+  const [customCountry, setCustomCountry] = useState(
+    initialCountrySelection.customCountry,
+  );
+  const [universitySheetVisible, setUniversitySheetVisible] = useState(false);
+  const [semesterYear, setSemesterYear] = useState(initialDispatchSemester.year);
+  const [semesterTerm, setSemesterTerm] = useState<DispatchSemesterTerm | ''>(
+    initialDispatchSemester.term,
+  );
+  const [semesterYearPickerVisible, setSemesterYearPickerVisible] = useState(false);
 
   const trimmedDraft = draft.trim();
   const trimmedRegion = regionDraft.trim();
+  const nicknameError = useMemo(
+    () => (safeField === 'nickname' ? getNicknameError(draft) : ''),
+    [draft, safeField],
+  );
+  const isCustomCountry = safeField === 'country' && selectedCountry === CUSTOM_COUNTRY_OPTION;
+  const finalCountryDraft =
+    safeField === 'country'
+      ? isCustomCountry
+        ? customCountry.trim()
+        : selectedCountry
+      : trimmedDraft;
+  const selectedDispatchSemester =
+    semesterYear && semesterTerm ? formatDispatchSemester(semesterYear, semesterTerm) : '';
   const canSave =
     safeField === 'country'
-      ? trimmedDraft.length > 0 &&
-        (trimmedDraft !== initialValue.trim() || trimmedRegion !== initialRegion.trim())
-      : trimmedDraft.length > 0 && trimmedDraft !== initialValue.trim();
+      ? finalCountryDraft.length > 0 &&
+        (finalCountryDraft !== initialValue.trim() || trimmedRegion !== initialRegion.trim())
+      : safeField === 'dispatchSemester'
+        ? selectedDispatchSemester.length > 0 &&
+          selectedDispatchSemester !== normalizedInitialDispatchSemester
+        : safeField === 'nickname'
+          ? draft.length > 0 && !nicknameError && trimmedDraft !== initialValue.trim()
+          : trimmedDraft.length > 0 && trimmedDraft !== initialValue.trim();
+
+  const openSemesterYearPicker = () => {
+    Keyboard.dismiss();
+    setSemesterYearPickerVisible(true);
+  };
+
+  const selectSemesterYear = (year: string) => {
+    setSemesterYear(year);
+    setSemesterYearPickerVisible(false);
+  };
+
+  const selectCountry = (countryName: string) => {
+    setSelectedCountry(countryName);
+    setCountrySheetVisible(false);
+
+    if (countryName === CUSTOM_COUNTRY_OPTION) {
+      setCustomCountry('');
+      setDraft('');
+      return;
+    }
+
+    setCustomCountry('');
+    setDraft(countryName);
+  };
+
+  const changeCustomCountry = (value: string) => {
+    setCustomCountry(value);
+    setDraft(value);
+  };
 
   const saveField = async () => {
     Keyboard.dismiss();
@@ -126,8 +225,14 @@ export default function ProfileFieldEditScreen() {
 
     const savedOverrides = await AsyncStorage.getItem('profileFieldOverrides');
     const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
+    const nextValue =
+      safeField === 'country'
+        ? finalCountryDraft
+        : safeField === 'dispatchSemester'
+          ? selectedDispatchSemester
+          : trimmedDraft;
 
-    const storageTasks = config.storageKeys.map((key) => AsyncStorage.setItem(key, trimmedDraft));
+    const storageTasks = config.storageKeys.map((key) => AsyncStorage.setItem(key, nextValue));
 
     if (safeField === 'country') {
       storageTasks.push(AsyncStorage.setItem('dispatchedRegion', trimmedRegion));
@@ -154,10 +259,8 @@ export default function ProfileFieldEditScreen() {
     >
       <Pressable style={styles.mainArea} onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.header}>
+          <AppBackButton style={styles.backButton} />
           <Text style={styles.headerTitle}>{config.title}</Text>
-          <TouchableOpacity style={styles.closeButton} onPress={() => router.back()} activeOpacity={0.8}>
-            <Ionicons name="close" size={22} color={INK} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.content}>
@@ -172,11 +275,25 @@ export default function ProfileFieldEditScreen() {
                 }}
                 activeOpacity={0.84}
               >
-                <Text style={[styles.selectText, !trimmedDraft && styles.selectPlaceholder]}>
-                  {trimmedDraft || config.placeholder}
+                <Text style={[styles.selectText, !selectedCountry && styles.selectPlaceholder]}>
+                  {selectedCountry || config.placeholder}
                 </Text>
                 <Ionicons name="chevron-down" size={18} color={MUTED} />
               </TouchableOpacity>
+
+              {isCustomCountry && (
+                <>
+                  <Text style={[styles.label, styles.regionLabel]}>파견 국가 직접 입력</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={customCountry}
+                    onChangeText={changeCustomCountry}
+                    placeholder="예: 캐나다, 호주, 일본"
+                    placeholderTextColor="#A4ADBA"
+                    returnKeyType="next"
+                  />
+                </>
+              )}
 
               <Text style={[styles.label, styles.regionLabel]}>파견 지역</Text>
               <TextInput
@@ -189,22 +306,83 @@ export default function ProfileFieldEditScreen() {
                 onSubmitEditing={Keyboard.dismiss}
               />
             </>
+          ) : safeField === 'homeUniversity' ? (
+            <>
+              <Text style={styles.label}>{config.label}</Text>
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setUniversitySheetVisible(true);
+                }}
+                activeOpacity={0.84}
+              >
+                <Text style={[styles.selectText, !trimmedDraft && styles.selectPlaceholder]}>
+                  {trimmedDraft || config.placeholder}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={MUTED} />
+              </TouchableOpacity>
+            </>
+          ) : safeField === 'dispatchSemester' ? (
+            <>
+              <Text style={styles.label}>파견 년도</Text>
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={openSemesterYearPicker}
+                activeOpacity={0.84}
+              >
+                <Text style={[styles.selectText, !semesterYear && styles.selectPlaceholder]}>
+                  {semesterYear ? `${semesterYear}년` : '년도 선택'}
+                </Text>
+                <Ionicons name="calendar-outline" size={18} color={MUTED} />
+              </TouchableOpacity>
+
+              <Text style={[styles.label, styles.regionLabel]}>학기</Text>
+              <View style={styles.semesterGrid}>
+                {dispatchSemesterTerms.map((term) => {
+                  const selected = semesterTerm === term;
+
+                  return (
+                    <TouchableOpacity
+                      key={term}
+                      style={[styles.semesterChip, selected && styles.semesterChipSelected]}
+                      onPress={() => setSemesterTerm(term)}
+                      activeOpacity={0.84}
+                    >
+                      <Text
+                        style={[
+                          styles.semesterChipText,
+                          selected && styles.semesterChipTextSelected,
+                        ]}
+                      >
+                        {term}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
           ) : (
             <>
               <Text style={styles.label}>{config.label}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, nicknameError && styles.inputError]}
                 value={draft}
                 onChangeText={setDraft}
                 placeholder={config.placeholder}
                 placeholderTextColor="#A4ADBA"
                 autoFocus
                 returnKeyType="done"
-                onSubmitEditing={Keyboard.dismiss}
+                onSubmitEditing={saveField}
               />
             </>
           )}
-          <Text style={styles.helpText}>{config.helpText}</Text>
+          <Text style={[styles.helpText, nicknameError && styles.errorText]}>
+            {nicknameError ||
+              (safeField === 'nickname'
+                ? '공백없이 2자 이상 12자 이하로 입력해주세요.'
+                : config.helpText)}
+          </Text>
         </View>
       </Pressable>
 
@@ -221,16 +399,25 @@ export default function ProfileFieldEditScreen() {
         </TouchableOpacity>
       </View>
 
+      <OnboardingSelectModal
+        visible={countrySheetVisible}
+        title="파견 국가 선택"
+        options={countryOptions}
+        selectedValue={selectedCountry}
+        onClose={() => setCountrySheetVisible(false)}
+        onSelect={selectCountry}
+      />
+
       <Modal
         transparent
-        visible={countrySheetVisible}
+        visible={universitySheetVisible}
         animationType="slide"
-        onRequestClose={() => setCountrySheetVisible(false)}
+        onRequestClose={() => setUniversitySheetVisible(false)}
       >
         <TouchableOpacity
           style={styles.sheetBackdrop}
           activeOpacity={1}
-          onPress={() => setCountrySheetVisible(false)}
+          onPress={() => setUniversitySheetVisible(false)}
         >
           <TouchableOpacity
             style={styles.sheet}
@@ -239,58 +426,93 @@ export default function ProfileFieldEditScreen() {
           >
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>파견 국가 선택</Text>
-              <TouchableOpacity onPress={() => setCountrySheetVisible(false)} activeOpacity={0.8}>
+              <Text style={styles.sheetTitle}>소속 대학 선택</Text>
+              <TouchableOpacity onPress={() => setUniversitySheetVisible(false)} activeOpacity={0.8}>
                 <Ionicons name="close" size={20} color={INK} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.countrySheetBody}>
-              <View style={styles.countryGroupColumn}>
-                {(Object.keys(COUNTRY_GROUPS) as (keyof typeof COUNTRY_GROUPS)[]).map((group) => {
-                  const active = selectedCountryGroup === group;
+            <ScrollView style={styles.selectionList}>
+              {universityOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  style={styles.selectionOption}
+                  onPress={() => {
+                    setDraft(option);
+                    setUniversitySheetVisible(false);
+                  }}
+                  activeOpacity={0.78}
+                >
+                  <Text
+                    style={[
+                      styles.selectionOptionText,
+                      trimmedDraft === option && styles.selectionOptionTextActive,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                  {trimmedDraft === option && (
+                    <Ionicons name="checkmark" size={18} color={BLUE} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
-                  return (
-                    <TouchableOpacity
-                      key={group}
-                      style={[styles.countryGroupItem, active && styles.countryGroupItemActive]}
-                      onPress={() => setSelectedCountryGroup(group)}
-                      activeOpacity={0.82}
-                    >
-                      <Text style={[styles.countryGroupText, active && styles.countryGroupTextActive]}>
-                        {group}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+      <Modal
+        transparent
+        visible={semesterYearPickerVisible}
+        animationType="slide"
+        onRequestClose={() => setSemesterYearPickerVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setSemesterYearPickerVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.sheet}
+            activeOpacity={1}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <TouchableOpacity
+                onPress={() => setSemesterYearPickerVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.sheetCancelText}>취소</Text>
+              </TouchableOpacity>
+              <Text style={styles.sheetTitle}>파견 년도 선택</Text>
+              <View style={styles.sheetHeaderSpacer} />
+            </View>
 
-              <ScrollView style={styles.countryDetailColumn}>
-                {COUNTRY_GROUPS[selectedCountryGroup].map((option) => (
+            <ScrollView style={styles.selectionList} showsVerticalScrollIndicator={false}>
+              {dispatchYearOptions.map((year) => {
+                const selected = semesterYear === year;
+
+                return (
                   <TouchableOpacity
-                    key={option}
-                    style={styles.countryOption}
-                    onPress={() => {
-                      setDraft(option);
-                      setCountrySheetVisible(false);
-                    }}
+                    key={year}
+                    style={styles.selectionOption}
+                    onPress={() => selectSemesterYear(year)}
                     activeOpacity={0.78}
                   >
                     <Text
                       style={[
-                        styles.countryOptionText,
-                        trimmedDraft === option && styles.countryOptionTextActive,
+                        styles.selectionOptionText,
+                        selected && styles.selectionOptionTextActive,
                       ]}
                     >
-                      {option}
+                      {year}년
                     </Text>
-                    {trimmedDraft === option && (
-                      <Ionicons name="checkmark" size={18} color={BLUE} />
-                    )}
+                    {selected && <Ionicons name="checkmark" size={18} color={BLUE} />}
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
+                );
+              })}
+            </ScrollView>
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -318,14 +540,16 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: INK,
   },
-  closeButton: {
+  backButton: {
     position: 'absolute',
-    right: 20,
+    left: 20,
     bottom: 9,
     width: 38,
     height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: SOFT,
   },
   content: {
     paddingHorizontal: 20,
@@ -347,6 +571,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: INK,
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FFF7F7',
   },
   regionLabel: {
     marginTop: 14,
@@ -376,6 +604,38 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     lineHeight: 17,
     color: MUTED,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontWeight: '700',
+  },
+  semesterGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  semesterChip: {
+    minWidth: '47%',
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: LINE,
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  semesterChipSelected: {
+    borderColor: BLUE,
+    backgroundColor: '#EEF4FF',
+  },
+  semesterChipText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#4B5563',
+  },
+  semesterChipTextSelected: {
+    color: BLUE,
   },
   sheetBackdrop: {
     flex: 1,
@@ -411,54 +671,40 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: INK,
   },
-  countrySheetBody: {
-    minHeight: 250,
-    flexDirection: 'row',
-    borderRadius: 14,
-    backgroundColor: '#F7F8FA',
-    overflow: 'hidden',
-  },
-  countryGroupColumn: {
-    width: 104,
-    paddingVertical: 8,
-    borderRightWidth: 1,
-    borderRightColor: '#E5E7EB',
-  },
-  countryGroupItem: {
-    minHeight: 42,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  countryGroupItemActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  countryGroupText: {
-    fontSize: 13,
+  sheetCancelText: {
+    fontSize: 14,
     fontWeight: '800',
     color: MUTED,
   },
-  countryGroupTextActive: {
+  sheetDoneText: {
+    fontSize: 14,
+    fontWeight: '900',
     color: BLUE,
   },
-  countryDetailColumn: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  selectionList: {
+    maxHeight: 420,
   },
-  countryOption: {
-    minHeight: 44,
+  selectionOption: {
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F3',
+    paddingHorizontal: 2,
   },
-  countryOptionText: {
+  selectionOptionText: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '700',
     color: '#4B5563',
   },
-  countryOptionTextActive: {
+  selectionOptionTextActive: {
     color: BLUE,
     fontWeight: '900',
+  },
+  sheetHeaderSpacer: {
+    width: 34,
   },
   footer: {
     paddingHorizontal: 20,

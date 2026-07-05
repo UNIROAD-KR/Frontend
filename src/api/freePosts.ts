@@ -65,6 +65,13 @@ export const getMyFreePosts = (params: CursorRequest = { size: 20 }) => {
   );
 };
 
+export const getLikedFreePosts = (params: CursorRequest = { size: 20 }) => {
+  return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
+    '/api/community/free-posts/liked',
+    { params },
+  );
+};
+
 export const createFreePost = (data: FreePostRequest) => {
   return api.post<BaseResponse<number>>('/api/community/free-posts', data);
 };

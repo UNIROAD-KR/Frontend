@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import { login } from '../src/api/auth';
 import { registerDeviceForPushNotifications } from '../src/notifications/push';
 
@@ -70,10 +71,7 @@ export default function EmailLoginPage() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
+        <AppBackButton fallbackHref="/login" style={styles.backButton} />
 
         {/* Logo */}
         <Image
@@ -143,8 +141,6 @@ export default function EmailLoginPage() {
   );
 }
 
-const BLUE = '#123F9F';
-
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
@@ -160,16 +156,14 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: '#F6F8FC',
     marginBottom: 32,
     marginLeft: -6,
-  },
-  backIcon: {
-    fontSize: 24,
-    color: '#111111',
   },
   logo: {
     width: 38,

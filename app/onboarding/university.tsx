@@ -18,8 +18,12 @@ import { AppBackButton } from '@/components/ui/app-back-button';
 import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
 import {
+  type DispatchSemesterTerm,
   ExchangeStatus,
   ONBOARDING_NICKNAME_KEY,
+  dispatchSemesterTerms,
+  formatDispatchSemester,
+  parseDispatchSemester,
   universityOptions,
 } from '@/src/constants/onboarding';
 
@@ -74,6 +78,11 @@ const emptyStatusDates: Record<ExchangeStatus, string> = {
   dispatched: '',
 };
 
+const currentYear = new Date().getFullYear();
+const dispatchYearOptions = Array.from({ length: 12 }, (_, index) =>
+  String(currentYear - 1 + index),
+);
+
 const startOfToday = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -125,6 +134,11 @@ const formatDisplayDate = (value: string) => {
 const isExchangeStatus = (value: string | null): value is ExchangeStatus =>
   value === 'preparing' || value === 'accepted' || value === 'dispatched';
 
+const isDispatchSemesterTerm = (
+  value: string | null,
+): value is DispatchSemesterTerm =>
+  dispatchSemesterTerms.includes(value as DispatchSemesterTerm);
+
 export default function UniversityPage() {
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
   const scrollRef = useResetScrollOnFocus();
@@ -136,13 +150,25 @@ export default function UniversityPage() {
   const [draftDate, setDraftDate] = useState(startOfToday);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [universityModalVisible, setUniversityModalVisible] = useState(false);
+  const [dispatchSemesterYear, setDispatchSemesterYear] = useState('');
+  const [dispatchSemesterTerm, setDispatchSemesterTerm] =
+    useState<DispatchSemesterTerm | ''>('');
+  const [showSemesterYearPicker, setShowSemesterYearPicker] = useState(false);
 
   const selectedStatusOption = useMemo(
     () => statusOptions.find((item) => item.value === status) ?? null,
     [status],
   );
   const selectedStatusDate = status ? statusDates[status] : '';
-  const isValid = university !== '' && status !== '' && selectedStatusDate !== '';
+  const selectedDispatchSemester =
+    dispatchSemesterYear && dispatchSemesterTerm
+      ? formatDispatchSemester(dispatchSemesterYear, dispatchSemesterTerm)
+      : '';
+  const isValid =
+    university !== '' &&
+    status !== '' &&
+    selectedStatusDate !== '' &&
+    selectedDispatchSemester !== '';
 
   useEffect(() => {
     const loadUniversityStep = async () => {
@@ -152,12 +178,18 @@ export default function UniversityPage() {
         [, savedApplicationDeadline],
         [, savedDepartureDate],
         [, savedDispatchStartDate],
+        [, savedDispatchSemester],
+        [, savedDispatchSemesterYear],
+        [, savedDispatchSemesterTerm],
       ] = await AsyncStorage.multiGet([
         'university',
         'onboardingSituation',
         'applicationDeadline',
         'departureDate',
         'dispatchStartDate',
+        'dispatchSemester',
+        'dispatchSemesterYear',
+        'dispatchSemesterTerm',
       ]);
 
       if (savedUniversity) {
@@ -173,6 +205,18 @@ export default function UniversityPage() {
         accepted: savedDepartureDate ?? '',
         dispatched: savedDispatchStartDate ?? '',
       });
+
+      const savedSemester = parseDispatchSemester(savedDispatchSemester);
+      const nextSemesterYear = savedSemester.year || savedDispatchSemesterYear || '';
+      const nextSemesterTerm = savedSemester.term || savedDispatchSemesterTerm || '';
+
+      if (nextSemesterYear) {
+        setDispatchSemesterYear(nextSemesterYear);
+      }
+
+      if (isDispatchSemesterTerm(nextSemesterTerm)) {
+        setDispatchSemesterTerm(nextSemesterTerm);
+      }
     };
 
     loadUniversityStep();
@@ -217,6 +261,46 @@ export default function UniversityPage() {
     setShowDatePicker(false);
   };
 
+  const persistDispatchSemester = async (
+    year: string,
+    term: DispatchSemesterTerm | '',
+  ) => {
+    const tasks: Promise<void>[] = [];
+
+    if (year) {
+      tasks.push(AsyncStorage.setItem('dispatchSemesterYear', year));
+    }
+
+    if (term) {
+      tasks.push(AsyncStorage.setItem('dispatchSemesterTerm', term));
+    }
+
+    if (!year || !term) {
+      await Promise.all(tasks);
+      return;
+    }
+
+    await Promise.all([
+      ...tasks,
+      AsyncStorage.setItem('dispatchSemester', formatDispatchSemester(year, term)),
+    ]);
+  };
+
+  const openSemesterYearPicker = () => {
+    setShowSemesterYearPicker(true);
+  };
+
+  const handleSelectSemesterYear = async (year: string) => {
+    setDispatchSemesterYear(year);
+    await persistDispatchSemester(year, dispatchSemesterTerm);
+    setShowSemesterYearPicker(false);
+  };
+
+  const handleSelectSemesterTerm = async (term: DispatchSemesterTerm) => {
+    setDispatchSemesterTerm(term);
+    await persistDispatchSemester(dispatchSemesterYear, term);
+  };
+
   const handleNext = async () => {
     if (!isValid || !selectedStatusOption) {
       return;
@@ -230,6 +314,9 @@ export default function UniversityPage() {
       ['applicationDeadline', status === 'preparing' ? statusDates.preparing : ''],
       ['departureDate', status === 'accepted' ? statusDates.accepted : ''],
       ['dispatchStartDate', status === 'dispatched' ? statusDates.dispatched : ''],
+      ['dispatchSemester', selectedDispatchSemester],
+      ['dispatchSemesterYear', dispatchSemesterYear],
+      ['dispatchSemesterTerm', dispatchSemesterTerm],
     ]);
 
     const savedNickname =
@@ -333,6 +420,48 @@ export default function UniversityPage() {
           </View>
         )}
 
+        <View style={styles.semesterSection}>
+          <Text style={styles.dateLabel}>파견학기</Text>
+
+          <Pressable style={styles.dateField} onPress={openSemesterYearPicker}>
+            <View style={styles.dateIconBox}>
+              <Ionicons name="calendar-outline" size={19} color={BLUE} />
+            </View>
+            <Text
+              style={[
+                styles.dateText,
+                !dispatchSemesterYear && styles.datePlaceholderText,
+              ]}
+            >
+              {dispatchSemesterYear ? `${dispatchSemesterYear}년` : '년도 선택'}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color="#777777" />
+          </Pressable>
+
+          <View style={styles.semesterTermRow}>
+            {dispatchSemesterTerms.map((term) => {
+              const selected = dispatchSemesterTerm === term;
+
+              return (
+                <Pressable
+                  key={term}
+                  style={[styles.semesterChip, selected && styles.semesterChipSelected]}
+                  onPress={() => handleSelectSemesterTerm(term)}
+                >
+                  <Text
+                    style={[
+                      styles.semesterChipText,
+                      selected && styles.semesterChipTextSelected,
+                    ]}
+                  >
+                    {term}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         <View style={styles.bottomSpacer} />
 
         <Pressable
@@ -416,6 +545,53 @@ export default function UniversityPage() {
                 }}
               />
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        visible={showSemesterYearPicker}
+        animationType="slide"
+        onRequestClose={() => setShowSemesterYearPicker(false)}
+      >
+        <View style={styles.datePickerOverlay}>
+          <Pressable
+            style={styles.datePickerBackdrop}
+            onPress={() => setShowSemesterYearPicker(false)}
+          />
+
+          <View style={styles.datePickerSheet}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.datePickerHeader}>
+              <Pressable onPress={() => setShowSemesterYearPicker(false)}>
+                <Text style={styles.datePickerCancel}>취소</Text>
+              </Pressable>
+
+              <Text style={styles.datePickerTitle}>파견 년도 선택</Text>
+
+              <View style={styles.sheetHeaderSpacer} />
+            </View>
+
+            <ScrollView style={styles.yearList} showsVerticalScrollIndicator={false}>
+              {dispatchYearOptions.map((year) => {
+                const selected = dispatchSemesterYear === year;
+
+                return (
+                  <Pressable
+                    key={year}
+                    style={[styles.yearOption, selected && styles.yearOptionSelected]}
+                    onPress={() => handleSelectSemesterYear(year)}
+                  >
+                    <Text style={[styles.yearOptionText, selected && styles.yearOptionTextSelected]}>
+                      {year}년
+                    </Text>
+                    {selected && <Ionicons name="checkmark" size={18} color={BLUE} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -560,6 +736,10 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
 
+  semesterSection: {
+    marginTop: 28,
+  },
+
   dateLabel: {
     fontSize: 15,
     fontWeight: '700',
@@ -598,6 +778,40 @@ const styles = StyleSheet.create({
   datePlaceholderText: {
     fontWeight: '600',
     color: '#777777',
+  },
+
+  semesterTermRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+
+  semesterChip: {
+    minWidth: '47%',
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+  },
+
+  semesterChipSelected: {
+    borderColor: BLUE,
+    backgroundColor: '#F3F7FF',
+  },
+
+  semesterChipText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#777777',
+  },
+
+  semesterChipTextSelected: {
+    color: BLUE,
   },
 
   bottomSpacer: {
@@ -691,5 +905,37 @@ const styles = StyleSheet.create({
   datePicker: {
     width: '100%',
     minHeight: 320,
+  },
+
+  sheetHeaderSpacer: {
+    width: 32,
+  },
+
+  yearList: {
+    maxHeight: 320,
+  },
+
+  yearOption: {
+    minHeight: 46,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F3',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+
+  yearOptionSelected: {
+    backgroundColor: '#F3F7FF',
+  },
+
+  yearOptionText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111111',
+  },
+
+  yearOptionTextSelected: {
+    color: BLUE,
   },
 });

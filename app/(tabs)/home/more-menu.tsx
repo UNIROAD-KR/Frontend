@@ -24,22 +24,22 @@ const serviceGroups = [
       {
         title: '파견교 정보',
         icon: 'school-outline',
-        route: '/(tabs)/home/school-info',
+        route: '/home/school-info',
       },
       {
         title: '장학금 정보',
         icon: 'ribbon-outline',
-        route: '/(tabs)/home/scholarship-info',
+        route: '/home/scholarship-info',
       },
       {
         title: '국가별 출국 가이드',
         icon: 'document-text-outline',
-        route: '/(tabs)/home/visa-guide',
+        route: '/home/visa-guide',
       },
       {
         title: '지원 기준',
         icon: 'business-outline',
-        route: '/(tabs)/home/my-school-info',
+        route: '/home/my-school-info',
       },
     ],
   },
@@ -55,7 +55,7 @@ const serviceGroups = [
         title: '티켓 양도',
         icon: 'ticket-outline',
         route: {
-          pathname: '/(tabs)/market',
+          pathname: '/market',
           params: { tab: 'ticket' },
         },
       },
@@ -67,17 +67,17 @@ const serviceGroups = [
       {
         title: '동행 구하기',
         icon: 'people-outline',
-        route: '/(tabs)/community',
+        route: '/community',
       },
       {
         title: '지출 관리',
         icon: 'wallet-outline',
-        route: '/(tabs)/mypage',
+        route: '/mypage',
       },
       {
         title: '나의 출국 준비',
         icon: 'checkmark-done-outline',
-        route: '/(tabs)/home/departure-checklist',
+        route: '/home/departure-checklist',
       },
     ],
   },
