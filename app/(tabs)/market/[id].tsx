@@ -1,10 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -26,8 +26,8 @@ import {
 import { AppBackButton } from '@/components/ui/app-back-button';
 
 const BLUE = '#123F9F';
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const DETAIL_IMAGE_HEIGHT = 290;
+const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const categoryNameMap: Record<TradeCategory, string> = {
   KITCHEN: '주방 용품',
@@ -42,6 +42,16 @@ type MarketDetailPost = Omit<LocalMarketPost, 'id'> & {
   id: string | number;
   source: 'api' | 'local';
   targetMemberId?: number;
+};
+
+type LikedMarketPost = {
+  id: number;
+  title: string;
+  region: string;
+  semester: string;
+  price: string;
+  time: string;
+  imageUrl: string;
 };
 
 const parseDate = (value: string) => {
@@ -181,13 +191,75 @@ const mapLocalPost = (post: LocalMarketPost): MarketDetailPost => ({
   source: 'local',
 });
 
+const readLikedMarketPosts = async () => {
+  const rawPosts = await AsyncStorage.getItem(LIKED_MARKET_POSTS_STORAGE_KEY);
+
+  if (!rawPosts) return [];
+
+  try {
+    const parsedPosts = JSON.parse(rawPosts);
+
+    return Array.isArray(parsedPosts)
+      ? (parsedPosts as LikedMarketPost[])
+      : [];
+  } catch {
+    await AsyncStorage.removeItem(LIKED_MARKET_POSTS_STORAGE_KEY);
+    return [];
+  }
+};
+
+const isLikedMarketPost = async (id: number) => {
+  const likedPosts = await readLikedMarketPosts();
+
+  return likedPosts.some((item) => item.id === id);
+};
+
+const syncLikedMarketPost = async (
+  post: MarketDetailPost,
+  nextLiked: boolean,
+) => {
+  if (typeof post.id !== 'number') return;
+
+  const likedPosts = await readLikedMarketPosts();
+  const withoutCurrentPost = likedPosts.filter((item) => item.id !== post.id);
+
+  if (!nextLiked) {
+    await AsyncStorage.setItem(
+      LIKED_MARKET_POSTS_STORAGE_KEY,
+      JSON.stringify(withoutCurrentPost),
+    );
+    return;
+  }
+
+  await AsyncStorage.setItem(
+    LIKED_MARKET_POSTS_STORAGE_KEY,
+    JSON.stringify([
+      {
+        id: post.id,
+        title: post.title,
+        region: post.region,
+        semester: post.semester,
+        price: formatPrice(post),
+        time: formatRelativeTime(post.createdAt),
+        imageUrl: post.photos[0] ?? '',
+      },
+      ...withoutCurrentPost,
+    ]),
+  );
+};
+
 export default function MarketDetailPage() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, fromProfileList } = useLocalSearchParams<{
+    id?: string;
+    fromProfileList?: string;
+  }>();
   const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
   const [liked, setLiked] = useState(false);
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
+  const bottomSafePadding = 4;
+  const bottomBarHeight = 56;
 
   const scrollRef = useRef<ScrollView>(null);
   const currentScrollY = useRef(0);
@@ -225,8 +297,14 @@ export default function MarketDetailPage() {
           nextPost = localPost ? mapLocalPost(localPost) : null;
         }
 
+        const savedLiked =
+          nextPost && typeof nextPost.id === 'number'
+            ? await isLikedMarketPost(nextPost.id)
+            : false;
+
         if (active) {
           setPost(nextPost);
+          setLiked(savedLiked);
           setLoading(false);
         }
       };
@@ -318,10 +396,24 @@ export default function MarketDetailPage() {
     }
   };
 
+  const handleToggleLike = () => {
+    if (!post) return;
+
+    setLiked((prev) => {
+      const next = !prev;
+
+      syncLikedMarketPost(post, next).catch((error) => {
+        console.log('좋아요한 중고거래 상세 저장 실패:', error);
+      });
+
+      return next;
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <HeaderBack />
+        <HeaderBack fromProfileList={fromProfileList} />
 
         <View style={styles.centerState}>
           <Text style={styles.centerText}>게시글을 불러오는 중이에요</Text>
@@ -333,7 +425,7 @@ export default function MarketDetailPage() {
   if (!post) {
     return (
       <View style={styles.container}>
-        <HeaderBack />
+        <HeaderBack fromProfileList={fromProfileList} />
 
         <View style={styles.centerState}>
           <Text style={styles.centerTitle}>게시글을 찾을 수 없어요</Text>
@@ -358,11 +450,16 @@ export default function MarketDetailPage() {
         }}
         scrollEventThrottle={16}
       >
-        <HeaderBack />
+        <HeaderBack fromProfileList={fromProfileList} />
 
         <ImageCarousel photos={post.photos} />
 
-        <View style={styles.body}>
+        <View
+          style={[
+            styles.body,
+            { paddingBottom: bottomBarHeight + 14 },
+          ]}
+        >
           <View style={styles.tagRow}>
             {tags.map((tag) => (
               <Text key={tag} style={styles.tag}>
@@ -372,7 +469,9 @@ export default function MarketDetailPage() {
           </View>
 
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{post.title}</Text>
+            <Text style={styles.title} numberOfLines={3}>
+              {post.title}
+            </Text>
           </View>
 
           <Text style={styles.price}>{formatPrice(post)}</Text>
@@ -409,10 +508,18 @@ export default function MarketDetailPage() {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            height: bottomBarHeight,
+            paddingBottom: bottomSafePadding,
+          },
+        ]}
+      >
         <Pressable
           style={styles.bottomHeartButton}
-          onPress={() => setLiked((prev) => !prev)}
+          onPress={handleToggleLike}
         >
           <Ionicons
             name={liked ? 'heart' : 'heart-outline'}
@@ -431,10 +538,22 @@ export default function MarketDetailPage() {
   );
 }
 
-function HeaderBack() {
+function HeaderBack({ fromProfileList }: { fromProfileList?: string }) {
   return (
     <View style={styles.top}>
-      <AppBackButton />
+      <AppBackButton
+        onPress={() => {
+          if (fromProfileList === 'market' || fromProfileList === 'liked') {
+            router.replace({
+              pathname: '/home/profile-list',
+              params: { type: fromProfileList },
+            } as any);
+            return;
+          }
+
+          router.back();
+        }}
+      />
     </View>
   );
 }
@@ -680,7 +799,7 @@ const styles = StyleSheet.create({
   },
 
   heroImage: {
-    width: SCREEN_WIDTH,
+    width: '100%',
     height: DETAIL_IMAGE_HEIGHT,
     resizeMode: 'cover',
   },
@@ -705,7 +824,6 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 22,
     paddingTop: 14,
-    paddingBottom: 120,
   },
 
   tagRow: {
@@ -984,12 +1102,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 86,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 22,
-    paddingTop: 10,
+    paddingTop: 4,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
 
   bottomHeartButton: {

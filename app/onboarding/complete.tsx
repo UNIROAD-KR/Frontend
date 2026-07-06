@@ -26,6 +26,7 @@ type OnboardingSummary = {
   dispatchedCountry: string;
   dispatchedRegion: string;
   dispatchedUniversity: string;
+  dispatchSemester: string;
   applicationDeadline: string;
   departureDate: string;
   dispatchStartDate: string;
@@ -39,6 +40,7 @@ const initialSummary: OnboardingSummary = {
   dispatchedCountry: '',
   dispatchedRegion: '',
   dispatchedUniversity: '',
+  dispatchSemester: '',
   applicationDeadline: '',
   departureDate: '',
   dispatchStartDate: '',
@@ -147,6 +149,7 @@ export default function CompletePage() {
         'dispatchedCountry',
         'dispatchedRegion',
         'dispatchedUniversity',
+        'dispatchSemester',
         'applicationDeadline',
         'departureDate',
         'dispatchStartDate',
@@ -161,6 +164,7 @@ export default function CompletePage() {
         dispatchedCountry: stored.dispatchedCountry?.trim() || '',
         dispatchedRegion: stored.dispatchedRegion?.trim() || '',
         dispatchedUniversity: stored.dispatchedUniversity?.trim() || '',
+        dispatchSemester: stored.dispatchSemester?.trim() || '',
         applicationDeadline: stored.applicationDeadline?.trim() || '',
         departureDate: stored.departureDate?.trim() || '',
         dispatchStartDate: stored.dispatchStartDate?.trim() || '',
@@ -188,6 +192,7 @@ export default function CompletePage() {
         'dispatchedUniversity',
         'dispatchedCountry',
         'dispatchedRegion',
+        'dispatchSemester',
         'onboardingSituation',
         'applicationDeadline',
         'departureDate',
@@ -216,6 +221,7 @@ export default function CompletePage() {
         dispatchedUniversity: stored.dispatchedUniversity?.trim() || undefined,
         dispatchedCountry: stored.dispatchedCountry?.trim() || undefined,
         dispatchedRegion: stored.dispatchedRegion?.trim() || undefined,
+        dispatchSemester: stored.dispatchSemester?.trim() || undefined,
         applicationDeadline:
           currentSituation === 'PREPARING_APPLICATION'
             ? stored.applicationDeadline?.trim() || undefined
@@ -270,6 +276,7 @@ export default function CompletePage() {
         <View style={styles.summaryPanel}>
           <SummaryRow label="소속대학" value={summary.domesticUniversity || '-'} />
           <SummaryRow label="현재 상황" value={summary.profileStatus || '-'} />
+          <SummaryRow label="파견 학기" value={summary.dispatchSemester || '-'} />
           <SummaryRow label="파견 지역" value={locationSummary || '-'} />
           <SummaryRow
             label="파견 대학"

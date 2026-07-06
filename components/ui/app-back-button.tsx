@@ -13,6 +13,7 @@ type AppBackButtonProps = {
   fallbackHref?: Href;
   onPress?: PressableProps['onPress'];
   hitSlop?: PressableProps['hitSlop'];
+  showOnlyWhenCanGoBack?: boolean;
   style?: StyleProp<ViewStyle>;
   iconStyle?: StyleProp<ImageStyle>;
 };
@@ -21,16 +22,23 @@ export function AppBackButton({
   fallbackHref,
   onPress,
   hitSlop = 15,
+  showOnlyWhenCanGoBack = false,
   style,
   iconStyle,
 }: AppBackButtonProps) {
+  const canGoBack = router.canGoBack();
+
+  if (showOnlyWhenCanGoBack && !canGoBack) {
+    return null;
+  }
+
   const handlePress: PressableProps['onPress'] = (event) => {
     if (onPress) {
       onPress(event);
       return;
     }
 
-    if (router.canGoBack()) {
+    if (canGoBack) {
       router.back();
       return;
     }
@@ -58,9 +66,10 @@ export function AppBackButton({
 
 const styles = StyleSheet.create({
   button: {
-    width: 40,
-    height: 40,
-    backgroundColor: 'transparent',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
     justifyContent: 'center',
     alignItems: 'center',
   },

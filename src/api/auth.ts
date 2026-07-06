@@ -35,6 +35,7 @@ export interface OnboardingRequest {
   dispatchedUniversity?: string;
   dispatchedCountry?: string;
   dispatchedRegion?: string;
+  dispatchSemester?: string;
   applicationDeadline?: string;
   departureDate?: string;
   dispatchStartDate?: string;
@@ -47,6 +48,7 @@ export interface MemberProfileUpdateRequest {
   currentSituation?: CurrentSituation;
   dispatchedUniversity?: string;
   domesticUniversity?: string;
+  dispatchSemester?: string | null;
   applicationDeadline?: string | null;
   departureDate?: string | null;
   dispatchStartDate?: string | null;
@@ -75,6 +77,7 @@ export interface MemberResponse {
   dispatchedUniversity: string | null;
   dispatchedCountry: string | null;
   dispatchedRegion: string | null;
+  dispatchSemester?: string | null;
   applicationDeadline?: string | null;
   departureDate?: string | null;
   dispatchStartDate?: string | null;

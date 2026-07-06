@@ -15,6 +15,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import {
@@ -106,6 +107,7 @@ const parseDateValue = (value: string) => {
 };
 
 export default function TicketWritePage() {
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState<1 | 2>(1);
   const [ticketType, setTicketType] = useState<TicketType | null>(null);
   const [eventDate, setEventDate] = useState('');
@@ -377,7 +379,13 @@ export default function TicketWritePage() {
     >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: Math.max(54, insets.top + 12),
+            paddingBottom: Math.max(48, insets.bottom + 28),
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -1125,8 +1133,6 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: 22,
-    paddingTop: 54,
-    paddingBottom: 24,
   },
   header: {
     height: 40,
@@ -1318,7 +1324,7 @@ const styles = StyleSheet.create({
     color: '#111111',
   },
   bottomButton: {
-    height: 46,
+    height: 48,
     borderRadius: 4,
     backgroundColor: BLUE,
     alignItems: 'center',

@@ -691,7 +691,7 @@ export default function MarketPreviewPage() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <AppBackButton />
+          <AppBackButton style={styles.backButton} />
 
           <Text style={styles.headerTitle}>다음 교환학생에게 넘기기</Text>
 
@@ -1090,6 +1090,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F6F8FC',
   },
   headerTitle: { fontSize: 17, fontWeight: '900', color: '#111111' },
   tempSave: { fontSize: 13, color: '#BDBDBD', fontWeight: '700' },

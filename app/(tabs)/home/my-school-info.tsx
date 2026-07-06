@@ -341,7 +341,7 @@ export default function MySchoolInfoScreen() {
                     style={styles.partnerSchoolItem}
                     onPress={() => {
                       router.push({
-                        pathname: '/(tabs)/home/school-detail',
+                        pathname: '/home/school-detail',
                         params: { id: String(school.id), name: school.name }
                       });
                     }}

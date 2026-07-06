@@ -317,7 +317,7 @@ export default function SchoolInfoScreen() {
               style={styles.schoolCard}
               onPress={() => {
                 router.push({
-                  pathname: '/(tabs)/home/school-detail',
+                  pathname: '/home/school-detail',
                   params: { id: school.id, name: school.name },
                 });
               }}

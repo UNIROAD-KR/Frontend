@@ -3,6 +3,71 @@ export type ExchangeStatus = 'preparing' | 'accepted' | 'dispatched';
 export const ONBOARDING_NICKNAME_KEY = 'onboardingNickname';
 export const CUSTOM_COUNTRY_OPTION = '직접 입력';
 
+export const getNicknameError = (value: string) => {
+  if (!value) {
+    return '';
+  }
+
+  if (/\s/.test(value)) {
+    return '공백은 사용할 수 없어요.';
+  }
+
+  if (value.length < 2) {
+    return '2자 이상 입력해주세요.';
+  }
+
+  if (value.length > 12) {
+    return '12자 이하로 입력해주세요.';
+  }
+
+  if (!/^[가-힣a-zA-Z0-9_]+$/.test(value)) {
+    return '한글, 영문, 숫자, 밑줄만 사용할 수 있어요.';
+  }
+
+  return '';
+};
+
+export const dispatchSemesterTerms = [
+  '1학기',
+  '2학기',
+  '여름단기',
+  '겨울단기',
+] as const;
+
+export type DispatchSemesterTerm = (typeof dispatchSemesterTerms)[number];
+
+export type ParsedDispatchSemester = {
+  year: string;
+  term: DispatchSemesterTerm | '';
+};
+
+export const formatDispatchSemester = (
+  year: string | number,
+  term: DispatchSemesterTerm,
+) => `${String(year).trim()}-${term}`;
+
+export const parseDispatchSemester = (
+  value?: string | number | null,
+): ParsedDispatchSemester => {
+  const rawValue = value === null || value === undefined ? '' : String(value).trim();
+  const year = rawValue.match(/\b(19\d{2}|20\d{2})\b/)?.[1] ?? '';
+  let term: DispatchSemesterTerm | '' =
+    dispatchSemesterTerms.find((item) => rawValue.includes(item)) ?? '';
+
+  if (!term && /(^|[^0-9])1([^0-9]|$)/.test(rawValue)) {
+    term = '1학기';
+  }
+
+  if (!term && /(^|[^0-9])2([^0-9]|$)/.test(rawValue)) {
+    term = '2학기';
+  }
+
+  return {
+    year,
+    term,
+  };
+};
+
 export const universityOptions = [
   '서울대학교',
   '서울과학기술대학교',

@@ -25,6 +25,10 @@ import {
   type MemberProfileUpdateRequest,
 } from '../../../src/api/auth';
 import { AppBackButton } from '@/components/ui/app-back-button';
+import {
+  formatDispatchSemester,
+  parseDispatchSemester,
+} from '@/src/constants/onboarding';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -75,12 +79,6 @@ type EditSnapshot = {
   returnDate: string;
   dispatchSemester: string;
 };
-type MemberWithDispatchSemester = NonNullable<Awaited<ReturnType<typeof getMemberMe>>['data']['data']> & {
-  dispatchSemester?: string | null;
-};
-type MemberProfileUpdateWithDispatchSemester = MemberProfileUpdateRequest & {
-  dispatchSemester?: string | null;
-};
 
 const createDate = (year: number, month: number, day: number) => new Date(year, month - 1, day);
 const toDateValue = (value: string | null) => {
@@ -99,8 +97,12 @@ const normalizeDispatchSemester = (value?: string | number | null) => {
   if (value === null || value === undefined) return '';
 
   const trimmedValue = String(value).trim();
+  const parsedValue = parseDispatchSemester(trimmedValue);
 
   if (/^\d{4}$/.test(trimmedValue)) return '';
+  if (parsedValue.year && parsedValue.term) {
+    return formatDispatchSemester(parsedValue.year, parsedValue.term);
+  }
 
   return trimmedValue;
 };
@@ -108,7 +110,6 @@ const normalizeDispatchSemester = (value?: string | number | null) => {
 export default function ProfileEditScreen() {
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [homeUniversity, setHomeUniversity] = useState('');
   const [country, setCountry] = useState('');
@@ -152,7 +153,7 @@ export default function ProfileEditScreen() {
     value: string,
   ) => {
     router.push({
-      pathname: '/(tabs)/home/profile-field-edit',
+      pathname: '/home/profile-field-edit',
       params: { field, value, region },
     } as any);
   };
@@ -196,7 +197,6 @@ export default function ProfileEditScreen() {
 
       const nextAvatar = savedAvatar || null;
       let nextName = '';
-      let nextEmail = '';
       let nextNickname = savedNickname || '';
       let nextHomeUniversity = savedHomeUniversity || savedUniversity || '';
       let nextDispatchedUniversity = savedDispatchedUniversity || '';
@@ -213,10 +213,9 @@ export default function ProfileEditScreen() {
 
       try {
         const memberRes = await getMemberMe();
-        const member = memberRes.data?.data as MemberWithDispatchSemester | undefined;
+        const member = memberRes.data?.data;
 
         if (member?.name) nextName = member.name;
-        if (member?.email) nextEmail = member.email;
         if (member?.nickname && !overrides.nickname) nextNickname = member.nickname;
         if ((member?.homeUniversity || member?.domesticUniversity) && !overrides.homeUniversity) {
           nextHomeUniversity = member.homeUniversity || member.domesticUniversity || '';
@@ -239,7 +238,6 @@ export default function ProfileEditScreen() {
 
       setAvatarUri(nextAvatar);
       setName(nextName);
-      setEmail(nextEmail);
       setNickname(nextNickname);
       setHomeUniversity(nextHomeUniversity);
       setDispatchedUniversity(nextDispatchedUniversity);
@@ -339,7 +337,7 @@ export default function ProfileEditScreen() {
       loadedCurrentSituation && profileStatusByCurrentSituation[loadedCurrentSituation] === status
         ? loadedCurrentSituation
         : currentSituationByProfileStatus[status];
-    const requestBody: MemberProfileUpdateWithDispatchSemester = {
+    const requestBody: MemberProfileUpdateRequest = {
       nickname: nickname.trim(),
       dispatchedCountry: country.trim(),
       dispatchedRegion: region.trim(),
@@ -435,8 +433,7 @@ export default function ProfileEditScreen() {
             onPress={() => openFieldEdit('nickname', nickname)}
             withDivider
           />
-          <ReadonlyInfoRow label="이름" value={name} withDivider />
-          <ReadonlyInfoRow label="이메일" value={email} />
+          <ReadonlyInfoRow label="이름" value={name} />
         </InfoSection>
 
         <InfoSection title="학교 정보">
@@ -464,7 +461,7 @@ export default function ProfileEditScreen() {
           <EditableInfoRow
             label="파견 학기"
             value={dispatchSemester}
-            placeholder="ex) 2025-2학기"
+            placeholder="파견 학기 선택"
             onPress={() => openFieldEdit('dispatchSemester', dispatchSemester)}
           />
         </InfoSection>
@@ -538,7 +535,7 @@ export default function ProfileEditScreen() {
           disabled={!hasChanges}
         >
           <Text style={[styles.footerButtonText, !hasChanges && styles.footerButtonTextDisabled]}>
-            변경사항 저장
+            {hasChanges ? '변경사항 저장' : '변경사항 없음'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -619,11 +616,12 @@ function ReadonlyInfoRow({
   withDivider?: boolean;
 }) {
   return (
-    <View style={[styles.infoRow, withDivider && styles.infoRowDivider]}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={1}>
+    <View style={[styles.infoRow, styles.readonlyInfoRow, withDivider && styles.infoRowDivider]}>
+      <Text style={[styles.infoLabel, styles.readonlyInfoLabel]}>{label}</Text>
+      <Text style={[styles.infoValue, styles.readonlyInfoValue]} numberOfLines={1}>
         {value || '-'}
       </Text>
+      <Ionicons name="lock-closed-outline" size={15} color="#A4ADBA" />
     </View>
   );
 }
@@ -643,18 +641,30 @@ function EditableInfoRow({
 }) {
   return (
     <TouchableOpacity
-      style={[styles.infoRow, withDivider && styles.infoRowDivider]}
+      style={[
+        styles.infoRow,
+        styles.editableInfoRow,
+        withDivider && styles.editableInfoRowSpacing,
+      ]}
       onPress={onPress}
       activeOpacity={0.82}
     >
-      <Text style={styles.infoLabel}>{label}</Text>
+      <Text
+        style={styles.infoLabel}
+        numberOfLines={label === '파견 국가 및 지역' ? 2 : 1}
+      >
+        {label === '파견 국가 및 지역' ? '파견 국가 및\n지역' : label}
+      </Text>
       <Text
         style={[styles.infoValue, !value.trim() && styles.infoPlaceholder]}
         numberOfLines={1}
       >
         {value.trim() || placeholder}
       </Text>
-      <Ionicons name="chevron-forward" size={18} color="#A4ADBA" />
+      <View style={styles.editBadge}>
+        <Ionicons name="create-outline" size={13} color={BLUE} />
+        <Text style={styles.editBadgeText}>수정</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -787,12 +797,12 @@ const styles = StyleSheet.create({
   sectionCard: {
     borderRadius: 12,
     backgroundColor: CARD,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
   sectionBody: {
     paddingHorizontal: 18,
-    paddingTop: 0,
-    paddingBottom: 6,
+    paddingTop: 4,
+    paddingBottom: 10,
   },
   formSectionBody: {
     paddingBottom: 15,
@@ -801,26 +811,66 @@ const styles = StyleSheet.create({
     minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginVertical: 5,
+    paddingHorizontal: 12,
+  },
+  editableInfoRow: {
+    borderWidth: 1,
+    borderColor: '#C9DAFF',
+    borderRadius: 10,
+    backgroundColor: '#F8FBFF',
+  },
+  editableInfoRowSpacing: {
+    marginBottom: 8,
+  },
+  readonlyInfoRow: {
+    borderRadius: 10,
+    backgroundColor: '#F1F3F5',
   },
   infoRowDivider: {
     borderBottomWidth: 1,
     borderBottomColor: '#EEF0F3',
   },
   infoLabel: {
-    flex: 0.85,
+    flexBasis: 92,
+    flexShrink: 0,
     fontSize: 14,
+    lineHeight: 19,
     fontWeight: '700',
     color: INK,
   },
   infoValue: {
-    flex: 1.25,
+    flex: 1,
+    minWidth: 0,
     fontSize: 14,
     fontWeight: '700',
-    color: '#7A828E',
+    color: NAVY,
     textAlign: 'right',
+  },
+  readonlyInfoLabel: {
+    color: '#9AA3AF',
+  },
+  readonlyInfoValue: {
+    color: '#9AA3AF',
   },
   infoPlaceholder: {
     color: '#A4ADBA',
+  },
+  editBadge: {
+    minWidth: 48,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#EAF1FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  editBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: BLUE,
   },
   field: {
     marginBottom: 12,

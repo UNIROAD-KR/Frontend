@@ -33,21 +33,21 @@ const BANNER_ITEMS = [
   {
     title: '내 학교 정보',
     subtitle: '우리 학교 교환학생 지원 기준\n및 절차 확인',
-    route: '/(tabs)/home/my-school-info',
+    route: '/home/my-school-info',
     image: require('../../../assets/images/banner-school-supplies.png'),
     backgroundColor: '#083493',
   },
   {
     title: '파견교 정보',
     subtitle: '글로벌 파견교 리스트와\n생생한 상세 항목 탐색 바로가기',
-    route: '/(tabs)/home/school-info',
+    route: '/home/school-info',
     image: require('../../../assets/images/banner-still-life.png'),
     backgroundColor: '#0B3462',
   },
   {
     title: '장학금 정보',
     subtitle: '교외 지원금 정보,\n지원 시기 및 자소서 꿀팁',
-    route: '/(tabs)/home/scholarship-info',
+    route: '/home/scholarship-info',
     image: require('../../../assets/images/banner-education-icons.png'),
     backgroundColor: '#3988D8',
   },
@@ -57,14 +57,14 @@ const DEPARTURE_BANNER_ITEMS = [
   {
     title: '국가별 출국 가이드',
     subtitle: '비자부터 보험까지\n국가별 준비정보 탐색',
-    route: '/(tabs)/home/visa-guide',
+    route: '/home/visa-guide',
     image: require('../../../assets/images/departure-visa-guide.png'),
     backgroundColor: '#604EB6',
   },
   {
     title: '나의 출국 준비',
     subtitle: '짐싸기부터 보험까지,\n출국 전 필수 체크 리스트',
-    route: '/(tabs)/home/departure-checklist',
+    route: '/home/departure-checklist',
     image: require('../../../assets/images/departure-checklist.png'),
     backgroundColor: '#AB55AE',
   },
@@ -762,7 +762,7 @@ export default function ExploreScreen() {
                 style={styles.countryPill}
                 onPress={() => {
                   router.push({
-                    pathname: '/(tabs)/home/school-info',
+                    pathname: '/home/school-info',
                     params: { initCountry: c.name },
                   });
                 }}

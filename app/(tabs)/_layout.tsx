@@ -44,7 +44,7 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            router.replace('/(tabs)/home' as any);
+            router.replace('/home' as any);
           },
         }}
         options={{
@@ -71,11 +71,11 @@ export default function TabLayout() {
             e.preventDefault();
 
             if (pathname.includes('/home/explore')) {
-              router.replace('/(tabs)/home/explore');
+              router.replace('/home/explore');
               return;
             }
 
-            router.replace('/(tabs)/home/explore');
+            router.replace('/home/explore');
           },
         }}
         options={{
@@ -98,6 +98,15 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="community"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.replace({
+              pathname: '/community',
+              params: { fromTab: 'true' },
+            } as any);
+          },
+        }}
         options={{
           title: '커뮤니티',
           tabBarIcon: () => (
@@ -122,11 +131,10 @@ export default function TabLayout() {
           tabPress: (e) => {
             e.preventDefault();
 
-            if (pathname.startsWith('/market')) {
-              return;
-            }
-
-            router.push('/(tabs)/market' as any);
+            router.replace({
+              pathname: '/market',
+              params: { fromTab: 'true' },
+            } as any);
           },
         }}
         options={{

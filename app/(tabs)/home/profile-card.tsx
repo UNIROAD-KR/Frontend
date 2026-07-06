@@ -15,6 +15,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getMemberMe, logout } from '../../../src/api/auth';
+import { openKakaoContact } from '../../../src/utils/contact';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -25,53 +26,51 @@ const CARD = '#FAFBFC';
 
 type RouteTarget = unknown;
 
-type QuickAction = {
-  title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route: RouteTarget;
-};
-
 type MenuItem = {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   description?: string;
-  route: RouteTarget;
-  action?: 'logout' | 'notice';
-  noticeMessage?: string;
+  route?: RouteTarget;
+  action?: 'logout' | 'contact';
 };
-
-const savedPostsRoute = {
-  pathname: '/(tabs)/home/profile-list',
-  params: { type: 'saved' },
-};
-
-const quickActions: QuickAction[] = [
-  { title: '좋아요한 글', icon: 'heart-outline', route: savedPostsRoute },
-  { title: '좋아요한 파견교', icon: 'school-outline', route: '/(tabs)/home/my-school-info' },
-  { title: '여행 혜택', icon: 'sparkles-outline', route: '/(tabs)/home/guide' },
-];
 
 const activityItems: MenuItem[] = [
   {
     title: '좋아요한 글',
-    icon: 'heart-outline',
-    route: savedPostsRoute,
-  },
-  {
-    title: '동행 모집글',
-    description: '출국, 여행, 정착 동행 모집 현황',
-    icon: 'people-outline',
-    route: '/(tabs)/community',
+    description: '내가 좋아요 누른 커뮤니티 글',
+    icon: 'thumbs-up-outline',
+    route: {
+      pathname: '/home/profile-list',
+      params: { type: 'liked' },
+    },
   },
   {
     title: '중고거래 작성글',
     description: '판매 중인 물품과 거래 상태 확인',
     icon: 'bag-handle-outline',
-    route: '/(tabs)/market',
+    route: {
+      pathname: '/home/profile-list',
+      params: { type: 'market' },
+    },
+  },
+  {
+    title: '동행 모집글',
+    description: '출국, 여행, 정착 동행 모집 현황',
+    icon: 'people-outline',
+    route: {
+      pathname: '/home/profile-list',
+      params: { type: 'companion' },
+    },
   },
 ];
 
 const accountItems: MenuItem[] = [
+  {
+    title: '계정 설정',
+    description: '아이디 확인 및 비밀번호 변경',
+    icon: 'settings-outline',
+    route: '/home/account-settings',
+  },
   {
     title: '파견교 인증',
     description: '파견교 인증 상태 확인',
@@ -81,20 +80,13 @@ const accountItems: MenuItem[] = [
   {
     title: '알림 설정',
     icon: 'notifications-outline',
-    route: '/(tabs)/home/profile-notifications',
+    route: '/home/profile-notifications',
   },
   {
-    title: '비밀번호 수정',
+    title: '프로필 수정',
     description: '이름, 학교, 파견 정보를 수정',
     icon: 'person-outline',
-    route: '/(tabs)/home/profile-edit',
-  },
-  {
-    title: '로그아웃하기',
-    description: '현재 계정에서 로그아웃',
-    icon: 'log-out-outline',
-    route: null,
-    action: 'logout',
+    route: '/home/profile-edit',
   },
 ];
 
@@ -103,34 +95,49 @@ const serviceItems: MenuItem[] = [
     title: '전체 서비스',
     description: '유니로드의 모든 기능 보기',
     icon: 'apps-outline',
-    route: '/(tabs)/home/more-menu',
+    route: '/home/more-menu',
+  },
+];
+
+const guideItems: MenuItem[] = [
+  {
+    title: '앱 버전',
+    description: '현재 앱 버전 확인',
+    icon: 'phone-portrait-outline',
+    route: '/home/app-info',
+  },
+  {
+    title: '문의하기',
+    description: '오픈채팅방으로 이동',
+    icon: 'chatbubble-ellipses-outline',
+    action: 'contact',
   },
   {
     title: '공지사항',
     description: '서비스 업데이트와 운영 안내',
     icon: 'megaphone-outline',
-    route: null,
-    action: 'notice',
-    noticeMessage: '공지사항은 곧 확인할 수 있도록 연결할게요.',
+    route: '/home/notices',
   },
-];
-
-const policyItems: MenuItem[] = [
   {
     title: '서비스 이용약관',
     description: '유니로드 이용 약관 확인',
     icon: 'document-text-outline',
-    route: null,
-    action: 'notice',
-    noticeMessage: '서비스 이용약관은 곧 확인할 수 있도록 연결할게요.',
+    route: '/home/terms',
   },
+];
+
+const extraItems: MenuItem[] = [
   {
     title: '개인정보 처리방침',
     description: '개인정보 수집 및 이용 안내',
     icon: 'shield-outline',
-    route: null,
-    action: 'notice',
-    noticeMessage: '개인정보 처리방침은 곧 확인할 수 있도록 연결할게요.',
+    route: '/home/privacy-policy',
+  },
+  {
+    title: '로그아웃',
+    description: '현재 계정에서 나가기',
+    icon: 'log-out-outline',
+    action: 'logout',
   },
 ];
 
@@ -257,8 +264,10 @@ export default function ProfileCardScreen() {
       return;
     }
 
-    if (item.action === 'notice') {
-      Alert.alert(item.title, item.noticeMessage);
+    if (item.action === 'contact') {
+      openKakaoContact().catch(() => {
+        Alert.alert('연결 실패', '문의 링크를 열 수 없어요.');
+      });
       return;
     }
 
@@ -280,7 +289,7 @@ export default function ProfileCardScreen() {
         <View style={styles.profileCard}>
           <TouchableOpacity
             style={styles.profileMain}
-            onPress={() => router.push('/(tabs)/home/profile-edit' as any)}
+            onPress={() => router.push('/home/profile-edit' as any)}
             activeOpacity={0.86}
           >
             <View style={styles.avatarWrap}>
@@ -307,20 +316,6 @@ export default function ProfileCardScreen() {
               <Ionicons name="pencil-outline" size={16} color={NAVY} />
             </View>
           </TouchableOpacity>
-
-          <View style={styles.quickRow}>
-            {quickActions.map((item) => (
-              <TouchableOpacity
-                key={item.title}
-                style={styles.quickButton}
-                onPress={() => openRoute(item.route)}
-                activeOpacity={0.86}
-              >
-                <Ionicons name={item.icon} size={15} color={NAVY} />
-                <Text style={styles.quickTitle}>{item.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
 
         <TouchableOpacity
@@ -386,8 +381,13 @@ export default function ProfileCardScreen() {
           onPressItem={handleMenuPress}
         />
         <MenuSection
-          title="앱 정보"
-          items={policyItems}
+          title="이용 안내"
+          items={guideItems}
+          onPressItem={handleMenuPress}
+        />
+        <MenuSection
+          title="기타"
+          items={extraItems}
           onPressItem={handleMenuPress}
         />
       </ScrollView>
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F7FF',
     paddingHorizontal: 14,
     paddingTop: 18,
-    paddingBottom: 20,
+    paddingBottom: 18,
     shadowColor: NAVY,
     shadowOffset: { width: 0, height: 7 },
     shadowOpacity: 0.025,
@@ -605,32 +605,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     color: BLUE,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e7f1ff',
-    gap: 8,
-  },
-  quickButton: {
-    flex: 1,
-    minHeight: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 4,
-    gap: 4,
-  },
-  quickTitle: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: NAVY,
-    textAlign: 'center',
   },
   section: {
     marginTop: 18,

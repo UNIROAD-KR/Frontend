@@ -73,7 +73,7 @@ export default function ExploreScreen() {
       <View style={styles.row}>
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push('/(tabs)/home/school-info')}
+          onPress={() => router.push('/home/school-info')}
         >
           <View style={styles.cardImg} />
           <Text style={styles.cardTitle}>파견교 정보</Text>
@@ -83,7 +83,7 @@ export default function ExploreScreen() {
 
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push('/(tabs)/home/guide')}
+          onPress={() => router.push('/home/guide')}
         >
           <View style={styles.cardImg} />
           <Text style={styles.cardTitle}>교환학생 가이드</Text>
@@ -95,7 +95,7 @@ export default function ExploreScreen() {
       {/* 하단 카드 */}
       <TouchableOpacity
         style={styles.bigCard}
-        onPress={() => router.push('/(tabs)/home/mentoring')}
+        onPress={() => router.push('/home/mentoring')}
       >
         <View style={styles.cardImg} />
         <View style={{ flex: 1 }}>

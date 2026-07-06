@@ -1,6 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   Alert,
@@ -20,6 +22,7 @@ import {
 } from '../../../src/api/ticket';
 
 const BLUE = '#123F9F';
+const LIKED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:liked-ticket-posts';
 
 const ticketTypeLabelMap: Record<TicketType, string> = {
   TOUR: '관광 티켓',
@@ -33,6 +36,18 @@ type TicketInfoLabels = {
   date: string;
   time: string;
   location: string;
+};
+
+type StoredTicketPost = {
+  id: number;
+  title: string;
+  country: string;
+  semester: string;
+  region: string;
+  category: string;
+  date: string;
+  price: string;
+  time: string;
 };
 
 const defaultTicketInfoLabels: TicketInfoLabels = {
@@ -169,12 +184,82 @@ const formatJoinedDate = (date?: string) => {
   return `${year}년 ${Number(month)}월 ${Number(day)}일 가입`;
 };
 
+const readLikedTicketPosts = async () => {
+  const rawPosts = await AsyncStorage.getItem(LIKED_TICKET_POSTS_STORAGE_KEY);
+
+  if (!rawPosts) return [];
+
+  try {
+    const parsedPosts = JSON.parse(rawPosts);
+
+    return Array.isArray(parsedPosts)
+      ? (parsedPosts as StoredTicketPost[])
+      : [];
+  } catch {
+    await AsyncStorage.removeItem(LIKED_TICKET_POSTS_STORAGE_KEY);
+    return [];
+  }
+};
+
+const isLikedTicketPost = async (id: number) => {
+  const likedPosts = await readLikedTicketPosts();
+
+  return likedPosts.some((item) => item.id === id);
+};
+
+const toStoredTicketPost = (ticket: TicketTransferResponse): StoredTicketPost => {
+  const isAccommodation = ticket.ticketType === 'ACCOMMODATION';
+  const eventDate = isAccommodation
+    ? formatAccommodationDateRange(ticket.eventDate)
+    : formatDate(ticket.eventDate);
+
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    country: ticket.authorDispatchedCountry ?? '',
+    semester: ticketTypeLabelMap[ticket.ticketType],
+    region: ticket.country,
+    category: ticketTypeLabelMap[ticket.ticketType],
+    date: eventDate,
+    price: formatPrice(ticket.transferPrice),
+    time: formatRelativeTime(ticket.createdAt ?? ticket.updatedAt),
+  };
+};
+
+const syncLikedTicketPost = async (
+  ticket: TicketTransferResponse,
+  nextLiked: boolean,
+) => {
+  const likedPosts = await readLikedTicketPosts();
+  const withoutCurrentPost = likedPosts.filter((item) => item.id !== ticket.id);
+
+  if (!nextLiked) {
+    await AsyncStorage.setItem(
+      LIKED_TICKET_POSTS_STORAGE_KEY,
+      JSON.stringify(withoutCurrentPost),
+    );
+    return;
+  }
+
+  await AsyncStorage.setItem(
+    LIKED_TICKET_POSTS_STORAGE_KEY,
+    JSON.stringify([toStoredTicketPost(ticket), ...withoutCurrentPost]),
+  );
+};
+
 export default function TicketPreviewPage() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, fromProfileList } = useLocalSearchParams<{
+    id?: string;
+    fromProfileList?: string;
+  }>();
   const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState<'ticket' | 'seller'>('ticket');
   const [ticket, setTicket] = useState<TicketTransferResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
+  const bottomSafePadding = 4;
+  const bottomBarHeight = 60;
+  const topSafePadding = Math.max(54, insets.top + 12);
 
   useFocusEffect(
     useCallback(() => {
@@ -192,9 +277,12 @@ export default function TicketPreviewPage() {
         try {
           setLoading(true);
           const response = await getTicketDetail(numericId);
+          const nextTicket = response.data.data;
+          const savedLiked = await isLikedTicketPost(nextTicket.id);
 
           if (active) {
-            setTicket(response.data.data);
+            setTicket(nextTicket);
+            setLiked(savedLiked);
           }
         } catch (error: any) {
           console.log('티켓 양도 상세 조회 실패:', error.response?.data || error.message);
@@ -228,7 +316,24 @@ export default function TicketPreviewPage() {
   if (!ticket) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <AppBackButton style={styles.centerBackButton} />
+        <AppBackButton
+          style={[styles.centerBackButton, { top: topSafePadding }]}
+          onPress={() => {
+            if (
+              fromProfileList === 'market' ||
+              fromProfileList === 'liked' ||
+              fromProfileList === 'saved'
+            ) {
+              router.replace({
+                pathname: '/home/profile-list',
+                params: { type: fromProfileList },
+              } as any);
+              return;
+            }
+
+            router.back();
+          }}
+        />
         <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요</Text>
         <Text style={styles.emptyText}>목록에서 다시 선택해주세요.</Text>
       </View>
@@ -260,14 +365,48 @@ export default function TicketPreviewPage() {
     ticket.authorDispatchSemester,
   );
   const sellerJoinedDate = formatJoinedDate(ticket.authorDispatchStartDate);
+  const handleToggleLike = () => {
+    setLiked((prev) => {
+      const next = !prev;
+
+      syncLikedTicketPost(ticket, next).catch((error) => {
+        console.log('좋아요한 티켓 양도 글 저장 실패:', error);
+      });
+
+      return next;
+    });
+  };
 
   return (
     <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingTop: topSafePadding,
+            paddingBottom: bottomBarHeight + 18,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <AppBackButton style={styles.backButton} />
+        <AppBackButton
+          style={styles.backButton}
+          onPress={() => {
+            if (
+              fromProfileList === 'market' ||
+              fromProfileList === 'liked' ||
+              fromProfileList === 'saved'
+            ) {
+              router.replace({
+                pathname: '/home/profile-list',
+                params: { type: fromProfileList },
+              } as any);
+              return;
+            }
+
+            router.back();
+          }}
+        />
 
         <View style={styles.tagRow}>
           <View style={styles.tag}>
@@ -284,7 +423,9 @@ export default function TicketPreviewPage() {
         </View>
 
         <View style={styles.titleRow}>
-          <Text style={styles.title}>{ticket.title}</Text>
+          <Text style={styles.title} numberOfLines={3}>
+            {ticket.title}
+          </Text>
           <Image
             source={require('../../../assets/images/share.png')}
             style={styles.shareIcon}
@@ -406,8 +547,16 @@ export default function TicketPreviewPage() {
         )}
       </ScrollView>
 
-      <View style={styles.bottomBar}>
-        <Pressable onPress={() => setLiked(!liked)} style={styles.heartButton}>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            height: bottomBarHeight,
+            paddingBottom: bottomSafePadding,
+          },
+        ]}
+      >
+        <Pressable onPress={handleToggleLike} style={styles.heartButton}>
           <Image
             source={
               liked
@@ -441,8 +590,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 54,
-    paddingBottom: 120,
   },
   centerContent: {
     alignItems: 'center',
@@ -452,7 +599,6 @@ const styles = StyleSheet.create({
   centerBackButton: {
     position: 'absolute',
     left: 20,
-    top: 54,
   },
   centerText: {
     marginTop: 12,
@@ -475,6 +621,7 @@ const styles = StyleSheet.create({
   },
   tagRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 15,
   },
@@ -649,6 +796,7 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
+    minWidth: 0,
   },
   profileName: {
     fontSize: 16,
@@ -678,6 +826,7 @@ const styles = StyleSheet.create({
   },
   profileDetailValue: {
     flex: 1,
+    minWidth: 0,
     fontSize: 14,
     lineHeight: 19,
     fontWeight: '800',
@@ -688,11 +837,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 93,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 4,
     flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   heartButton: {
     width: 44,
@@ -708,7 +857,7 @@ const styles = StyleSheet.create({
   },
   chatButton: {
     flex: 1,
-    height: 49,
+    height: 52,
     borderRadius: 4,
     backgroundColor: BLUE,
     alignItems: 'center',
