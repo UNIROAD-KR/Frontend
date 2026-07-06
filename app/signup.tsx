@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { PRIVACY_CONSENT, TERMS_OF_SERVICE } from '../constants/legal';
 import { checkUsername, signUp } from '../src/api/auth';
 import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 import { signupStyles as styles } from '../src/styles/signupStyles';
@@ -67,8 +68,13 @@ export default function SignupPage() {
   const [isUsernameChecked, setIsUsernameChecked] = useState(false);
   const [agreeService, setAgreeService] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeAge, setAgreeAge] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const [legalModal, setLegalModal] = useState<{
+    title: string;
+    content: string;
+  } | null>(null);
 
   const cleanedUsername = username.trim();
   const usernameError = getUsernameError(username);
@@ -77,8 +83,9 @@ export default function SignupPage() {
     passwordCheck.length > 0 && password !== passwordCheck
       ? '비밀번호가 일치하지 않습니다.'
       : '';
-  const allTermsChecked = agreeService && agreePrivacy && agreeMarketing;
-  const requiredTermsChecked = agreeService && agreePrivacy;
+  const allTermsChecked =
+    agreeService && agreePrivacy && agreeAge && agreeMarketing;
+  const requiredTermsChecked = agreeService && agreePrivacy && agreeAge;
 
   const isInputValid =
     cleanedUsername.length > 0 &&
@@ -148,6 +155,7 @@ export default function SignupPage() {
       });
 
       await clearOnboardingDraft();
+      setTermsVisible(false);
       Alert.alert('가입 완료', '회원가입이 완료되었습니다.');
       router.replace('/onboarding/nickname');
     } catch (error: any) {
@@ -168,13 +176,25 @@ export default function SignupPage() {
 
     setAgreeService(nextValue);
     setAgreePrivacy(nextValue);
+    setAgreeAge(nextValue);
     setAgreeMarketing(nextValue);
   };
 
   const openTermsSheet = () => {
     setAgreeService(false);
     setAgreePrivacy(false);
+    setAgreeAge(false);
     setAgreeMarketing(false);
+    setTermsVisible(true);
+  };
+
+  const handleOpenLegalModal = (title: string, content: string) => {
+    setTermsVisible(false);
+    setLegalModal({ title, content });
+  };
+
+  const handleCloseLegalModal = () => {
+    setLegalModal(null);
     setTermsVisible(true);
   };
 
@@ -430,13 +450,30 @@ export default function SignupPage() {
               label="[필수] 서비스 이용약관 동의"
               checked={agreeService}
               onPress={() => setAgreeService((prev) => !prev)}
+              onLinkPress={() =>
+                handleOpenLegalModal(
+                  '서비스 이용약관',
+                  TERMS_OF_SERVICE,
+                )
+              }
               showLink
             />
             <TermAgreementRow
               label="[필수] 개인정보 수집 및 이용 동의"
               checked={agreePrivacy}
               onPress={() => setAgreePrivacy((prev) => !prev)}
+              onLinkPress={() =>
+                handleOpenLegalModal(
+                  '개인정보 수집·이용 동의',
+                  PRIVACY_CONSENT,
+                )
+              }
               showLink
+            />
+            <TermAgreementRow
+              label="[필수] 만 14세 이상입니다"
+              checked={agreeAge}
+              onPress={() => setAgreeAge((prev) => !prev)}
             />
             <TermAgreementRow
               label="[선택] 마케팅 정보 수신 동의"
@@ -465,6 +502,12 @@ export default function SignupPage() {
           </Pressable>
         </Pressable>
       </Modal>
+      <LegalContentModal
+        visible={legalModal !== null}
+        title={legalModal?.title ?? ''}
+        content={legalModal?.content ?? ''}
+        onClose={handleCloseLegalModal}
+      />
     </>
   );
 }
@@ -473,12 +516,14 @@ function TermAgreementRow({
   label,
   checked,
   onPress,
+  onLinkPress,
   emphasized = false,
   showLink = false,
 }: {
   label: string;
   checked: boolean;
   onPress: () => void;
+  onLinkPress?: () => void;
   emphasized?: boolean;
   showLink?: boolean;
 }) {
@@ -511,10 +556,57 @@ function TermAgreementRow({
       </Pressable>
 
       {showLink && (
-        <Pressable style={styles.termLinkButton}>
+        <Pressable
+          style={styles.termLinkButton}
+          hitSlop={8}
+          onPress={(event) => {
+            event.stopPropagation();
+            onLinkPress?.();
+          }}
+        >
           <Text style={styles.termLinkText}>›</Text>
         </Pressable>
       )}
     </View>
+  );
+}
+
+function LegalContentModal({
+  visible,
+  title,
+  content,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  content: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={styles.legalOverlay}>
+        <View style={styles.legalModal}>
+          <View style={styles.legalHeader}>
+            <Text style={styles.legalTitle}>{title}</Text>
+            <Pressable style={styles.legalCloseButton} onPress={onClose}>
+              <Text style={styles.legalCloseText}>×</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            style={styles.legalScroll}
+            contentContainerStyle={styles.legalContent}
+            showsVerticalScrollIndicator
+          >
+            <Text style={styles.legalBody}>{content}</Text>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
