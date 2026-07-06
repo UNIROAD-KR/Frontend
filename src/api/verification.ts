@@ -5,9 +5,9 @@ export interface VerificationResponse {
   id: number;
   imageUrl: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  rejectReason?: string;
+  rejectReason?: string | null;
   submittedAt: string;
-  reviewedAt?: string;
+  reviewedAt?: string | null;
 }
 
 export interface AdminVerificationResponse {
@@ -23,5 +23,9 @@ export const submitVerification = (data: {
   country: string;
   region: string;
 }) => {
-  return api.post('/api/v1/verifications', data);
+  return api.post<BaseResponse<VerificationResponse>>('/api/v1/verifications', data);
+};
+
+export const getMyVerifications = () => {
+  return api.get<BaseResponse<VerificationResponse[]>>('/api/v1/verifications/me');
 };

@@ -54,7 +54,7 @@ export function AppBackButton({
       accessibilityLabel="뒤로가기"
       hitSlop={hitSlop}
       onPress={handlePress}
-      style={[style, styles.button]}
+      style={[styles.button, style]}
     >
       <Image
         source={require('../../assets/images/back.png')}

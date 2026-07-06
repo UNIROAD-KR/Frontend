@@ -15,6 +15,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getMemberMe, logout } from '../../../src/api/auth';
+import { getMyVerifications } from '../../../src/api/verification';
 import { openKakaoContact } from '../../../src/utils/contact';
 
 const NAVY = '#0F2042';
@@ -150,6 +151,7 @@ const statusDisplayMap: Record<string, string> = {
 
 export default function ProfileCardScreen() {
   const [isVerified, setIsVerified] = useState(false);
+  const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [profile, setProfile] = useState({
     nickname: '닉네임',
     country: '독일',
@@ -188,6 +190,7 @@ export default function ProfileCardScreen() {
         ]);
 
         setIsVerified(savedIsVerified === 'true');
+        setIsVerificationPending(false);
         const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
 
         let apiProfile = {
@@ -197,6 +200,22 @@ export default function ProfileCardScreen() {
           university: null as string | null,
           homeUniversity: null as string | null,
         };
+
+        try {
+          const verificationRes = await getMyVerifications();
+          const hasApprovedVerification = verificationRes.data.data.some(
+            (verification) => verification.status === 'APPROVED',
+          );
+          const hasPendingVerification =
+            !hasApprovedVerification &&
+            verificationRes.data.data.some((verification) => verification.status === 'PENDING');
+
+          setIsVerified(hasApprovedVerification);
+          setIsVerificationPending(hasPendingVerification);
+          await AsyncStorage.setItem('isVerified', hasApprovedVerification ? 'true' : 'false');
+        } catch (error: any) {
+          console.log('인증 내역 조회 실패:', error.response?.data || error.message);
+        }
 
         try {
           const memberRes = await getMemberMe();
@@ -274,6 +293,23 @@ export default function ProfileCardScreen() {
     openRoute(item.route);
   };
 
+  const verificationIconName: keyof typeof Ionicons.glyphMap = isVerified
+    ? 'shield-checkmark'
+    : isVerificationPending
+      ? 'time-outline'
+      : 'shield-outline';
+  const verificationTitle = isVerified
+    ? '교환학생 인증 완료'
+    : isVerificationPending
+      ? '교환학생 인증 검토중'
+      : '교환학생 인증이 필요해요';
+  const verificationDescription = isVerified
+    ? '파견교 인증이 완료되어 안전한 교환학생 멤버로 표시됩니다.'
+    : isVerificationPending
+      ? '제출한 인증 서류를 확인하고 있어요.'
+      : '인증하고 중고거래·동행 모집 이용하기';
+  const verificationPillLabel = isVerified ? '완료' : '검토중';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -323,12 +359,8 @@ export default function ProfileCardScreen() {
             styles.verificationCard,
             isVerified ? styles.verificationCardDone : styles.verificationCardPending,
           ]}
-          onPress={() => {
-            if (!isVerified) {
-              router.push('/verification' as any);
-            }
-          }}
-          activeOpacity={isVerified ? 1 : 0.86}
+          onPress={() => router.push('/verification' as any)}
+          activeOpacity={0.86}
         >
           <View
             style={[
@@ -339,7 +371,7 @@ export default function ProfileCardScreen() {
             ]}
           >
             <Ionicons
-              name={isVerified ? 'shield-checkmark' : 'shield-outline'}
+              name={verificationIconName}
               size={20}
               color="#FFFFFF"
             />
@@ -347,18 +379,16 @@ export default function ProfileCardScreen() {
 
           <View style={styles.verificationTextBox}>
             <Text style={styles.verificationTitle}>
-              {isVerified ? '교환학생 인증 완료' : '교환학생 인증이 필요해요'}
+              {verificationTitle}
             </Text>
             <Text style={styles.verificationDesc} numberOfLines={2}>
-              {isVerified
-                ? '파견교 인증이 완료되어 안전한 교환학생 멤버로 표시됩니다.'
-                : '인증하고 중고거래·동행 모집 이용하기'}
+              {verificationDescription}
             </Text>
           </View>
 
-          {isVerified ? (
+          {isVerified || isVerificationPending ? (
             <View style={styles.verificationPill}>
-              <Text style={styles.verificationPillText}>완료</Text>
+              <Text style={styles.verificationPillText}>{verificationPillLabel}</Text>
             </View>
           ) : (
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.78)" />
