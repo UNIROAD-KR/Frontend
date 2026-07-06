@@ -313,6 +313,73 @@ export const signupStyles = StyleSheet.create({
     color: '#C4CAD4',
   },
 
+  legalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+
+  legalModal: {
+    width: '100%',
+    maxHeight: '78%',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+
+  legalHeader: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF1F5',
+    paddingLeft: 20,
+    paddingRight: 12,
+  },
+
+  legalTitle: {
+    flex: 1,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '800',
+    color: '#111827',
+  },
+
+  legalCloseButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+
+  legalCloseText: {
+    fontSize: 26,
+    lineHeight: 30,
+    fontWeight: '300',
+    color: '#667085',
+  },
+
+  legalScroll: {
+    maxHeight: 480,
+  },
+
+  legalContent: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 24,
+  },
+
+  legalBody: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '500',
+    color: '#344054',
+  },
+
   sheetOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
