@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -24,6 +25,7 @@ const INK = '#111111';
 const MUTED = '#64748B';
 const SOFT = '#F6F8FC';
 const CARD = '#FAFBFC';
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 type RouteTarget = unknown;
 
@@ -33,6 +35,7 @@ type MenuItem = {
   description?: string;
   route?: RouteTarget;
   action?: 'logout' | 'contact';
+  value?: string;
 };
 
 const activityItems: MenuItem[] = [
@@ -46,21 +49,21 @@ const activityItems: MenuItem[] = [
     },
   },
   {
-    title: '중고거래 작성글',
-    description: '판매 중인 물품과 거래 상태 확인',
-    icon: 'bag-handle-outline',
+    title: '자유게시판 작성글',
+    description: '내가 작성한 질문, 후기, 정보 글',
+    icon: 'chatbubbles-outline',
     route: {
       pathname: '/home/profile-list',
-      params: { type: 'market' },
+      params: { type: 'free' },
     },
   },
   {
-    title: '동행 모집글',
-    description: '출국, 여행, 정착 동행 모집 현황',
-    icon: 'people-outline',
+    title: '내가 쓴 글',
+    description: '중고거래, 티켓 양도, 동행 모집글 확인',
+    icon: 'create-outline',
     route: {
       pathname: '/home/profile-list',
-      params: { type: 'companion' },
+      params: { type: 'written' },
     },
   },
 ];
@@ -103,9 +106,9 @@ const serviceItems: MenuItem[] = [
 const guideItems: MenuItem[] = [
   {
     title: '앱 버전',
-    description: '현재 앱 버전 확인',
+    description: '현재 앱 버전',
     icon: 'phone-portrait-outline',
-    route: '/home/app-info',
+    value: `v${APP_VERSION}`,
   },
   {
     title: '문의하기',
@@ -439,24 +442,33 @@ function MenuSection({
       <View style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>{title}</Text>
 
-        {items.map((item, index) => (
-          <TouchableOpacity
-            key={item.title}
-            style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-            onPress={() => onPressItem(item)}
-            activeOpacity={0.82}
-          >
-            <View style={styles.menuIconBox}>
-              <Ionicons name={item.icon} size={18} color={NAVY} />
-            </View>
+        {items.map((item, index) => {
+          const interactive = !!item.route || !!item.action;
 
-            <View style={styles.menuTextBox}>
-              <Text style={styles.menuTitle}>{item.title}</Text>
-            </View>
+          return (
+            <TouchableOpacity
+              key={item.title}
+              style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
+              onPress={() => onPressItem(item)}
+              activeOpacity={interactive ? 0.82 : 1}
+              disabled={!interactive}
+            >
+              <View style={styles.menuIconBox}>
+                <Ionicons name={item.icon} size={18} color={NAVY} />
+              </View>
 
-            <Ionicons name="chevron-forward" size={17} color={INK} />
-          </TouchableOpacity>
-        ))}
+              <View style={styles.menuTextBox}>
+                <Text style={styles.menuTitle}>{item.title}</Text>
+              </View>
+
+              {item.value ? (
+                <Text style={styles.menuValue}>{item.value}</Text>
+              ) : interactive ? (
+                <Ionicons name="chevron-forward" size={17} color={INK} />
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -685,5 +697,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: NAVY,
+  },
+  menuValue: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: MUTED,
   },
 });

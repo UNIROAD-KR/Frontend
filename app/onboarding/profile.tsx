@@ -167,7 +167,7 @@ export default function ProfilePage() {
           onPress={() => setYearModalVisible(false)}
         >
           <Pressable style={styles.yearModal}>
-            <Text style={styles.modalTitle}>출생연도 선택</Text>
+            <Text style={styles.modalTitle}>출생년도 선택</Text>
 
             <ScrollView
               style={styles.yearScroll}

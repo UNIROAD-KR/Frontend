@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -40,7 +40,15 @@ const LIKED_FREE_POSTS_STORAGE_KEY = 'univ:profile:liked-free-posts';
 const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
 const LIKED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:liked-ticket-posts';
 
-type ProfileListType = 'saved' | 'recent' | 'liked' | 'free' | 'market' | 'companion';
+type ProfileListType =
+  | 'saved'
+  | 'recent'
+  | 'liked'
+  | 'free'
+  | 'market'
+  | 'companion'
+  | 'written';
+type ProfileListCategory = 'free' | 'used' | 'ticket' | 'companion';
 
 type SavedTicket = {
   id?: number;
@@ -79,6 +87,7 @@ type ListCard = {
   subtitle: string;
   meta: string;
   badge?: string;
+  category?: ProfileListCategory;
   icon: keyof typeof Ionicons.glyphMap;
   route?: unknown;
 };
@@ -123,7 +132,7 @@ const screenConfig: Record<
   },
   market: {
     title: '중고거래 작성글',
-    description: '내가 올린 일괄거래와 티켓 양도 글을 모아봤어요.',
+    description: '중고거래와 티켓 양도 글을 카테고리별로 확인해요.',
     emptyTitle: '작성한 거래글이 없어요',
     emptyText: '귀국 전 물품이나 티켓을 등록하면 여기에 표시돼요.',
     icon: 'bag-handle-outline',
@@ -134,6 +143,13 @@ const screenConfig: Record<
     emptyTitle: '모집 중인 동행 글이 없어요',
     emptyText: '함께 이동하거나 여행할 친구를 모집해보세요.',
     icon: 'people-outline',
+  },
+  written: {
+    title: '내가 쓴 글',
+    description: '중고거래, 티켓 양도, 동행 모집글을 나눠서 확인해요.',
+    emptyTitle: '작성한 글이 없어요',
+    emptyText: '거래나 동행 모집 글을 작성하면 여기에 표시돼요.',
+    icon: 'create-outline',
   },
 };
 
@@ -146,7 +162,8 @@ const asListType = (value?: string | string[]): ProfileListType => {
     normalizedValue === 'liked' ||
     normalizedValue === 'free' ||
     normalizedValue === 'market' ||
-    normalizedValue === 'companion'
+    normalizedValue === 'companion' ||
+    normalizedValue === 'written'
   ) {
     return normalizedValue;
   }
@@ -242,6 +259,7 @@ const toFreePostCard = (
       ? `${post.country} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`
       : `${post.country} · ${post.status} · 댓글 ${post.commentCount}`,
   badge,
+  category: 'free',
   icon: badge === '좋아요' ? 'thumbs-up-outline' : 'chatbubble-ellipses-outline',
   route: {
     pathname: '/community-detail',
@@ -263,6 +281,7 @@ const toTicketCard = (
     [item.category, item.date, item.price, item.time].filter(Boolean).join(' · ') ||
     '상세 정보를 확인해보세요.',
   badge,
+  category: 'ticket',
   icon: prefix.includes('saved') ? 'bookmark-outline' : 'heart-outline',
   route: item.id
     ? {
@@ -282,6 +301,7 @@ const toLikedMarketCard = (item: LikedMarketPost): ListCard => ({
     [item.region, item.semester].filter(Boolean).join(' · ') || '중고마켓 글',
   meta: [item.price, item.time].filter(Boolean).join(' · ') || '좋아요한 중고거래',
   badge: '중고마켓',
+  category: 'used',
   icon: 'heart-outline',
   route: item.id
     ? {
@@ -325,13 +345,40 @@ const parseStoredList = <T,>(rawValue: string | null): T[] => {
   }
 };
 
+const categoryTabsByType: Partial<
+  Record<ProfileListType, { key: ProfileListCategory; label: string }[]>
+> = {
+  liked: [
+    { key: 'free', label: '커뮤니티' },
+    { key: 'used', label: '중고거래' },
+    { key: 'ticket', label: '티켓양도' },
+  ],
+  market: [
+    { key: 'used', label: '중고거래' },
+    { key: 'ticket', label: '티켓양도' },
+  ],
+  written: [
+    { key: 'used', label: '중고거래' },
+    { key: 'ticket', label: '티켓양도' },
+    { key: 'companion', label: '동행모집글' },
+  ],
+};
+
 export default function ProfileListScreen() {
   const { type } = useLocalSearchParams<{ type?: string | string[] }>();
   const listType = asListType(type);
   const config = screenConfig[listType];
+  const categoryTabs = categoryTabsByType[listType];
   const [items, setItems] = useState<ListCard[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<ProfileListCategory>(
+    categoryTabs?.[0]?.key ?? 'free',
+  );
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    setSelectedCategory(categoryTabs?.[0]?.key ?? 'free');
+  }, [categoryTabs, listType]);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -432,7 +479,7 @@ export default function ProfileListScreen() {
         posts = mergePostsById([...localLikedPosts, ...posts]);
 
         setItems([
-          ...posts.map((post) => toFreePostCard(post, 'liked', '좋아요')),
+          ...posts.map((post) => toFreePostCard(post, 'liked', '자유게시판')),
           ...likedMarketPosts.map(toLikedMarketCard),
           ...likedTickets.map((item) => toTicketCard(item, 'liked-ticket')),
         ]);
@@ -458,6 +505,7 @@ export default function ProfileListScreen() {
               .filter(Boolean)
               .join(' · '),
             badge: '일괄거래',
+            category: 'used' as ProfileListCategory,
             icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/[id]',
@@ -476,10 +524,77 @@ export default function ProfileListScreen() {
               .filter(Boolean)
               .join(' · '),
             badge: item.status === 'COMPLETED' ? '양도 완료' : '티켓 양도',
+            category: 'ticket' as ProfileListCategory,
             icon: 'ticket-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/ticket-preview',
               params: { id: String(item.id), fromProfileList: 'market' },
+            },
+          })),
+        ]);
+        return;
+      }
+
+      if (listType === 'written') {
+        const [usedResponse, ticketResponse, companionResponse] = await Promise.all([
+          getMyUsedItems({ size: 30 }),
+          getMyTickets({ size: 30 }),
+          getMyCompanionPostPage({ size: 30 }),
+        ]);
+        const usedItems = extractItems<UsedItemSummaryResponse>(
+          usedResponse.data.data,
+        );
+        const tickets = extractItems<TicketTransferResponse>(ticketResponse.data.data);
+        const companionPosts = extractItems<CompanionPostResponse>(
+          companionResponse.data.data,
+        );
+
+        setItems([
+          ...usedItems.map((item) => ({
+            id: makeCardId('written-used', item.id),
+            title: item.title,
+            subtitle: `${item.region} · ${item.semester}`,
+            meta: [formatPrice(item.price), formatRelativeTime(item.createdAt)]
+              .filter(Boolean)
+              .join(' · '),
+            badge: '중고거래',
+            category: 'used' as ProfileListCategory,
+            icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/market/[id]',
+              params: { id: String(item.id), fromProfileList: 'market' },
+            },
+          })),
+          ...tickets.map((item) => ({
+            id: makeCardId('written-ticket', item.id),
+            title: item.title,
+            subtitle: `${item.location} · ${formatDate(item.eventDate)}`,
+            meta: [
+              `${item.quantity}매`,
+              formatPrice(item.transferPrice),
+              formatRelativeTime(item.createdAt ?? item.updatedAt),
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            badge: item.status === 'COMPLETED' ? '양도 완료' : '티켓 양도',
+            category: 'ticket' as ProfileListCategory,
+            icon: 'ticket-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/market/ticket-preview',
+              params: { id: String(item.id), fromProfileList: 'market' },
+            },
+          })),
+          ...companionPosts.map((post) => ({
+            id: makeCardId('written-companion', post.id),
+            title: post.title,
+            subtitle: `${post.country} ${post.region}`,
+            meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · ${post.currentParticipants}/${post.capacity}명`,
+            badge: post.status === 'RECRUITING' ? '모집중' : '모집완료',
+            category: 'companion' as ProfileListCategory,
+            icon: 'people-circle-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/community-detail',
+              params: { type: 'companion', id: String(post.id), fromProfileList: 'companion' },
             },
           })),
         ]);
@@ -496,6 +611,7 @@ export default function ProfileListScreen() {
           subtitle: `${post.country} ${post.region}`,
           meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · ${post.currentParticipants}/${post.capacity}명`,
           badge: post.status === 'RECRUITING' ? '모집중' : '모집완료',
+          category: 'companion' as ProfileListCategory,
           icon: 'people-circle-outline',
           route: {
             pathname: '/community-detail',
@@ -517,7 +633,12 @@ export default function ProfileListScreen() {
     }, [loadItems]),
   );
 
-  const itemCountLabel = useMemo(() => `${items.length}개`, [items.length]);
+  const visibleItems = useMemo(() => {
+    if (!categoryTabs) return items;
+
+    return items.filter((item) => item.category === selectedCategory);
+  }, [categoryTabs, items, selectedCategory]);
+  const itemCountLabel = useMemo(() => `${visibleItems.length}개`, [visibleItems.length]);
 
   return (
     <View style={styles.container}>
@@ -555,12 +676,38 @@ export default function ProfileListScreen() {
           </Text>
         </View>
 
+        {categoryTabs ? (
+          <View style={styles.categoryTabs}>
+            {categoryTabs.map((tabItem) => {
+              const active = selectedCategory === tabItem.key;
+
+              return (
+                <Pressable
+                  key={tabItem.key}
+                  style={[styles.categoryTab, active && styles.categoryTabActive]}
+                  onPress={() => setSelectedCategory(tabItem.key)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryTabText,
+                      active && styles.categoryTabTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {tabItem.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
         {loading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={BLUE} />
             <Text style={styles.loadingText}>목록을 불러오는 중이에요</Text>
           </View>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <View style={styles.emptyBox}>
             <View style={styles.emptyIconBox}>
               <Ionicons name={config.icon} size={30} color={BLUE} />
@@ -570,7 +717,7 @@ export default function ProfileListScreen() {
           </View>
         ) : (
           <View style={styles.list}>
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <Pressable
                 key={item.id}
                 style={styles.card}
@@ -694,6 +841,38 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 12,
     fontWeight: '900',
+    color: BLUE,
+  },
+  categoryTabs: {
+    marginTop: 14,
+    flexDirection: 'row',
+    borderRadius: 16,
+    backgroundColor: SOFT,
+    padding: 4,
+    gap: 4,
+  },
+  categoryTab: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  categoryTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: NAVY,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  categoryTabText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: MUTED,
+  },
+  categoryTabTextActive: {
     color: BLUE,
   },
   loadingBox: {

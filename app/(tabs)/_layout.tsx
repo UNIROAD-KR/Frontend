@@ -157,6 +157,12 @@ export default function TabLayout() {
 
       <Tabs.Screen
         name="mypage"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.replace('/mypage' as any);
+          },
+        }}
         options={{
           title: '지출 관리',
           tabBarIcon: () => (

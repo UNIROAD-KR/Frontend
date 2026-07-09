@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -22,6 +23,7 @@ const INK = '#111111';
 const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
+const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 type SettingItem = {
   title: string;
@@ -29,6 +31,7 @@ type SettingItem = {
   icon: keyof typeof Ionicons.glyphMap;
   route?: unknown;
   action?: 'logout' | 'contact';
+  value?: string;
   danger?: boolean;
 };
 
@@ -65,9 +68,9 @@ const serviceItems: SettingItem[] = [
 const guideItems: SettingItem[] = [
   {
     title: '앱 버전',
-    description: '현재 앱 버전 확인',
+    description: '현재 앱 버전',
     icon: 'phone-portrait-outline',
-    route: '/home/app-info',
+    value: `v${APP_VERSION}`,
   },
   {
     title: '문의하기',
@@ -248,32 +251,41 @@ function SettingSection({
       <Text style={styles.sectionTitle}>{title}</Text>
 
       <View style={styles.sectionCard}>
-        {items.map((item, index) => (
-          <Pressable
-            key={item.title}
-            style={[styles.row, index < items.length - 1 && styles.divider]}
-            onPress={() => onPressItem(item)}
-          >
-            <View style={[styles.rowIconBox, item.danger && styles.rowIconDanger]}>
-              <Ionicons
-                name={item.icon}
-                size={21}
-                color={item.danger ? '#E5484D' : NAVY}
-              />
-            </View>
+        {items.map((item, index) => {
+          const interactive = !!item.route || !!item.action;
 
-            <View style={styles.rowTextBox}>
-              <Text style={[styles.rowTitle, item.danger && styles.dangerText]}>
-                {item.title}
-              </Text>
-              <Text style={styles.rowDesc} numberOfLines={1}>
-                {item.description}
-              </Text>
-            </View>
+          return (
+            <Pressable
+              key={item.title}
+              style={[styles.row, index < items.length - 1 && styles.divider]}
+              onPress={() => onPressItem(item)}
+              disabled={!interactive}
+            >
+              <View style={[styles.rowIconBox, item.danger && styles.rowIconDanger]}>
+                <Ionicons
+                  name={item.icon}
+                  size={21}
+                  color={item.danger ? '#E5484D' : NAVY}
+                />
+              </View>
 
-            <Ionicons name="chevron-forward" size={19} color="#A4ADBA" />
-          </Pressable>
-        ))}
+              <View style={styles.rowTextBox}>
+                <Text style={[styles.rowTitle, item.danger && styles.dangerText]}>
+                  {item.title}
+                </Text>
+                <Text style={styles.rowDesc} numberOfLines={1}>
+                  {item.description}
+                </Text>
+              </View>
+
+              {item.value ? (
+                <Text style={styles.rowValue}>{item.value}</Text>
+              ) : interactive ? (
+                <Ionicons name="chevron-forward" size={19} color="#A4ADBA" />
+              ) : null}
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -426,6 +438,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     fontWeight: '700',
+    color: MUTED,
+  },
+  rowValue: {
+    fontSize: 13,
+    fontWeight: '900',
     color: MUTED,
   },
   versionText: {

@@ -87,7 +87,7 @@ export interface MemberResponse {
 }
 
 export interface PasswordUpdateRequest {
-  currentPassword: string;
+  currentPassword?: string;
   newPassword: string;
 }
 

@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,7 +11,11 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { getNotices, NoticeResponse } from '../../../src/api/notices';
+import {
+  getNoticeDetail,
+  getNotices,
+  NoticeResponse,
+} from '../../../src/api/notices';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -18,23 +23,26 @@ const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
-const fallbackNotices: NoticeResponse[] = [
-  {
-    id: 1,
-    title: 'UNIROAD 공지사항',
-    content: '공지사항 API가 준비되면 이 화면에서 서비스 업데이트와 운영 안내를 확인할 수 있어요.',
-    createdAt: '2026-07-05',
-    type: 'NOTICE',
-  },
-];
-
 const normalizeNotices = (data: unknown): NoticeResponse[] => {
   if (Array.isArray(data)) {
     return data as NoticeResponse[];
   }
 
   if (data && typeof data === 'object') {
-    const candidate = data as { items?: NoticeResponse[]; content?: NoticeResponse[] };
+    const candidate = data as {
+      items?: NoticeResponse[];
+      content?: NoticeResponse[];
+      data?: NoticeResponse[] | { items?: NoticeResponse[]; content?: NoticeResponse[] };
+    };
+
+    if (Array.isArray(candidate.data)) {
+      return candidate.data;
+    }
+
+    if (candidate.data && typeof candidate.data === 'object') {
+      return candidate.data.items ?? candidate.data.content ?? [];
+    }
+
     return candidate.items ?? candidate.content ?? [];
   }
 
@@ -48,8 +56,12 @@ const formatDate = (value?: string) => {
 };
 
 export default function NoticesScreen() {
-  const [notices, setNotices] = useState<NoticeResponse[]>(fallbackNotices);
+  const [notices, setNotices] = useState<NoticeResponse[]>([]);
+  const [noticeDetails, setNoticeDetails] = useState<Record<number, NoticeResponse>>({});
+  const [expandedNoticeId, setExpandedNoticeId] = useState<number | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,22 +70,18 @@ export default function NoticesScreen() {
       const loadNotices = async () => {
         try {
           setLoading(true);
-          const response = await getNotices({
-            page: 0,
-            size: 30,
-            sort: ['createdAt,desc'],
-          });
-          const apiNotices = normalizeNotices(response.data.data).filter(
-            (item) => item.type === 'NOTICE' || item.type === 'SYSTEM',
-          );
+          setLoadFailed(false);
+          const response = await getNotices();
+          const apiNotices = normalizeNotices(response.data.data);
 
           if (active) {
-            setNotices(apiNotices.length > 0 ? apiNotices : fallbackNotices);
+            setNotices(apiNotices);
           }
         } catch (error: any) {
           console.log('공지사항 조회 실패:', error.response?.data || error.message);
           if (active) {
-            setNotices(fallbackNotices);
+            setNotices([]);
+            setLoadFailed(true);
           }
         } finally {
           if (active) {
@@ -90,6 +98,34 @@ export default function NoticesScreen() {
     }, []),
   );
 
+  const handleNoticePress = async (notice: NoticeResponse) => {
+    if (!notice.id) return;
+
+    if (expandedNoticeId === notice.id) {
+      setExpandedNoticeId(null);
+      return;
+    }
+
+    setExpandedNoticeId(notice.id);
+
+    if (noticeDetails[notice.id]) {
+      return;
+    }
+
+    try {
+      setDetailLoadingId(notice.id);
+      const response = await getNoticeDetail(notice.id);
+      setNoticeDetails((prev) => ({
+        ...prev,
+        [notice.id]: response.data.data,
+      }));
+    } catch (error: any) {
+      console.log('공지사항 상세 조회 실패:', error.response?.data || error.message);
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -103,27 +139,56 @@ export default function NoticesScreen() {
           <View style={styles.loadingBox}>
             <ActivityIndicator color={BLUE} />
           </View>
+        ) : notices.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <View style={styles.emptyIconBox}>
+              <Ionicons name="megaphone-outline" size={28} color={BLUE} />
+            </View>
+            <Text style={styles.emptyTitle}>
+              {loadFailed ? '공지사항을 불러오지 못했어요' : '등록된 공지사항이 없어요'}
+            </Text>
+            <Text style={styles.emptyText}>
+              {loadFailed
+                ? '잠시 후 다시 시도해주세요.'
+                : '새 공지가 등록되면 이곳에서 확인할 수 있어요.'}
+            </Text>
+          </View>
         ) : (
-          notices.map((notice) => (
-            <View
-              key={notice.id ?? notice.notificationId ?? notice.title}
-              style={styles.noticeCard}
+          notices.map((notice) => {
+            const expanded = expandedNoticeId === notice.id;
+            const detail = noticeDetails[notice.id] ?? notice;
+
+            return (
+            <Pressable
+              key={notice.id ?? notice.title}
+              style={[styles.noticeCard, expanded && styles.noticeCardExpanded]}
+              onPress={() => handleNoticePress(notice)}
             >
               <View style={styles.noticeTopRow}>
                 <View style={styles.pinBadge}>
                   <Ionicons name="megaphone-outline" size={13} color={BLUE} />
-                  <Text style={styles.pinText}>
-                    {notice.type === 'SYSTEM' ? '시스템' : '공지'}
-                  </Text>
+                  <Text style={styles.pinText}>공지</Text>
                 </View>
                 <Text style={styles.noticeDate}>
-                  {formatDate(notice.createdAt)}
+                  {formatDate(detail.createdAt)}
                 </Text>
               </View>
-              <Text style={styles.noticeTitle}>{notice.title}</Text>
-              <Text style={styles.noticeContent}>{notice.content}</Text>
-            </View>
-          ))
+              <View style={styles.noticeTitleRow}>
+                <Text style={styles.noticeTitle}>{detail.title}</Text>
+                <Ionicons
+                  name={expanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={MUTED}
+                />
+              </View>
+              {detailLoadingId === notice.id ? (
+                <Text style={styles.noticeContent}>공지 내용을 불러오는 중이에요.</Text>
+              ) : expanded ? (
+                <Text style={styles.noticeContent}>{detail.content}</Text>
+              ) : null}
+            </Pressable>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -173,6 +238,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  emptyBox: {
+    minHeight: 260,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: LINE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  emptyIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#F4F8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: NAVY,
+    textAlign: 'center',
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: MUTED,
+    textAlign: 'center',
+  },
   noticeCard: {
     borderRadius: 18,
     borderWidth: 1,
@@ -180,6 +277,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 18,
     marginBottom: 14,
+  },
+  noticeCardExpanded: {
+    borderColor: '#DCE7FF',
+    backgroundColor: '#F8FBFF',
   },
   noticeTopRow: {
     flexDirection: 'row',
@@ -207,10 +308,16 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   noticeTitle: {
+    flex: 1,
     fontSize: 17,
     lineHeight: 23,
     fontWeight: '900',
     color: NAVY,
+  },
+  noticeTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   noticeContent: {
     marginTop: 9,

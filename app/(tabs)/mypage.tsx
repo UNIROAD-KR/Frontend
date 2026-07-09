@@ -3,6 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +23,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppBackButton } from '@/components/ui/app-back-button';
 import {
   AccountBookCategory,
   AccountBookResponse,
@@ -80,8 +82,15 @@ const CATEGORIES: {
 ];
 
 export default function MyPageScreen() {
+  const { fromHome, fromService } = useLocalSearchParams<{
+    fromHome?: string | string[];
+    fromService?: string | string[];
+  }>();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isTabletDatePicker = Platform.OS === 'ios' && Math.min(windowWidth, windowHeight) >= 768;
+  const showBackButton =
+    (Array.isArray(fromHome) ? fromHome[0] : fromHome) === 'true' ||
+    (Array.isArray(fromService) ? fromService[0] : fromService) === 'true';
   const [userName, setUserName] = useState<string>('사용자');
   const [balance, setBalance] = useState<number>(0);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -386,10 +395,14 @@ export default function MyPageScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* 헤더 */}
         <View style={styles.header}>
-          <View>
+          {showBackButton ? (
+            <AppBackButton fallbackHref="/home" style={styles.headerBackButton} />
+          ) : null}
+          <View style={styles.headerTextBox}>
             <Text style={styles.headerSubtitle}>반가워요, {userName}님</Text>
             <Text style={styles.headerTitle}>나의 지출 관리</Text>
           </View>
+          {showBackButton ? <View style={styles.headerSpacer} /> : null}
         </View>
 
         {/* 잔액 & 예산 블루 카드 */}
@@ -771,11 +784,28 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 20,
     marginBottom: 20,
+  },
+  headerBackButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6F8FC',
+    marginRight: 12,
+  },
+  headerTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerSpacer: {
+    width: 38,
+    height: 38,
+    marginLeft: 12,
   },
   headerSubtitle: {
     fontSize: 16,

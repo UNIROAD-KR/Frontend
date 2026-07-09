@@ -72,7 +72,10 @@ const quickActionsByStatus = {
     {
       title: '지출 관리',
       icon: 'wallet-outline',
-      route: '/mypage',
+      route: {
+        pathname: '/mypage',
+        params: { fromHome: 'true' },
+      },
     },
     {
       title: '티켓 양도하기',

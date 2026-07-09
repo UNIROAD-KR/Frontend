@@ -43,7 +43,6 @@ const getPasswordError = (value: string) => {
 
 export default function AccountSettingsScreen() {
   const [username, setUsername] = useState('로그인 계정');
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -52,6 +51,12 @@ export default function AccountSettingsScreen() {
     confirmPassword.length > 0 && newPassword !== confirmPassword
       ? '비밀번호가 일치하지 않습니다.'
       : '';
+  const submitDisabled =
+    submitting ||
+    !newPassword ||
+    !confirmPassword ||
+    !!newPasswordError ||
+    !!confirmPasswordError;
 
   useFocusEffect(
     useCallback(() => {
@@ -71,8 +76,8 @@ export default function AccountSettingsScreen() {
   );
 
   const handleSubmit = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('입력 필요', '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.');
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('입력 필요', '새 비밀번호를 입력해주세요.');
       return;
     }
 
@@ -89,12 +94,11 @@ export default function AccountSettingsScreen() {
     setSubmitting(true);
 
     try {
-      await updatePassword({ currentPassword, newPassword });
+      await updatePassword({ newPassword });
       Alert.alert('변경 완료', '비밀번호가 변경되었습니다.', [
         {
           text: '확인',
           onPress: () => {
-            setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
             router.back();
@@ -145,12 +149,6 @@ export default function AccountSettingsScreen() {
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>비밀번호 수정</Text>
           <PasswordField
-            label="현재 비밀번호"
-            value={currentPassword}
-            placeholder="현재 비밀번호 입력"
-            onChangeText={setCurrentPassword}
-          />
-          <PasswordField
             label="새 비밀번호"
             value={newPassword}
             placeholder="영문과 숫자 포함 8~20자"
@@ -180,9 +178,9 @@ export default function AccountSettingsScreen() {
         </View>
 
         <Pressable
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+          style={[styles.submitButton, submitDisabled && styles.submitButtonDisabled]}
           onPress={handleSubmit}
-          disabled={submitting}
+          disabled={submitDisabled}
         >
           <Text style={styles.submitText}>
             {submitting ? '변경 중...' : '비밀번호 변경하기'}

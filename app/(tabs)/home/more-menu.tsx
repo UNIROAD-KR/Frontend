@@ -65,14 +65,25 @@ const serviceGroups = [
     title: '활동',
     items: [
       {
+        title: '커뮤니티',
+        icon: 'chatbubbles-outline',
+        route: '/community',
+      },
+      {
         title: '동행 구하기',
         icon: 'people-outline',
-        route: '/community',
+        route: {
+          pathname: '/community',
+          params: { tab: 'companion' },
+        },
       },
       {
         title: '지출 관리',
         icon: 'wallet-outline',
-        route: '/mypage',
+        route: {
+          pathname: '/mypage',
+          params: { fromService: 'true' },
+        },
       },
       {
         title: '나의 출국 준비',
