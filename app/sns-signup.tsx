@@ -13,7 +13,12 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { PRIVACY_CONSENT, TERMS_OF_SERVICE } from '../constants/legal';
+import {
+  MARKETING_CONSENT,
+  PRIVACY_CONSENT,
+  TERMS_OF_SERVICE,
+} from '../constants/legal';
+import { TermsModal } from '../components/TermsModal';
 import { checkUsername, socialSignUp } from '../src/api/auth';
 import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 import { signupStyles as styles } from '../src/styles/signupStyles';
@@ -74,6 +79,7 @@ export default function SnsSignupPage() {
   const [legalModal, setLegalModal] = useState<{
     title: string;
     content: string;
+    onAgree: () => void;
   } | null>(null);
 
   const usernameError = getUsernameError(username);
@@ -208,12 +214,22 @@ export default function SnsSignupPage() {
     setTermsVisible(true);
   };
 
-  const handleOpenLegalModal = (title: string, content: string) => {
+  const handleOpenLegalModal = (
+    title: string,
+    content: string,
+    onAgree: () => void,
+  ) => {
     setTermsVisible(false);
-    setLegalModal({ title, content });
+    setLegalModal({ title, content, onAgree });
   };
 
   const handleCloseLegalModal = () => {
+    setLegalModal(null);
+    setTermsVisible(true);
+  };
+
+  const handleAgreeLegalModal = () => {
+    legalModal?.onAgree();
     setLegalModal(null);
     setTermsVisible(true);
   };
@@ -447,6 +463,7 @@ export default function SnsSignupPage() {
                 handleOpenLegalModal(
                   '서비스 이용약관',
                   TERMS_OF_SERVICE,
+                  () => setAgreeService(true),
                 )
               }
               showLink
@@ -459,6 +476,7 @@ export default function SnsSignupPage() {
                 handleOpenLegalModal(
                   '개인정보 수집·이용 동의',
                   PRIVACY_CONSENT,
+                  () => setAgreePrivacy(true),
                 )
               }
               showLink
@@ -472,6 +490,13 @@ export default function SnsSignupPage() {
               label="[선택] 마케팅 정보 수신 동의"
               checked={agreeMarketing}
               onPress={() => setAgreeMarketing((prev) => !prev)}
+              onLinkPress={() =>
+                handleOpenLegalModal(
+                  '마케팅 정보 수신 동의',
+                  MARKETING_CONSENT,
+                  () => setAgreeMarketing(true),
+                )
+              }
               showLink
             />
 
@@ -495,11 +520,12 @@ export default function SnsSignupPage() {
           </Pressable>
         </Pressable>
       </Modal>
-      <LegalContentModal
+      <TermsModal
         visible={legalModal !== null}
         title={legalModal?.title ?? ''}
         content={legalModal?.content ?? ''}
         onClose={handleCloseLegalModal}
+        onAgree={handleAgreeLegalModal}
       />
     </>
   );
@@ -564,42 +590,3 @@ function TermAgreementRow({
   );
 }
 
-function LegalContentModal({
-  visible,
-  title,
-  content,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  content: string;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      transparent
-      visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.legalOverlay}>
-        <View style={styles.legalModal}>
-          <View style={styles.legalHeader}>
-            <Text style={styles.legalTitle}>{title}</Text>
-            <Pressable style={styles.legalCloseButton} onPress={onClose}>
-              <Text style={styles.legalCloseText}>×</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
-            style={styles.legalScroll}
-            contentContainerStyle={styles.legalContent}
-            showsVerticalScrollIndicator
-          >
-            <Text style={styles.legalBody}>{content}</Text>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
