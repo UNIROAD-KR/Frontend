@@ -48,6 +48,7 @@ export default function RootLayout() {
             fullScreenGestureEnabled: true,
           }}
         />
+        <Stack.Screen name="verification-consent" />
         <Stack.Screen name="verification" />
         <Stack.Screen name="verification-complete" />
         <Stack.Screen name="onboarding/nickname" />

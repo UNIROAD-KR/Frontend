@@ -128,6 +128,7 @@ export default function VerificationPage() {
       setVerifications(nextVerifications);
       setMode(nextVerifications.length > 0 ? 'history' : 'form');
       await AsyncStorage.setItem('isVerified', isApproved ? 'true' : 'false');
+
     } catch (error: any) {
       console.log('인증 내역 조회 실패:', error.response?.data || error.message);
       Alert.alert('조회 실패', '인증 신청 내역을 불러오지 못했습니다.');
@@ -385,7 +386,6 @@ export default function VerificationPage() {
         <Text style={styles.infoTitle}>인증 가능 서류</Text>
         <Text style={styles.infoText}>파견 대학 입학허가서 (Letter of Admission)</Text>
         <Text style={styles.infoText}>재학 대학교 파견 승인서</Text>
-        <Text style={styles.infoText}>교환학생 비자 사본</Text>
       </View>
 
       <Pressable

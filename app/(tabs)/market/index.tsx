@@ -346,7 +346,7 @@ export default function MarketPage() {
           },
           {
             text: '신원 인증하기',
-            onPress: () => router.push('/verification' as any),
+            onPress: () => router.push('/verification-consent' as any),
           },
         ],
       );
@@ -439,7 +439,7 @@ export default function MarketPage() {
         { text: '취소', style: 'cancel' },
         {
           text: '신원 인증하기',
-          onPress: () => router.push('/verification' as any),
+          onPress: () => router.push('/verification-consent' as any),
         },
       ],
     );

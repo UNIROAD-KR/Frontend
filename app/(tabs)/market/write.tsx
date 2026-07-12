@@ -446,7 +446,7 @@ export default function MarketWritePage() {
                 style={styles.verifyButton}
                 onPress={() => {
                   setVerificationModalVisible(false);
-                  router.push('/verification' as any);
+                  router.push('/verification-consent' as any);
                 }}
               >
                 <Text style={styles.verifyButtonText}>신원 인증하기</Text>

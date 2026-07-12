@@ -755,7 +755,7 @@ export default function CommunityWriteScreen() {
                 style={styles.verifyButton}
                 onPress={() => {
                   setVerificationModalVisible(false);
-                  router.push('/verification' as never);
+                  router.push('/verification-consent' as never);
                 }}
               >
                 <Text style={styles.verifyButtonText}>신원 인증하기</Text>
