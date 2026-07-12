@@ -380,6 +380,37 @@ export const signupStyles = StyleSheet.create({
     color: '#344054',
   },
 
+  legalFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#EEF1F5',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 18,
+    backgroundColor: '#FFFFFF',
+  },
+
+  legalAgreeButton: {
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#D9DCE4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  legalAgreeButtonActive: {
+    backgroundColor: BLUE,
+  },
+
+  legalAgreeButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+
+  legalAgreeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+
   sheetOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

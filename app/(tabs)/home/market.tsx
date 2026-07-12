@@ -96,7 +96,7 @@ export default function MarketScreen() {
               onPress={() =>
                 isVerified
                   ? router.push('/market/write' as any)
-                  : router.push('/verification' as any)
+                  : router.push('/verification-consent' as any)
               }
             >
               <Text style={styles.verifyButtonText}>

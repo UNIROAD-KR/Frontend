@@ -1,10 +1,14 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { getMemberMe } from '../api/auth';
 
 const VERIFIED_MARKET_ROLES = ['VERIFIED', 'ADMIN'];
-const TEMP_SKIP_MARKET_VERIFICATION = true;
+export const VERIFICATION_CONSENT_AGREED_KEY = 'verificationConsentAgreed';
 
 export const canUseMarketWithoutVerification = async () => {
-  if (TEMP_SKIP_MARKET_VERIFICATION) {
+  const storedVerification = await AsyncStorage.getItem('isVerified');
+
+  if (storedVerification === 'true') {
     return true;
   }
 

@@ -1,30 +1,37 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { PRIVACY_CONSENT } from '../../../constants/legal';
 
 const NAVY = '#0F2042';
 const MUTED = '#64748B';
 const LINE = '#E2E8F0';
 const SOFT = '#F6F8FC';
 
-const policies = [
-  {
-    title: '수집하는 정보',
-    body: '서비스 이용을 위해 아이디, 닉네임, 소속대학, 파견 국가와 지역, 파견교, 파견학기 등 회원 정보가 수집될 수 있습니다.',
-  },
-  {
-    title: '이용 목적',
-    body: '수집된 정보는 회원 식별, 온보딩 정보 저장, 프로필 표시, 교환학생 맞춤 기능 제공, 고객 문의 응대에 사용됩니다.',
-  },
-  {
-    title: '보관과 삭제',
-    body: '회원 정보는 서비스 제공에 필요한 기간 동안 보관되며, 탈퇴 또는 법령상 보관 기간 종료 시 삭제됩니다.',
-  },
-  {
-    title: '회원의 권리',
-    body: '회원은 본인의 개인정보 조회, 수정, 삭제를 요청할 수 있으며 서비스 내 프로필 수정과 문의 기능을 통해 요청할 수 있습니다.',
-  },
-];
+function renderLegalText(content: string) {
+  return content.split('\n').map((line, index) => {
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      return <View key={`space-${index}`} style={styles.textGap} />;
+    }
+
+    const isSectionHeading =
+      trimmedLine.startsWith('■') || /^제\d+조/.test(trimmedLine);
+
+    return (
+      <Text
+        key={`${trimmedLine}-${index}`}
+        style={[
+          styles.sectionBody,
+          isSectionHeading ? styles.legalSectionHeading : null,
+        ]}
+      >
+        {line}
+      </Text>
+    );
+  });
+}
 
 export default function PrivacyPolicyScreen() {
   return (
@@ -35,13 +42,13 @@ export default function PrivacyPolicyScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {policies.map((item) => (
-          <View key={item.title} style={styles.section}>
-            <Text style={styles.sectionTitle}>{item.title}</Text>
-            <Text style={styles.sectionBody}>{item.body}</Text>
-          </View>
-        ))}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.section}>
+          {renderLegalText(PRIVACY_CONSENT)}
+        </View>
       </ScrollView>
     </View>
   );
@@ -92,16 +99,19 @@ const styles = StyleSheet.create({
     padding: 18,
     marginBottom: 14,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: NAVY,
-    marginBottom: 8,
-  },
   sectionBody: {
     fontSize: 14,
     lineHeight: 22,
     fontWeight: '700',
     color: MUTED,
+  },
+  legalSectionHeading: {
+    marginTop: 8,
+    marginBottom: 4,
+    fontWeight: '900',
+    color: NAVY,
+  },
+  textGap: {
+    height: 10,
   },
 });
