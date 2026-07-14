@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Dimensions,
   Image,
   Pressable,
   ScrollView,
@@ -27,6 +28,7 @@ import { AppBackButton } from '@/components/ui/app-back-button';
 
 const BLUE = '#123F9F';
 const DETAIL_IMAGE_HEIGHT = 290;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const categoryNameMap: Record<TradeCategory, string> = {
@@ -135,6 +137,83 @@ const formatPrice = (post: MarketDetailPost) => {
 const getCategoryName = (category: TradeCategory | string) =>
   categoryNameMap[category as TradeCategory] ?? category;
 
+const mergeLocalMarketPost = (
+  apiPost: MarketDetailPost,
+  localPost: LocalMarketPost,
+): MarketDetailPost => {
+  const localGroupByCategory = localPost.itemGroups.reduce<
+    Record<string, LocalMarketPost['itemGroups'][number]>
+  >((acc, group) => {
+    acc[group.category] = group;
+    return acc;
+  }, {});
+  const mergedCategoryNames = Array.from(
+    new Set([
+      ...apiPost.itemGroups.map((group) => group.category),
+      ...localPost.itemGroups.map((group) => group.category),
+    ]),
+  );
+
+  return {
+    ...apiPost,
+    country: apiPost.country || localPost.country,
+    sellerCountry:
+      apiPost.sellerCountry ||
+      localPost.sellerCountry ||
+      localPost.authorDispatchedCountry,
+    authorDomesticUniversity:
+      apiPost.authorDomesticUniversity ||
+      apiPost.authorHomeUniversity ||
+      localPost.authorDomesticUniversity ||
+      localPost.authorHomeUniversity,
+    authorHomeUniversity:
+      apiPost.authorHomeUniversity || localPost.authorHomeUniversity,
+    authorDispatchedUniversity:
+      apiPost.authorDispatchedUniversity || localPost.authorDispatchedUniversity,
+    authorDispatchedCountry:
+      apiPost.authorDispatchedCountry || localPost.authorDispatchedCountry,
+    authorDispatchedRegion:
+      apiPost.authorDispatchedRegion || localPost.authorDispatchedRegion,
+    authorDispatchSemester:
+      apiPost.authorDispatchSemester || localPost.authorDispatchSemester,
+    authorVerified: apiPost.authorVerified ?? localPost.authorVerified,
+    returnDate: apiPost.returnDate || localPost.returnDate,
+    photos:
+      localPost.photos.length > 0
+        ? Array.from(new Set([...localPost.photos, ...apiPost.photos]))
+        : apiPost.photos,
+    itemGroups: mergedCategoryNames.map((category) => {
+      const apiGroup = apiPost.itemGroups.find(
+        (group) => group.category === category,
+      );
+      const localGroup = localGroupByCategory[category];
+
+      if (!apiGroup) {
+        return localGroup;
+      }
+
+      return {
+        ...apiGroup,
+        photos:
+          apiGroup.photos && apiGroup.photos.length > 0
+            ? apiGroup.photos
+            : localGroup?.photos,
+        description: apiGroup.description || localGroup?.description || '',
+        items:
+          apiGroup.items.length > 0
+            ? apiGroup.items.map((item, index) => ({
+                ...item,
+                description:
+                  item.description ||
+                  localGroup?.items[index]?.description ||
+                  undefined,
+              }))
+            : (localGroup?.items ?? []),
+      };
+    }),
+  };
+};
+
 const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
   const categoryImages = item.categoryImages ?? [];
   const categoryImageByName = categoryImages.reduce<Record<string, string[]>>(
@@ -146,21 +225,24 @@ const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
     {},
   );
   const itemsByCategory = (item.items ?? []).reduce<
-    Record<string, { name: string; quantity: number }[]>
+    Record<string, { name: string; quantity: number; description?: string }[]>
   >((acc, tradeItem) => {
     const category = getCategoryName(tradeItem.category);
     acc[category] = [
       ...(acc[category] ?? []),
-      { name: tradeItem.name, quantity: tradeItem.quantity },
+      {
+        name: tradeItem.name,
+        quantity: tradeItem.quantity,
+        description: tradeItem.description,
+      },
     ];
     return acc;
   }, {});
   const allCategories = Array.from(
     new Set([...Object.keys(itemsByCategory), ...Object.keys(categoryImageByName)]),
   );
-  const categoryPhotoUrls = categoryImages.map((image) => image.imageUrl);
   const photos = Array.from(
-    new Set([item.thumbnailImageUrl, ...categoryPhotoUrls].filter(Boolean)),
+    new Set([item.thumbnailImageUrl].filter(Boolean)),
   );
 
   return {
@@ -170,6 +252,8 @@ const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
     content: item.content,
     price: item.price,
     priceText: formatNumberPrice(item.price),
+    country: item.country || '',
+    sellerCountry: item.authorDispatchedCountry || '',
     region: item.region,
     semester: item.semester,
     returnDate: item.returnDate ?? '',
@@ -180,7 +264,18 @@ const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
       photos: categoryImageByName[category] ?? [],
       description: '',
     })),
-    authorName: item.authorName,
+    authorName: item.authorNickname || item.authorName,
+    authorDomesticUniversity:
+      item.authorDomesticUniversity || item.authorHomeUniversity || '',
+    authorHomeUniversity: item.authorHomeUniversity || '',
+    authorDispatchedUniversity: item.authorDispatchedUniversity || '',
+    authorDispatchedCountry: item.authorDispatchedCountry || '',
+    authorDispatchedRegion: item.authorDispatchedRegion || '',
+    authorDispatchSemester:
+      [item.authorDispatchYear, item.authorDispatchSemester]
+        .filter(Boolean)
+        .join(' ') || '',
+    authorVerified: item.authorVerified ?? true,
     createdAt: item.createdAt,
     targetMemberId: item.memberId,
   };
@@ -284,6 +379,11 @@ export default function MarketDetailPage() {
           try {
             const response = await getUsedItemDetail(numericId);
             nextPost = mapApiPost(response.data.data);
+
+            const localPost = await getLocalMarketPost(String(numericId));
+            if (localPost) {
+              nextPost = mergeLocalMarketPost(nextPost, localPost);
+            }
           } catch (error: any) {
             console.log(
               '중고거래 상세 조회 실패:',
@@ -320,7 +420,11 @@ export default function MarketDetailPage() {
   const tags = useMemo(() => {
     if (!post) return [];
 
+    const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
+
     return [
+      sellerCountry ? `판매자 ${sellerCountry}` : '판매자 국가 미정',
+      post.country ? `거래 ${post.country}` : '거래 국가 미정',
       post.region || '지역 미정',
       post.semester || '학기 미정',
       getDdayText(post.returnDate),
@@ -591,6 +695,8 @@ function ImageCarousel({ photos }: { photos: string[] }) {
 }
 
 function TradeInfo({ post }: { post: MarketDetailPost }) {
+  const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
+
   return (
     <View>
       <Text style={styles.sectionTitle}>거래 정보</Text>
@@ -601,6 +707,32 @@ function TradeInfo({ post }: { post: MarketDetailPost }) {
       <Text style={styles.subTitle}>거래 조건</Text>
 
       <View style={styles.conditionRow}>
+        <View style={styles.conditionCard}>
+          <View style={styles.conditionLabelRow}>
+            <Ionicons
+              name="person-circle-outline"
+              size={14}
+              color="#555555"
+              style={styles.conditionVectorIcon}
+            />
+            <Text style={styles.conditionLabel}>판매자 국가</Text>
+          </View>
+          <Text style={styles.conditionValue}>{sellerCountry || '미정'}</Text>
+        </View>
+
+        <View style={styles.conditionCard}>
+          <View style={styles.conditionLabelRow}>
+            <Ionicons
+              name="flag-outline"
+              size={14}
+              color="#555555"
+              style={styles.conditionVectorIcon}
+            />
+            <Text style={styles.conditionLabel}>거래 국가</Text>
+          </View>
+          <Text style={styles.conditionValue}>{post.country || '미정'}</Text>
+        </View>
+
         <View style={styles.conditionCard}>
           <View style={styles.conditionLabelRow}>
             <Image
@@ -653,46 +785,57 @@ function ItemList({ post }: { post: MarketDetailPost }) {
             ))}
           </View>
 
-          {post.itemGroups.map((group) => (
-            <View key={group.category} style={styles.itemGroup}>
-              <Text style={styles.subTitle}>{group.category}</Text>
+          {post.itemGroups.map((group) => {
+            const groupDescription =
+              group.description ||
+              group.items.find(
+                (item) => item.description && item.description.length > 0,
+              )?.description ||
+              '';
 
-              {group.photos && group.photos.length > 0 && (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.itemPhotoRow}
-                >
-                  {group.photos.map((photo, index) => (
-                    <Image
-                      key={`${group.category}-${photo}-${index}`}
-                      source={{ uri: photo }}
-                      style={styles.itemPhoto}
-                    />
-                  ))}
-                </ScrollView>
-              )}
+            return (
+              <View key={group.category} style={styles.itemGroup}>
+                <Text style={styles.subTitle}>{group.category}</Text>
 
-              {group.description && group.description.length > 0 && (
-                <View style={styles.itemDescriptionBox}>
-                  <Text style={styles.itemDescriptionText}>
-                    {group.description}
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.itemGrid}>
-                {group.items.map((item, index) => (
-                  <Text
-                    key={`${group.category}-${item.name}-${index}`}
-                    style={styles.itemText}
+                {group.photos && group.photos.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.itemPhotoRow}
                   >
-                    • {item.name} {item.quantity}개
-                  </Text>
-                ))}
+                    {group.photos.map((photo, index) => (
+                      <Image
+                        key={`${group.category}-${photo}-${index}`}
+                        source={{ uri: photo }}
+                        style={styles.itemPhoto}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
+
+                {groupDescription.length > 0 && (
+                  <View style={styles.itemDescriptionBox}>
+                    <Text style={styles.itemDescriptionText}>
+                      {groupDescription}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.itemGrid}>
+                  {group.items.map((item, index) => (
+                    <View
+                      key={`${group.category}-${item.name}-${index}`}
+                      style={styles.itemLineBlock}
+                    >
+                      <Text style={styles.itemText}>
+                        • {item.name} {item.quantity}개
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </>
       ) : (
         <View style={styles.emptyListBox}>
@@ -706,6 +849,13 @@ function ItemList({ post }: { post: MarketDetailPost }) {
 function SellerInfo({ post }: { post: MarketDetailPost }) {
   const authorName = post.authorName || '나';
   const initial = authorName.trim().charAt(0) || '나';
+  const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
+  const sellerRegion = post.authorDispatchedRegion || post.region;
+  const domesticUniversity =
+    post.authorDomesticUniversity || post.authorHomeUniversity || '소속대학 미정';
+  const dispatchedUniversity = post.authorDispatchedUniversity || '파견교 미정';
+  const dispatchSemester = post.authorDispatchSemester || post.semester || '학기 미정';
+  const verified = post.authorVerified ?? true;
 
   return (
     <View>
@@ -714,21 +864,49 @@ function SellerInfo({ post }: { post: MarketDetailPost }) {
         교환학생 선배 판매자의 기본 정보예요
       </Text>
 
-      <Text style={styles.nickname}>{authorName}</Text>
-
       <View style={styles.profileCard}>
         <View style={styles.profileImage}>
           <Text style={styles.profileInitial}>{initial}</Text>
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>{authorName}</Text>
+          <View style={styles.profileNameRow}>
+            <Text style={styles.profileName}>{authorName}</Text>
+            {verified && (
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark-circle" size={13} color="#123F9F" />
+                <Text style={styles.verifiedText}>인증완료</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.profileMeta}>
-            {post.region || '지역 미정'}　{post.semester || '학기 미정'} 파견생
+            {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '지역 미정'} · {dispatchSemester} 파견생
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.sellerInfoList}>
+        <View style={styles.sellerInfoRow}>
+          <Text style={styles.sellerInfoLabel}>소속대학</Text>
+          <Text style={styles.sellerInfoValue}>{domesticUniversity}</Text>
+        </View>
+
+        <View style={styles.sellerInfoRow}>
+          <Text style={styles.sellerInfoLabel}>파견국가 및 지역</Text>
+          <Text style={styles.sellerInfoValue}>
+            {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '미정'}
           </Text>
         </View>
 
-        <Text style={styles.profileArrow}>›</Text>
+        <View style={styles.sellerInfoRow}>
+          <Text style={styles.sellerInfoLabel}>파견교</Text>
+          <Text style={styles.sellerInfoValue}>{dispatchedUniversity}</Text>
+        </View>
+
+        <View style={styles.sellerInfoRow}>
+          <Text style={styles.sellerInfoLabel}>파견학기</Text>
+          <Text style={styles.sellerInfoValue}>{dispatchSemester}</Text>
+        </View>
       </View>
     </View>
   );
@@ -799,7 +977,7 @@ const styles = StyleSheet.create({
   },
 
   heroImage: {
-    width: '100%',
+    width: SCREEN_WIDTH,
     height: DETAIL_IMAGE_HEIGHT,
     resizeMode: 'cover',
   },
@@ -917,12 +1095,14 @@ const styles = StyleSheet.create({
 
   conditionRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 12,
     marginBottom: 34,
   },
 
   conditionCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
     minHeight: 92,
     backgroundColor: '#FAFAFA',
     borderRadius: 4,
@@ -940,6 +1120,10 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     resizeMode: 'contain',
+    marginRight: 5,
+  },
+
+  conditionVectorIcon: {
     marginRight: 5,
   },
 
@@ -982,9 +1166,9 @@ const styles = StyleSheet.create({
   categoryPill: {
     backgroundColor: '#F2F2F2',
     borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    fontSize: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    fontSize: 12,
     color: '#111111',
     fontWeight: '700',
     overflow: 'hidden',
@@ -1022,13 +1206,14 @@ const styles = StyleSheet.create({
   },
 
   itemGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     marginBottom: 28,
   },
 
+  itemLineBlock: {
+    marginBottom: 9,
+  },
+
   itemText: {
-    width: '50%',
     fontSize: 14,
     lineHeight: 21,
     color: '#111111',
@@ -1055,12 +1240,13 @@ const styles = StyleSheet.create({
   },
 
   profileCard: {
-    height: 78,
     backgroundColor: '#FAFAFA',
     borderRadius: 4,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
+    paddingVertical: 13,
+    marginBottom: 12,
   },
 
   profileImage: {
@@ -1080,9 +1266,32 @@ const styles = StyleSheet.create({
   },
 
   profileName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
     color: '#333333',
+  },
+
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    backgroundColor: '#EAF0FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+
+  verifiedText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#123F9F',
   },
 
   profileMeta: {
@@ -1092,8 +1301,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  profileArrow: {
-    fontSize: 30,
+  sellerInfoList: {
+    borderRadius: 4,
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    gap: 10,
+  },
+
+  sellerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+
+  sellerInfoLabel: {
+    width: 96,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#777777',
+  },
+
+  sellerInfoValue: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
     color: '#111111',
   },
 

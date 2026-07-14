@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
@@ -24,6 +26,12 @@ import {
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import {
+  CUSTOM_COUNTRY_OPTION,
+  countryOptions,
+} from '@/src/constants/onboarding';
+import { getMemberMe, type MemberResponse } from '../../../src/api/auth';
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
 import { createUsedItem } from '../../../src/api/usedItems';
 import type { TradeCategory } from '../../../src/api/usedItems';
@@ -51,6 +59,7 @@ type SelectedItemGroup = {
   items: {
     name: string;
     quantity: number;
+    description?: string;
   }[];
 };
 
@@ -128,6 +137,54 @@ const initialItems: Record<CategoryName, ItemState[]> = {
 };
 
 const previewCategories = Object.keys(initialItems) as CategoryName[];
+const MAX_CATEGORY_PHOTOS = 10;
+
+const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
+
+const formatWonInput = (value: string) => {
+  const digits = onlyDigits(value);
+
+  if (!digits) return '';
+
+  return Number(digits).toLocaleString('ko-KR');
+};
+
+const parseDateValue = (value?: string) => {
+  if (!value) return new Date();
+
+  const date = new Date(`${value}T00:00:00`);
+
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+};
+
+const formatDateValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const resolveCountrySelection = (value?: string) => {
+  if (!value) {
+    return {
+      selectedCountry: '',
+      customCountry: '',
+    };
+  }
+
+  if (countryOptions.includes(value)) {
+    return {
+      selectedCountry: value,
+      customCountry: '',
+    };
+  }
+
+  return {
+    selectedCountry: CUSTOM_COUNTRY_OPTION,
+    customCountry: value,
+  };
+};
 
 const parseRecord = <T,>(value?: string): Partial<Record<CategoryName, T>> => {
   if (!value) return {};
@@ -277,21 +334,27 @@ export default function MarketPreviewPage() {
     title?: string;
     content?: string;
     price?: string;
+    country?: string;
     region?: string;
     returnDate?: string;
     semester?: string;
     selectedItems?: string;
     photos?: string;
     type?: string;
-    allowOffer?: string;
     draftItemsByCategory?: string;
     draftCategoryDetails?: string;
   }>();
+  const initialCountrySelection = resolveCountrySelection(params.country);
 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [editListModalVisible, setEditListModalVisible] = useState(false);
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activePreviewTab, setActivePreviewTab] = useState<
+    'trade' | 'items' | 'seller'
+  >('items');
   const [activeCategory, setActiveCategory] = useState<CategoryName | null>(
     null,
   );
@@ -353,10 +416,24 @@ export default function MarketPreviewPage() {
 
   const [title, setTitle] = useState(params.title || '');
   const [content] = useState(params.content || '');
-  const [price, setPrice] = useState(params.price || '');
+  const [price, setPrice] = useState(() => formatWonInput(params.price || ''));
+  const [selectedCountry, setSelectedCountry] = useState(
+    initialCountrySelection.selectedCountry,
+  );
+  const [customCountry, setCustomCountry] = useState(
+    initialCountrySelection.customCountry,
+  );
+  const [region, setRegion] = useState(params.region || '');
+  const [returnDate, setReturnDate] = useState(params.returnDate || '');
+  const [selectedDate, setSelectedDate] = useState(() =>
+    parseDateValue(params.returnDate),
+  );
   const [itemsByCategory, setItemsByCategory] = useState(
     makeInitialEditableItems,
   );
+  const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
+  const countryText = isCustomCountry ? customCountry.trim() : selectedCountry;
+  const regionText = region.trim();
 
   const selectedGroups = useMemo<SelectedItemGroup[]>(() => {
     return Object.entries(itemsByCategory)
@@ -373,19 +450,18 @@ export default function MarketPreviewPage() {
   }, [itemsByCategory]);
 
   const dDayText = useMemo(() => {
-    if (!params.returnDate) return '귀국 D-?';
+    if (!returnDate) return '귀국 D-?';
 
     const today = new Date();
-    const target = new Date(params.returnDate);
+    const target = new Date(returnDate);
     const diff = Math.ceil(
       (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     return diff >= 0 ? `귀국 D-${diff}` : '귀국 완료';
-  }, [params.returnDate]);
+  }, [returnDate]);
 
   const semesterText = params.semester || '26-2학기';
-  const regionText = params.region || '독일';
 
   const getCategoryDetail = (category: CategoryName): CategoryDetail => {
     return categoryDetails[category] ?? { photos: [], description: '' };
@@ -407,6 +483,20 @@ export default function MarketPreviewPage() {
   const openEditListModal = (category: CategoryName) => {
     setActiveCategory(category);
     setEditListModalVisible(true);
+  };
+
+  const handleSelectCountry = (countryName: string) => {
+    setSelectedCountry(countryName);
+    setCountryModalVisible(false);
+
+    if (countryName !== CUSTOM_COUNTRY_OPTION) {
+      setCustomCountry('');
+    }
+  };
+
+  const handleConfirmDate = () => {
+    setReturnDate(formatDateValue(selectedDate));
+    setShowDatePicker(false);
   };
 
   const toggleItem = (category: CategoryName, index: number) => {
@@ -465,12 +555,34 @@ export default function MarketPreviewPage() {
     }));
   };
 
+  const appendCategoryPhotos = (uris: string[]) => {
+    if (!activeCategory) return;
+
+    setCategoryDetails((prev) => {
+      const previousDetail = prev[activeCategory] ?? {
+        photos: [],
+        description: '',
+      };
+
+      return {
+        ...prev,
+        [activeCategory]: {
+          ...previousDetail,
+          photos: [...previousDetail.photos, ...uris].slice(
+            0,
+            MAX_CATEGORY_PHOTOS,
+          ),
+        },
+      };
+    });
+  };
+
   const handlePickCategoryPhotos = async () => {
     if (!activeCategory) return;
 
     const currentPhotos = getCategoryDetail(activeCategory).photos;
 
-    if (currentPhotos.length >= 10) {
+    if (currentPhotos.length >= MAX_CATEGORY_PHOTOS) {
       Alert.alert('사진 제한', '카테고리별 사진은 최대 10장까지 추가할 수 있어요.');
       return;
     }
@@ -486,7 +598,7 @@ export default function MarketPreviewPage() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
       quality: 0.8,
-      selectionLimit: 10 - currentPhotos.length,
+      selectionLimit: MAX_CATEGORY_PHOTOS - currentPhotos.length,
     });
 
     if (result.canceled) {
@@ -495,20 +607,36 @@ export default function MarketPreviewPage() {
 
     const selectedUris = result.assets.map((asset) => asset.uri);
 
-    setCategoryDetails((prev) => {
-      const previousDetail = prev[activeCategory] ?? {
-        photos: [],
-        description: '',
-      };
+    appendCategoryPhotos(selectedUris);
+  };
 
-      return {
-        ...prev,
-        [activeCategory]: {
-          ...previousDetail,
-          photos: [...previousDetail.photos, ...selectedUris].slice(0, 10),
-        },
-      };
+  const handleTakeCategoryPhoto = async () => {
+    if (!activeCategory) return;
+
+    const currentPhotos = getCategoryDetail(activeCategory).photos;
+
+    if (currentPhotos.length >= MAX_CATEGORY_PHOTOS) {
+      Alert.alert('사진 제한', '카테고리별 사진은 최대 10장까지 추가할 수 있어요.');
+      return;
+    }
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
     });
+
+    if (result.canceled) {
+      return;
+    }
+
+    appendCategoryPhotos([result.assets[0].uri]);
   };
 
   const removeCategoryPhoto = (category: CategoryName, index: number) => {
@@ -548,7 +676,7 @@ export default function MarketPreviewPage() {
     setDescriptionModalVisible(false);
   };
 
-  const uploadImage = async (uri: string, index: number) => {
+  const uploadImage = async (uri: string, index: number | string) => {
     const fileName = `used_item_${Date.now()}_${index}.jpg`;
     const contentType = 'image/jpeg';
 
@@ -572,8 +700,17 @@ export default function MarketPreviewPage() {
       return;
     }
 
-    if (!title.trim() || !content.trim() || !price.trim()) {
-      Alert.alert('입력 오류', '제목, 설명, 가격을 모두 입력해주세요.');
+    const cleanPrice = onlyDigits(price);
+
+    if (
+      !countryText ||
+      !regionText ||
+      !returnDate ||
+      !title.trim() ||
+      !content.trim() ||
+      !cleanPrice
+    ) {
+      Alert.alert('입력 오류', '거래 정보, 제목, 설명, 가격을 모두 입력해주세요.');
       return;
     }
 
@@ -584,61 +721,133 @@ export default function MarketPreviewPage() {
 
     const cleanedTitle = title.trim();
     const cleanedContent = content.trim();
-    const cleanedPriceText = price.trim();
-    const numericPrice = Number(cleanedPriceText.replace(/[^0-9]/g, '')) || 0;
+    const numericPrice = Number(cleanPrice) || 0;
+    const cleanedPriceText = `${numericPrice.toLocaleString('ko-KR')}원`;
     const syncPostToServer = async () => {
       const uploadedImageUrls = await Promise.all(
         photoList.map((photo, index) => uploadImage(photo, index)),
       );
       const thumbnailImageUrl = uploadedImageUrls[0];
+      const categoryImageEntries = selectedGroups.flatMap((group) => {
+        const detail = getCategoryDetail(group.category);
+
+        return detail.photos.map((photo, index) => ({
+          category: group.category,
+          photo,
+          index,
+        }));
+      });
+      const uploadedCategoryImages = await Promise.all(
+        categoryImageEntries.map(async (entry, index) => ({
+          category: entry.category,
+          apiCategory: categoryCodeMap[entry.category],
+          imageUrl: await uploadImage(
+            entry.photo,
+            `category_${index}_${entry.index}`,
+          ),
+        })),
+      );
+      const categoryPhotosByCategory = uploadedCategoryImages.reduce<
+        Partial<Record<CategoryName, string[]>>
+      >((acc, image) => {
+        acc[image.category] = [...(acc[image.category] ?? []), image.imageUrl];
+        return acc;
+      }, {});
 
       const response = await createUsedItem({
         title: cleanedTitle,
         content: cleanedContent,
         price: numericPrice,
+        country: countryText,
         region: regionText,
         semester: semesterText,
+        returnDate,
         thumbnailImageUrl,
         items: selectedGroups.flatMap((group) =>
-          group.items.map((item) => ({
-            category: categoryCodeMap[group.category],
-            name: item.name,
-            quantity: item.quantity,
-          })),
+          group.items.map((item, index) => {
+            const description = getCategoryDetail(group.category).description.trim();
+
+            return {
+              category: categoryCodeMap[group.category],
+              name: item.name,
+              quantity: item.quantity,
+              description: index === 0 && description ? description : undefined,
+            };
+          }),
         ),
-        categoryImages: selectedGroups.map((group, index) => ({
-          category: categoryCodeMap[group.category],
-          imageUrl: uploadedImageUrls[index] ?? thumbnailImageUrl,
-        })),
+        categoryImages:
+          uploadedCategoryImages.length > 0
+            ? uploadedCategoryImages.map((image) => ({
+                category: image.apiCategory,
+                imageUrl: image.imageUrl,
+              }))
+            : undefined,
       });
 
-      return response.data.data;
+      return {
+        id: response.data.data,
+        uploadedImageUrls,
+        categoryPhotosByCategory,
+      };
     };
 
     try {
       const nickname = await AsyncStorage.getItem('nickname');
-      await syncPostToServer();
+      let memberProfile: MemberResponse | null = null;
 
-      await saveLocalMarketPost({
-        title: cleanedTitle,
-        content: cleanedContent,
-        price: numericPrice,
-        priceText: cleanedPriceText,
-        region: regionText,
-        semester: semesterText,
-        returnDate: params.returnDate || '',
-        photos: photoList,
-        itemGroups: selectedGroups.map((group) => {
-          const detail = getCategoryDetail(group.category);
+      try {
+        const memberResponse = await getMemberMe();
+        memberProfile = memberResponse.data.data;
+      } catch (profileError: any) {
+        console.log(
+          '판매자 프로필 조회 실패:',
+          profileError.response?.data || profileError.message,
+        );
+      }
 
-          return {
-            ...group,
-            photos: detail.photos,
-            description: detail.description.trim(),
-          };
-        }),
-        authorName: nickname || '나',
-      });
+      const uploadResult = await syncPostToServer();
+
+      await saveLocalMarketPost(
+        {
+          title: cleanedTitle,
+          content: cleanedContent,
+          price: numericPrice,
+          priceText: cleanedPriceText,
+          country: countryText,
+          region: regionText,
+          semester: semesterText,
+          returnDate,
+          photos:
+            uploadResult.uploadedImageUrls.length > 0
+              ? uploadResult.uploadedImageUrls
+              : photoList,
+          itemGroups: selectedGroups.map((group) => {
+            const detail = getCategoryDetail(group.category);
+            const description = detail.description.trim();
+
+            return {
+              ...group,
+              items: group.items.map((item, index) => ({
+                ...item,
+                description: index === 0 && description ? description : undefined,
+              })),
+              photos: uploadResult.categoryPhotosByCategory[group.category] ?? detail.photos,
+              description,
+            };
+          }),
+          authorName: memberProfile?.nickname || nickname || '나',
+          sellerCountry: memberProfile?.dispatchedCountry || countryText,
+          authorDomesticUniversity:
+            memberProfile?.domesticUniversity || memberProfile?.homeUniversity || '',
+          authorHomeUniversity: memberProfile?.homeUniversity || '',
+          authorDispatchedUniversity: memberProfile?.dispatchedUniversity || '',
+          authorDispatchedCountry: memberProfile?.dispatchedCountry || '',
+          authorDispatchedRegion: memberProfile?.dispatchedRegion || '',
+          authorDispatchSemester: memberProfile?.dispatchSemester || semesterText,
+          authorVerified: true,
+        },
+        uploadResult.id,
+      );
 
       await clearMarketDraft();
 
@@ -661,11 +870,11 @@ export default function MarketPreviewPage() {
         title,
         content,
         price,
+        country: countryText,
         region: regionText,
-        returnDate: params.returnDate ?? '',
+        returnDate,
         semester: semesterText,
         photos: photoList,
-        allowOffer: params.allowOffer === 'true',
       },
       preview: {
         selectedItems: JSON.stringify(selectedGroups),
@@ -745,7 +954,8 @@ export default function MarketPreviewPage() {
 
         <View style={styles.body}>
           <View style={styles.tagRow}>
-            <Text style={styles.tag}>{regionText}</Text>
+            <Text style={styles.tag}>{countryText || '국가 미정'}</Text>
+            <Text style={styles.tag}>{regionText || '장소 미정'}</Text>
             <Text style={styles.tag}>{semesterText}</Text>
             <Text style={styles.tag}>{dDayText}</Text>
           </View>
@@ -761,117 +971,240 @@ export default function MarketPreviewPage() {
           <TextInput
             style={styles.priceInput}
             value={price}
-            onChangeText={setPrice}
-            placeholder="예: 12엔, 21만원"
+            onChangeText={(value) => setPrice(formatWonInput(value))}
+            placeholder="0"
             placeholderTextColor="#999999"
+            keyboardType="number-pad"
           />
 
           <View style={styles.tabRow}>
-            <Text style={styles.tabText}>거래 정보</Text>
-            <Text style={[styles.tabText, styles.activeTabText]}>
-              물품 목록
-            </Text>
-            <Text style={styles.tabText}>판매자 정보</Text>
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setActivePreviewTab('trade')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activePreviewTab === 'trade' && styles.activeTabText,
+                ]}
+              >
+                거래 정보
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setActivePreviewTab('items')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activePreviewTab === 'items' && styles.activeTabText,
+                ]}
+              >
+                물품 목록
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.tabButton}
+              onPress={() => setActivePreviewTab('seller')}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activePreviewTab === 'seller' && styles.activeTabText,
+                ]}
+              >
+                판매자 정보
+              </Text>
+            </Pressable>
           </View>
 
-          <View style={styles.activeLine} />
+          <View
+            style={[
+              styles.activeLine,
+              activePreviewTab === 'trade' && styles.activeLineTrade,
+              activePreviewTab === 'items' && styles.activeLineItems,
+              activePreviewTab === 'seller' && styles.activeLineSeller,
+            ]}
+          />
 
-          <Text style={styles.sectionTitle}>물품 목록</Text>
-          <Text style={styles.desc}>판매 물품 목록이에요</Text>
+          {activePreviewTab === 'trade' && (
+            <>
+              <Text style={styles.sectionTitle}>거래 정보</Text>
+              <Text style={styles.desc}>
+                올리기 전 거래 정보를 확인하고 수정할 수 있어요
+              </Text>
 
-          <Text style={styles.subTitle}>보유 카테고리</Text>
-
-          <View style={styles.categoryRow}>
-            {selectedGroups.map((group) => (
-              <View key={group.category} style={styles.categoryChip}>
-                <Text style={styles.categoryChipText}>{group.category}</Text>
-              </View>
-            ))}
-          </View>
-
-          {selectedGroups.map((group) => {
-            const detail = getCategoryDetail(group.category);
-            const hasDescription = detail.description.trim().length > 0;
-
-            return (
-              <View key={group.category} style={styles.groupBox}>
-                <View style={styles.groupTitleRow}>
-                  <Text style={styles.groupTitle}>{group.category}</Text>
-                  <View style={styles.groupLine} />
-                </View>
-
+              <View style={styles.tradeReviewBox}>
+                <Text style={styles.tradeReviewLabel}>국가</Text>
                 <Pressable
-                  style={styles.addPhotoButton}
-                  onPress={() => openPhotoModal(group.category)}
+                  style={styles.reviewSelectInput}
+                  onPress={() => setCountryModalVisible(true)}
                 >
-                  <Image
-                    source={require('../../../assets/images/camera.png')}
-                    style={styles.addPhotoIcon}
-                  />
-                  <Text style={styles.addPhotoText}>
-                    {detail.photos.length > 0
-                      ? `사진 ${detail.photos.length}장 수정하기`
-                      : '사진 추가하기 (선택)'}
-                  </Text>
-                </Pressable>
-
-                {detail.photos.length > 0 && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.categoryPhotoPreviewRow}
+                  <Text
+                    style={[
+                      styles.reviewSelectText,
+                      selectedCountry && styles.reviewSelectTextActive,
+                    ]}
                   >
-                    {detail.photos.map((photo, index) => (
-                      <Image
-                        key={`${group.category}-${photo}-${index}`}
-                        source={{ uri: photo }}
-                        style={styles.categoryPhotoPreview}
-                      />
-                    ))}
-                  </ScrollView>
-                )}
-
-                <Pressable
-                  style={styles.addPhotoButton}
-                  onPress={() => openDescriptionModal(group.category)}
-                >
-                  <Image
-                    source={require('../../../assets/images/pen.png')}
-                    style={styles.addDescriptionIcon}
-                  />
-                  <Text style={styles.addPhotoText}>
-                    {hasDescription ? '설명 수정하기' : '설명 추가하기 (선택)'}
+                    {selectedCountry || '선택'}
                   </Text>
+                  <Text style={styles.reviewChevron}>⌄</Text>
                 </Pressable>
 
-                {hasDescription && (
-                  <View style={styles.categoryDescriptionPreview}>
-                    <Text style={styles.categoryDescriptionPreviewText}>
-                      {detail.description}
-                    </Text>
-                  </View>
+                {isCustomCountry && (
+                  <>
+                    <Text style={styles.tradeReviewLabel}>국가 직접 입력</Text>
+                    <TextInput
+                      style={styles.reviewInput}
+                      value={customCountry}
+                      onChangeText={setCustomCountry}
+                      placeholder="국가명 입력"
+                      placeholderTextColor="#999999"
+                    />
+                  </>
                 )}
 
-                <View style={styles.itemList}>
-                  {group.items.map((item, index) => (
-                    <Text
-                      key={`${group.category}-${index}`}
-                      style={styles.itemText}
-                    >
-                      • {item.name} {item.quantity}개
-                    </Text>
-                  ))}
-                </View>
+                <Text style={styles.tradeReviewLabel}>희망 장소</Text>
+                <TextInput
+                  style={styles.reviewInput}
+                  value={region}
+                  onChangeText={setRegion}
+                  placeholder="거래 장소 입력"
+                  placeholderTextColor="#999999"
+                />
 
+                <Text style={styles.tradeReviewLabel}>귀국일</Text>
                 <Pressable
-                  onPress={() => openEditListModal(group.category)}
-                  style={styles.editButton}
+                  style={styles.reviewSelectInput}
+                  onPress={() => setShowDatePicker(true)}
                 >
-                  <Text style={styles.editButtonText}>목록 수정하기</Text>
+                  <Text
+                    style={[
+                      styles.reviewSelectText,
+                      returnDate && styles.reviewSelectTextActive,
+                    ]}
+                  >
+                    {returnDate || '연도-월-일'}
+                  </Text>
+                  <Text style={styles.reviewChevron}>⌄</Text>
                 </Pressable>
               </View>
-            );
-          })}
+            </>
+          )}
+
+          {activePreviewTab === 'items' && (
+            <>
+              <Text style={styles.sectionTitle}>물품 목록</Text>
+              <Text style={styles.desc}>판매 물품 목록이에요</Text>
+
+              <Text style={styles.subTitle}>보유 카테고리</Text>
+
+              <View style={styles.categoryRow}>
+                {selectedGroups.map((group) => (
+                  <View key={group.category} style={styles.categoryChip}>
+                    <Text style={styles.categoryChipText}>{group.category}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {selectedGroups.map((group) => {
+                const detail = getCategoryDetail(group.category);
+                const hasDescription = detail.description.trim().length > 0;
+
+                return (
+                  <View key={group.category} style={styles.groupBox}>
+                    <View style={styles.groupTitleRow}>
+                      <Text style={styles.groupTitle}>{group.category}</Text>
+                      <View style={styles.groupLine} />
+                    </View>
+
+                    <Pressable
+                      style={styles.addPhotoButton}
+                      onPress={() => openPhotoModal(group.category)}
+                    >
+                      <Image
+                        source={require('../../../assets/images/camera.png')}
+                        style={styles.addPhotoIcon}
+                      />
+                      <Text style={styles.addPhotoText}>
+                        {detail.photos.length > 0
+                          ? `사진 ${detail.photos.length}장 수정하기`
+                          : '사진 추가하기 (선택)'}
+                      </Text>
+                    </Pressable>
+
+                    {detail.photos.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.categoryPhotoPreviewRow}
+                      >
+                        {detail.photos.map((photo, index) => (
+                          <Image
+                            key={`${group.category}-${photo}-${index}`}
+                            source={{ uri: photo }}
+                            style={styles.categoryPhotoPreview}
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
+
+                    <Pressable
+                      style={styles.addPhotoButton}
+                      onPress={() => openDescriptionModal(group.category)}
+                    >
+                      <Image
+                        source={require('../../../assets/images/pen.png')}
+                        style={styles.addDescriptionIcon}
+                      />
+                      <Text style={styles.addPhotoText}>
+                        {hasDescription ? '설명 수정하기' : '설명 추가하기 (선택)'}
+                      </Text>
+                    </Pressable>
+
+                    <View style={styles.itemList}>
+                      {group.items.map((item, index) => (
+                        <Text
+                          key={`${group.category}-${index}`}
+                          style={styles.itemText}
+                        >
+                          • {item.name} {item.quantity}개
+                        </Text>
+                      ))}
+                    </View>
+
+                    {hasDescription && (
+                      <View style={styles.categoryDescriptionPreview}>
+                        <Text style={styles.categoryDescriptionPreviewText}>
+                          {detail.description}
+                        </Text>
+                      </View>
+                    )}
+
+                    <Pressable
+                      onPress={() => openEditListModal(group.category)}
+                      style={styles.editButton}
+                    >
+                      <Text style={styles.editButtonText}>목록 수정하기</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </>
+          )}
+
+          {activePreviewTab === 'seller' && (
+            <>
+              <Text style={styles.sectionTitle}>판매자 정보</Text>
+              <Text style={styles.desc}>판매자 정보는 업로드 후 내 프로필 기준으로 표시돼요</Text>
+              <View style={styles.sellerPreviewBox}>
+                <Text style={styles.sellerPreviewText}>내 프로필 정보로 등록 예정</Text>
+              </View>
+            </>
+          )}
 
           <Pressable style={styles.uploadButton} onPress={handleUpload}>
             <Text style={styles.uploadButtonText}>업로드 하기</Text>
@@ -915,16 +1248,26 @@ export default function MarketPreviewPage() {
                 </ScrollView>
               )}
 
-            <Pressable
-              style={styles.photoUploadBox}
-              onPress={handlePickCategoryPhotos}
-            >
-              <Image
-                source={require('../../../assets/images/camera.png')}
-                style={styles.cameraIcon}
-              />
-              <Text style={styles.photoUploadText}>앨범에서 사진 선택</Text>
-            </Pressable>
+            <View style={styles.photoSourceRow}>
+              <Pressable
+                style={styles.photoSourceButton}
+                onPress={handleTakeCategoryPhoto}
+              >
+                <Image
+                  source={require('../../../assets/images/camera.png')}
+                  style={styles.cameraIcon}
+                />
+                <Text style={styles.photoUploadText}>사진 촬영</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.photoSourceButton}
+                onPress={handlePickCategoryPhotos}
+              >
+                <Ionicons name="images-outline" size={32} color="#666666" />
+                <Text style={styles.photoUploadText}>앨범 선택</Text>
+              </Pressable>
+            </View>
 
             <Pressable
               style={styles.sheetConfirmButton}
@@ -1076,6 +1419,58 @@ export default function MarketPreviewPage() {
             </DraggableSheet>
         </KeyboardAvoidingView>
       </Modal>
+
+      <Modal
+        transparent
+        visible={showDatePicker}
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={styles.pickerOverlay}>
+          <Pressable
+            style={styles.pickerBackdrop}
+            onPress={() => setShowDatePicker(false)}
+          />
+
+          <View style={styles.pickerSheet}>
+            <View style={styles.pickerHeader}>
+              <Pressable onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.pickerCancel}>취소</Text>
+              </Pressable>
+
+              <Text style={styles.pickerTitle}>귀국일 선택</Text>
+
+              <Pressable onPress={handleConfirmDate}>
+                <Text style={styles.pickerDone}>완료</Text>
+              </Pressable>
+            </View>
+
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display="spinner"
+              locale="ko-KR"
+              textColor="#111111"
+              themeVariant="light"
+              style={styles.iosPicker}
+              onChange={(event, date) => {
+                if (date) {
+                  setSelectedDate(date);
+                }
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      <OnboardingSelectModal
+        visible={countryModalVisible}
+        title="국가 선택"
+        options={countryOptions}
+        selectedValue={selectedCountry}
+        onClose={() => setCountryModalVisible(false)}
+        onSelect={handleSelectCountry}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1142,7 +1537,12 @@ const styles = StyleSheet.create({
   },
 
   body: { paddingHorizontal: 22, paddingTop: 16 },
-  tagRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
   tag: {
     backgroundColor: '#F5F5F5',
     borderRadius: 12,
@@ -1173,8 +1573,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#EEEEEE',
   },
-  tabText: {
+  tabButton: {
     flex: 1,
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabText: {
     textAlign: 'center',
     fontSize: 14,
     fontWeight: '800',
@@ -1186,8 +1591,80 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 99,
     backgroundColor: BLUE,
-    marginLeft: '33.33%',
     marginBottom: 22,
+  },
+  activeLineTrade: {
+    marginLeft: 0,
+  },
+  activeLineItems: {
+    marginLeft: '33.33%',
+  },
+  activeLineSeller: {
+    marginLeft: '66.66%',
+  },
+  sellerPreviewBox: {
+    minHeight: 92,
+    borderRadius: 8,
+    backgroundColor: '#F7F7F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 22,
+  },
+  sellerPreviewText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#555555',
+  },
+  tradeReviewBox: {
+    borderWidth: 1,
+    borderColor: '#E4E7EF',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 4,
+    marginBottom: 28,
+  },
+  tradeReviewLabel: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#222222',
+    marginBottom: 8,
+  },
+  reviewInput: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#D8DCE8',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: '#111111',
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  reviewSelectInput: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#D8DCE8',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  reviewSelectText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#999999',
+    fontWeight: '700',
+  },
+  reviewSelectTextActive: {
+    color: '#111111',
+  },
+  reviewChevron: {
+    fontSize: 21,
+    color: '#B8BECC',
+    marginTop: -2,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1275,7 +1752,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  itemList: { marginTop: 12 },
+  itemList: { marginTop: 12, marginBottom: 10 },
   itemText: { fontSize: 13, lineHeight: 24, color: '#111111' },
   editButton: {
     marginTop: 14,
@@ -1425,13 +1902,18 @@ const styles = StyleSheet.create({
   editListConfirmButton: {
     marginTop: 54,
   },
-  photoUploadBox: {
-    height: 170,
+  photoSourceRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 26,
+  },
+  photoSourceButton: {
+    flex: 1,
+    height: 126,
     borderRadius: 12,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 26,
   },
   cameraIcon: { width: 32, height: 32, resizeMode: 'contain', marginBottom: 8 },
   photoUploadText: { fontSize: 16, color: '#666666', fontWeight: '600' },
@@ -1484,4 +1966,48 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   sheetConfirmText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
+  pickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingBottom: 24,
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    height: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEEEEE',
+  },
+  pickerCancel: {
+    fontSize: 16,
+    color: '#777777',
+    fontWeight: '700',
+  },
+  pickerTitle: {
+    fontSize: 17,
+    color: '#111111',
+    fontWeight: '900',
+  },
+  pickerDone: {
+    fontSize: 16,
+    color: BLUE,
+    fontWeight: '800',
+  },
+  iosPicker: {
+    height: 216,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+  },
 });

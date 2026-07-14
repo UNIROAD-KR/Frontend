@@ -26,6 +26,15 @@ import {
 } from '../../../src/api/ticket';
 import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+import {
+  clearMarketDraft,
+  getMarketDraft,
+  type MarketDraft,
+} from '../../../src/storage/marketDraft';
+import {
+  clearTicketDraft,
+  getTicketDraft,
+} from '../../../src/storage/ticketDraft';
 import { AppBackButton } from '@/components/ui/app-back-button';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
@@ -410,22 +419,138 @@ export default function MarketPage() {
     });
   };
 
-  const handleFabPress = () => {
-    if (selectedType === 'ticket') {
-      setIsFabOpen(false);
-      requireVerificationBefore('/market/ticket-write');
+  const buildDraftWriteParams = (draft: MarketDraft) => ({
+    type: draft.write.type ?? 'all',
+    title: draft.write.title,
+    content: draft.write.content,
+    price: draft.write.price,
+    country: draft.write.country ?? '',
+    region: draft.write.region,
+    returnDate: draft.write.returnDate,
+    semester: draft.write.semester ?? '',
+    photos: JSON.stringify(draft.write.photos ?? []),
+  });
+
+  const navigateToBulkDraft = (draft: MarketDraft) => {
+    const writeParams = buildDraftWriteParams(draft);
+
+    if (draft.step === 'preview' && draft.preview) {
+      router.push({
+        pathname: '/market/preview',
+        params: {
+          ...writeParams,
+          selectedItems: draft.preview.selectedItems,
+          draftItemsByCategory: JSON.stringify(draft.preview.itemsByCategory),
+          draftCategoryDetails: JSON.stringify(draft.preview.categoryDetails),
+        },
+      } as any);
       return;
     }
 
-    setIsFabOpen((prev) => !prev);
+    if (draft.step === 'category' && draft.category) {
+      router.push({
+        pathname: '/market/category',
+        params: {
+          ...writeParams,
+          draftSelectedCategories: JSON.stringify(draft.category.selectedCategories),
+          draftItemsByCategory: JSON.stringify(draft.category.itemsByCategory),
+        },
+      } as any);
+      return;
+    }
+
+    router.push({
+      pathname: '/market/write',
+      params: writeParams,
+    } as any);
   };
 
-  const requireVerificationBefore = async (path: string) => {
+  const openBulkWrite = async () => {
+    const draft = await getMarketDraft();
+
+    if (!draft) {
+      router.push('/market/write?type=all' as any);
+      return;
+    }
+
+    Alert.alert(
+      '임시저장 중인 글이 있어요',
+      '이어서 작성할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '새로 쓰기',
+          style: 'destructive',
+          onPress: async () => {
+            await clearMarketDraft();
+            router.push('/market/write?type=all' as any);
+          },
+        },
+        {
+          text: '이어쓰기',
+          onPress: () => navigateToBulkDraft(draft),
+        },
+      ],
+    );
+  };
+
+  const openTicketWrite = async () => {
+    const draft = await getTicketDraft();
+
+    if (!draft) {
+      router.push('/market/ticket-write' as any);
+      return;
+    }
+
+    Alert.alert(
+      '임시저장 중인 글이 있어요',
+      '이어서 작성할까요?',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '새로 쓰기',
+          style: 'destructive',
+          onPress: async () => {
+            await clearTicketDraft();
+            router.push('/market/ticket-write' as any);
+          },
+        },
+        {
+          text: '이어쓰기',
+          onPress: () =>
+            router.push({
+              pathname: '/market/ticket-write',
+              params: { resumeDraft: 'true' },
+            } as any),
+        },
+      ],
+    );
+  };
+
+  const handleFabPress = () => {
+    if (selectedType === 'ticket') {
+      setIsFabOpen(false);
+      requireVerificationBefore('/market/ticket-write', openTicketWrite);
+      return;
+    }
+
+    setIsFabOpen(false);
+    requireVerificationBefore('/market/write?type=all', openBulkWrite);
+  };
+
+  const requireVerificationBefore = async (
+    path: string,
+    onAllowed?: () => void | Promise<void>,
+  ) => {
     try {
       const canUseMarket = await canUseMarketWithoutVerification();
 
       if (canUseMarket) {
-        router.push(path as any);
+        if (onAllowed) {
+          await onAllowed();
+        } else {
+          router.push(path as any);
+        }
         return;
       }
     } catch (error: any) {
@@ -445,22 +570,47 @@ export default function MarketPage() {
     );
   };
 
-  const displayItems = items.map((item) => ({
-    id: item.id,
-    title: item.title,
-    region: item.region,
-    semester: item.semester,
-    time: formatRelativeTime(item.createdAt ?? item.updatedAt),
-    priceText: formatPrice(item.price),
-    likes: 0,
-    chats: 0,
-    imageUrl: item.thumbnailImageUrl ?? '',
-  }));
+  const displayItems = items.map((item) => {
+    const liked = likedIds.includes(item.id) || Boolean(item.likedByMe);
+    const baseLikes = item.likeCount ?? 0;
+    const likes = baseLikes + (likedIds.includes(item.id) && !item.likedByMe ? 1 : 0);
+    const sellerCountry = item.authorDispatchedCountry ?? '';
+    const tradeCountry = item.country ?? '';
+
+    return {
+      id: item.id,
+      title: item.title,
+      sellerCountry,
+      tradeCountry,
+      region: item.region,
+      semester: item.semester,
+      time: formatRelativeTime(item.createdAt ?? item.updatedAt),
+      priceText: formatPrice(item.price),
+      likes,
+      liked,
+      chats: item.chatCount ?? 0,
+      imageUrl: item.thumbnailImageUrl ?? '',
+      meta: [
+        sellerCountry ? `판매자 ${sellerCountry}` : '',
+        tradeCountry ? `거래 ${tradeCountry}` : '',
+        item.region,
+        item.semester,
+        formatRelativeTime(item.createdAt ?? item.updatedAt),
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    };
+  });
 
   const filteredItems =
     selectedCountry === '전체'
       ? displayItems
-      : displayItems.filter((item) => item.region === selectedCountry);
+      : displayItems.filter(
+          (item) =>
+            item.tradeCountry === selectedCountry ||
+            item.sellerCountry === selectedCountry ||
+            item.region.includes(selectedCountry),
+        );
 
   const displayTickets = tickets.map((item) => ({
     id: item.id,
@@ -666,17 +816,18 @@ export default function MarketPage() {
                       <Text style={styles.arrow}>›</Text>
                     </View>
 
-                    <Text style={styles.meta}>
-                      {item.region} · {item.semester} · {item.time}
+                    <Text style={styles.meta} numberOfLines={2}>
+                      {item.meta}
                     </Text>
 
                     <Text style={styles.price}>{item.priceText}</Text>
 
                     <View style={styles.reactionRow}>
                       <View style={styles.reactionItem}>
-                        <Image
-                          source={require('../../../assets/images/good.png')}
-                          style={styles.reactionIcon}
+                        <Ionicons
+                          name={item.liked ? 'heart' : 'heart-outline'}
+                          size={14}
+                          color={item.liked ? BLUE : '#7C7C7C'}
                         />
                         <Text style={styles.reactionText}>{item.likes}</Text>
                       </View>
@@ -804,7 +955,7 @@ export default function MarketPage() {
         <View style={styles.fabMenu}>
           <Pressable
             style={styles.fabMenuItem}
-            onPress={() => requireVerificationBefore('/market/write')}
+            onPress={() => requireVerificationBefore('/market/write?type=all', openBulkWrite)}
           >
             <Image
               source={require('../../../assets/images/used_all.png')}
@@ -819,7 +970,7 @@ export default function MarketPage() {
             style={styles.fabMenuItem}
             onPress={() => {
               setIsFabOpen(false);
-              router.push('/market/ticket-write' as any);
+              requireVerificationBefore('/market/ticket-write', openTicketWrite);
             }}
           >
             <Image

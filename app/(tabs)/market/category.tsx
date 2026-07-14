@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import {
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -162,12 +164,12 @@ export default function MarketCategoryPage() {
     title?: string;
     content?: string;
     price?: string;
+    country?: string;
     region?: string;
     returnDate?: string;
     semester?: string;
     photoUrl?: string;
     photos?: string;
-    allowOffer?: string;
     draftSelectedCategories?: string;
     draftItemsByCategory?: string;
   }>();
@@ -325,13 +327,13 @@ export default function MarketCategoryPage() {
         title: params.title ?? '',
         content: params.content ?? '',
         price: params.price ?? '',
+        country: params.country ?? '',
         region: params.region ?? '',
         returnDate: params.returnDate ?? '',
         semester: params.semester ?? '',
         photoUrl: params.photoUrl ?? '',
         photos: params.photos ?? '[]',
         type: params.type ?? 'all',
-        allowOffer: params.allowOffer ?? 'false',
         selectedItems: JSON.stringify(selectedGroups),
       },
     } as any);
@@ -345,11 +347,11 @@ export default function MarketCategoryPage() {
         title: params.title ?? '',
         content: params.content ?? '',
         price: params.price ?? '',
+        country: params.country ?? '',
         region: params.region ?? '',
         returnDate: params.returnDate ?? '',
         semester: params.semester ?? '',
         photos: parseJsonArray<string>(params.photos),
-        allowOffer: params.allowOffer === 'true',
       },
       category: {
         selectedCategories,
@@ -361,7 +363,10 @@ export default function MarketCategoryPage() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={styles.header}>
         <AppBackButton style={styles.backButton} />
 
@@ -429,54 +434,52 @@ export default function MarketCategoryPage() {
                           style={styles.selectedItemCell}
                         >
                           <View style={styles.selectedItemTop}>
-                            <Pressable
-                              style={[styles.checkBox, styles.checkBoxSelected]}
-                              onPress={() => toggleItem(category, index)}
-                            >
-                              <Text style={styles.checkText}>✓</Text>
-                            </Pressable>
+                            <View style={styles.selectedItemMain}>
+                              <Pressable
+                                style={[styles.checkBox, styles.checkBoxSelected]}
+                                onPress={() => toggleItem(category, index)}
+                              >
+                                <Text style={styles.checkText}>✓</Text>
+                              </Pressable>
 
-                            {item.editing ? (
-                              <TextInput
-                                style={styles.selectedItemInput}
-                                value={item.name}
-                                placeholder="품목 입력"
-                                placeholderTextColor="#999999"
-                                autoFocus
-                                onChangeText={(value) =>
-                                  changeItemName(category, index, value)
-                                }
-                                onSubmitEditing={() =>
-                                  finishEditItem(category, index)
-                                }
-                                onBlur={() => finishEditItem(category, index)}
-                              />
-                            ) : (
-                              <>
-                                <Text
-                                  style={styles.selectedItemName}
-                                  numberOfLines={1}
-                                >
-                                  {item.name || '품목 입력'}
-                                </Text>
+                              {item.editing ? (
+                                <TextInput
+                                  style={styles.selectedItemInput}
+                                  value={item.name}
+                                  placeholder="품목 입력"
+                                  placeholderTextColor="#999999"
+                                  autoFocus
+                                  onChangeText={(value) =>
+                                    changeItemName(category, index, value)
+                                  }
+                                  onSubmitEditing={() =>
+                                    finishEditItem(category, index)
+                                  }
+                                  onBlur={() => finishEditItem(category, index)}
+                                />
+                              ) : (
+                                <>
+                                  <Text
+                                    style={styles.selectedItemName}
+                                    numberOfLines={1}
+                                  >
+                                    {item.name || '품목 입력'}
+                                  </Text>
 
-                                <Pressable
-                                  style={styles.editNameButton}
-                                  onPress={() => startEditItem(category, index)}
-                                  hitSlop={8}
-                                >
-                                  <Ionicons
-                                    name="pencil"
-                                    size={14}
-                                    color="#555555"
-                                  />
-                                </Pressable>
-                              </>
-                            )}
-                          </View>
-
-                          <View style={styles.quantityRow}>
-                            <Text style={styles.quantityLabel}>수량</Text>
+                                  <Pressable
+                                    style={styles.editNameButton}
+                                    onPress={() => startEditItem(category, index)}
+                                    hitSlop={8}
+                                  >
+                                    <Ionicons
+                                      name="pencil"
+                                      size={14}
+                                      color="#555555"
+                                    />
+                                  </Pressable>
+                                </>
+                              )}
+                            </View>
 
                             <View style={styles.quantityControl}>
                               <Pressable
@@ -554,7 +557,7 @@ export default function MarketCategoryPage() {
           다음 (2/2)
         </Text>
       </Pressable>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -681,16 +684,12 @@ const styles = StyleSheet.create({
   },
 
   itemGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    rowGap: 8,
+    gap: 8,
   },
 
   itemRow: {
-    width: '48%',
-    height: 24,
+    width: '100%',
+    height: 34,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -739,16 +738,24 @@ const styles = StyleSheet.create({
   },
 
   selectedItemCell: {
-    width: '48%',
-    minHeight: 76,
+    width: '100%',
+    minHeight: 44,
     borderRadius: 8,
     backgroundColor: '#F7F7F7',
-    paddingHorizontal: 7,
-    paddingVertical: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
 
   selectedItemTop: {
-    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+
+  selectedItemMain: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -782,21 +789,8 @@ const styles = StyleSheet.create({
     marginLeft: 3,
   },
 
-  quantityRow: {
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  quantityLabel: {
-    width: 27,
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#666666',
-  },
-
   quantityControl: {
-    flex: 1,
+    width: 96,
     height: 26,
     borderRadius: 13,
     backgroundColor: '#D9D9D9',

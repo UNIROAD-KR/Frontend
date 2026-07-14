@@ -38,6 +38,8 @@ export default function RootLayout() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
+          gestureEnabled: true,
+          fullScreenGestureEnabled: true,
         }}
       >
         <Stack.Screen name="login" />
@@ -59,7 +61,13 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/dispatched-country" />
         <Stack.Screen name="onboarding/dispatched-interests" />
         <Stack.Screen name="onboarding/complete" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            gestureEnabled: false,
+            fullScreenGestureEnabled: false,
+          }}
+        />
         <Stack.Screen name="notifications" options={{ animation: 'none' }} />
         <Stack.Screen name="more-menu" options={{ animation: 'none' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

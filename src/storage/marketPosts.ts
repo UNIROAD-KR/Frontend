@@ -5,6 +5,7 @@ const STORAGE_KEY = 'univ:market:my-posts';
 export type LocalMarketItem = {
   name: string;
   quantity: number;
+  description?: string;
 };
 
 export type LocalMarketItemGroup = {
@@ -20,12 +21,21 @@ export type LocalMarketPost = {
   content: string;
   price: number;
   priceText: string;
+  country: string;
+  sellerCountry?: string;
   region: string;
   semester: string;
   returnDate: string;
   photos: string[];
   itemGroups: LocalMarketItemGroup[];
   authorName: string;
+  authorDomesticUniversity?: string;
+  authorHomeUniversity?: string;
+  authorDispatchedUniversity?: string;
+  authorDispatchedCountry?: string;
+  authorDispatchedRegion?: string;
+  authorDispatchSemester?: string;
+  authorVerified?: boolean;
   createdAt: string;
 };
 
@@ -65,11 +75,16 @@ export const getLocalMarketPost = async (id: string) => {
   return posts.find((post) => post.id === id) ?? null;
 };
 
-export const saveLocalMarketPost = async (input: LocalMarketPostInput) => {
+export const saveLocalMarketPost = async (
+  input: LocalMarketPostInput,
+  forcedId?: string | number,
+) => {
   const posts = await readPosts();
   const post: LocalMarketPost = {
     ...input,
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: forcedId
+      ? String(forcedId)
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: new Date().toISOString(),
   };
 

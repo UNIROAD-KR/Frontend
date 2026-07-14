@@ -17,7 +17,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import { AppBackButton } from '@/components/ui/app-back-button';
+import {
+  CUSTOM_COUNTRY_OPTION,
+  countryOptions,
+} from '@/src/constants/onboarding';
 import { saveMarketDraft } from '../../../src/storage/marketDraft';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
@@ -40,6 +45,37 @@ const parseDate = (value?: string) => {
   const date = new Date(`${value}T00:00:00`);
 
   return Number.isNaN(date.getTime()) ? new Date() : date;
+};
+
+const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
+
+const formatWonInput = (value: string) => {
+  const digits = onlyDigits(value);
+
+  if (!digits) return '';
+
+  return Number(digits).toLocaleString('ko-KR');
+};
+
+const resolveCountrySelection = (value?: string) => {
+  if (!value) {
+    return {
+      selectedCountry: '',
+      customCountry: '',
+    };
+  }
+
+  if (countryOptions.includes(value)) {
+    return {
+      selectedCountry: value,
+      customCountry: '',
+    };
+  }
+
+  return {
+    selectedCountry: CUSTOM_COUNTRY_OPTION,
+    customCountry: value,
+  };
 };
 
 export default function MarketWritePage() {
@@ -108,12 +144,13 @@ export default function MarketWritePage() {
     title?: string;
     content?: string;
     price?: string;
+    country?: string;
     region?: string;
     returnDate?: string;
     photos?: string;
-    allowOffer?: string;
   }>();
   const { type } = params;
+  const initialCountrySelection = resolveCountrySelection(params.country);
 
   const [verificationModalVisible, setVerificationModalVisible] =
     useState(false);
@@ -121,6 +158,13 @@ export default function MarketWritePage() {
   const [photos, setPhotos] = useState<string[]>(() =>
     parsePhotos(params.photos),
   );
+  const [selectedCountry, setSelectedCountry] = useState(
+    initialCountrySelection.selectedCountry,
+  );
+  const [customCountry, setCustomCountry] = useState(
+    initialCountrySelection.customCountry,
+  );
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [region, setRegion] = useState(params.region || '');
   const [returnDate, setReturnDate] = useState(params.returnDate || '');
   const [selectedDate, setSelectedDate] = useState(() =>
@@ -130,8 +174,9 @@ export default function MarketWritePage() {
 
   const [title, setTitle] = useState(params.title || '');
   const [content, setContent] = useState(params.content || '');
-  const [price, setPrice] = useState(params.price || '');
-  const [allowOffer, setAllowOffer] = useState(params.allowOffer === 'true');
+  const [price, setPrice] = useState(() => formatWonInput(params.price || ''));
+  const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
+  const countryValue = isCustomCountry ? customCountry.trim() : selectedCountry;
 
   useEffect(() => {
     checkVerification();
@@ -171,18 +216,36 @@ export default function MarketWritePage() {
         title,
         content,
         price,
+        country: countryValue,
         region,
         returnDate,
         photos,
-        allowOffer,
       },
     });
 
     Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
   };
 
+  const handleSelectCountry = (countryName: string) => {
+    setSelectedCountry(countryName);
+    setCountryModalVisible(false);
+
+    if (countryName !== CUSTOM_COUNTRY_OPTION) {
+      setCustomCountry('');
+    }
+  };
+
   const handleSubmit = () => {
-    if (!region || !returnDate || !title || !content || !price) {
+    const cleanPrice = onlyDigits(price);
+
+    if (
+      !countryValue ||
+      !region.trim() ||
+      !returnDate ||
+      !title.trim() ||
+      !content.trim() ||
+      !cleanPrice
+    ) {
       Alert.alert('입력 오류', '필수 항목을 모두 입력해주세요.');
       return;
     }
@@ -192,11 +255,11 @@ export default function MarketWritePage() {
       params: {
         title,
         content,
-        price,
-        region,
+        price: cleanPrice,
+        country: countryValue,
+        region: region.trim(),
         returnDate,
         type,
-        allowOffer: allowOffer ? 'true' : 'false',
         photos: JSON.stringify(photos),
       },
     } as any);
@@ -218,7 +281,7 @@ export default function MarketWritePage() {
           <AppBackButton style={styles.backButton} />
 
           <Text style={styles.headerTitle}>
-            {type === 'all' ? '다음 교환학생에게 넘기기' : '개별 판매하기'}
+            {type === 'all' ? '일괄 판매하기' : '개별 판매하기'}
           </Text>
 
           <Pressable onPress={handleTempSave}>
@@ -296,6 +359,25 @@ export default function MarketWritePage() {
 
         <View style={styles.twoColumnRow}>
           <View style={styles.halfInputGroup}>
+            <Text style={styles.label}>국가</Text>
+            <Pressable
+              style={styles.selectInput}
+              onPress={() => setCountryModalVisible(true)}
+            >
+              <Text
+                style={[
+                  styles.selectText,
+                  selectedCountry && styles.selectTextActive,
+                ]}
+              >
+                {selectedCountry || '선택'}
+              </Text>
+
+              <Text style={styles.chevron}>⌄</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.halfInputGroup}>
             <Text style={styles.label}>희망 장소</Text>
             <TextInput
               style={styles.input}
@@ -305,8 +387,22 @@ export default function MarketWritePage() {
               onChangeText={setRegion}
             />
           </View>
+        </View>
 
-          <View style={styles.halfInputGroup}>
+        {isCustomCountry && (
+          <View style={styles.fullInputGroup}>
+            <Text style={styles.label}>국가 직접 입력</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="국가명 입력"
+              placeholderTextColor="#A6A6A6"
+              value={customCountry}
+              onChangeText={setCustomCountry}
+            />
+          </View>
+        )}
+
+        <View style={styles.tradeDateGroup}>
             <Text style={styles.label}>귀국일</Text>
 
             <Pressable
@@ -321,7 +417,6 @@ export default function MarketWritePage() {
 
               <Text style={styles.chevron}>⌄</Text>
             </Pressable>
-          </View>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -352,23 +447,18 @@ export default function MarketWritePage() {
         />
 
         <Text style={styles.label}>가격</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="예: 12엔, 21만원"
-          placeholderTextColor="#A6A6A6"
-          value={price}
-          onChangeText={setPrice}
-        />
-
-        <Pressable
-          style={styles.checkRow}
-          onPress={() => setAllowOffer((prev) => !prev)}
-        >
-          <View style={[styles.checkbox, allowOffer && styles.checkboxActive]}>
-            {allowOffer && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-          <Text style={styles.checkText}>가격 제안 받기</Text>
-        </Pressable>
+        <View style={styles.priceInputBox}>
+          <Text style={styles.pricePrefix}>₩</Text>
+          <TextInput
+            style={styles.priceTextInput}
+            placeholder="0"
+            placeholderTextColor="#A6A6A6"
+            keyboardType="number-pad"
+            value={price}
+            onChangeText={(value) => setPrice(formatWonInput(value))}
+          />
+          <Text style={styles.priceUnit}>원</Text>
+        </View>
 
         <Pressable style={styles.nextButton} onPress={handleSubmit}>
           <Text style={styles.nextButtonText}>다음 (1/2)</Text>
@@ -455,6 +545,15 @@ export default function MarketWritePage() {
           </View>
         </View>
       </Modal>
+
+      <OnboardingSelectModal
+        visible={countryModalVisible}
+        title="국가 선택"
+        options={countryOptions}
+        selectedValue={selectedCountry}
+        onClose={() => setCountryModalVisible(false)}
+        onSelect={handleSelectCountry}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -640,11 +739,19 @@ const styles = StyleSheet.create({
   twoColumnRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 58,
+    marginBottom: 18,
   },
 
   halfInputGroup: {
     flex: 1,
+  },
+
+  fullInputGroup: {
+    marginBottom: 18,
+  },
+
+  tradeDateGroup: {
+    marginBottom: 58,
   },
 
   label: {
@@ -663,6 +770,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111111',
     marginBottom: 18,
+  },
+
+  selectInput: {
+    height: 45,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  selectText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#A6A6A6',
+    fontWeight: '600',
+  },
+
+  selectTextActive: {
+    color: '#111111',
   },
 
   dateInput: {
@@ -702,6 +831,40 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#111111',
     marginBottom: 18,
+  },
+
+  priceInputBox: {
+    height: 45,
+    borderWidth: 1,
+    borderColor: '#D0D0D0',
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 50,
+  },
+
+  pricePrefix: {
+    fontSize: 15,
+    color: '#111111',
+    fontWeight: '900',
+    marginRight: 6,
+  },
+
+  priceTextInput: {
+    flex: 1,
+    height: 43,
+    paddingVertical: 0,
+    fontSize: 14,
+    color: '#111111',
+    fontWeight: '700',
+  },
+
+  priceUnit: {
+    fontSize: 13,
+    color: '#555555',
+    fontWeight: '800',
+    marginLeft: 8,
   },
 
   checkRow: {

@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { type RefObject, useMemo, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,11 @@ import {
   TicketTransferRequest,
   TicketType,
 } from '../../../src/api/ticket';
+import {
+  clearTicketDraft,
+  getTicketDraft,
+  saveTicketDraft,
+} from '../../../src/storage/ticketDraft';
 
 const BLUE = '#102BE0';
 const TIME_ITEM_HEIGHT = 36;
@@ -96,8 +101,6 @@ const countryOptions = [
 
 const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
 
-const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-
 const parseDateValue = (value: string) => {
   if (!value) return new Date();
 
@@ -108,6 +111,7 @@ const parseDateValue = (value: string) => {
 
 export default function TicketWritePage() {
   const insets = useSafeAreaInsets();
+  const { resumeDraft } = useLocalSearchParams<{ resumeDraft?: string }>();
   const [step, setStep] = useState<1 | 2>(1);
   const [ticketType, setTicketType] = useState<TicketType | null>(null);
   const [eventDate, setEventDate] = useState('');
@@ -139,6 +143,37 @@ export default function TicketWritePage() {
   const fieldLabels = ticketType
     ? ticketFieldLabels[ticketType]
     : ticketFieldLabels.TOUR;
+
+  useEffect(() => {
+    if (resumeDraft !== 'true') return;
+
+    let active = true;
+
+    const restoreDraft = async () => {
+      const draft = await getTicketDraft();
+
+      if (!active || !draft) return;
+
+      setStep(draft.step);
+      setTicketType(draft.ticketType as TicketType | null);
+      setEventDate(draft.eventDate);
+      setCheckoutDate(draft.checkoutDate);
+      setEventTime(draft.eventTime);
+      setCountry(draft.country);
+      setLocation(draft.location);
+      setQuantity(draft.quantity);
+      setTransferPrice(draft.transferPrice);
+      setOriginalPrice(draft.originalPrice);
+      setTitle(draft.title);
+      setContent(draft.content);
+    };
+
+    restoreDraft();
+
+    return () => {
+      active = false;
+    };
+  }, [resumeDraft]);
 
   const canGoNext = useMemo(
     () =>
@@ -324,6 +359,25 @@ export default function TicketWritePage() {
     }
   };
 
+  const handleTempSave = async () => {
+    await saveTicketDraft({
+      step,
+      ticketType,
+      eventDate,
+      checkoutDate,
+      eventTime,
+      country,
+      location,
+      quantity,
+      transferPrice,
+      originalPrice,
+      title,
+      content,
+    });
+
+    Alert.alert('임시저장 완료', '작성 중인 티켓 양도글을 저장했어요.');
+  };
+
   const handleSubmit = async () => {
     if (!ticketType || !canSubmit || !canGoNext) return;
 
@@ -348,6 +402,8 @@ export default function TicketWritePage() {
       setSubmitting(true);
       const response = await createTicket(payload);
       const ticketId = response.data.data;
+
+      await clearTicketDraft();
 
       if (ticketId) {
         router.replace({
@@ -401,7 +457,9 @@ export default function TicketWritePage() {
             }}
           />
           <Text style={styles.headerTitle}>티켓양도하기</Text>
-          <Text style={styles.tempSave}>임시저장</Text>
+          <Pressable onPress={handleTempSave}>
+            <Text style={styles.tempSave}>임시저장</Text>
+          </Pressable>
         </View>
 
         {step === 1 ? (

@@ -7,6 +7,14 @@ export interface ChatRoomResponse {
   roomId: number;
   referenceType: ChatReferenceType;
   referenceId: number;
+  opponentMemberId?: number;
+  opponentName?: string;
+  opponentNickname?: string;
+  lastMessage?: string;
+  lastMessageType?: 'TALK' | 'ENTER' | 'QUIT';
+  lastMessageCreatedAt?: string;
+  unreadCount?: number;
+  lastReadAt?: string;
 }
 
 export interface ChatMessageResponse {

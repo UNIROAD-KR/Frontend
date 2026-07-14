@@ -24,6 +24,7 @@ export type MarketDraft = {
     title: string;
     content: string;
     price: string;
+    country?: string;
     region: string;
     returnDate: string;
     semester?: string;

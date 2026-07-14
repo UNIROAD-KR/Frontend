@@ -10,7 +10,7 @@ export default function TabLayout() {
   const isHomeActive = pathname === '/home' || pathname === '/';
   const isExploreActive = pathname.includes('/home/explore');
   const isCommunityActive = pathname.includes('/community');
-  const isMyPageActive = pathname.includes('/mypage');
+  const isChatActive = pathname === '/chat' || pathname.startsWith('/chat/');
 
   return (
     <Tabs
@@ -156,30 +156,32 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="mypage"
+        name="chat"
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            router.replace('/mypage' as any);
+            router.replace('/chat' as any);
           },
         }}
         options={{
-          title: '지출 관리',
+          title: '채팅',
           tabBarIcon: () => (
             <Ionicons
-              name={isMyPageActive ? 'person' : 'person-outline'}
+              name={isChatActive ? 'chatbubbles' : 'chatbubbles-outline'}
               size={25}
-              color={isMyPageActive ? '#111111' : '#6d7075'}
+              color={isChatActive ? '#111111' : '#6d7075'}
             />
           ),
           tabBarLabelStyle: {
-            color: isMyPageActive ? '#111111' : '#6d7075',
+            color: isChatActive ? '#111111' : '#6d7075',
             fontSize: 12,
             fontWeight: '600',
             marginTop: 0,
           },
         }}
       />
+
+      <Tabs.Screen name="mypage" options={{ href: null }} />
     </Tabs>
   );
 }

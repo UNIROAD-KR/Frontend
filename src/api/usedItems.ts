@@ -7,6 +7,7 @@ export interface TradeItemRequest {
   category: TradeCategory;
   name: string;
   quantity: number;
+  description?: string;
 }
 
 export interface TradeCategoryImageRequest {
@@ -18,8 +19,10 @@ export interface UsedItemRequest {
   title: string;
   content: string;
   price: number;
+  country?: string;
   region: string;
   semester: string;
+  returnDate?: string;
   thumbnailImageUrl: string;
   items?: TradeItemRequest[];
   categoryImages?: TradeCategoryImageRequest[];
@@ -29,10 +32,24 @@ export interface UsedItemSummaryResponse {
   id: number;
   title: string;
   price: number;
+  country?: string;
   region: string;
   semester: string;
   thumbnailImageUrl: string;
   authorName: string;
+  authorNickname?: string;
+  authorDomesticUniversity?: string;
+  authorHomeUniversity?: string;
+  authorDispatchedUniversity?: string;
+  authorDispatchedCountry?: string;
+  authorDispatchedRegion?: string;
+  authorDispatchYear?: number;
+  authorDispatchSemester?: string | number;
+  authorDispatchStartDate?: string;
+  authorVerified?: boolean;
+  likeCount?: number;
+  likedByMe?: boolean;
+  chatCount?: number;
   memberId?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -42,6 +59,7 @@ export interface TradeItemResponse {
   category: TradeCategory;
   name: string;
   quantity: number;
+  description?: string;
 }
 
 export interface TradeCategoryImageResponse {
