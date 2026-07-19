@@ -58,7 +58,7 @@ const fieldConfig: Record<
     label: '닉네임',
     placeholder: '닉네임을 입력하세요',
     helpText: '※ 사용할 닉네임을 입력해주세요',
-    buttonText: '저장하기',
+    buttonText: '변경하기',
     storageKeys: ['nickname'],
   },
   homeUniversity: {
@@ -74,7 +74,7 @@ const fieldConfig: Record<
     label: '파견 국가 및 지역',
     placeholder: '파견 국가 선택',
     helpText: '※ 파견 국가와 지역은 홈 화면과 프로필에 함께 표시됩니다.',
-    buttonText: '선택 완료',
+    buttonText: '변경하기',
     storageKeys: ['dispatchedCountry'],
   },
   dispatchedUniversity: {
@@ -82,7 +82,7 @@ const fieldConfig: Record<
     label: '파견교',
     placeholder: '파견교를 입력하세요',
     helpText: '※ 파견교를 설정하면 학교별 정보를 더 쉽게 확인할 수 있습니다.',
-    buttonText: '선택 완료',
+    buttonText: '변경하기',
     storageKeys: ['dispatchedUniversity'],
   },
   dispatchSemester: {

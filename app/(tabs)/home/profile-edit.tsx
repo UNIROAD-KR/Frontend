@@ -535,7 +535,7 @@ export default function ProfileEditScreen() {
           disabled={!hasChanges}
         >
           <Text style={[styles.footerButtonText, !hasChanges && styles.footerButtonTextDisabled]}>
-            {hasChanges ? '변경사항 저장' : '변경사항 없음'}
+            변경하기
           </Text>
         </TouchableOpacity>
       </View>

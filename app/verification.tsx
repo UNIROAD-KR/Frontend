@@ -112,6 +112,7 @@ export default function VerificationPage() {
 
   const latestVerification = useMemo(() => verifications[0], [verifications]);
   const hasHistory = verifications.length > 0;
+  const canSubmit = Boolean(pickedImage) && !isSubmitting;
 
   const loadVerifications = useCallback(async () => {
     setIsLoading(true);
@@ -389,14 +390,16 @@ export default function VerificationPage() {
       </View>
 
       <Pressable
-        style={[styles.primaryButton, isSubmitting && styles.disabledButton]}
+        style={[styles.primaryButton, !canSubmit && styles.primaryButtonDisabled]}
         onPress={handleSubmit}
-        disabled={isSubmitting}
+        disabled={!canSubmit}
       >
         {isSubmitting ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.primaryButtonText}>제출하기</Text>
+          <Text style={[styles.primaryButtonText, !pickedImage && styles.primaryButtonTextDisabled]}>
+            제출하기
+          </Text>
         )}
       </Pressable>
 
@@ -716,13 +719,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 10,
   },
-  disabledButton: {
-    opacity: 0.72,
+  primaryButtonDisabled: {
+    backgroundColor: '#E5EAF2',
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '900',
     color: '#FFFFFF',
+  },
+  primaryButtonTextDisabled: {
+    color: '#98A2B3',
   },
   bottomNotice: {
     fontSize: 11,

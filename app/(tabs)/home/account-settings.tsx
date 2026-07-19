@@ -183,7 +183,7 @@ export default function AccountSettingsScreen() {
           disabled={submitDisabled}
         >
           <Text style={styles.submitText}>
-            {submitting ? '변경 중...' : '비밀번호 변경하기'}
+            {submitting ? '변경 중...' : '변경하기'}
           </Text>
         </Pressable>
       </ScrollView>
