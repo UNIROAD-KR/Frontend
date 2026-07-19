@@ -75,6 +75,12 @@ export const getLocalMarketPost = async (id: string) => {
   return posts.find((post) => post.id === id) ?? null;
 };
 
+export const deleteLocalMarketPost = async (id: string) => {
+  const posts = await readPosts();
+
+  await writePosts(posts.filter((post) => post.id !== id));
+};
+
 export const saveLocalMarketPost = async (
   input: LocalMarketPostInput,
   forcedId?: string | number,

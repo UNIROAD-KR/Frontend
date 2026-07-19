@@ -19,6 +19,7 @@ import { getMemberMe } from '../../src/api/auth';
 import {
   ChatMessageResponse,
   getChatMessages,
+  readChatRoom,
   sendChatMessage,
 } from '../../src/api/chat';
 
@@ -29,6 +30,10 @@ type ChatMessage = {
   message: string;
   type?: string;
   createdAt: string;
+  unreadCount?: number;
+  readCount?: number;
+  read?: boolean;
+  readByOpponent?: boolean;
 };
 
 const BLUE = '#123F9F';
@@ -40,15 +45,54 @@ const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   message: item.message ?? item.content ?? '',
   type: item.type,
   createdAt: item.createdAt,
+  unreadCount: item.unreadCount,
+  readCount: item.readCount,
+  read: item.read,
+  readByOpponent: item.readByOpponent,
 });
 
+const sortMessagesByTime = (items: ChatMessage[]) => {
+  return [...items].sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+};
+
+const formatMessageTime = (value: string) => {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '';
+
+  const hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const meridiem = hours < 12 ? '오전' : '오후';
+  const displayHour = hours % 12 || 12;
+
+  return `${meridiem} ${displayHour}:${minutes}`;
+};
+
+const getReadStatus = (item: ChatMessage) => {
+  if (item.readByOpponent || item.read || item.unreadCount === 0) {
+    return '읽음';
+  }
+
+  if (typeof item.readCount === 'number' && item.readCount > 1) {
+    return '읽음';
+  }
+
+  return '1';
+};
+
 export default function ChatRoomPage() {
-  const { roomId, title, price, thumbnail, sellerName } = useLocalSearchParams<{
+  const { roomId, title, price, thumbnail, sellerName, referenceType, referenceId } =
+    useLocalSearchParams<{
     roomId: string;
     title?: string;
     price?: string;
     thumbnail?: string;
     sellerName?: string;
+    referenceType?: string;
+    referenceId?: string;
   }>();
 
   const scrollRef = useRef<ScrollView>(null);
@@ -84,7 +128,10 @@ export default function ChatRoomPage() {
         ? payload
         : (payload?.content ?? []);
 
-      setMessages(rawMessages.map(normalizeMessage));
+      setMessages(sortMessagesByTime(rawMessages.map(normalizeMessage)));
+      readChatRoom(Number(roomId)).catch((error: any) => {
+        console.log('채팅방 읽음 처리 실패:', error.response?.data || error.message);
+      });
     } catch (error: any) {
       console.log('메시지 조회 실패:', error.response?.data || error.message);
     }
@@ -106,7 +153,9 @@ export default function ChatRoomPage() {
 
       console.log(response.data);
 
-      setMessages((prev) => [...prev, normalizeMessage(response.data)]);
+      setMessages((prev) =>
+        sortMessagesByTime([...prev, normalizeMessage(response.data)]),
+      );
       setMessage('');
     } catch (error: any) {
       console.log('메시지 전송 실패:', error.response?.data || error.message);
@@ -191,7 +240,27 @@ export default function ChatRoomPage() {
         </>
       )}
 
-      <View style={styles.productCard}>
+      <Pressable
+        style={styles.productCard}
+        onPress={() => {
+          if (referenceType === 'TRADE' && referenceId) {
+            router.push({
+              pathname: '/market/[id]',
+              params: {
+                id: referenceId,
+                fromChatRoom: 'true',
+                chatRoomId: roomId,
+                chatTitle: title ?? '',
+                chatPrice: price ?? '',
+                chatThumbnail: thumbnail ?? '',
+                chatSellerName: sellerName ?? '',
+                chatReferenceType: referenceType,
+                chatReferenceId: referenceId,
+              },
+            } as any);
+          }
+        }}
+      >
         <View style={styles.thumbnail}>
           {!!thumbnail && (
             <Image source={{ uri: thumbnail }} style={styles.thumbnailImage} />
@@ -202,7 +271,7 @@ export default function ChatRoomPage() {
           <Text style={styles.productTitle}>{title ?? '중고거래 게시글'}</Text>
           <Text style={styles.productPrice}>{price ?? '가격 미정'}</Text>
         </View>
-      </View>
+      </Pressable>
 
       <ScrollView
         ref={scrollRef}
@@ -232,18 +301,40 @@ export default function ChatRoomPage() {
                 <View
                   key={item.id}
                   style={[
-                    styles.messageBubble,
-                    isMine ? styles.myBubble : styles.otherBubble,
+                    styles.messageRow,
+                    isMine ? styles.myMessageRow : styles.otherMessageRow,
                   ]}
                 >
-                  <Text
+                  {isMine && (
+                    <View style={styles.messageMetaBox}>
+                      <Text style={styles.readStatus}>{getReadStatus(item)}</Text>
+                      <Text style={styles.messageTime}>
+                        {formatMessageTime(item.createdAt)}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View
                     style={[
-                      styles.messageText,
-                      isMine ? styles.myMessageText : styles.otherMessageText,
+                      styles.messageBubble,
+                      isMine ? styles.myBubble : styles.otherBubble,
                     ]}
                   >
-                    {item.message}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.messageText,
+                        isMine ? styles.myMessageText : styles.otherMessageText,
+                      ]}
+                    >
+                      {item.message}
+                    </Text>
+                  </View>
+
+                  {!isMine && (
+                    <Text style={styles.messageTime}>
+                      {formatMessageTime(item.createdAt)}
+                    </Text>
+                  )}
                 </View>
               );
             })}
@@ -499,6 +590,7 @@ const styles = StyleSheet.create({
 
   chatContent: {
     flexGrow: 1,
+    justifyContent: 'flex-end',
     paddingTop: 18,
     paddingBottom: 18,
   },
@@ -528,6 +620,21 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 22,
     paddingBottom: 10,
+    gap: 10,
+  },
+
+  messageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+
+  myMessageRow: {
+    justifyContent: 'flex-end',
+  },
+
+  otherMessageRow: {
+    justifyContent: 'flex-start',
   },
 
   messageBubble: {
@@ -535,7 +642,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    marginBottom: 10,
   },
 
   myBubble: {
@@ -559,6 +665,26 @@ const styles = StyleSheet.create({
 
   otherMessageText: {
     color: '#111111',
+  },
+
+  messageMetaBox: {
+    alignItems: 'flex-end',
+    marginBottom: 2,
+  },
+
+  readStatus: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    color: '#E1A800',
+  },
+
+  messageTime: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '700',
+    color: '#8C8C8C',
+    marginBottom: 2,
   },
 
   bottomArea: {

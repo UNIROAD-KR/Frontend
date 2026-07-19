@@ -216,6 +216,7 @@ export default function MarketPage() {
   const [selectedType, setSelectedType] = useState<'bulk' | 'ticket'>('bulk');
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
   useEffect(() => {
     if (tab === 'ticket') {
       setSelectedTab('ticket');
@@ -602,15 +603,23 @@ export default function MarketPage() {
     };
   });
 
-  const filteredItems =
-    selectedCountry === '전체'
-      ? displayItems
-      : displayItems.filter(
-          (item) =>
-            item.tradeCountry === selectedCountry ||
-            item.sellerCountry === selectedCountry ||
-            item.region.includes(selectedCountry),
-        );
+  const normalizedSearchKeyword = searchKeyword.trim().toLowerCase();
+
+  const filteredItems = displayItems.filter((item) => {
+    const countryMatched =
+      selectedCountry === '전체' ||
+      item.tradeCountry === selectedCountry ||
+      item.sellerCountry === selectedCountry ||
+      item.region.includes(selectedCountry);
+    const searchMatched =
+      normalizedSearchKeyword.length === 0 ||
+      [item.title, item.meta, item.priceText]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedSearchKeyword);
+
+    return countryMatched && searchMatched;
+  });
 
   const displayTickets = tickets.map((item) => ({
     id: item.id,
@@ -629,10 +638,25 @@ export default function MarketPage() {
     likes: 0,
   }));
 
-  const filteredTickets =
-    selectedCountry === '전체'
-      ? displayTickets
-      : displayTickets.filter((item) => item.region.includes(selectedCountry));
+  const filteredTickets = displayTickets.filter((item) => {
+    const countryMatched =
+      selectedCountry === '전체' || item.region.includes(selectedCountry);
+    const searchMatched =
+      normalizedSearchKeyword.length === 0 ||
+      [
+        item.title,
+        item.country,
+        item.region,
+        item.category,
+        item.date,
+        item.price,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedSearchKeyword);
+
+    return countryMatched && searchMatched;
+  });
 
   return (
     <View style={styles.container}>
@@ -736,8 +760,10 @@ export default function MarketPage() {
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="파견 국가 및 지역 검색"
+            placeholder="제목, 국가, 지역 검색"
             placeholderTextColor="#777777"
+            value={searchKeyword}
+            onChangeText={setSearchKeyword}
           />
         </View>
 
@@ -832,13 +858,6 @@ export default function MarketPage() {
                         <Text style={styles.reactionText}>{item.likes}</Text>
                       </View>
 
-                      <View style={styles.reactionItem}>
-                        <Image
-                          source={require('../../../assets/images/comment.png')}
-                          style={styles.reactionIcon}
-                        />
-                        <Text style={styles.reactionText}>{item.chats}</Text>
-                      </View>
                     </View>
                   </View>
                 </Pressable>

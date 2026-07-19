@@ -25,6 +25,10 @@ export interface ChatMessageResponse {
   content?: string;
   type?: string;
   createdAt: string;
+  unreadCount?: number;
+  readCount?: number;
+  read?: boolean;
+  readByOpponent?: boolean;
 }
 
 export const getChatRooms = () => {
@@ -51,6 +55,10 @@ export const getChatMessages = (roomId: number) => {
       },
     },
   );
+};
+
+export const readChatRoom = (roomId: number) => {
+  return api.post(`/api/v1/chat/rooms/${roomId}/read`);
 };
 
 export const sendChatMessage = (roomId: number, message: string) => {

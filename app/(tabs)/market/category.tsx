@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Keyboard,
@@ -181,6 +181,7 @@ export default function MarketCategoryPage() {
   const [itemsByCategory, setItemsByCategory] = useState<
     Record<CategoryName, ItemState[]>
   >(() => parseDraftItems(params.draftItemsByCategory) ?? makeInitialItems());
+  const scrollRef = useRef<ScrollView>(null);
 
   const hasSelectedItem = useMemo(() => {
     return selectedCategories.some((category) =>
@@ -297,6 +298,10 @@ export default function MarketCategoryPage() {
     if (!selectedCategories.includes(category)) {
       setSelectedCategories((prev) => [...prev, category]);
     }
+
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    }, 180);
   };
 
   const getSelectedGroups = () => {
@@ -339,7 +344,7 @@ export default function MarketCategoryPage() {
     } as any);
   };
 
-  const handleTempSave = async () => {
+  const saveCategoryDraft = useCallback(async () => {
     await saveMarketDraft({
       step: 'category',
       write: {
@@ -358,6 +363,20 @@ export default function MarketCategoryPage() {
         itemsByCategory,
       },
     });
+  }, [itemsByCategory, params, selectedCategories]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveCategoryDraft().catch((error) => {
+        console.log('중고거래 카테고리 자동저장 실패:', error);
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [saveCategoryDraft]);
+
+  const handleTempSave = async () => {
+    await saveCategoryDraft();
 
     Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
   };
@@ -365,7 +384,8 @@ export default function MarketCategoryPage() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
     >
       <View style={styles.header}>
         <AppBackButton style={styles.backButton} />
@@ -378,6 +398,7 @@ export default function MarketCategoryPage() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -449,6 +470,17 @@ export default function MarketCategoryPage() {
                                   placeholder="품목 입력"
                                   placeholderTextColor="#999999"
                                   autoFocus
+                                  onFocus={() => {
+                                    setTimeout(() => {
+                                      scrollRef.current?.scrollTo({
+                                        y:
+                                          360 +
+                                          selectedCategories.indexOf(category) *
+                                            260,
+                                        animated: true,
+                                      });
+                                    }, 120);
+                                  }}
                                   onChangeText={(value) =>
                                     changeItemName(category, index, value)
                                   }
@@ -606,7 +638,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 22,
     paddingTop: 12,
-    paddingBottom: 120,
+    paddingBottom: 420,
   },
 
   sectionTitle: {
@@ -837,7 +869,7 @@ const styles = StyleSheet.create({
   },
 
   bottomSpacer: {
-    height: 20,
+    height: 320,
   },
 
   nextButton: {

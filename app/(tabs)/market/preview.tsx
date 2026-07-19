@@ -415,7 +415,7 @@ export default function MarketPreviewPage() {
   };
 
   const [title, setTitle] = useState(params.title || '');
-  const [content] = useState(params.content || '');
+  const [content, setContent] = useState(params.content || '');
   const [price, setPrice] = useState(() => formatWonInput(params.price || ''));
   const [selectedCountry, setSelectedCountry] = useState(
     initialCountrySelection.selectedCountry,
@@ -466,6 +466,27 @@ export default function MarketPreviewPage() {
   const getCategoryDetail = (category: CategoryName): CategoryDetail => {
     return categoryDetails[category] ?? { photos: [], description: '' };
   };
+  const activeCategoryPhotoCount = activeCategory
+    ? getCategoryDetail(activeCategory).photos.length
+    : 0;
+  const canConfirmDescription = draftDescription.trim().length > 0;
+  const canConfirmEditList = activeCategory
+    ? itemsByCategory[activeCategory].some(
+        (item) => item.checked && item.name.trim().length > 0,
+      ) &&
+      itemsByCategory[activeCategory].every(
+        (item) => !item.checked || item.name.trim().length > 0,
+      )
+    : false;
+  const canUpload =
+    photoList.length > 0 &&
+    Boolean(countryText) &&
+    regionText.length > 0 &&
+    returnDate.length > 0 &&
+    title.trim().length > 0 &&
+    content.trim().length > 0 &&
+    onlyDigits(price).length > 0 &&
+    selectedGroups.length > 0;
 
   const openPhotoModal = (category: CategoryName) => {
     setActiveCategory(category);
@@ -1091,6 +1112,26 @@ export default function MarketPreviewPage() {
                   </Text>
                   <Text style={styles.reviewChevron}>⌄</Text>
                 </Pressable>
+
+                <Text style={styles.tradeReviewLabel}>제목</Text>
+                <TextInput
+                  style={styles.reviewInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="제목 입력"
+                  placeholderTextColor="#999999"
+                />
+
+                <Text style={styles.tradeReviewLabel}>판매글 내용</Text>
+                <TextInput
+                  style={[styles.reviewInput, styles.reviewContentInput]}
+                  value={content}
+                  onChangeText={setContent}
+                  placeholder="판매글 내용 입력"
+                  placeholderTextColor="#999999"
+                  multiline
+                  textAlignVertical="top"
+                />
               </View>
             </>
           )}
@@ -1206,8 +1247,19 @@ export default function MarketPreviewPage() {
             </>
           )}
 
-          <Pressable style={styles.uploadButton} onPress={handleUpload}>
-            <Text style={styles.uploadButtonText}>업로드 하기</Text>
+          <Pressable
+            style={[styles.uploadButton, !canUpload && styles.disabledButton]}
+            disabled={!canUpload}
+            onPress={handleUpload}
+          >
+            <Text
+              style={[
+                styles.uploadButtonText,
+                !canUpload && styles.disabledButtonText,
+              ]}
+            >
+              업로드 하기
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -1270,10 +1322,21 @@ export default function MarketPreviewPage() {
             </View>
 
             <Pressable
-              style={styles.sheetConfirmButton}
+              style={[
+                styles.sheetConfirmButton,
+                activeCategoryPhotoCount === 0 && styles.disabledButton,
+              ]}
+              disabled={activeCategoryPhotoCount === 0}
               onPress={() => setPhotoModalVisible(false)}
             >
-              <Text style={styles.sheetConfirmText}>확인</Text>
+              <Text
+                style={[
+                  styles.sheetConfirmText,
+                  activeCategoryPhotoCount === 0 && styles.disabledButtonText,
+                ]}
+              >
+                확인
+              </Text>
             </Pressable>
           </DraggableSheet>
       </Modal>
@@ -1366,13 +1429,25 @@ export default function MarketPreviewPage() {
               )}
 
               <Pressable
-                style={[styles.sheetConfirmButton, styles.editListConfirmButton]}
+                style={[
+                  styles.sheetConfirmButton,
+                  styles.editListConfirmButton,
+                  !canConfirmEditList && styles.disabledButton,
+                ]}
+                disabled={!canConfirmEditList}
                 onPress={() => {
                   Keyboard.dismiss();
                   setEditListModalVisible(false);
                 }}
               >
-                <Text style={styles.sheetConfirmText}>확인</Text>
+                <Text
+                  style={[
+                    styles.sheetConfirmText,
+                    !canConfirmEditList && styles.disabledButtonText,
+                  ]}
+                >
+                  확인
+                </Text>
               </Pressable>
             </DraggableSheet>
         </KeyboardAvoidingView>
@@ -1408,13 +1483,24 @@ export default function MarketPreviewPage() {
               />
 
               <Pressable
-                style={styles.sheetConfirmButton}
+                style={[
+                  styles.sheetConfirmButton,
+                  !canConfirmDescription && styles.disabledButton,
+                ]}
+                disabled={!canConfirmDescription}
                 onPress={() => {
                   Keyboard.dismiss();
                   handleConfirmDescription();
                 }}
               >
-                <Text style={styles.sheetConfirmText}>확인</Text>
+                <Text
+                  style={[
+                    styles.sheetConfirmText,
+                    !canConfirmDescription && styles.disabledButtonText,
+                  ]}
+                >
+                  확인
+                </Text>
               </Pressable>
             </DraggableSheet>
         </KeyboardAvoidingView>
@@ -1642,6 +1728,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 14,
   },
+  reviewContentInput: {
+    height: 104,
+    paddingTop: 12,
+    lineHeight: 20,
+  },
   reviewSelectInput: {
     height: 44,
     borderWidth: 1,
@@ -1772,6 +1863,13 @@ const styles = StyleSheet.create({
     marginTop: 36,
   },
   uploadButtonText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
+  disabledButton: {
+    backgroundColor: '#D5D5D5',
+    borderColor: '#D5D5D5',
+  },
+  disabledButtonText: {
+    color: '#999999',
+  },
 
   modalKeyboardAvoiding: {
     flex: 1,
@@ -1809,7 +1907,8 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   editListSheetBox: {
-    maxHeight: '82%',
+    maxHeight: '90%',
+    paddingBottom: 46,
   },
   editListCard: {
     borderWidth: 1,
@@ -1826,19 +1925,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   editItemGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   editItemCell: {
-    width: '48%',
-    minHeight: 34,
+    width: '100%',
+    minHeight: 42,
     borderRadius: 4,
     backgroundColor: '#F7F7F7',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 7,
-    marginBottom: 7,
+    marginBottom: 0,
   },
   editCheckbox: {
     width: 22,

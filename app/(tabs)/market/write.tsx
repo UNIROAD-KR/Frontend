@@ -23,7 +23,7 @@ import {
   CUSTOM_COUNTRY_OPTION,
   countryOptions,
 } from '@/src/constants/onboarding';
-import { saveMarketDraft } from '../../../src/storage/marketDraft';
+import { getMarketDraft, saveMarketDraft } from '../../../src/storage/marketDraft';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 
 const MAX_MARKET_PHOTOS = 10;
@@ -177,6 +177,14 @@ export default function MarketWritePage() {
   const [price, setPrice] = useState(() => formatWonInput(params.price || ''));
   const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const countryValue = isCustomCountry ? customCountry.trim() : selectedCountry;
+  const canGoNext =
+    photos.length > 0 &&
+    Boolean(countryValue) &&
+    region.trim().length > 0 &&
+    returnDate.length > 0 &&
+    title.trim().length > 0 &&
+    content.trim().length > 0 &&
+    onlyDigits(price).length > 0;
 
   useEffect(() => {
     checkVerification();
@@ -235,7 +243,7 @@ export default function MarketWritePage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const cleanPrice = onlyDigits(price);
 
     if (
@@ -250,6 +258,19 @@ export default function MarketWritePage() {
       return;
     }
 
+    const draft = await getMarketDraft();
+    const hasReusableCategoryDraft =
+      draft?.category &&
+      draft.write.title === title &&
+      draft.write.content === content &&
+      onlyDigits(draft.write.price) === cleanPrice &&
+      draft.write.country === countryValue &&
+      draft.write.region === region &&
+      draft.write.returnDate === returnDate;
+    const reusableCategoryDraft = hasReusableCategoryDraft
+      ? draft.category
+      : null;
+
     router.push({
       pathname: '/market/category',
       params: {
@@ -261,6 +282,16 @@ export default function MarketWritePage() {
         returnDate,
         type,
         photos: JSON.stringify(photos),
+        ...(reusableCategoryDraft
+          ? {
+              draftSelectedCategories: JSON.stringify(
+                reusableCategoryDraft.selectedCategories,
+              ),
+              draftItemsByCategory: JSON.stringify(
+                reusableCategoryDraft.itemsByCategory,
+              ),
+            }
+          : {}),
       },
     } as any);
   };
@@ -460,8 +491,19 @@ export default function MarketWritePage() {
           <Text style={styles.priceUnit}>원</Text>
         </View>
 
-        <Pressable style={styles.nextButton} onPress={handleSubmit}>
-          <Text style={styles.nextButtonText}>다음 (1/2)</Text>
+        <Pressable
+          style={[styles.nextButton, !canGoNext && styles.nextButtonDisabled]}
+          disabled={!canGoNext}
+          onPress={handleSubmit}
+        >
+          <Text
+            style={[
+              styles.nextButtonText,
+              !canGoNext && styles.nextButtonTextDisabled,
+            ]}
+          >
+            다음 (1/2)
+          </Text>
         </Pressable>
       </ScrollView>
 
@@ -909,10 +951,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
+  nextButtonDisabled: {
+    backgroundColor: '#D5D5D5',
+  },
+
   nextButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
+  },
+
+  nextButtonTextDisabled: {
+    color: '#999999',
   },
 
   pickerOverlay: {

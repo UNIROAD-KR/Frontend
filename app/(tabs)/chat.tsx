@@ -113,6 +113,8 @@ export default function ChatListPage() {
                         sellerName: opponentName,
                         price: '',
                         thumbnail: '',
+                        referenceType: room.referenceType,
+                        referenceId: String(room.referenceId),
                       },
                     } as any)
                   }

@@ -16,14 +16,17 @@ import {
 
 import { createOrGetChatRoom } from '../../../src/api/chat';
 import {
+  deleteUsedItem,
   getUsedItemDetail,
   TradeCategory,
   UsedItemResponse,
 } from '../../../src/api/usedItems';
 import {
+  deleteLocalMarketPost,
   getLocalMarketPost,
   LocalMarketPost,
 } from '../../../src/storage/marketPosts';
+import { getMemberMe } from '../../../src/api/auth';
 import { AppBackButton } from '@/components/ui/app-back-button';
 
 const BLUE = '#123F9F';
@@ -344,15 +347,35 @@ const syncLikedMarketPost = async (
 };
 
 export default function MarketDetailPage() {
-  const { id, fromProfileList } = useLocalSearchParams<{
+  const {
+    id,
+    fromProfileList,
+    fromChatRoom,
+    chatRoomId,
+    chatTitle,
+    chatPrice,
+    chatThumbnail,
+    chatSellerName,
+    chatReferenceType,
+    chatReferenceId,
+  } = useLocalSearchParams<{
     id?: string;
     fromProfileList?: string;
+    fromChatRoom?: string;
+    chatRoomId?: string;
+    chatTitle?: string;
+    chatPrice?: string;
+    chatThumbnail?: string;
+    chatSellerName?: string;
+    chatReferenceType?: string;
+    chatReferenceId?: string;
   }>();
   const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
   const [liked, setLiked] = useState(false);
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
+  const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const bottomSafePadding = 4;
   const bottomBarHeight = 56;
 
@@ -401,10 +424,19 @@ export default function MarketDetailPage() {
           nextPost && typeof nextPost.id === 'number'
             ? await isLikedMarketPost(nextPost.id)
             : false;
+        let nextCurrentMemberId: number | null = null;
+
+        try {
+          const memberResponse = await getMemberMe();
+          nextCurrentMemberId = memberResponse.data.data.id;
+        } catch (error: any) {
+          console.log('내 정보 조회 실패:', error.response?.data || error.message);
+        }
 
         if (active) {
           setPost(nextPost);
           setLiked(savedLiked);
+          setCurrentMemberId(nextCurrentMemberId);
           setLoading(false);
         }
       };
@@ -487,6 +519,8 @@ export default function MarketDetailPage() {
           price: formatPrice(post),
           thumbnail: post.photos[0] ?? '',
           sellerName: post.authorName,
+          referenceType: 'TRADE',
+          referenceId: String(post.id),
         },
       } as any);
     } catch (error: any) {
@@ -514,10 +548,57 @@ export default function MarketDetailPage() {
     });
   };
 
+  const handleEditPost = () => {
+    Alert.alert(
+      '수정 API 필요',
+      '중고거래 수정 API가 아직 스웨거에 없어 서버 게시글은 수정 저장까지 연결할 수 없어요. 백엔드에 수정 API가 추가되면 바로 연결할 수 있어요.',
+    );
+  };
+
+  const handleDeletePost = () => {
+    if (!post) return;
+
+    Alert.alert('판매글 삭제', '이 게시글을 삭제할까요?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            if (post.source === 'api' && typeof post.id === 'number') {
+              await deleteUsedItem(post.id);
+            }
+
+            await deleteLocalMarketPost(String(post.id));
+
+            Alert.alert('삭제 완료', '판매글이 삭제되었어요.');
+            router.replace('/market' as any);
+          } catch (error: any) {
+            console.log('중고거래 삭제 실패:', error.response?.data || error.message);
+            Alert.alert(
+              '삭제 실패',
+              error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+            );
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
-        <HeaderBack fromProfileList={fromProfileList} />
+        <HeaderBack
+          fromProfileList={fromProfileList}
+          fromChatRoom={fromChatRoom}
+          chatRoomId={chatRoomId}
+          chatTitle={chatTitle}
+          chatPrice={chatPrice}
+          chatThumbnail={chatThumbnail}
+          chatSellerName={chatSellerName}
+          chatReferenceType={chatReferenceType}
+          chatReferenceId={chatReferenceId}
+        />
 
         <View style={styles.centerState}>
           <Text style={styles.centerText}>게시글을 불러오는 중이에요</Text>
@@ -529,7 +610,17 @@ export default function MarketDetailPage() {
   if (!post) {
     return (
       <View style={styles.container}>
-        <HeaderBack fromProfileList={fromProfileList} />
+        <HeaderBack
+          fromProfileList={fromProfileList}
+          fromChatRoom={fromChatRoom}
+          chatRoomId={chatRoomId}
+          chatTitle={chatTitle}
+          chatPrice={chatPrice}
+          chatThumbnail={chatThumbnail}
+          chatSellerName={chatSellerName}
+          chatReferenceType={chatReferenceType}
+          chatReferenceId={chatReferenceId}
+        />
 
         <View style={styles.centerState}>
           <Text style={styles.centerTitle}>게시글을 찾을 수 없어요</Text>
@@ -544,6 +635,10 @@ export default function MarketDetailPage() {
     );
   }
 
+  const canManagePost =
+    post.source === 'local' ||
+    (currentMemberId !== null && post.targetMemberId === currentMemberId);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -554,7 +649,20 @@ export default function MarketDetailPage() {
         }}
         scrollEventThrottle={16}
       >
-        <HeaderBack fromProfileList={fromProfileList} />
+        <HeaderBack
+          fromProfileList={fromProfileList}
+          canManagePost={canManagePost}
+          onEdit={handleEditPost}
+          onDelete={handleDeletePost}
+          fromChatRoom={fromChatRoom}
+          chatRoomId={chatRoomId}
+          chatTitle={chatTitle}
+          chatPrice={chatPrice}
+          chatThumbnail={chatThumbnail}
+          chatSellerName={chatSellerName}
+          chatReferenceType={chatReferenceType}
+          chatReferenceId={chatReferenceId}
+        />
 
         <ImageCarousel photos={post.photos} />
 
@@ -642,12 +750,64 @@ export default function MarketDetailPage() {
   );
 }
 
-function HeaderBack({ fromProfileList }: { fromProfileList?: string }) {
+function HeaderBack({
+  fromProfileList,
+  canManagePost = false,
+  onEdit,
+  onDelete,
+  fromChatRoom,
+  chatRoomId,
+  chatTitle,
+  chatPrice,
+  chatThumbnail,
+  chatSellerName,
+  chatReferenceType,
+  chatReferenceId,
+}: {
+  fromProfileList?: string;
+  canManagePost?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  fromChatRoom?: string;
+  chatRoomId?: string;
+  chatTitle?: string;
+  chatPrice?: string;
+  chatThumbnail?: string;
+  chatSellerName?: string;
+  chatReferenceType?: string;
+  chatReferenceId?: string;
+}) {
   return (
     <View style={styles.top}>
       <AppBackButton
         onPress={() => {
+          if (fromChatRoom === 'true' && chatRoomId) {
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+
+            router.replace({
+              pathname: '/chat/[roomId]',
+              params: {
+                roomId: chatRoomId,
+                title: chatTitle ?? '',
+                price: chatPrice ?? '',
+                thumbnail: chatThumbnail ?? '',
+                sellerName: chatSellerName ?? '',
+                referenceType: chatReferenceType ?? 'TRADE',
+                referenceId: chatReferenceId ?? '',
+              },
+            } as any);
+            return;
+          }
+
           if (fromProfileList === 'market' || fromProfileList === 'liked') {
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+
             router.replace({
               pathname: '/home/profile-list',
               params: { type: fromProfileList },
@@ -658,6 +818,23 @@ function HeaderBack({ fromProfileList }: { fromProfileList?: string }) {
           router.back();
         }}
       />
+
+      {canManagePost && (
+        <View style={styles.manageButtonRow}>
+          <Pressable style={styles.manageButton} onPress={onEdit}>
+            <Text style={styles.manageButtonText}>수정</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.manageButton, styles.deleteManageButton]}
+            onPress={onDelete}
+          >
+            <Text style={[styles.manageButtonText, styles.deleteManageText]}>
+              삭제
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -922,6 +1099,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 22,
+  },
+
+  manageButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  manageButton: {
+    minWidth: 46,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F5FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+
+  deleteManageButton: {
+    backgroundColor: '#FFF0F0',
+  },
+
+  manageButtonText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
+  },
+
+  deleteManageText: {
+    color: '#E5484D',
   },
 
   centerState: {
