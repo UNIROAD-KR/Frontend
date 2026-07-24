@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -17,11 +18,17 @@ import {
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getMemberMe } from '../../src/api/auth';
 import {
+  ChatRoomResponse,
   ChatMessageResponse,
+  getChatRooms,
   getChatMessages,
   readChatRoom,
   sendChatMessage,
 } from '../../src/api/chat';
+import { getUsedItemDetail } from '../../src/api/usedItems';
+import { getTicketDetail } from '../../src/api/ticket';
+import { createReport, ReportReason } from '../../src/api/reports';
+import { getTicketCurrency } from '../../src/storage/ticketMetadata';
 
 type ChatMessage = {
   id: number;
@@ -36,7 +43,22 @@ type ChatMessage = {
   readByOpponent?: boolean;
 };
 
+type ProductInfo = {
+  title: string;
+  price: string;
+  thumbnail: string;
+  sellerName?: string;
+};
+
 const BLUE = '#123F9F';
+const GENERIC_TITLES = ['채팅', '중고거래 채팅', '멘토링 채팅', '티켓 양도 채팅'];
+const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
+  { label: '사기 의심', reason: 'FRAUD' },
+  { label: '부적절한 내용', reason: 'INAPPROPRIATE' },
+  { label: '욕설/비방', reason: 'ABUSE' },
+  { label: '스팸/광고', reason: 'SPAM' },
+  { label: '기타', reason: 'ETC' },
+];
 
 const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   id: item.id,
@@ -56,6 +78,31 @@ const sortMessagesByTime = (items: ChatMessage[]) => {
     (a, b) =>
       new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
+};
+
+const mergeMessagesById = (
+  currentMessages: ChatMessage[],
+  nextMessages: ChatMessage[],
+) => {
+  const messageMap = new Map<number, ChatMessage>();
+
+  [...currentMessages, ...nextMessages].forEach((item) => {
+    messageMap.set(item.id, item);
+  });
+
+  return sortMessagesByTime(Array.from(messageMap.values()));
+};
+
+const formatProductPrice = (value?: number, currencyUnit = '원') => {
+  if (!value) return '가격 미정';
+
+  return currencyUnit === '원'
+    ? `${value.toLocaleString('ko-KR')}원`
+    : `${currencyUnit} ${value.toLocaleString('ko-KR')}`;
+};
+
+const isGenericTitle = (value?: string) => {
+  return !value || GENERIC_TITLES.includes(value.trim());
 };
 
 const formatMessageTime = (value: string) => {
@@ -84,8 +131,16 @@ const getReadStatus = (item: ChatMessage) => {
 };
 
 export default function ChatRoomPage() {
-  const { roomId, title, price, thumbnail, sellerName, referenceType, referenceId } =
-    useLocalSearchParams<{
+  const {
+    roomId,
+    title,
+    price,
+    thumbnail,
+    sellerName,
+    referenceType,
+    referenceId,
+    opponentMemberId,
+  } = useLocalSearchParams<{
     roomId: string;
     title?: string;
     price?: string;
@@ -93,15 +148,45 @@ export default function ChatRoomPage() {
     sellerName?: string;
     referenceType?: string;
     referenceId?: string;
+    opponentMemberId?: string;
   }>();
 
   const scrollRef = useRef<ScrollView>(null);
+  const numericRoomId = Number(roomId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
+  const [roomInfo, setRoomInfo] = useState<ChatRoomResponse | null>(null);
+  const [productInfo, setProductInfo] = useState<ProductInfo | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
+  const effectiveReferenceType = roomInfo?.referenceType ?? referenceType;
+  const effectiveReferenceId =
+    roomInfo?.referenceId !== undefined
+      ? String(roomInfo.referenceId)
+      : referenceId;
+  const parsedOpponentMemberId = opponentMemberId
+    ? Number(opponentMemberId)
+    : undefined;
+  const effectiveOpponentMemberId =
+    roomInfo?.opponentMemberId ??
+    (Number.isFinite(parsedOpponentMemberId)
+      ? parsedOpponentMemberId
+      : undefined);
+  const displaySellerName =
+    sellerName ||
+    roomInfo?.opponentNickname ||
+    roomInfo?.opponentName ||
+    productInfo?.sellerName ||
+    '채팅';
+  const productTitle =
+    productInfo?.title ||
+    (!isGenericTitle(title) ? title : undefined) ||
+    (effectiveReferenceType === 'TICKET' ? '티켓 양도글' : '중고거래 게시글');
+  const productPrice = productInfo?.price || price || '가격 미정';
+  const productThumbnail = productInfo?.thumbnail || thumbnail || '';
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -120,43 +205,114 @@ export default function ChatRoomPage() {
     }
   }, []);
 
-  const fetchMessages = useCallback(async () => {
+  const fetchRoomInfo = useCallback(async () => {
+    if (!Number.isFinite(numericRoomId)) return;
+
     try {
-      const response = await getChatMessages(Number(roomId));
+      const response = await getChatRooms();
+      const currentRoom = response.data.find(
+        (room) => room.roomId === numericRoomId,
+      );
+
+      if (currentRoom) {
+        setRoomInfo(currentRoom);
+      }
+    } catch (error: any) {
+      console.log('채팅방 정보 조회 실패:', error.response?.data || error.message);
+    }
+  }, [numericRoomId]);
+
+  const fetchProductInfo = useCallback(async () => {
+    const numericReferenceId = Number(effectiveReferenceId);
+
+    if (!Number.isFinite(numericReferenceId)) {
+      return;
+    }
+
+    try {
+      if (effectiveReferenceType === 'TRADE') {
+        const response = await getUsedItemDetail(numericReferenceId);
+        const item = response.data.data;
+
+        setProductInfo({
+          title: item.title,
+          price: formatProductPrice(item.price),
+          thumbnail: item.thumbnailImageUrl ?? '',
+          sellerName: item.authorNickname || item.authorName,
+        });
+        return;
+      }
+
+      if (effectiveReferenceType === 'TICKET') {
+        const response = await getTicketDetail(numericReferenceId);
+        const item = response.data.data;
+        const currencyUnit = await getTicketCurrency(item.id);
+
+        setProductInfo({
+          title: item.title,
+          price: formatProductPrice(item.transferPrice, currencyUnit || '€'),
+          thumbnail: '',
+          sellerName: item.authorNickname || item.authorName,
+        });
+      }
+    } catch (error: any) {
+      console.log('채팅 게시글 조회 실패:', error.response?.data || error.message);
+    }
+  }, [effectiveReferenceId, effectiveReferenceType]);
+
+  const fetchMessages = useCallback(async () => {
+    if (!Number.isFinite(numericRoomId)) return;
+
+    try {
+      const response = await getChatMessages(numericRoomId);
       const payload = response.data;
       const rawMessages = Array.isArray(payload)
         ? payload
         : (payload?.content ?? []);
 
       setMessages(sortMessagesByTime(rawMessages.map(normalizeMessage)));
-      readChatRoom(Number(roomId)).catch((error: any) => {
+      readChatRoom(numericRoomId).catch((error: any) => {
         console.log('채팅방 읽음 처리 실패:', error.response?.data || error.message);
       });
     } catch (error: any) {
       console.log('메시지 조회 실패:', error.response?.data || error.message);
     }
-  }, [roomId]);
+  }, [numericRoomId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCurrentMember();
+      fetchRoomInfo();
+      fetchMessages();
+
+      const messageTimer = setInterval(fetchMessages, 2500);
+      const roomTimer = setInterval(fetchRoomInfo, 7000);
+
+      return () => {
+        clearInterval(messageTimer);
+        clearInterval(roomTimer);
+      };
+    }, [fetchCurrentMember, fetchMessages, fetchRoomInfo]),
+  );
 
   useEffect(() => {
-    fetchCurrentMember();
-    fetchMessages();
-  }, [fetchCurrentMember, fetchMessages]);
+    fetchProductInfo();
+  }, [fetchProductInfo]);
 
   const handleSend = async () => {
     const text = message.trim();
 
-    if (!text || sending) return;
+    if (!text || sending || !Number.isFinite(numericRoomId)) return;
 
     try {
       setSending(true);
-      const response = await sendChatMessage(Number(roomId), text);
-
-      console.log(response.data);
+      const response = await sendChatMessage(numericRoomId, text);
 
       setMessages((prev) =>
-        sortMessagesByTime([...prev, normalizeMessage(response.data)]),
+        mergeMessagesById(prev, [normalizeMessage(response.data)]),
       );
       setMessage('');
+      setTimeout(fetchMessages, 250);
     } catch (error: any) {
       console.log('메시지 전송 실패:', error.response?.data || error.message);
       Alert.alert(
@@ -166,6 +322,65 @@ export default function ChatRoomPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const submitReport = async (reason: ReportReason) => {
+    if (reporting) return;
+
+    const numericReferenceId = Number(effectiveReferenceId);
+    const target = effectiveOpponentMemberId
+      ? {
+          targetType: 'MEMBER' as const,
+          targetId: effectiveOpponentMemberId,
+        }
+      : effectiveReferenceType === 'TRADE' && Number.isFinite(numericReferenceId)
+        ? {
+            targetType: 'USED_ITEM' as const,
+            targetId: numericReferenceId,
+          }
+        : null;
+
+    if (!target) {
+      Alert.alert(
+        '신고할 수 없어요',
+        '신고 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+      );
+      return;
+    }
+
+    try {
+      setReporting(true);
+      await createReport({
+        ...target,
+        reason,
+        detail: `채팅방 #${roomId}에서 신고된 대화입니다.`,
+      });
+      Alert.alert('신고 접수', '운영팀이 대화 내용을 확인할게요.');
+    } catch (error: any) {
+      console.log('신고 접수 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '신고 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setReporting(false);
+    }
+  };
+
+  const handleReport = () => {
+    setMenuVisible(false);
+
+    Alert.alert(
+      '신고하기',
+      '신고 사유를 선택해주세요.',
+      [
+        ...REPORT_OPTIONS.map((option) => ({
+          text: option.label,
+          onPress: () => submitReport(option.reason),
+        })),
+        { text: '취소', style: 'cancel' as const },
+      ],
+    );
   };
 
   const handleLeaveRoom = () => {
@@ -188,7 +403,9 @@ export default function ChatRoomPage() {
         </View>
 
         <View style={styles.nameRow}>
-          <Text style={styles.name}>{sellerName ?? '채팅'}</Text>
+          <Text style={styles.name} numberOfLines={1}>
+            {displaySellerName}
+          </Text>
           <Image
             source={require('../../assets/images/shield.png')}
             style={styles.badgeIcon}
@@ -224,11 +441,8 @@ export default function ChatRoomPage() {
             />
             <ChatMenuRow
               icon="flag-outline"
-              title="신고하기"
-              onPress={() => {
-                setMenuVisible(false);
-                Alert.alert('신고 접수', '운영팀이 대화 내용을 확인할게요.');
-              }}
+              title={reporting ? '신고 접수 중...' : '신고하기'}
+              onPress={handleReport}
             />
             <ChatMenuRow
               icon="log-out-outline"
@@ -243,33 +457,48 @@ export default function ChatRoomPage() {
       <Pressable
         style={styles.productCard}
         onPress={() => {
-          if (referenceType === 'TRADE' && referenceId) {
+          if (effectiveReferenceType === 'TRADE' && effectiveReferenceId) {
             router.push({
               pathname: '/market/[id]',
               params: {
-                id: referenceId,
+                id: effectiveReferenceId,
                 fromChatRoom: 'true',
                 chatRoomId: roomId,
-                chatTitle: title ?? '',
-                chatPrice: price ?? '',
-                chatThumbnail: thumbnail ?? '',
-                chatSellerName: sellerName ?? '',
-                chatReferenceType: referenceType,
-                chatReferenceId: referenceId,
+                chatTitle: productTitle,
+                chatPrice: productPrice,
+                chatThumbnail: productThumbnail,
+                chatSellerName: displaySellerName,
+                chatReferenceType: effectiveReferenceType,
+                chatReferenceId: effectiveReferenceId,
+              },
+            } as any);
+            return;
+          }
+
+          if (effectiveReferenceType === 'TICKET' && effectiveReferenceId) {
+            router.push({
+              pathname: '/market/ticket-preview',
+              params: {
+                id: effectiveReferenceId,
               },
             } as any);
           }
         }}
       >
         <View style={styles.thumbnail}>
-          {!!thumbnail && (
-            <Image source={{ uri: thumbnail }} style={styles.thumbnailImage} />
+          {!!productThumbnail && (
+            <Image
+              source={{ uri: productThumbnail }}
+              style={styles.thumbnailImage}
+            />
           )}
         </View>
 
         <View style={styles.productInfo}>
-          <Text style={styles.productTitle}>{title ?? '중고거래 게시글'}</Text>
-          <Text style={styles.productPrice}>{price ?? '가격 미정'}</Text>
+          <Text style={styles.productTitle} numberOfLines={2}>
+            {productTitle}
+          </Text>
+          <Text style={styles.productPrice}>{productPrice}</Text>
         </View>
       </Pressable>
 

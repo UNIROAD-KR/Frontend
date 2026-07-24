@@ -49,22 +49,32 @@ export default function ChatListPage() {
   const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadRooms = useCallback(async () => {
+  const loadRooms = useCallback(async (showSpinner = true) => {
     try {
-      setLoading(true);
+      if (showSpinner) {
+        setLoading(true);
+      }
       const response = await getChatRooms();
       setRooms(Array.isArray(response.data) ? response.data : []);
     } catch (error: any) {
       console.log('채팅방 목록 조회 실패:', error.response?.data || error.message);
       setRooms([]);
     } finally {
-      setLoading(false);
+      if (showSpinner) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       loadRooms();
+
+      const timer = setInterval(() => {
+        loadRooms(false);
+      }, 5000);
+
+      return () => clearInterval(timer);
     }, [loadRooms]),
   );
 
@@ -115,6 +125,9 @@ export default function ChatListPage() {
                         thumbnail: '',
                         referenceType: room.referenceType,
                         referenceId: String(room.referenceId),
+                        opponentMemberId: room.opponentMemberId
+                          ? String(room.opponentMemberId)
+                          : '',
                       },
                     } as any)
                   }

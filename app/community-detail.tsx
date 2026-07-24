@@ -21,6 +21,8 @@ import {
   CompanionPostResponse,
   deleteCompanionPost,
   getCompanionPostDetail,
+  getScrappedCompanionPosts,
+  toggleCompanionPostScrap,
   updateCompanionPost,
 } from '../src/api/companion';
 import {
@@ -30,7 +32,9 @@ import {
   deleteFreePost,
   deleteFreePostComment,
   getFreePostDetail,
+  getScrappedFreePosts,
   toggleFreePostLike,
+  toggleFreePostScrap,
 } from '../src/api/freePosts';
 import {
   BLUE,
@@ -136,6 +140,8 @@ export default function CommunityDetailScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [commentInputVisible, setCommentInputVisible] = useState(false);
   const [commentText, setCommentText] = useState('');
+  const [scrapped, setScrapped] = useState(false);
+  const [scrapCount, setScrapCount] = useState(0);
 
   const loadPost = useCallback(async () => {
     if (!postId) {
@@ -147,13 +153,41 @@ export default function CommunityDetailScreen() {
     try {
       if (detailType === 'companion') {
         const response = await getCompanionPostDetail(postId);
-        setPost(response.data.data);
+        const nextPost = response.data.data;
+
+        setPost(nextPost);
+        setScrapCount(nextPost.scrapCount ?? 0);
+
+        try {
+          const scrapResponse = await getScrappedCompanionPosts({ size: 100 });
+          setScrapped(
+            (scrapResponse.data.data.items ?? []).some((item) => item.id === postId),
+          );
+        } catch (scrapError: any) {
+          console.log(
+            '스크랩한 동행 글 확인 실패:',
+            scrapError.response?.data || scrapError.message,
+          );
+        }
         return;
       }
 
       const response = await getFreePostDetail(postId);
       const nextPost = response.data.data;
       setPost(nextPost);
+      setScrapCount(nextPost.scrapCount ?? 0);
+
+      try {
+        const scrapResponse = await getScrappedFreePosts({ size: 100 });
+        setScrapped(
+          (scrapResponse.data.data.items ?? []).some((item) => item.id === postId),
+        );
+      } catch (scrapError: any) {
+        console.log(
+          '스크랩한 자유게시판 글 확인 실패:',
+          scrapError.response?.data || scrapError.message,
+        );
+      }
 
       if (nextPost.liked) {
         await syncLikedFreePostStorage(nextPost, true);
@@ -319,6 +353,33 @@ export default function CommunityDetailScreen() {
     }
   };
 
+  const handleScrapPress = async () => {
+    if (!postId || !post) {
+      return;
+    }
+
+    const wasScrapped = scrapped;
+
+    setScrapped((prev) => !prev);
+
+    try {
+      const response =
+        detailType === 'companion'
+          ? await toggleCompanionPostScrap(postId)
+          : await toggleFreePostScrap(postId);
+      const nextScrapped = response.data.data;
+
+      setScrapped(nextScrapped);
+      setScrapCount((prev) =>
+        Math.max(0, prev + (nextScrapped === wasScrapped ? 0 : nextScrapped ? 1 : -1)),
+      );
+    } catch (error: any) {
+      console.log('게시글 스크랩 실패:', error.response?.data || error.message);
+      setScrapped(wasScrapped);
+      Alert.alert('저장 실패', '게시글 저장 상태를 변경하지 못했어요.');
+    }
+  };
+
   const handleSubmitComment = async () => {
     const trimmedComment = commentText.trim();
 
@@ -476,7 +537,13 @@ export default function CommunityDetailScreen() {
       <View style={styles.header}>
         <AppBackButton
           onPress={() => {
-            if (fromProfileList === 'liked' || fromProfileList === 'free' || fromProfileList === 'companion') {
+            if (
+              fromProfileList === 'liked' ||
+              fromProfileList === 'free' ||
+              fromProfileList === 'companion' ||
+              fromProfileList === 'saved' ||
+              fromProfileList === 'written'
+            ) {
               router.replace({
                 pathname: '/home/profile-list',
                 params: { type: fromProfileList },
@@ -590,6 +657,26 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
+        {detailType === 'companion' && (
+          <View style={styles.reactionBar}>
+            <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
+              <Ionicons
+                name={scrapped ? 'bookmark' : 'bookmark-outline'}
+                size={17}
+                color={scrapped ? BLUE : '#777777'}
+              />
+              <Text
+                style={[
+                  styles.reactionText,
+                  scrapped && styles.reactionTextActive,
+                ]}
+              >
+                {scrapCount}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {detailType === 'free' && (
           <View style={styles.freeSection}>
             <View style={styles.reactionBar}>
@@ -614,6 +701,21 @@ export default function CommunityDetailScreen() {
               >
                 <Ionicons name="chatbubble-outline" size={17} color="#777777" />
                 <Text style={styles.reactionText}>{viewModel.comments}</Text>
+              </Pressable>
+              <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
+                <Ionicons
+                  name={scrapped ? 'bookmark' : 'bookmark-outline'}
+                  size={17}
+                  color={scrapped ? BLUE : '#777777'}
+                />
+                <Text
+                  style={[
+                    styles.reactionText,
+                    scrapped && styles.reactionTextActive,
+                  ]}
+                >
+                  {scrapCount}
+                </Text>
               </Pressable>
             </View>
 

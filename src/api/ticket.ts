@@ -19,8 +19,13 @@ export interface TicketTransferRequest {
 
 export interface TicketTransferResponse {
   id: number;
+  memberId?: number;
+  authorId?: number;
+  authorMemberId?: number;
   authorName: string;
   authorNickname?: string;
+  authorDomesticUniversity?: string;
+  authorHomeUniversity?: string;
   authorDispatchedCountry?: string;
   authorDispatchedRegion?: string;
   authorDispatchRegion?: string;
@@ -32,6 +37,9 @@ export interface TicketTransferResponse {
   title: string;
   content: string;
   country: string;
+  scrapCount?: number;
+  thumbnailImageUrl?: string;
+  imageUrls?: string[];
   eventDate: string;
   eventEndDate?: string;
   eventTime: string;
@@ -47,6 +55,16 @@ export interface TicketTransferResponse {
 // 티켓 양도 글 작성
 export type TicketTransferListResponse = CursorResponse<TicketTransferResponse>;
 
+export type TicketSearchParams = {
+  cursorId?: number;
+  title?: string;
+  country?: string;
+  location?: string;
+  content?: string;
+  status?: string;
+  size?: number;
+};
+
 export const createTicket = (data: TicketTransferRequest) => {
   return api.post<BaseResponse<number>>('/api/tickets', data);
 };
@@ -61,11 +79,25 @@ export const getTickets = (cursorId?: number, size = 10) => {
   });
 };
 
+export const searchTickets = (params: TicketSearchParams = { size: 20 }) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets/search', {
+    params,
+  });
+};
+
 // 내 티켓 양도 글 조회
 export const getMyTickets = (
   params: { cursorId?: number; size?: number } = { size: 20 },
 ) => {
   return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets/my', {
+    params,
+  });
+};
+
+export const getScrappedTickets = (
+  params: { cursorId?: number; size?: number } = { size: 20 },
+) => {
+  return api.get<BaseResponse<TicketTransferListResponse>>('/api/tickets/scraps', {
     params,
   });
 };
@@ -83,6 +115,10 @@ export const updateTicket = (id: number, data: TicketTransferRequest) => {
 // 티켓 양도 삭제
 export const deleteTicket = (id: number) => {
   return api.delete<BaseResponse<void>>(`/api/tickets/${id}`);
+};
+
+export const toggleTicketScrap = (id: number) => {
+  return api.post<BaseResponse<boolean>>(`/api/tickets/${id}/scrap`);
 };
 
 // 판매 완료 처리

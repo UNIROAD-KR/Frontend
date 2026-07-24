@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { getMemberMe, logout } from '../../../src/api/auth';
+import { deleteMyAccount, getMemberMe, logout } from '../../../src/api/auth';
 import { getMyVerifications } from '../../../src/api/verification';
 import { openKakaoContact } from '../../../src/utils/contact';
 
@@ -34,32 +34,24 @@ type MenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
   description?: string;
   route?: RouteTarget;
-  action?: 'logout' | 'contact';
+  action?: 'logout' | 'contact' | 'withdraw';
   value?: string;
+  danger?: boolean;
 };
 
 const activityItems: MenuItem[] = [
   {
-    title: '좋아요한 글',
-    description: '내가 좋아요 누른 커뮤니티 글',
-    icon: 'thumbs-up-outline',
+    title: '스크랩/저장한 글',
+    description: '나중에 다시 볼 글을 카테고리별로 확인',
+    icon: 'bookmark-outline',
     route: {
       pathname: '/home/profile-list',
-      params: { type: 'liked' },
-    },
-  },
-  {
-    title: '자유게시판 작성글',
-    description: '내가 작성한 질문, 후기, 정보 글',
-    icon: 'chatbubbles-outline',
-    route: {
-      pathname: '/home/profile-list',
-      params: { type: 'free' },
+      params: { type: 'saved' },
     },
   },
   {
     title: '내가 쓴 글',
-    description: '중고거래, 티켓 양도, 동행 모집글 확인',
+    description: '커뮤니티와 중고마켓 작성글을 한 번에 확인',
     icon: 'create-outline',
     route: {
       pathname: '/home/profile-list',
@@ -142,6 +134,14 @@ const extraItems: MenuItem[] = [
     description: '현재 계정에서 나가기',
     icon: 'log-out-outline',
     action: 'logout',
+    danger: true,
+  },
+  {
+    title: '회원탈퇴하기',
+    description: '계정과 이용 기록 삭제',
+    icon: 'person-remove-outline',
+    action: 'withdraw',
+    danger: true,
   },
 ];
 
@@ -280,9 +280,41 @@ export default function ProfileCardScreen() {
     ]);
   };
 
+  const performWithdraw = async () => {
+    try {
+      await deleteMyAccount();
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+      Alert.alert('회원탈퇴 완료', '계정이 삭제되었습니다.', [
+        { text: '확인', onPress: () => router.replace('/login' as any) },
+      ]);
+    } catch (error: any) {
+      console.log('회원탈퇴 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '회원탈퇴 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    }
+  };
+
+  const confirmWithdraw = () => {
+    Alert.alert(
+      '회원탈퇴하기',
+      '탈퇴하면 계정과 연관 데이터가 삭제돼요. 정말 탈퇴하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '탈퇴하기', style: 'destructive', onPress: performWithdraw },
+      ],
+    );
+  };
+
   const handleMenuPress = (item: MenuItem) => {
     if (item.action === 'logout') {
       confirmLogout();
+      return;
+    }
+
+    if (item.action === 'withdraw') {
+      confirmWithdraw();
       return;
     }
 
@@ -453,12 +485,18 @@ function MenuSection({
               activeOpacity={interactive ? 0.82 : 1}
               disabled={!interactive}
             >
-              <View style={styles.menuIconBox}>
-                <Ionicons name={item.icon} size={18} color={NAVY} />
+              <View style={[styles.menuIconBox, item.danger && styles.menuIconDanger]}>
+                <Ionicons
+                  name={item.icon}
+                  size={18}
+                  color={item.danger ? '#E5484D' : NAVY}
+                />
               </View>
 
               <View style={styles.menuTextBox}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
+                <Text style={[styles.menuTitle, item.danger && styles.menuTitleDanger]}>
+                  {item.title}
+                </Text>
               </View>
 
               {item.value ? (
@@ -689,6 +727,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
+  menuIconDanger: {
+    backgroundColor: '#FFF1F1',
+  },
   menuTextBox: {
     flex: 1,
     paddingRight: 10,
@@ -697,6 +738,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '900',
     color: NAVY,
+  },
+  menuTitleDanger: {
+    color: '#E5484D',
   },
   menuValue: {
     fontSize: 13,

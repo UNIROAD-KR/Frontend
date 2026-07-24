@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { getMemberMe, logout } from '../../../src/api/auth';
+import { deleteMyAccount, getMemberMe, logout } from '../../../src/api/auth';
 import { openKakaoContact } from '../../../src/utils/contact';
 
 const NAVY = '#0F2042';
@@ -30,7 +30,7 @@ type SettingItem = {
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
   route?: unknown;
-  action?: 'logout' | 'contact';
+  action?: 'logout' | 'contact' | 'withdraw';
   value?: string;
   danger?: boolean;
 };
@@ -106,6 +106,13 @@ const extraItems: SettingItem[] = [
     action: 'logout',
     danger: true,
   },
+  {
+    title: '회원탈퇴하기',
+    description: '계정과 이용 기록 삭제',
+    icon: 'person-remove-outline',
+    action: 'withdraw',
+    danger: true,
+  },
 ];
 
 export default function ProfileSettingsScreen() {
@@ -161,9 +168,41 @@ export default function ProfileSettingsScreen() {
     ]);
   };
 
+  const performWithdraw = async () => {
+    try {
+      await deleteMyAccount();
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+      Alert.alert('회원탈퇴 완료', '계정이 삭제되었습니다.', [
+        { text: '확인', onPress: () => router.replace('/login' as any) },
+      ]);
+    } catch (error: any) {
+      console.log('회원탈퇴 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '회원탈퇴 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    }
+  };
+
+  const confirmWithdraw = () => {
+    Alert.alert(
+      '회원탈퇴하기',
+      '탈퇴하면 계정과 연관 데이터가 삭제돼요. 정말 탈퇴하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '탈퇴하기', style: 'destructive', onPress: performWithdraw },
+      ],
+    );
+  };
+
   const handleItemPress = (item: SettingItem) => {
     if (item.action === 'logout') {
       confirmLogout();
+      return;
+    }
+
+    if (item.action === 'withdraw') {
+      confirmWithdraw();
       return;
     }
 

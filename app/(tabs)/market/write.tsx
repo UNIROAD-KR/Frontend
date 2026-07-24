@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   Alert,
@@ -130,6 +130,11 @@ export default function MarketWritePage() {
     setPhotos((prev) => [...prev, uri].slice(0, MAX_MARKET_PHOTOS));
   };
   const scrollRef = useRef<ScrollView>(null);
+  const customCountryInputRef = useRef<TextInput>(null);
+  const regionInputRef = useRef<TextInput>(null);
+  const titleInputRef = useRef<TextInput>(null);
+  const contentInputRef = useRef<TextInput>(null);
+  const priceInputRef = useRef<TextInput>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -148,7 +153,14 @@ export default function MarketWritePage() {
     region?: string;
     returnDate?: string;
     photos?: string;
+    resumeCategory?: string;
+    resumePreview?: string;
+    selectedItems?: string;
+    draftSelectedCategories?: string;
+    draftItemsByCategory?: string;
+    draftCategoryDetails?: string;
   }>();
+  const resumedCategoryRef = useRef(false);
   const { type } = params;
   const initialCountrySelection = resolveCountrySelection(params.country);
 
@@ -165,6 +177,7 @@ export default function MarketWritePage() {
     initialCountrySelection.customCountry,
   );
   const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [region, setRegion] = useState(params.region || '');
   const [returnDate, setReturnDate] = useState(params.returnDate || '');
   const [selectedDate, setSelectedDate] = useState(() =>
@@ -190,6 +203,52 @@ export default function MarketWritePage() {
     checkVerification();
   }, []);
 
+  useEffect(() => {
+    if (params.resumeCategory !== 'true' || resumedCategoryRef.current) {
+      return;
+    }
+
+    resumedCategoryRef.current = true;
+
+    const timer = setTimeout(() => {
+      router.push({
+        pathname: '/market/category',
+        params: {
+          title: params.title ?? '',
+          content: params.content ?? '',
+          price: onlyDigits(params.price ?? ''),
+          country: params.country ?? '',
+          region: params.region ?? '',
+          returnDate: params.returnDate ?? '',
+          type: params.type ?? 'all',
+          photos: params.photos ?? '[]',
+          resumePreview: params.resumePreview ?? '',
+          selectedItems: params.selectedItems ?? '',
+          draftSelectedCategories: params.draftSelectedCategories ?? '[]',
+          draftItemsByCategory: params.draftItemsByCategory ?? '',
+          draftCategoryDetails: params.draftCategoryDetails ?? '{}',
+        },
+      } as any);
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [
+    params.content,
+    params.country,
+    params.draftCategoryDetails,
+    params.draftItemsByCategory,
+    params.draftSelectedCategories,
+    params.photos,
+    params.price,
+    params.region,
+    params.resumeCategory,
+    params.resumePreview,
+    params.returnDate,
+    params.selectedItems,
+    params.title,
+    params.type,
+  ]);
+
   const checkVerification = async () => {
     try {
       const canUseMarket = await canUseMarketWithoutVerification();
@@ -207,6 +266,12 @@ export default function MarketWritePage() {
     setPhotos((prev) => prev.filter((_, photoIndex) => photoIndex !== index));
   };
 
+  const focusNextField = (ref: RefObject<TextInput | null>) => {
+    setTimeout(() => {
+      ref.current?.focus();
+    }, 120);
+  };
+
   const handleConfirmDate = () => {
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
@@ -214,6 +279,7 @@ export default function MarketWritePage() {
 
     setReturnDate(`${year}-${month}-${day}`);
     setShowDatePicker(false);
+    focusNextField(titleInputRef);
   };
 
   const handleTempSave = async () => {
@@ -240,7 +306,11 @@ export default function MarketWritePage() {
 
     if (countryName !== CUSTOM_COUNTRY_OPTION) {
       setCustomCountry('');
+      focusNextField(regionInputRef);
+      return;
     }
+
+    focusNextField(customCountryInputRef);
   };
 
   const handleSubmit = async () => {
@@ -270,6 +340,10 @@ export default function MarketWritePage() {
     const reusableCategoryDraft = hasReusableCategoryDraft
       ? draft.category
       : null;
+    const reusableCategoryDetails =
+      hasReusableCategoryDraft && draft?.preview?.categoryDetails
+        ? draft.preview.categoryDetails
+        : null;
 
     router.push({
       pathname: '/market/category',
@@ -290,6 +364,11 @@ export default function MarketWritePage() {
               draftItemsByCategory: JSON.stringify(
                 reusableCategoryDraft.itemsByCategory,
               ),
+              ...(reusableCategoryDetails
+                ? {
+                    draftCategoryDetails: JSON.stringify(reusableCategoryDetails),
+                  }
+                : {}),
             }
           : {}),
       },
@@ -359,7 +438,12 @@ export default function MarketWritePage() {
             >
               {photos.map((uri, index) => (
                 <View key={`${uri}-${index}`} style={styles.photoPreviewWrap}>
-                  <Image source={{ uri }} style={styles.photoPreview} />
+                  <Pressable
+                    style={styles.photoPreviewButton}
+                    onPress={() => setExpandedPhoto(uri)}
+                  >
+                    <Image source={{ uri }} style={styles.photoPreview} />
+                  </Pressable>
 
                   <Pressable
                     style={styles.removePhotoButton}
@@ -404,7 +488,12 @@ export default function MarketWritePage() {
                 {selectedCountry || '선택'}
               </Text>
 
-              <Text style={styles.chevron}>⌄</Text>
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color="#B8BECC"
+                style={styles.chevronIcon}
+              />
             </Pressable>
           </View>
 
@@ -412,10 +501,13 @@ export default function MarketWritePage() {
             <Text style={styles.label}>희망 장소</Text>
             <TextInput
               style={styles.input}
+              ref={regionInputRef}
               placeholder="입력"
               placeholderTextColor="#A6A6A6"
               value={region}
               onChangeText={setRegion}
+              returnKeyType="next"
+              onSubmitEditing={() => focusNextField(titleInputRef)}
             />
           </View>
         </View>
@@ -425,10 +517,13 @@ export default function MarketWritePage() {
             <Text style={styles.label}>국가 직접 입력</Text>
             <TextInput
               style={styles.input}
+              ref={customCountryInputRef}
               placeholder="국가명 입력"
               placeholderTextColor="#A6A6A6"
               value={customCountry}
               onChangeText={setCustomCountry}
+              returnKeyType="next"
+              onSubmitEditing={() => focusNextField(regionInputRef)}
             />
           </View>
         )}
@@ -446,7 +541,12 @@ export default function MarketWritePage() {
                 {returnDate || '연도-월-일'}
               </Text>
 
-              <Text style={styles.chevron}>⌄</Text>
+              <Ionicons
+                name="chevron-down"
+                size={16}
+                color="#B8BECC"
+                style={styles.chevronIcon}
+              />
             </Pressable>
         </View>
 
@@ -458,15 +558,19 @@ export default function MarketWritePage() {
         <Text style={styles.label}>제목</Text>
         <TextInput
           style={styles.input}
+          ref={titleInputRef}
           placeholder="제목을 입력해주세요."
           placeholderTextColor="#A6A6A6"
           value={title}
           onChangeText={setTitle}
+          returnKeyType="next"
+          onSubmitEditing={() => focusNextField(contentInputRef)}
         />
 
         <Text style={styles.label}>자유 설명</Text>
         <TextInput
           style={styles.textArea}
+          ref={contentInputRef}
           placeholder={
             '다음 학기 교환학생에게 전달할 내용을 작성해 주세요.\n물품 상태, 구매 시기, 거래 조건 등 자유롭게\n적어주세요.'
           }
@@ -475,6 +579,9 @@ export default function MarketWritePage() {
           onChangeText={setContent}
           multiline
           textAlignVertical="top"
+          returnKeyType="next"
+          blurOnSubmit
+          onSubmitEditing={() => focusNextField(priceInputRef)}
         />
 
         <Text style={styles.label}>가격</Text>
@@ -482,6 +589,7 @@ export default function MarketWritePage() {
           <Text style={styles.pricePrefix}>₩</Text>
           <TextInput
             style={styles.priceTextInput}
+            ref={priceInputRef}
             placeholder="0"
             placeholderTextColor="#A6A6A6"
             keyboardType="number-pad"
@@ -585,6 +693,26 @@ export default function MarketWritePage() {
               </Pressable>
             </View>
           </View>
+        </View>
+      </Modal>
+
+      <Modal transparent visible={Boolean(expandedPhoto)} animationType="fade">
+        <View style={styles.fullImageOverlay}>
+          <Pressable
+            style={styles.fullImageBackdrop}
+            onPress={() => setExpandedPhoto(null)}
+          />
+
+          {expandedPhoto && (
+            <Image source={{ uri: expandedPhoto }} style={styles.fullImage} />
+          )}
+
+          <Pressable
+            style={styles.fullImageCloseButton}
+            onPress={() => setExpandedPhoto(null)}
+          >
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </Pressable>
         </View>
       </Modal>
 
@@ -729,6 +857,40 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
+  photoPreviewButton: {
+    width: '100%',
+    height: '100%',
+  },
+
+  fullImageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  fullImageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  fullImage: {
+    width: '100%',
+    height: '78%',
+    resizeMode: 'contain',
+  },
+
+  fullImageCloseButton: {
+    position: 'absolute',
+    top: 54,
+    right: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   removePhotoButton: {
     position: 'absolute',
     top: 5,
@@ -786,6 +948,7 @@ const styles = StyleSheet.create({
 
   halfInputGroup: {
     flex: 1,
+    justifyContent: 'flex-start',
   },
 
   fullInputGroup: {
@@ -797,10 +960,13 @@ const styles = StyleSheet.create({
   },
 
   label: {
+    height: 19,
     fontSize: 15,
+    lineHeight: 19,
     fontWeight: '800',
     color: '#222222',
     marginBottom: 10,
+    includeFontPadding: false,
   },
 
   input: {
@@ -809,6 +975,7 @@ const styles = StyleSheet.create({
     borderColor: '#D0D0D0',
     borderRadius: 5,
     paddingHorizontal: 12,
+    paddingVertical: 0,
     fontSize: 14,
     color: '#111111',
     marginBottom: 18,
@@ -856,10 +1023,8 @@ const styles = StyleSheet.create({
     color: '#111111',
   },
 
-  chevron: {
-    fontSize: 22,
-    color: '#C5C5C5',
-    marginTop: -2,
+  chevronIcon: {
+    marginLeft: 8,
   },
 
   textArea: {

@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
@@ -33,7 +34,7 @@ import {
 } from '@/src/constants/onboarding';
 import { getMemberMe, type MemberResponse } from '../../../src/api/auth';
 import { getUploadUrl, uploadFileToStorage } from '../../../src/api/upload';
-import { createUsedItem } from '../../../src/api/usedItems';
+import { createUsedItem, updateUsedItem } from '../../../src/api/usedItems';
 import type { TradeCategory } from '../../../src/api/usedItems';
 import { clearMarketDraft, saveMarketDraft } from '../../../src/storage/marketDraft';
 import { saveLocalMarketPost } from '../../../src/storage/marketPosts';
@@ -343,7 +344,10 @@ export default function MarketPreviewPage() {
     type?: string;
     draftItemsByCategory?: string;
     draftCategoryDetails?: string;
+    editId?: string;
   }>();
+  const editId = Number(params.editId);
+  const isEditMode = Number.isFinite(editId);
   const initialCountrySelection = resolveCountrySelection(params.country);
 
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -351,7 +355,11 @@ export default function MarketPreviewPage() {
   const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [editListModalVisible, setEditListModalVisible] = useState(false);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [sellerProfile, setSellerProfile] = useState<MemberResponse | null>(null);
+  const [savedNickname, setSavedNickname] = useState('');
   const [activePreviewTab, setActivePreviewTab] = useState<
     'trade' | 'items' | 'seller'
   >('items');
@@ -392,6 +400,10 @@ export default function MarketPreviewPage() {
     >;
 
     parsedGroups.forEach((group) => {
+      if (!next[group.category]) {
+        return;
+      }
+
       group.items.forEach((selectedItem) => {
         const targetIndex = next[group.category]?.findIndex(
           (item) => item.name === selectedItem.name,
@@ -434,6 +446,16 @@ export default function MarketPreviewPage() {
   const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const countryText = isCustomCountry ? customCountry.trim() : selectedCountry;
   const regionText = region.trim();
+  const semesterText = params.semester || '26-2학기';
+  const sellerName = sellerProfile?.nickname || savedNickname || '나';
+  const sellerInitial = sellerName.trim().charAt(0) || '나';
+  const sellerDomesticUniversity =
+    sellerProfile?.domesticUniversity || sellerProfile?.homeUniversity || '소속대학 미정';
+  const sellerCountry = sellerProfile?.dispatchedCountry || countryText;
+  const sellerRegion = sellerProfile?.dispatchedRegion || regionText;
+  const sellerDispatchedUniversity = sellerProfile?.dispatchedUniversity || '파견교 미정';
+  const sellerDispatchSemester =
+    sellerProfile?.dispatchSemester || semesterText || '학기 미정';
 
   const selectedGroups = useMemo<SelectedItemGroup[]>(() => {
     return Object.entries(itemsByCategory)
@@ -449,19 +471,33 @@ export default function MarketPreviewPage() {
       .filter((group) => group.items.length > 0);
   }, [itemsByCategory]);
 
-  const dDayText = useMemo(() => {
-    if (!returnDate) return '귀국 D-?';
+  useEffect(() => {
+    let active = true;
 
-    const today = new Date();
-    const target = new Date(returnDate);
-    const diff = Math.ceil(
-      (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    const loadSellerProfile = async () => {
+      const nickname = await AsyncStorage.getItem('nickname');
 
-    return diff >= 0 ? `귀국 D-${diff}` : '귀국 완료';
-  }, [returnDate]);
+      if (active) {
+        setSavedNickname(nickname || '');
+      }
 
-  const semesterText = params.semester || '26-2학기';
+      try {
+        const response = await getMemberMe();
+
+        if (active) {
+          setSellerProfile(response.data.data);
+        }
+      } catch (error: any) {
+        console.log('판매자 정보 조회 실패:', error.response?.data || error.message);
+      }
+    };
+
+    loadSellerProfile();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const getCategoryDetail = (category: CategoryName): CategoryDetail => {
     return categoryDetails[category] ?? { photos: [], description: '' };
@@ -486,7 +522,60 @@ export default function MarketPreviewPage() {
     title.trim().length > 0 &&
     content.trim().length > 0 &&
     onlyDigits(price).length > 0 &&
-    selectedGroups.length > 0;
+    selectedGroups.length > 0 &&
+    !isUploading;
+
+  const savePreviewDraft = useCallback(async () => {
+    await saveMarketDraft({
+      step: 'preview',
+      write: {
+        type: params.type ?? 'all',
+        title,
+        content,
+        price,
+        country: countryText,
+        region: regionText,
+        returnDate,
+        semester: semesterText,
+        photos: photoList,
+      },
+      category: {
+        selectedCategories: selectedGroups.map((group) => group.category),
+        itemsByCategory,
+      },
+      preview: {
+        selectedItems: JSON.stringify(selectedGroups),
+        itemsByCategory,
+        categoryDetails: categoryDetails as Record<
+          CategoryName,
+          CategoryDetail
+        >,
+      },
+    });
+  }, [
+    categoryDetails,
+    content,
+    countryText,
+    itemsByCategory,
+    params.type,
+    photoList,
+    price,
+    regionText,
+    returnDate,
+    selectedGroups,
+    semesterText,
+    title,
+  ]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      savePreviewDraft().catch((error) => {
+        console.log('중고거래 미리보기 자동저장 실패:', error);
+      });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [savePreviewDraft]);
 
   const openPhotoModal = (category: CategoryName) => {
     setActiveCategory(category);
@@ -520,12 +609,24 @@ export default function MarketPreviewPage() {
     setShowDatePicker(false);
   };
 
-  const toggleItem = (category: CategoryName, index: number) => {
+  const changeItemQuantity = (
+    category: CategoryName,
+    index: number,
+    type: 'minus' | 'plus',
+  ) => {
     setItemsByCategory((prev) => ({
       ...prev,
-      [category]: prev[category].map((item, itemIndex) =>
-        itemIndex === index ? { ...item, checked: !item.checked } : item,
-      ),
+      [category]: prev[category].map((item, itemIndex) => {
+        if (itemIndex !== index) return item;
+
+        return {
+          ...item,
+          quantity:
+            type === 'plus'
+              ? item.quantity + 1
+              : Math.max(1, item.quantity - 1),
+        };
+      }),
     }));
   };
 
@@ -698,6 +799,10 @@ export default function MarketPreviewPage() {
   };
 
   const uploadImage = async (uri: string, index: number | string) => {
+    if (/^https?:\/\//.test(uri)) {
+      return uri;
+    }
+
     const fileName = `used_item_${Date.now()}_${index}.jpg`;
     const contentType = 'image/jpeg';
 
@@ -716,6 +821,10 @@ export default function MarketPreviewPage() {
   };
 
   const handleUpload = async () => {
+    if (isUploading) {
+      return;
+    }
+
     if (photoList.length === 0) {
       Alert.alert('대표 이미지 필요', '대표 사진을 1장 이상 추가해주세요.');
       return;
@@ -775,7 +884,7 @@ export default function MarketPreviewPage() {
         return acc;
       }, {});
 
-      const response = await createUsedItem({
+      const requestBody = {
         title: cleanedTitle,
         content: cleanedContent,
         price: numericPrice,
@@ -803,7 +912,19 @@ export default function MarketPreviewPage() {
                 imageUrl: image.imageUrl,
               }))
             : undefined,
-      });
+      };
+
+      if (isEditMode) {
+        await updateUsedItem(editId, requestBody);
+
+        return {
+          id: editId,
+          uploadedImageUrls,
+          categoryPhotosByCategory,
+        };
+      }
+
+      const response = await createUsedItem(requestBody);
 
       return {
         id: response.data.data,
@@ -811,6 +932,8 @@ export default function MarketPreviewPage() {
         categoryPhotosByCategory,
       };
     };
+
+    setIsUploading(true);
 
     try {
       const nickname = await AsyncStorage.getItem('nickname');
@@ -872,40 +995,40 @@ export default function MarketPreviewPage() {
 
       await clearMarketDraft();
 
-      Alert.alert('업로드 완료', '중고거래 게시글이 등록되었습니다.');
+      Alert.alert(
+        isEditMode ? '수정 완료' : '업로드 완료',
+        isEditMode
+          ? '중고거래 게시글이 수정되었습니다.'
+          : '중고거래 게시글이 등록되었습니다.',
+      );
+      if (isEditMode) {
+        router.replace({
+          pathname: '/market',
+          params: {
+            openItemId: String(uploadResult.id),
+            refresh: String(Date.now()),
+          },
+        } as any);
+        return;
+      }
+
       router.replace('/market' as any);
     } catch (error: any) {
       console.log('중고거래 업로드 실패:', error.response?.data || error.message);
       Alert.alert(
-        '업로드 실패',
-        error.response?.data?.message ?? '게시글 등록에 실패했습니다.',
+        isEditMode ? '수정 실패' : '업로드 실패',
+        error.response?.data?.message ??
+          (isEditMode
+            ? '게시글 수정에 실패했습니다.'
+            : '게시글 등록에 실패했습니다.'),
       );
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleTempSave = async () => {
-    await saveMarketDraft({
-      step: 'preview',
-      write: {
-        type: params.type ?? 'all',
-        title,
-        content,
-        price,
-        country: countryText,
-        region: regionText,
-        returnDate,
-        semester: semesterText,
-        photos: photoList,
-      },
-      preview: {
-        selectedItems: JSON.stringify(selectedGroups),
-        itemsByCategory,
-        categoryDetails: categoryDetails as Record<
-          CategoryName,
-          CategoryDetail
-        >,
-      },
-    });
+    await savePreviewDraft();
 
     Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
   };
@@ -946,11 +1069,13 @@ export default function MarketPreviewPage() {
                 }}
               >
                 {photoList.map((photo, index) => (
-                  <Image
+                  <Pressable
                     key={`${photo}-${index}`}
-                    source={{ uri: photo }}
                     style={styles.previewImage}
-                  />
+                    onPress={() => setExpandedPhoto(photo)}
+                  >
+                    <Image source={{ uri: photo }} style={styles.previewImage} />
+                  </Pressable>
                 ))}
               </ScrollView>
 
@@ -978,7 +1103,7 @@ export default function MarketPreviewPage() {
             <Text style={styles.tag}>{countryText || '국가 미정'}</Text>
             <Text style={styles.tag}>{regionText || '장소 미정'}</Text>
             <Text style={styles.tag}>{semesterText}</Text>
-            <Text style={styles.tag}>{dDayText}</Text>
+            <Text style={styles.tag}>{isEditMode ? '수정 중' : '등록 전'}</Text>
           </View>
 
           <TextInput
@@ -1072,7 +1197,12 @@ export default function MarketPreviewPage() {
                   >
                     {selectedCountry || '선택'}
                   </Text>
-                  <Text style={styles.reviewChevron}>⌄</Text>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color="#B8BECC"
+                    style={styles.reviewChevronIcon}
+                  />
                 </Pressable>
 
                 {isCustomCountry && (
@@ -1110,7 +1240,12 @@ export default function MarketPreviewPage() {
                   >
                     {returnDate || '연도-월-일'}
                   </Text>
-                  <Text style={styles.reviewChevron}>⌄</Text>
+                  <Ionicons
+                    name="chevron-down"
+                    size={16}
+                    color="#B8BECC"
+                    style={styles.reviewChevronIcon}
+                  />
                 </Pressable>
 
                 <Text style={styles.tradeReviewLabel}>제목</Text>
@@ -1184,11 +1319,16 @@ export default function MarketPreviewPage() {
                         style={styles.categoryPhotoPreviewRow}
                       >
                         {detail.photos.map((photo, index) => (
-                          <Image
+                          <Pressable
                             key={`${group.category}-${photo}-${index}`}
-                            source={{ uri: photo }}
                             style={styles.categoryPhotoPreview}
-                          />
+                            onPress={() => setExpandedPhoto(photo)}
+                          >
+                            <Image
+                              source={{ uri: photo }}
+                              style={styles.categoryPhotoPreviewImage}
+                            />
+                          </Pressable>
                         ))}
                       </ScrollView>
                     )}
@@ -1206,17 +1346,6 @@ export default function MarketPreviewPage() {
                       </Text>
                     </Pressable>
 
-                    <View style={styles.itemList}>
-                      {group.items.map((item, index) => (
-                        <Text
-                          key={`${group.category}-${index}`}
-                          style={styles.itemText}
-                        >
-                          • {item.name} {item.quantity}개
-                        </Text>
-                      ))}
-                    </View>
-
                     {hasDescription && (
                       <View style={styles.categoryDescriptionPreview}>
                         <Text style={styles.categoryDescriptionPreviewText}>
@@ -1224,6 +1353,24 @@ export default function MarketPreviewPage() {
                         </Text>
                       </View>
                     )}
+
+                    <View style={styles.itemList}>
+                      {group.items.map((item, index) => (
+                        <View
+                          key={`${group.category}-${index}`}
+                          style={styles.itemCountRow}
+                        >
+                          <Text style={styles.itemNameText} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <View style={styles.itemCountPill}>
+                            <Text style={styles.itemCountText}>
+                              {item.quantity}개
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
 
                     <Pressable
                       onPress={() => openEditListModal(group.category)}
@@ -1240,9 +1387,59 @@ export default function MarketPreviewPage() {
           {activePreviewTab === 'seller' && (
             <>
               <Text style={styles.sectionTitle}>판매자 정보</Text>
-              <Text style={styles.desc}>판매자 정보는 업로드 후 내 프로필 기준으로 표시돼요</Text>
-              <View style={styles.sellerPreviewBox}>
-                <Text style={styles.sellerPreviewText}>내 프로필 정보로 등록 예정</Text>
+              <Text style={styles.desc}>거래 상대에게 보일 내 프로필 정보예요</Text>
+
+              <View style={styles.sellerProfileCard}>
+                <View style={styles.sellerProfileImage}>
+                  <Text style={styles.sellerProfileInitial}>
+                    {sellerInitial}
+                  </Text>
+                </View>
+
+                <View style={styles.sellerProfileTextBox}>
+                  <View style={styles.sellerNameRow}>
+                    <Text style={styles.sellerNameText} numberOfLines={1}>
+                      {sellerName}
+                    </Text>
+                    <View style={styles.sellerVerifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={13} color="#123F9F" />
+                      <Text style={styles.sellerVerifiedText}>인증완료</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.sellerMetaText}>
+                    {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '지역 미정'} · {sellerDispatchSemester} 파견생
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.sellerInfoList}>
+                <View style={styles.sellerInfoRow}>
+                  <Text style={styles.sellerInfoLabel}>소속대학</Text>
+                  <Text style={styles.sellerInfoValue}>
+                    {sellerDomesticUniversity}
+                  </Text>
+                </View>
+
+                <View style={styles.sellerInfoRow}>
+                  <Text style={styles.sellerInfoLabel}>파견국가 및 지역</Text>
+                  <Text style={styles.sellerInfoValue}>
+                    {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '미정'}
+                  </Text>
+                </View>
+
+                <View style={styles.sellerInfoRow}>
+                  <Text style={styles.sellerInfoLabel}>파견교</Text>
+                  <Text style={styles.sellerInfoValue}>
+                    {sellerDispatchedUniversity}
+                  </Text>
+                </View>
+
+                <View style={styles.sellerInfoRow}>
+                  <Text style={styles.sellerInfoLabel}>파견학기</Text>
+                  <Text style={styles.sellerInfoValue}>
+                    {sellerDispatchSemester}
+                  </Text>
+                </View>
               </View>
             </>
           )}
@@ -1258,7 +1455,13 @@ export default function MarketPreviewPage() {
                 !canUpload && styles.disabledButtonText,
               ]}
             >
-              업로드 하기
+              {isUploading
+                ? isEditMode
+                  ? '수정 중...'
+                  : '업로드 중...'
+                : isEditMode
+                  ? '변경하기'
+                  : '업로드 하기'}
             </Text>
           </Pressable>
         </View>
@@ -1281,10 +1484,15 @@ export default function MarketPreviewPage() {
                         key={`${activeCategory}-${photo}-${index}`}
                         style={styles.photoModalPreviewWrap}
                       >
-                        <Image
-                          source={{ uri: photo }}
+                        <Pressable
                           style={styles.photoModalPreview}
-                        />
+                          onPress={() => setExpandedPhoto(photo)}
+                        >
+                          <Image
+                            source={{ uri: photo }}
+                            style={styles.photoModalPreviewImage}
+                          />
+                        </Pressable>
 
                         <Pressable
                           style={styles.removePhotoButton}
@@ -1341,6 +1549,29 @@ export default function MarketPreviewPage() {
           </DraggableSheet>
       </Modal>
 
+      <Modal transparent visible={Boolean(expandedPhoto)} animationType="fade">
+        <View style={styles.fullImageOverlay}>
+          <Pressable
+            style={styles.fullImageBackdrop}
+            onPress={() => setExpandedPhoto(null)}
+          />
+
+          {expandedPhoto && (
+            <Image
+              source={{ uri: expandedPhoto }}
+              style={styles.fullImage}
+            />
+          )}
+
+          <Pressable
+            style={styles.fullImageCloseButton}
+            onPress={() => setExpandedPhoto(null)}
+          >
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </Modal>
+
       <Modal transparent visible={editListModalVisible} animationType="none">
         <KeyboardAvoidingView
           style={styles.modalKeyboardAvoiding}
@@ -1363,61 +1594,79 @@ export default function MarketPreviewPage() {
                     {activeCategory}
                   </Text>
 
-                  <View style={styles.editItemGrid}>
-                    {itemsByCategory[activeCategory].map((item, index) => {
-                      const category = activeCategory;
+                  <ScrollView
+                    style={styles.editItemScroll}
+                    contentContainerStyle={styles.editItemGrid}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {itemsByCategory[activeCategory]
+                      .map((item, index) => ({ item, index }))
+                      .filter(({ item }) => item.checked)
+                      .map(({ item, index }) => {
+                        const category = activeCategory;
 
-                      return (
-                        <View
-                          key={`${category}-${index}`}
-                          style={styles.editItemCell}
-                        >
-                          <Pressable
-                            style={[
-                              styles.editCheckbox,
-                              item.checked && styles.editCheckboxActive,
-                            ]}
-                            onPress={() => toggleItem(category, index)}
+                        return (
+                          <View
+                            key={`${category}-${index}`}
+                            style={styles.editItemCell}
                           >
-                            {item.checked && (
-                              <Text style={styles.editCheckMark}>✓</Text>
+                            {item.editing ? (
+                              <TextInput
+                                style={styles.editItemInput}
+                                placeholder="품목 입력"
+                                placeholderTextColor="#999999"
+                                value={item.name}
+                                autoFocus={item.name.length === 0}
+                                onChangeText={(value) =>
+                                  changeItemName(category, index, value)
+                                }
+                                onBlur={() => finishEditItem(category, index)}
+                                onSubmitEditing={() =>
+                                  finishEditItem(category, index)
+                                }
+                              />
+                            ) : (
+                              <Text style={styles.editItemText} numberOfLines={1}>
+                                {item.name || '품목명'}
+                              </Text>
                             )}
-                          </Pressable>
 
-                          {item.editing ? (
-                            <TextInput
-                              style={styles.editItemInput}
-                              placeholder="품목 입력"
-                              placeholderTextColor="#999999"
-                              value={item.name}
-                              autoFocus={item.name.length === 0}
-                              onChangeText={(value) =>
-                                changeItemName(category, index, value)
-                              }
-                              onBlur={() => finishEditItem(category, index)}
-                              onSubmitEditing={() =>
-                                finishEditItem(category, index)
-                              }
-                            />
-                          ) : (
-                            <Text style={styles.editItemText} numberOfLines={1}>
-                              {item.name || '품목명'} {item.quantity}개
-                            </Text>
-                          )}
+                            <View style={styles.editQuantityControl}>
+                              <Pressable
+                                style={styles.editQuantityButton}
+                                onPress={() =>
+                                  changeItemQuantity(category, index, 'minus')
+                                }
+                              >
+                                <Text style={styles.editQuantityButtonText}>−</Text>
+                              </Pressable>
+                              <Text style={styles.editQuantityNumber}>
+                                {item.quantity}
+                              </Text>
+                              <Pressable
+                                style={styles.editQuantityButton}
+                                onPress={() =>
+                                  changeItemQuantity(category, index, 'plus')
+                                }
+                              >
+                                <Text style={styles.editQuantityButtonText}>＋</Text>
+                              </Pressable>
+                            </View>
 
-                          <Pressable
-                            style={styles.editPencilButton}
-                            onPress={() => toggleEditItem(category, index)}
-                          >
-                            <Image
-                              source={require('../../../assets/images/pen.png')}
-                              style={styles.editPencilIcon}
-                            />
-                          </Pressable>
-                        </View>
-                      );
-                    })}
-                  </View>
+                            <Pressable
+                              style={styles.editPencilButton}
+                              onPress={() => toggleEditItem(category, index)}
+                            >
+                              <Image
+                                source={require('../../../assets/images/pen.png')}
+                                style={styles.editPencilIcon}
+                              />
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                  </ScrollView>
 
                   <Pressable
                     style={styles.addListItemButton}
@@ -1557,6 +1806,18 @@ export default function MarketPreviewPage() {
         onClose={() => setCountryModalVisible(false)}
         onSelect={handleSelectCountry}
       />
+
+      <Modal transparent visible={isUploading} animationType="fade">
+        <View style={styles.uploadingOverlay}>
+          <View style={styles.uploadingBox}>
+            <ActivityIndicator color={BLUE} size="large" />
+            <Text style={styles.uploadingTitle}>업로드 중</Text>
+            <Text style={styles.uploadingDesc}>
+              사진과 게시글을 {isEditMode ? '수정하고' : '등록하고'} 있어요.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -1688,19 +1949,94 @@ const styles = StyleSheet.create({
   activeLineSeller: {
     marginLeft: '66.66%',
   },
-  sellerPreviewBox: {
-    minHeight: 92,
-    borderRadius: 8,
-    backgroundColor: '#F7F7F7',
+  sellerProfileCard: {
+    borderRadius: 10,
+    backgroundColor: '#F7F8FC',
+    borderWidth: 1,
+    borderColor: '#E7EAF2',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  sellerProfileImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#DDE6FF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    marginRight: 12,
+  },
+  sellerProfileInitial: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  sellerProfileTextBox: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sellerNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  sellerNameText: {
+    maxWidth: '58%',
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  sellerVerifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    borderRadius: 999,
+    backgroundColor: '#EAF0FF',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  sellerVerifiedText: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: '#123F9F',
+  },
+  sellerMetaText: {
+    marginTop: 6,
+    fontSize: 11,
+    lineHeight: 16,
+    color: '#555555',
+    fontWeight: '700',
+  },
+  sellerInfoList: {
+    borderRadius: 8,
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    gap: 11,
     marginBottom: 22,
   },
-  sellerPreviewText: {
-    fontSize: 14,
+  sellerInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  sellerInfoLabel: {
+    width: 96,
+    fontSize: 12,
     fontWeight: '800',
-    color: '#555555',
+    color: '#777777',
+  },
+  sellerInfoValue: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '800',
+    color: '#111111',
   },
   tradeReviewBox: {
     borderWidth: 1,
@@ -1752,10 +2088,8 @@ const styles = StyleSheet.create({
   reviewSelectTextActive: {
     color: '#111111',
   },
-  reviewChevron: {
-    fontSize: 21,
-    color: '#B8BECC',
-    marginTop: -2,
+  reviewChevronIcon: {
+    marginLeft: 8,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1824,8 +2158,14 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 8,
-    resizeMode: 'cover',
     marginRight: 8,
+    overflow: 'hidden',
+  },
+
+  categoryPhotoPreviewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
 
   categoryDescriptionPreview: {
@@ -1843,8 +2183,46 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  itemList: { marginTop: 12, marginBottom: 10 },
-  itemText: { fontSize: 13, lineHeight: 24, color: '#111111' },
+  itemList: {
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 10,
+  },
+  itemCountRow: {
+    minHeight: 42,
+    borderRadius: 8,
+    backgroundColor: '#F7F8FC',
+    borderWidth: 1,
+    borderColor: '#EBEEF5',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  itemNameText: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#111111',
+    fontWeight: '800',
+  },
+  itemCountPill: {
+    minWidth: 42,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#EAF0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+  },
+  itemCountText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
+  },
   editButton: {
     marginTop: 14,
     height: 40,
@@ -1926,16 +2304,21 @@ const styles = StyleSheet.create({
   },
   editItemGrid: {
     gap: 8,
+    paddingBottom: 4,
+  },
+  editItemScroll: {
+    maxHeight: SCREEN_HEIGHT * 0.42,
   },
   editItemCell: {
     width: '100%',
-    minHeight: 42,
-    borderRadius: 4,
+    minHeight: 48,
+    borderRadius: 8,
     backgroundColor: '#F7F7F7',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
+    paddingHorizontal: 10,
     marginBottom: 0,
+    gap: 8,
   },
   editCheckbox: {
     width: 22,
@@ -1959,17 +2342,48 @@ const styles = StyleSheet.create({
   },
   editItemText: {
     flex: 1,
+    minWidth: 0,
     fontSize: 14,
     color: '#333333',
-    fontWeight: '600',
+    fontWeight: '800',
   },
   editItemInput: {
     flex: 1,
+    minWidth: 0,
     height: 30,
     paddingVertical: 0,
     fontSize: 14,
     color: '#111111',
     fontWeight: '700',
+  },
+  editQuantityControl: {
+    width: 86,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E6EAF3',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 7,
+  },
+  editQuantityButton: {
+    width: 24,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editQuantityButtonText: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#111111',
+    lineHeight: 17,
+  },
+  editQuantityNumber: {
+    minWidth: 18,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
   },
   editPencilButton: {
     width: 28,
@@ -2027,7 +2441,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 10,
+    overflow: 'hidden',
+  },
+  photoModalPreviewImage: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
+  },
+  fullImageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fullImageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  fullImage: {
+    width: SCREEN_WIDTH,
+    height: '78%',
+    resizeMode: 'contain',
+  },
+  fullImageCloseButton: {
+    position: 'absolute',
+    top: 54,
+    right: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   removePhotoButton: {
     position: 'absolute',
@@ -2106,5 +2550,35 @@ const styles = StyleSheet.create({
     height: 216,
     width: '100%',
     backgroundColor: '#FFFFFF',
+  },
+  uploadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 34,
+  },
+  uploadingBox: {
+    width: '100%',
+    maxWidth: 280,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
+  uploadingTitle: {
+    marginTop: 14,
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111111',
+  },
+  uploadingDesc: {
+    marginTop: 7,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '700',
+    color: '#666666',
+    textAlign: 'center',
   },
 });

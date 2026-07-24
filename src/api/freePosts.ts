@@ -17,6 +17,7 @@ export interface FreePostSummaryResponse {
   status: string;
   authorName: string;
   likeCount: number;
+  scrapCount?: number;
   commentCount: number;
   thumbnailImageUrl?: string;
   createdAt: string;
@@ -39,6 +40,7 @@ export interface FreePostDetailResponse {
   authorName: string;
   imageUrls?: string[];
   likeCount: number;
+  scrapCount?: number;
   commentCount: number;
   liked: boolean;
   mine: boolean;
@@ -72,6 +74,13 @@ export const getLikedFreePosts = (params: CursorRequest = { size: 20 }) => {
   );
 };
 
+export const getScrappedFreePosts = (params: CursorRequest = { size: 20 }) => {
+  return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
+    '/api/community/free-posts/scraps',
+    { params },
+  );
+};
+
 export const createFreePost = (data: FreePostRequest) => {
   return api.post<BaseResponse<number>>('/api/community/free-posts', data);
 };
@@ -93,6 +102,12 @@ export const deleteFreePost = (postId: number) => {
 export const toggleFreePostLike = (postId: number) => {
   return api.post<BaseResponse<FreePostLikeResponse>>(
     `/api/community/free-posts/${postId}/like`,
+  );
+};
+
+export const toggleFreePostScrap = (postId: number) => {
+  return api.post<BaseResponse<boolean>>(
+    `/api/community/free-posts/${postId}/scrap`,
   );
 };
 

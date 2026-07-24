@@ -27,6 +27,7 @@ export interface CompanionPostResponse {
   chatLink: string;
   status: 'RECRUITING' | 'COMPLETED';
   statusDescription?: string;
+  scrapCount?: number;
   capacity: number;
   currentParticipants: number;
   genderRatio?: string;
@@ -96,4 +97,17 @@ export const getMyCompanionPostPage = (
     '/api/companions/my',
     { params },
   );
+};
+
+export const getScrappedCompanionPosts = (
+  params: CursorRequest = { size: 20 },
+) => {
+  return api.get<BaseResponse<CompanionPostListResponse>>(
+    '/api/companions/scraps',
+    { params },
+  );
+};
+
+export const toggleCompanionPostScrap = (postId: number) => {
+  return api.post<BaseResponse<boolean>>(`/api/companions/${postId}/scrap`);
 };

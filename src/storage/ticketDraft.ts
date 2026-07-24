@@ -10,7 +10,11 @@ export type TicketDraft = {
   eventTime: string;
   country: string;
   location: string;
+  departureLocation?: string;
+  arrivalLocation?: string;
   quantity: number;
+  currencyUnit?: string;
+  customCurrencyUnit?: string;
   transferPrice: string;
   originalPrice: string;
   title: string;

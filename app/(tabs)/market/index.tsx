@@ -21,10 +21,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   getTickets,
+  getScrappedTickets,
+  searchTickets,
   TicketTransferResponse,
   TicketType,
+  toggleTicketScrap,
 } from '../../../src/api/ticket';
-import { getUsedItems, UsedItem } from '../../../src/api/usedItems';
+import {
+  getScrappedUsedItems,
+  getUsedItems,
+  searchUsedItems,
+  toggleUsedItemScrap,
+  UsedItem,
+} from '../../../src/api/usedItems';
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 import {
   clearMarketDraft,
@@ -35,6 +44,8 @@ import {
   clearTicketDraft,
   getTicketDraft,
 } from '../../../src/storage/ticketDraft';
+import { getTicketMetadataMap } from '../../../src/storage/ticketMetadata';
+import { getUsedItemStatusMap } from '../../../src/storage/usedItemStatus';
 import { AppBackButton } from '@/components/ui/app-back-button';
 const countryTabs = ['전체', '독일', '프랑스', '스페인', '체코'];
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
@@ -75,7 +86,8 @@ const ticketTypeLabelMap: Record<TicketType, string> = {
   ACCOMMODATION: '숙박',
 };
 
-const formatTicketPrice = (price: number) => `€ ${price.toLocaleString('ko-KR')}`;
+const formatTicketPrice = (price: number, currencyUnit = '€') =>
+  `${currencyUnit} ${price.toLocaleString('ko-KR')}`;
 
 const formatSingleTicketDate = (date: string) => {
   const [, month, day] = date.trim().split('-');
@@ -128,7 +140,24 @@ const formatTicketCreatedTime = (createdAt?: string) => {
 
 const formatRelativeTime = formatTicketCreatedTime;
 
-const mapTicketItem = (item: TicketTransferResponse): TicketItem => ({
+const mergeUniqueById = <T extends { id: number }>(groups: T[][]) => {
+  const seenIds = new Set<number>();
+  const mergedItems: T[] = [];
+
+  groups.flat().forEach((item) => {
+    if (seenIds.has(item.id)) return;
+
+    seenIds.add(item.id);
+    mergedItems.push(item);
+  });
+
+  return mergedItems;
+};
+
+const mapTicketItem = (
+  item: TicketTransferResponse,
+  currencyUnit = '€',
+): TicketItem => ({
   id: item.id,
   title: item.title,
   country: item.authorDispatchedCountry ?? '',
@@ -136,7 +165,7 @@ const mapTicketItem = (item: TicketTransferResponse): TicketItem => ({
   region: item.country,
   category: ticketTypeLabelMap[item.ticketType],
   date: formatTicketDate(item.eventDate),
-  price: formatTicketPrice(item.transferPrice),
+  price: formatTicketPrice(item.transferPrice, currencyUnit),
   time: formatTicketCreatedTime(item.createdAt ?? item.updatedAt),
 });
 
@@ -196,17 +225,26 @@ const saveLikedMarketPosts = async (
 export default function MarketPage() {
   const insets = useSafeAreaInsets();
   const [selectedTab, setSelectedTab] = useState<'bulk' | 'ticket'>('bulk');
-  const { tab, fromTab, fromHome } = useLocalSearchParams<{
-    tab?: string;
-    fromTab?: string;
-    fromHome?: string;
-  }>();
+  const { tab, fromTab, fromHome, openItemId, openTicketId } =
+    useLocalSearchParams<{
+      tab?: string;
+      fromTab?: string;
+      fromHome?: string;
+      openItemId?: string;
+      openTicketId?: string;
+    }>();
   const openedFromTab = fromTab === 'true';
   const openedFromHome = fromHome === 'true';
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
+  const [ticketCurrencyMap, setTicketCurrencyMap] = useState<Record<string, string>>(
+    {},
+  );
+  const [usedStatusMap, setUsedStatusMap] = useState<Record<string, 'AVAILABLE' | 'COMPLETED'>>(
+    {},
+  );
   const [ticketNextCursorId, setTicketNextCursorId] = useState<number | null>(
     null,
   );
@@ -217,6 +255,11 @@ export default function MarketPage() {
   const [selectedCountry, setSelectedCountry] = useState('전체');
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const openedEditDetailRef = useRef<string | null>(null);
+  const latestMarketQueryRef = useRef({
+    keyword: '',
+    country: '전체',
+  });
   useEffect(() => {
     if (tab === 'ticket') {
       setSelectedTab('ticket');
@@ -227,39 +270,125 @@ export default function MarketPage() {
     }
   }, [tab]);
 
+  useEffect(() => {
+    if (openItemId) {
+      const requestKey = `item:${openItemId}`;
+
+      if (openedEditDetailRef.current === requestKey) return;
+
+      openedEditDetailRef.current = requestKey;
+      setSelectedTab('bulk');
+      setSelectedType('bulk');
+
+      const frame = requestAnimationFrame(() => {
+        router.push({
+          pathname: '/market/[id]',
+          params: { id: openItemId },
+        } as any);
+      });
+
+      return () => cancelAnimationFrame(frame);
+    }
+
+    if (openTicketId) {
+      const requestKey = `ticket:${openTicketId}`;
+
+      if (openedEditDetailRef.current === requestKey) return;
+
+      openedEditDetailRef.current = requestKey;
+      setSelectedTab('ticket');
+      setSelectedType('ticket');
+
+      const frame = requestAnimationFrame(() => {
+        router.push({
+          pathname: '/market/ticket-preview',
+          params: { id: openTicketId },
+        } as any);
+      });
+
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [openItemId, openTicketId]);
+
+  useEffect(() => {
+    latestMarketQueryRef.current = {
+      keyword: searchKeyword,
+      country: selectedCountry,
+    };
+  }, [searchKeyword, selectedCountry]);
+
   const loadStoredMarketInteractions = async () => {
     try {
-      const likedMarketPosts = await AsyncStorage.getItem(
-        LIKED_MARKET_POSTS_STORAGE_KEY,
-      );
+      const response = await getScrappedUsedItems({ size: 100 });
+      const ids = response.data.data.items.map((item) => item.id);
 
-      if (likedMarketPosts) {
+      setLikedIds(ids);
+    } catch (error: any) {
+      console.log('스크랩한 중고거래 목록 조회 실패:', error.response?.data || error.message);
+      try {
+        const likedMarketPosts = await AsyncStorage.getItem(
+          LIKED_MARKET_POSTS_STORAGE_KEY,
+        );
+
+        if (!likedMarketPosts) return;
         const parsedPosts = JSON.parse(likedMarketPosts) as Partial<LikedMarketPost>[];
         const ids = parsedPosts
           .map((item) => item.id)
           .filter((storedId): storedId is number => typeof storedId === 'number');
 
         setLikedIds(ids);
+      } catch {
+        await AsyncStorage.removeItem(LIKED_MARKET_POSTS_STORAGE_KEY);
       }
-    } catch {
-      await AsyncStorage.removeItem(LIKED_MARKET_POSTS_STORAGE_KEY);
     }
 
     try {
-      const savedTickets = await AsyncStorage.getItem(
-        SAVED_TICKET_POSTS_STORAGE_KEY,
-      );
-
-      if (!savedTickets) return;
-
-      const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
-      const ids = parsedTickets
-        .map((item) => item.id)
-        .filter((storedId): storedId is number => typeof storedId === 'number');
+      const response = await getScrappedTickets({ size: 100 });
+      const ids = response.data.data.items.map((item) => item.id);
 
       setBookmarkedIds(ids);
+    } catch (error: any) {
+      console.log('스크랩한 티켓 목록 조회 실패:', error.response?.data || error.message);
+      try {
+        const savedTickets = await AsyncStorage.getItem(
+          SAVED_TICKET_POSTS_STORAGE_KEY,
+        );
+
+        if (!savedTickets) return;
+
+        const parsedTickets = JSON.parse(savedTickets) as Partial<TicketItem>[];
+        const ids = parsedTickets
+          .map((item) => item.id)
+          .filter((storedId): storedId is number => typeof storedId === 'number');
+
+        setBookmarkedIds(ids);
+      } catch {
+        await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
+      }
+    }
+
+    try {
+      setUsedStatusMap(await getUsedItemStatusMap());
     } catch {
-      await AsyncStorage.removeItem(SAVED_TICKET_POSTS_STORAGE_KEY);
+      setUsedStatusMap({});
+    }
+
+    try {
+      const metadataMap = await getTicketMetadataMap();
+      const currencyMap = Object.entries(metadataMap).reduce<Record<string, string>>(
+        (acc, [ticketId, metadata]) => {
+          if (metadata.currencyUnit) {
+            acc[ticketId] = metadata.currencyUnit;
+          }
+
+          return acc;
+        },
+        {},
+      );
+
+      setTicketCurrencyMap(currencyMap);
+    } catch {
+      setTicketCurrencyMap({});
     }
   };
 
@@ -267,32 +396,96 @@ export default function MarketPage() {
     loadStoredMarketInteractions();
   }, []);
 
-  const fetchUsedItems = async () => {
+  const fetchUsedItems = useCallback(async (keyword = '', country = '전체') => {
     try {
-      const response = await getUsedItems();
-      console.log('중고거래 목록:', response.data);
+      const keywordText = keyword.trim();
+      const countryParam = country === '전체' ? undefined : country;
+
+      if (keywordText.length > 0) {
+        const [titleResponse, contentResponse] = await Promise.all([
+          searchUsedItems({
+            title: keywordText,
+            country: countryParam,
+            size: 30,
+          }),
+          searchUsedItems({
+            content: keywordText,
+            country: countryParam,
+            size: 30,
+          }),
+        ]);
+
+        setItems(
+          mergeUniqueById([
+            titleResponse.data.data.items ?? [],
+            contentResponse.data.data.items ?? [],
+          ]),
+        );
+        return;
+      }
+
+      const response = countryParam
+        ? await searchUsedItems({ country: countryParam, size: 30 })
+        : await getUsedItems({ size: 30 });
+
       setItems(response.data.data.items ?? []);
     } catch (error: any) {
       console.log(
         '중고거래 목록 조회 실패:',
         error.response?.data || error.message,
       );
+      setItems([]);
     }
-  };
+  }, []);
 
-  const fetchTickets = async (cursorId?: number) => {
+  const fetchTickets = useCallback(
+    async (cursorId?: number, keyword = '', country = '전체') => {
     try {
+      const keywordText = keyword.trim();
+      const countryParam = country === '전체' ? undefined : country;
+      const shouldSearchByKeyword = keywordText.length > 0;
+
+      if (shouldSearchByKeyword && cursorId) {
+        return;
+      }
+
       if (cursorId) {
         ticketLoadingMoreRef.current = true;
         setTicketLoadingMore(true);
       }
 
-      const response = await getTickets(cursorId, 10);
-      const { items: nextItems = [], nextCursorId, hasNext } =
-        response.data.data;
+      const responseData = shouldSearchByKeyword
+        ? {
+            items: mergeUniqueById(
+              await Promise.all([
+                searchTickets({
+                  title: keywordText,
+                  country: countryParam,
+                  size: 30,
+                }).then((response) => response.data.data.items ?? []),
+                searchTickets({
+                  content: keywordText,
+                  country: countryParam,
+                  size: 30,
+                }).then((response) => response.data.data.items ?? []),
+              ]),
+            ),
+            nextCursorId: null,
+            hasNext: false,
+          }
+        : (
+            countryParam
+              ? await searchTickets({
+                  cursorId,
+                  country: countryParam,
+                  size: 10,
+                })
+              : await getTickets(cursorId, 10)
+          ).data.data;
+      const { items: nextItems = [], nextCursorId, hasNext } = responseData;
 
       setTickets((prev) => {
-        if (!cursorId) {
+        if (!cursorId || shouldSearchByKeyword) {
           return nextItems;
         }
 
@@ -318,14 +511,16 @@ export default function MarketPage() {
         setTicketLoadingMore(false);
       }
     }
-  };
+    },
+    [],
+  );
 
   const fetchNextTickets = () => {
     if (!ticketHasNext || !ticketNextCursorId || ticketLoadingMoreRef.current) {
       return;
     }
 
-    fetchTickets(ticketNextCursorId);
+    fetchTickets(ticketNextCursorId, searchKeyword, selectedCountry);
   };
 
   const handleMarketScroll = (
@@ -380,14 +575,31 @@ export default function MarketPage() {
 
   useFocusEffect(
     useCallback(() => {
+      const { keyword, country } = latestMarketQueryRef.current;
+
       loadStoredMarketInteractions();
-      fetchUsedItems();
-      fetchTickets();
+      fetchUsedItems(keyword, country);
+      fetchTickets(undefined, keyword, country);
       checkVerificationStatus();
-    }, []),
+    }, [fetchTickets, fetchUsedItems]),
   );
 
-  const toggleLike = (id: number) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (selectedType === 'ticket') {
+        fetchTickets(undefined, searchKeyword, selectedCountry);
+        return;
+      }
+
+      fetchUsedItems(searchKeyword, selectedCountry);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [fetchTickets, fetchUsedItems, searchKeyword, selectedCountry, selectedType]);
+
+  const toggleLike = async (id: number) => {
+    const wasSaved = likedIds.includes(id);
+
     setLikedIds((prev) => {
       const next = prev.includes(id)
         ? prev.filter((item) => item !== id)
@@ -399,14 +611,31 @@ export default function MarketPage() {
 
       return next;
     });
+
+    try {
+      await toggleUsedItemScrap(id);
+    } catch (error: any) {
+      console.log('중고거래 스크랩 실패:', error.response?.data || error.message);
+      setLikedIds((prev) =>
+        wasSaved
+          ? Array.from(new Set([...prev, id]))
+          : prev.filter((item) => item !== id),
+      );
+      Alert.alert('저장 실패', '게시글 저장 상태를 변경하지 못했어요.');
+    }
   };
 
   const ticketItems = useMemo(
-    () => tickets.map(mapTicketItem),
-    [tickets],
+    () =>
+      tickets.map((item) =>
+        mapTicketItem(item, ticketCurrencyMap[String(item.id)] ?? '€'),
+      ),
+    [ticketCurrencyMap, tickets],
   );
 
-  const toggleBookmark = (id: number) => {
+  const toggleBookmark = async (id: number) => {
+    const wasSaved = bookmarkedIds.includes(id);
+
     setBookmarkedIds((prev) => {
       const next = prev.includes(id)
         ? prev.filter((item) => item !== id)
@@ -418,6 +647,18 @@ export default function MarketPage() {
 
       return next;
     });
+
+    try {
+      await toggleTicketScrap(id);
+    } catch (error: any) {
+      console.log('티켓 스크랩 실패:', error.response?.data || error.message);
+      setBookmarkedIds((prev) =>
+        wasSaved
+          ? Array.from(new Set([...prev, id]))
+          : prev.filter((item) => item !== id),
+      );
+      Alert.alert('저장 실패', '티켓 저장 상태를 변경하지 못했어요.');
+    }
   };
 
   const buildDraftWriteParams = (draft: MarketDraft) => ({
@@ -436,11 +677,22 @@ export default function MarketPage() {
     const writeParams = buildDraftWriteParams(draft);
 
     if (draft.step === 'preview' && draft.preview) {
+      const previewSelectedCategories =
+        draft.category?.selectedCategories ??
+        Object.entries(draft.preview.itemsByCategory)
+          .filter(([, items]) =>
+            items.some((item) => item.checked && item.name.trim().length > 0),
+          )
+          .map(([category]) => category);
+
       router.push({
-        pathname: '/market/preview',
+        pathname: '/market/write',
         params: {
           ...writeParams,
+          resumeCategory: 'true',
+          resumePreview: 'true',
           selectedItems: draft.preview.selectedItems,
+          draftSelectedCategories: JSON.stringify(previewSelectedCategories),
           draftItemsByCategory: JSON.stringify(draft.preview.itemsByCategory),
           draftCategoryDetails: JSON.stringify(draft.preview.categoryDetails),
         },
@@ -450,11 +702,13 @@ export default function MarketPage() {
 
     if (draft.step === 'category' && draft.category) {
       router.push({
-        pathname: '/market/category',
+        pathname: '/market/write',
         params: {
           ...writeParams,
+          resumeCategory: 'true',
           draftSelectedCategories: JSON.stringify(draft.category.selectedCategories),
           draftItemsByCategory: JSON.stringify(draft.category.itemsByCategory),
+          draftCategoryDetails: JSON.stringify(draft.preview?.categoryDetails ?? {}),
         },
       } as any);
       return;
@@ -572,28 +826,29 @@ export default function MarketPage() {
   };
 
   const displayItems = items.map((item) => {
-    const liked = likedIds.includes(item.id) || Boolean(item.likedByMe);
-    const baseLikes = item.likeCount ?? 0;
-    const likes = baseLikes + (likedIds.includes(item.id) && !item.likedByMe ? 1 : 0);
+    const saved = likedIds.includes(item.id);
+    const baseScraps = item.scrapCount ?? 0;
+    const scraps = baseScraps || (saved ? 1 : 0);
     const sellerCountry = item.authorDispatchedCountry ?? '';
     const tradeCountry = item.country ?? '';
+    const status = item.status ?? usedStatusMap[String(item.id)] ?? 'AVAILABLE';
 
     return {
       id: item.id,
       title: item.title,
+      status,
       sellerCountry,
       tradeCountry,
       region: item.region,
       semester: item.semester,
       time: formatRelativeTime(item.createdAt ?? item.updatedAt),
       priceText: formatPrice(item.price),
-      likes,
-      liked,
+      scraps,
+      saved,
       chats: item.chatCount ?? 0,
       imageUrl: item.thumbnailImageUrl ?? '',
       meta: [
-        sellerCountry ? `판매자 ${sellerCountry}` : '',
-        tradeCountry ? `거래 ${tradeCountry}` : '',
+        tradeCountry,
         item.region,
         item.semester,
         formatRelativeTime(item.createdAt ?? item.updatedAt),
@@ -603,23 +858,19 @@ export default function MarketPage() {
     };
   });
 
-  const normalizedSearchKeyword = searchKeyword.trim().toLowerCase();
-
-  const filteredItems = displayItems.filter((item) => {
-    const countryMatched =
-      selectedCountry === '전체' ||
-      item.tradeCountry === selectedCountry ||
-      item.sellerCountry === selectedCountry ||
-      item.region.includes(selectedCountry);
-    const searchMatched =
-      normalizedSearchKeyword.length === 0 ||
-      [item.title, item.meta, item.priceText]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedSearchKeyword);
-
-    return countryMatched && searchMatched;
-  });
+  const filteredItems = displayItems
+    .filter((item) => {
+      return (
+        selectedCountry === '전체' ||
+        item.tradeCountry === selectedCountry ||
+        item.sellerCountry === selectedCountry ||
+        item.region.includes(selectedCountry)
+      );
+    })
+    .sort((a, b) => {
+      if (a.status === b.status) return 0;
+      return a.status === 'COMPLETED' ? 1 : -1;
+    });
 
   const displayTickets = tickets.map((item) => ({
     id: item.id,
@@ -631,31 +882,21 @@ export default function MarketPage() {
     title: item.title,
     date: formatTicketDate(item.eventDate),
     count: `${item.quantity}매`,
-    price: formatTicketPrice(item.transferPrice),
+    price: formatTicketPrice(
+      item.transferPrice,
+      ticketCurrencyMap[String(item.id)] ?? '€',
+    ),
     originalPrice: item.originalPrice
-      ? formatTicketPrice(item.originalPrice)
+      ? formatTicketPrice(
+          item.originalPrice,
+          ticketCurrencyMap[String(item.id)] ?? '€',
+        )
       : '',
-    likes: 0,
+    scraps: item.scrapCount ?? 0,
   }));
 
   const filteredTickets = displayTickets.filter((item) => {
-    const countryMatched =
-      selectedCountry === '전체' || item.region.includes(selectedCountry);
-    const searchMatched =
-      normalizedSearchKeyword.length === 0 ||
-      [
-        item.title,
-        item.country,
-        item.region,
-        item.category,
-        item.date,
-        item.price,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedSearchKeyword);
-
-    return countryMatched && searchMatched;
+    return selectedCountry === '전체' || item.region.includes(selectedCountry);
   });
 
   return (
@@ -760,7 +1001,7 @@ export default function MarketPage() {
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
-            placeholder="제목, 국가, 지역 검색"
+            placeholder="제목, 내용 검색"
             placeholderTextColor="#777777"
             value={searchKeyword}
             onChangeText={setSearchKeyword}
@@ -797,7 +1038,10 @@ export default function MarketPage() {
               {filteredItems.map((item) => (
                 <Pressable
                   key={item.id}
-                  style={styles.postCard}
+                  style={[
+                    styles.postCard,
+                    item.status === 'COMPLETED' && styles.postCardCompleted,
+                  ]}
                   onPress={() =>
                     router.push({
                       pathname: '/market/[id]',
@@ -816,21 +1060,18 @@ export default function MarketPage() {
                     <Pressable
                       style={[
                         styles.heartCircle,
-                        likedIds.includes(item.id) && styles.heartCircleActive,
+                        item.saved && styles.heartCircleActive,
                       ]}
                       onPress={(e) => {
                         e.stopPropagation();
                         toggleLike(item.id);
                       }}
                     >
-                      <Text
-                        style={[
-                          styles.heart,
-                          likedIds.includes(item.id) && styles.heartActive,
-                        ]}
-                      >
-                        ♥
-                      </Text>
+                      <Ionicons
+                        name={item.saved ? 'bookmark' : 'bookmark-outline'}
+                        size={18}
+                        color={item.saved ? BLUE : '#FFFFFF'}
+                      />
                     </Pressable>
                   </View>
 
@@ -839,6 +1080,11 @@ export default function MarketPage() {
                       <Text style={styles.postTitle} numberOfLines={2}>
                         {item.title}
                       </Text>
+                      {item.status === 'COMPLETED' ? (
+                        <View style={styles.completedBadge}>
+                          <Text style={styles.completedBadgeText}>거래완료</Text>
+                        </View>
+                      ) : null}
                       <Text style={styles.arrow}>›</Text>
                     </View>
 
@@ -851,11 +1097,11 @@ export default function MarketPage() {
                     <View style={styles.reactionRow}>
                       <View style={styles.reactionItem}>
                         <Ionicons
-                          name={item.liked ? 'heart' : 'heart-outline'}
+                          name={item.saved ? 'bookmark' : 'bookmark-outline'}
                           size={14}
-                          color={item.liked ? BLUE : '#7C7C7C'}
+                          color={item.saved ? BLUE : '#7C7C7C'}
                         />
-                        <Text style={styles.reactionText}>{item.likes}</Text>
+                        <Text style={styles.reactionText}>{item.scraps}</Text>
                       </View>
 
                     </View>
@@ -957,7 +1203,7 @@ export default function MarketPage() {
                 </View>
 
                 <View style={styles.ticketLikeRow}>
-                  <Text style={styles.ticketLike}>♡ {item.likes}</Text>
+                  <Text style={styles.ticketLike}>스크랩 {item.scraps}</Text>
                 </View>
               </Pressable>
             ))}
@@ -1257,6 +1503,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     minWidth: 0,
   },
+  postCardCompleted: {
+    opacity: 0.58,
+  },
 
   thumbnail: {
     width: 118,
@@ -1308,6 +1557,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
+    gap: 6,
   },
 
   postTitle: {
@@ -1320,6 +1570,20 @@ const styles = StyleSheet.create({
 
   arrow: {
     fontSize: 28,
+    color: '#777777',
+  },
+  completedBadge: {
+    flexShrink: 0,
+    minHeight: 22,
+    borderRadius: 11,
+    backgroundColor: '#EEEEEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  completedBadgeText: {
+    fontSize: 10,
+    fontWeight: '900',
     color: '#777777',
   },
 

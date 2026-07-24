@@ -17,6 +17,7 @@ import { AppBackButton } from '@/components/ui/app-back-button';
 import {
   CompanionPostResponse,
   getMyCompanionPostPage,
+  getScrappedCompanionPosts,
 } from '../../../src/api/companion';
 import {
   FreePostSummaryResponse,
@@ -24,9 +25,18 @@ import {
   getFreePosts,
   getLikedFreePosts,
   getMyFreePosts,
+  getScrappedFreePosts,
 } from '../../../src/api/freePosts';
-import { getMyTickets, TicketTransferResponse } from '../../../src/api/ticket';
-import { getMyUsedItems, UsedItemSummaryResponse } from '../../../src/api/usedItems';
+import {
+  getMyTickets,
+  getScrappedTickets,
+  TicketTransferResponse,
+} from '../../../src/api/ticket';
+import {
+  getMyUsedItems,
+  getScrappedUsedItems,
+  UsedItemSummaryResponse,
+} from '../../../src/api/usedItems';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -49,6 +59,7 @@ type ProfileListType =
   | 'companion'
   | 'written';
 type ProfileListCategory = 'free' | 'used' | 'ticket' | 'companion';
+type ProfileListGroup = 'community' | 'market';
 
 type SavedTicket = {
   id?: number;
@@ -103,11 +114,11 @@ const screenConfig: Record<
   }
 > = {
   saved: {
-    title: '관심목록',
-    description: '저장한 티켓과 관심 게시글을 한 번에 확인해요.',
+    title: '스크랩/저장한 글',
+    description: '나중에 다시 볼 글을 카테고리별로 확인해요.',
     emptyTitle: '저장한 글이 아직 없어요',
-    emptyText: '마켓이나 커뮤니티에서 관심 있는 글을 저장하면 여기에 모여요.',
-    icon: 'heart-outline',
+    emptyText: '마켓이나 커뮤니티에서 저장하면 여기에 모여요.',
+    icon: 'bookmark-outline',
   },
   recent: {
     title: '최근 본 글',
@@ -146,7 +157,7 @@ const screenConfig: Record<
   },
   written: {
     title: '내가 쓴 글',
-    description: '중고거래, 티켓 양도, 동행 모집글을 나눠서 확인해요.',
+    description: '커뮤니티와 중고마켓 작성글을 나눠서 확인해요.',
     emptyTitle: '작성한 글이 없어요',
     emptyText: '거래나 동행 모집 글을 작성하면 여기에 표시돼요.',
     icon: 'create-outline',
@@ -169,6 +180,24 @@ const asListType = (value?: string | string[]): ProfileListType => {
   }
 
   return 'saved';
+};
+
+const asListCategory = (
+  value: string | string[] | undefined,
+  fallback: ProfileListCategory,
+): ProfileListCategory => {
+  const normalizedValue = Array.isArray(value) ? value[0] : value;
+
+  if (
+    normalizedValue === 'free' ||
+    normalizedValue === 'used' ||
+    normalizedValue === 'ticket' ||
+    normalizedValue === 'companion'
+  ) {
+    return normalizedValue;
+  }
+
+  return fallback;
 };
 
 const extractItems = <T,>(payload: unknown): T[] => {
@@ -255,40 +284,64 @@ const toFreePostCard = (
   title: post.title,
   subtitle: post.preview || `${post.country} 커뮤니티 글`,
   meta:
-    badge === '좋아요'
-      ? `${post.country} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`
-      : `${post.country} · ${post.status} · 댓글 ${post.commentCount}`,
+    badge === '스크랩'
+      ? `${post.country} · 스크랩 ${post.scrapCount ?? 0} · 댓글 ${post.commentCount}`
+      : badge === '좋아요'
+        ? `${post.country} · 좋아요 ${post.likeCount} · 댓글 ${post.commentCount}`
+        : `${post.country} · ${post.status} · 댓글 ${post.commentCount}`,
   badge,
   category: 'free',
-  icon: badge === '좋아요' ? 'thumbs-up-outline' : 'chatbubble-ellipses-outline',
+  icon: badge === '스크랩' ? 'bookmark-outline' : 'chatbubble-ellipses-outline',
   route: {
     pathname: '/community-detail',
-    params: { type: 'free', id: String(post.id), fromProfileList: prefix },
+    params: {
+      type: 'free',
+      id: String(post.id),
+      fromProfileList: prefix.includes('saved')
+        ? 'saved'
+        : prefix.includes('written')
+          ? 'written'
+          : prefix,
+    },
   },
 });
 
 const toTicketCard = (
-  item: SavedTicket,
+  item: SavedTicket | TicketTransferResponse,
   prefix: string,
   badge = '티켓 양도',
 ): ListCard => ({
   id: makeCardId(prefix, item.id),
   title: item.title || '티켓 양도 글',
   subtitle:
-    [item.country, item.semester, item.region].filter(Boolean).join(' · ') ||
+    'ticketType' in item
+      ? [item.country, formatDate(item.eventDate)].filter(Boolean).join(' · ')
+      : [item.country, item.semester, item.region].filter(Boolean).join(' · ') ||
     '티켓 양도 글',
   meta:
-    [item.category, item.date, item.price, item.time].filter(Boolean).join(' · ') ||
-    '상세 정보를 확인해보세요.',
+    'ticketType' in item
+      ? [
+          `${item.quantity}매`,
+          formatPrice(item.transferPrice),
+          formatRelativeTime(item.createdAt ?? item.updatedAt),
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : [item.category, item.date, item.price, item.time].filter(Boolean).join(' · ') ||
+        '상세 정보를 확인해보세요.',
   badge,
   category: 'ticket',
-  icon: prefix.includes('saved') ? 'bookmark-outline' : 'heart-outline',
+  icon: 'bookmark-outline',
   route: item.id
     ? {
         pathname: '/market/ticket-preview',
         params: {
           id: String(item.id),
-          fromProfileList: prefix.includes('saved') ? 'saved' : 'liked',
+          fromProfileList: prefix.includes('saved')
+            ? 'saved'
+            : prefix.includes('written')
+              ? 'written'
+              : 'liked',
         },
       }
     : '/market/ticket-preview',
@@ -348,6 +401,12 @@ const parseStoredList = <T,>(rawValue: string | null): T[] => {
 const categoryTabsByType: Partial<
   Record<ProfileListType, { key: ProfileListCategory; label: string }[]>
 > = {
+  saved: [
+    { key: 'free', label: '자유게시판' },
+    { key: 'companion', label: '동행구하기' },
+    { key: 'used', label: '귀국 전 일괄거래' },
+    { key: 'ticket', label: '티켓양도' },
+  ],
   liked: [
     { key: 'free', label: '커뮤니티' },
     { key: 'used', label: '중고거래' },
@@ -358,39 +417,146 @@ const categoryTabsByType: Partial<
     { key: 'ticket', label: '티켓양도' },
   ],
   written: [
-    { key: 'used', label: '중고거래' },
+    { key: 'free', label: '자유게시판' },
+    { key: 'companion', label: '동행구하기' },
+    { key: 'used', label: '귀국 전 일괄거래' },
     { key: 'ticket', label: '티켓양도' },
-    { key: 'companion', label: '동행모집글' },
+  ],
+};
+
+const groupTabs = [
+  { key: 'community' as const, label: '커뮤니티' },
+  { key: 'market' as const, label: '중고마켓' },
+];
+
+const categoryGroupMap: Record<ProfileListCategory, ProfileListGroup> = {
+  free: 'community',
+  companion: 'community',
+  used: 'market',
+  ticket: 'market',
+};
+
+const subCategoryTabsByGroup: Record<
+  ProfileListGroup,
+  { key: ProfileListCategory; label: string }[]
+> = {
+  community: [
+    { key: 'free', label: '자유게시판' },
+    { key: 'companion', label: '동행구하기' },
+  ],
+  market: [
+    { key: 'used', label: '귀국 전 일괄거래' },
+    { key: 'ticket', label: '티켓양도' },
   ],
 };
 
 export default function ProfileListScreen() {
-  const { type } = useLocalSearchParams<{ type?: string | string[] }>();
+  const { type, category } = useLocalSearchParams<{
+    type?: string | string[];
+    category?: string | string[];
+  }>();
   const listType = asListType(type);
   const config = screenConfig[listType];
   const categoryTabs = categoryTabsByType[listType];
+  const defaultCategory = categoryTabs?.[0]?.key ?? 'free';
+  const routeCategory = asListCategory(category, defaultCategory);
+  const usesGroupedTabs = listType === 'saved' || listType === 'written';
   const [items, setItems] = useState<ListCard[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<ProfileListGroup>(
+    categoryGroupMap[routeCategory] ?? 'community',
+  );
   const [selectedCategory, setSelectedCategory] = useState<ProfileListCategory>(
-    categoryTabs?.[0]?.key ?? 'free',
+    routeCategory,
   );
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    setSelectedCategory(categoryTabs?.[0]?.key ?? 'free');
-  }, [categoryTabs, listType]);
+    if (!categoryTabs) {
+      setSelectedCategory(defaultCategory);
+      return;
+    }
+
+    const hasRouteCategory = categoryTabs.some(
+      (tabItem) => tabItem.key === routeCategory,
+    );
+
+    setSelectedCategory(hasRouteCategory ? routeCategory : defaultCategory);
+    setSelectedGroup(
+      categoryGroupMap[hasRouteCategory ? routeCategory : defaultCategory] ??
+        'community',
+    );
+  }, [categoryTabs, defaultCategory, listType, routeCategory]);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
 
     try {
       if (listType === 'saved') {
-        const rawSavedTickets = await AsyncStorage.getItem(
-          SAVED_TICKET_POSTS_STORAGE_KEY,
+        const [
+          freeResponse,
+          companionResponse,
+          usedResponse,
+          ticketResponse,
+        ] = await Promise.all([
+          getScrappedFreePosts({ size: 30 }),
+          getScrappedCompanionPosts({ size: 30 }),
+          getScrappedUsedItems({ size: 30 }),
+          getScrappedTickets({ size: 30 }),
+        ]);
+        const freePosts = extractItems<FreePostSummaryResponse>(
+          freeResponse.data.data,
         );
-        const savedTickets = parseStoredList<SavedTicket>(rawSavedTickets);
+        const companionPosts = extractItems<CompanionPostResponse>(
+          companionResponse.data.data,
+        );
+        const usedItems = extractItems<UsedItemSummaryResponse>(
+          usedResponse.data.data,
+        );
+        const tickets = extractItems<TicketTransferResponse>(
+          ticketResponse.data.data,
+        );
 
-        setItems(savedTickets.map((item) => toTicketCard(item, 'saved-ticket')));
+        setItems([
+          ...freePosts.map((post) => toFreePostCard(post, 'saved-free', '스크랩')),
+          ...companionPosts.map((post) => ({
+            id: makeCardId('saved-companion', post.id),
+            title: post.title,
+            subtitle: `${post.country} ${post.region}`,
+            meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · 스크랩 ${post.scrapCount ?? 0}`,
+            badge: '동행구하기',
+            category: 'companion' as ProfileListCategory,
+            icon: 'bookmark-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/community-detail',
+              params: {
+                type: 'companion',
+                id: String(post.id),
+                fromProfileList: 'saved',
+              },
+            },
+          })),
+          ...usedItems.map((item) => ({
+            id: makeCardId('saved-used', item.id),
+            title: item.title,
+            subtitle: `${item.region} · ${item.semester}`,
+            meta: [
+              formatPrice(item.price),
+              `스크랩 ${item.scrapCount ?? 0}`,
+              formatRelativeTime(item.updatedAt),
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            badge: item.status === 'COMPLETED' ? '거래완료' : '일괄거래',
+            category: 'used' as ProfileListCategory,
+            icon: 'bookmark-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/market/[id]',
+              params: { id: String(item.id), fromProfileList: 'saved' },
+            },
+          })),
+          ...tickets.map((item) => toTicketCard(item, 'saved-ticket')),
+        ]);
         return;
       }
 
@@ -536,11 +702,20 @@ export default function ProfileListScreen() {
       }
 
       if (listType === 'written') {
-        const [usedResponse, ticketResponse, companionResponse] = await Promise.all([
+        const [
+          freeResponse,
+          usedResponse,
+          ticketResponse,
+          companionResponse,
+        ] = await Promise.all([
+          getMyFreePosts({ size: 30 }),
           getMyUsedItems({ size: 30 }),
           getMyTickets({ size: 30 }),
           getMyCompanionPostPage({ size: 30 }),
         ]);
+        const freePosts = extractItems<FreePostSummaryResponse>(
+          freeResponse.data.data,
+        );
         const usedItems = extractItems<UsedItemSummaryResponse>(
           usedResponse.data.data,
         );
@@ -550,6 +725,26 @@ export default function ProfileListScreen() {
         );
 
         setItems([
+          ...freePosts.map((post) =>
+            toFreePostCard(post, 'written-free', '자유게시판'),
+          ),
+          ...companionPosts.map((post) => ({
+            id: makeCardId('written-companion', post.id),
+            title: post.title,
+            subtitle: `${post.country} ${post.region}`,
+            meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · ${post.currentParticipants}/${post.capacity}명`,
+            badge: post.status === 'RECRUITING' ? '모집중' : '모집완료',
+            category: 'companion' as ProfileListCategory,
+            icon: 'people-circle-outline' as keyof typeof Ionicons.glyphMap,
+            route: {
+              pathname: '/community-detail',
+              params: {
+                type: 'companion',
+                id: String(post.id),
+                fromProfileList: 'written',
+              },
+            },
+          })),
           ...usedItems.map((item) => ({
             id: makeCardId('written-used', item.id),
             title: item.title,
@@ -562,7 +757,7 @@ export default function ProfileListScreen() {
             icon: 'cube-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/[id]',
-              params: { id: String(item.id), fromProfileList: 'market' },
+              params: { id: String(item.id), fromProfileList: 'written' },
             },
           })),
           ...tickets.map((item) => ({
@@ -581,20 +776,7 @@ export default function ProfileListScreen() {
             icon: 'ticket-outline' as keyof typeof Ionicons.glyphMap,
             route: {
               pathname: '/market/ticket-preview',
-              params: { id: String(item.id), fromProfileList: 'market' },
-            },
-          })),
-          ...companionPosts.map((post) => ({
-            id: makeCardId('written-companion', post.id),
-            title: post.title,
-            subtitle: `${post.country} ${post.region}`,
-            meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · ${post.currentParticipants}/${post.capacity}명`,
-            badge: post.status === 'RECRUITING' ? '모집중' : '모집완료',
-            category: 'companion' as ProfileListCategory,
-            icon: 'people-circle-outline' as keyof typeof Ionicons.glyphMap,
-            route: {
-              pathname: '/community-detail',
-              params: { type: 'companion', id: String(post.id), fromProfileList: 'companion' },
+              params: { id: String(item.id), fromProfileList: 'written' },
             },
           })),
         ]);
@@ -638,6 +820,9 @@ export default function ProfileListScreen() {
 
     return items.filter((item) => item.category === selectedCategory);
   }, [categoryTabs, items, selectedCategory]);
+  const currentCategoryTabs = usesGroupedTabs
+    ? subCategoryTabsByGroup[selectedGroup]
+    : categoryTabs;
   const itemCountLabel = useMemo(() => `${visibleItems.length}개`, [visibleItems.length]);
 
   return (
@@ -676,9 +861,37 @@ export default function ProfileListScreen() {
           </Text>
         </View>
 
-        {categoryTabs ? (
+        {usesGroupedTabs ? (
+          <View style={styles.groupTabs}>
+            {groupTabs.map((tabItem) => {
+              const active = selectedGroup === tabItem.key;
+
+              return (
+                <Pressable
+                  key={tabItem.key}
+                  style={[styles.groupTab, active && styles.groupTabActive]}
+                  onPress={() => {
+                    setSelectedGroup(tabItem.key);
+                    setSelectedCategory(subCategoryTabsByGroup[tabItem.key][0].key);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.groupTabText,
+                      active && styles.groupTabTextActive,
+                    ]}
+                  >
+                    {tabItem.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+
+        {currentCategoryTabs ? (
           <View style={styles.categoryTabs}>
-            {categoryTabs.map((tabItem) => {
+            {currentCategoryTabs.map((tabItem) => {
               const active = selectedCategory === tabItem.key;
 
               return (
@@ -850,6 +1063,32 @@ const styles = StyleSheet.create({
     backgroundColor: SOFT,
     padding: 4,
     gap: 4,
+  },
+  groupTabs: {
+    marginTop: 14,
+    flexDirection: 'row',
+    borderRadius: 16,
+    backgroundColor: '#EAF1FF',
+    padding: 4,
+    gap: 4,
+  },
+  groupTab: {
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupTabActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  groupTabText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: MUTED,
+  },
+  groupTabTextActive: {
+    color: BLUE,
   },
   categoryTab: {
     flex: 1,

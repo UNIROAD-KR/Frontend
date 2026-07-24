@@ -7,6 +7,7 @@ import {
   Alert,
   Dimensions,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,9 +17,13 @@ import {
 
 import { createOrGetChatRoom } from '../../../src/api/chat';
 import {
+  completeUsedItem,
   deleteUsedItem,
+  getScrappedUsedItems,
   getUsedItemDetail,
+  reopenUsedItem,
   TradeCategory,
+  toggleUsedItemScrap,
   UsedItemResponse,
 } from '../../../src/api/usedItems';
 import {
@@ -27,13 +32,26 @@ import {
   LocalMarketPost,
 } from '../../../src/storage/marketPosts';
 import { getMemberMe } from '../../../src/api/auth';
+import { createReport, ReportReason } from '../../../src/api/reports';
 import { AppBackButton } from '@/components/ui/app-back-button';
+import {
+  getUsedItemStatus,
+  saveUsedItemStatus,
+  UsedItemTradeStatus,
+} from '../../../src/storage/usedItemStatus';
 
 const BLUE = '#123F9F';
 const DETAIL_IMAGE_HEIGHT = 290;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
+  { label: '사기 의심', reason: 'FRAUD' },
+  { label: '부적절한 내용', reason: 'INAPPROPRIATE' },
+  { label: '욕설/비방', reason: 'ABUSE' },
+  { label: '스팸/광고', reason: 'SPAM' },
+  { label: '기타', reason: 'ETC' },
+];
 const categoryNameMap: Record<TradeCategory, string> = {
   KITCHEN: '주방 용품',
   BATH: '욕실 / 청소 용품',
@@ -47,6 +65,8 @@ type MarketDetailPost = Omit<LocalMarketPost, 'id'> & {
   id: string | number;
   source: 'api' | 'local';
   targetMemberId?: number;
+  status?: UsedItemTradeStatus;
+  scrapCount?: number;
 };
 
 type LikedMarketPost = {
@@ -106,24 +126,6 @@ const formatRelativeTime = (value?: string) => {
   if (diffDays < 7) return `${diffDays}일 전`;
 
   return value.slice(0, 10).replaceAll('-', '.');
-};
-
-const getDdayText = (value: string) => {
-  const date = parseDate(value);
-
-  if (!date) return '귀국 D-?';
-
-  const today = new Date();
-  const todayStart = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate(),
-  );
-  const diff = Math.ceil(
-    (date.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
-  );
-
-  return diff >= 0 ? `귀국 D-${diff}` : '귀국 완료';
 };
 
 const formatNumberPrice = (price: number) => {
@@ -281,6 +283,8 @@ const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
     authorVerified: item.authorVerified ?? true,
     createdAt: item.createdAt,
     targetMemberId: item.memberId,
+    status: item.status,
+    scrapCount: item.scrapCount,
   };
 };
 
@@ -306,10 +310,17 @@ const readLikedMarketPosts = async () => {
   }
 };
 
-const isLikedMarketPost = async (id: number) => {
-  const likedPosts = await readLikedMarketPosts();
+const isSavedMarketPost = async (id: number) => {
+  try {
+    const response = await getScrappedUsedItems({ size: 100 });
 
-  return likedPosts.some((item) => item.id === id);
+    return response.data.data.items.some((item) => item.id === id);
+  } catch (error: any) {
+    console.log('스크랩한 중고거래 조회 실패:', error.response?.data || error.message);
+    const likedPosts = await readLikedMarketPosts();
+
+    return likedPosts.some((item) => item.id === id);
+  }
 };
 
 const syncLikedMarketPost = async (
@@ -350,6 +361,7 @@ export default function MarketDetailPage() {
   const {
     id,
     fromProfileList,
+    fromEditComplete,
     fromChatRoom,
     chatRoomId,
     chatTitle,
@@ -361,6 +373,7 @@ export default function MarketDetailPage() {
   } = useLocalSearchParams<{
     id?: string;
     fromProfileList?: string;
+    fromEditComplete?: string;
     fromChatRoom?: string;
     chatRoomId?: string;
     chatTitle?: string;
@@ -375,7 +388,9 @@ export default function MarketDetailPage() {
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const bottomSafePadding = 4;
   const bottomBarHeight = 56;
 
@@ -422,8 +437,12 @@ export default function MarketDetailPage() {
 
         const savedLiked =
           nextPost && typeof nextPost.id === 'number'
-            ? await isLikedMarketPost(nextPost.id)
+            ? await isSavedMarketPost(nextPost.id)
             : false;
+        const storedStatus =
+          nextPost && typeof nextPost.id === 'number'
+            ? await getUsedItemStatus(nextPost.id)
+            : undefined;
         let nextCurrentMemberId: number | null = null;
 
         try {
@@ -434,7 +453,14 @@ export default function MarketDetailPage() {
         }
 
         if (active) {
-          setPost(nextPost);
+          setPost(
+            nextPost
+              ? {
+                  ...nextPost,
+                  status: nextPost.status ?? storedStatus ?? 'AVAILABLE',
+                }
+              : null,
+          );
           setLiked(savedLiked);
           setCurrentMemberId(nextCurrentMemberId);
           setLoading(false);
@@ -452,15 +478,11 @@ export default function MarketDetailPage() {
   const tags = useMemo(() => {
     if (!post) return [];
 
-    const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
-
     return [
-      sellerCountry ? `판매자 ${sellerCountry}` : '판매자 국가 미정',
-      post.country ? `거래 ${post.country}` : '거래 국가 미정',
-      post.region || '지역 미정',
+      post.country || '국가 미정',
+      post.region || '장소 미정',
       post.semester || '학기 미정',
-      getDdayText(post.returnDate),
-      formatRelativeTime(post.createdAt),
+      formatRelativeTime(post.createdAt) || '등록일 미정',
     ].filter(Boolean);
   }, [post]);
 
@@ -521,6 +543,7 @@ export default function MarketDetailPage() {
           sellerName: post.authorName,
           referenceType: 'TRADE',
           referenceId: String(post.id),
+          opponentMemberId: String(post.targetMemberId),
         },
       } as any);
     } catch (error: any) {
@@ -534,8 +557,10 @@ export default function MarketDetailPage() {
     }
   };
 
-  const handleToggleLike = () => {
+  const handleToggleLike = async () => {
     if (!post) return;
+
+    const wasSaved = liked;
 
     setLiked((prev) => {
       const next = !prev;
@@ -546,13 +571,137 @@ export default function MarketDetailPage() {
 
       return next;
     });
+
+    if (typeof post.id !== 'number') {
+      return;
+    }
+
+    try {
+      const response = await toggleUsedItemScrap(post.id);
+      const nextSaved = response.data.data;
+
+      setLiked(nextSaved);
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              scrapCount: Math.max(
+                0,
+                (prev.scrapCount ?? 0) + (nextSaved === wasSaved ? 0 : nextSaved ? 1 : -1),
+              ),
+            }
+          : prev,
+      );
+    } catch (error: any) {
+      console.log('중고거래 스크랩 실패:', error.response?.data || error.message);
+      setLiked(wasSaved);
+      Alert.alert('저장 실패', '게시글 저장 상태를 변경하지 못했어요.');
+    }
+  };
+
+  const handleChangeTradeStatus = async (nextStatus: UsedItemTradeStatus) => {
+    if (!post || typeof post.id !== 'number') return;
+
+    try {
+      if (nextStatus === 'COMPLETED') {
+        await completeUsedItem(post.id);
+      } else {
+        await reopenUsedItem(post.id);
+      }
+
+      await saveUsedItemStatus(post.id, nextStatus);
+      setPost((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+      Alert.alert(
+        '상태 변경 완료',
+        nextStatus === 'COMPLETED'
+          ? '거래완료로 변경했어요.'
+          : '판매중으로 다시 변경했어요.',
+      );
+    } catch (error: any) {
+      console.log('중고거래 상태 변경 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '상태 변경 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    }
+  };
+
+  const submitReportPost = async (reason: ReportReason) => {
+    if (!post || typeof post.id !== 'number' || reporting) return;
+
+    try {
+      setReporting(true);
+      await createReport({
+        targetType: 'USED_ITEM',
+        targetId: post.id,
+        reason,
+        detail: `중고거래 게시글 #${post.id} 신고`,
+      });
+      Alert.alert('신고 접수', '운영팀이 게시글을 확인할게요.');
+    } catch (error: any) {
+      console.log('중고거래 신고 실패:', error.response?.data || error.message);
+      Alert.alert(
+        '신고 실패',
+        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setReporting(false);
+    }
+  };
+
+  const handleReportPost = () => {
+    if (!post || typeof post.id !== 'number') {
+      Alert.alert('신고할 수 없어요', '서버에 등록된 게시글만 신고할 수 있어요.');
+      return;
+    }
+
+    Alert.alert('신고하기', '신고 사유를 선택해주세요.', [
+      ...REPORT_OPTIONS.map((option) => ({
+        text: option.label,
+        onPress: () => submitReportPost(option.reason),
+      })),
+      { text: '취소', style: 'cancel' as const },
+    ]);
   };
 
   const handleEditPost = () => {
-    Alert.alert(
-      '수정 API 필요',
-      '중고거래 수정 API가 아직 스웨거에 없어 서버 게시글은 수정 저장까지 연결할 수 없어요. 백엔드에 수정 API가 추가되면 바로 연결할 수 있어요.',
-    );
+    if (!post) return;
+
+    const selectedItems = post.itemGroups.map((group) => ({
+      category: group.category,
+      items: group.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        description: item.description,
+      })),
+    }));
+    const categoryDetails = post.itemGroups.reduce<Record<string, {
+      photos: string[];
+      description: string;
+    }>>((acc, group) => {
+      acc[group.category] = {
+        photos: group.photos ?? [],
+        description: group.description ?? '',
+      };
+      return acc;
+    }, {});
+
+    router.push({
+      pathname: '/market/preview',
+      params: {
+        editId: String(post.id),
+        title: post.title,
+        content: post.content,
+        price: String(post.price),
+        country: post.country,
+        region: post.region,
+        returnDate: post.returnDate,
+        semester: post.semester,
+        photos: JSON.stringify(post.photos),
+        selectedItems: JSON.stringify(selectedItems),
+        draftCategoryDetails: JSON.stringify(categoryDetails),
+      },
+    } as any);
   };
 
   const handleDeletePost = () => {
@@ -590,6 +739,7 @@ export default function MarketDetailPage() {
       <View style={styles.container}>
         <HeaderBack
           fromProfileList={fromProfileList}
+          fromEditComplete={fromEditComplete}
           fromChatRoom={fromChatRoom}
           chatRoomId={chatRoomId}
           chatTitle={chatTitle}
@@ -612,6 +762,7 @@ export default function MarketDetailPage() {
       <View style={styles.container}>
         <HeaderBack
           fromProfileList={fromProfileList}
+          fromEditComplete={fromEditComplete}
           fromChatRoom={fromChatRoom}
           chatRoomId={chatRoomId}
           chatTitle={chatTitle}
@@ -651,9 +802,14 @@ export default function MarketDetailPage() {
       >
         <HeaderBack
           fromProfileList={fromProfileList}
+          fromEditComplete={fromEditComplete}
           canManagePost={canManagePost}
           onEdit={handleEditPost}
           onDelete={handleDeletePost}
+          onChangeStatus={handleChangeTradeStatus}
+          tradeStatus={post.status ?? 'AVAILABLE'}
+          onReport={handleReportPost}
+          reporting={reporting}
           fromChatRoom={fromChatRoom}
           chatRoomId={chatRoomId}
           chatTitle={chatTitle}
@@ -664,7 +820,7 @@ export default function MarketDetailPage() {
           chatReferenceId={chatReferenceId}
         />
 
-        <ImageCarousel photos={post.photos} />
+        <ImageCarousel photos={post.photos} onOpenPhoto={setExpandedPhoto} />
 
         <View
           style={[
@@ -684,6 +840,11 @@ export default function MarketDetailPage() {
             <Text style={styles.title} numberOfLines={3}>
               {post.title}
             </Text>
+            {post.status === 'COMPLETED' ? (
+              <View style={styles.completedBadge}>
+                <Text style={styles.completedBadgeText}>거래완료</Text>
+              </View>
+            ) : null}
           </View>
 
           <Text style={styles.price}>{formatPrice(post)}</Text>
@@ -715,7 +876,9 @@ export default function MarketDetailPage() {
           </View>
 
           {tab === 'trade' && <TradeInfo post={post} />}
-          {tab === 'items' && <ItemList post={post} />}
+          {tab === 'items' && (
+            <ItemList post={post} onOpenPhoto={setExpandedPhoto} />
+          )}
           {tab === 'seller' && <SellerInfo post={post} />}
         </View>
       </ScrollView>
@@ -734,8 +897,8 @@ export default function MarketDetailPage() {
           onPress={handleToggleLike}
         >
           <Ionicons
-            name={liked ? 'heart' : 'heart-outline'}
-            size={35}
+            name={liked ? 'bookmark' : 'bookmark-outline'}
+            size={31}
             color={liked ? BLUE : '#111111'}
           />
         </Pressable>
@@ -746,15 +909,25 @@ export default function MarketDetailPage() {
           </Text>
         </Pressable>
       </View>
+
+      <FullImageModal
+        photo={expandedPhoto}
+        onClose={() => setExpandedPhoto(null)}
+      />
     </View>
   );
 }
 
 function HeaderBack({
   fromProfileList,
+  fromEditComplete,
   canManagePost = false,
   onEdit,
   onDelete,
+  onChangeStatus,
+  tradeStatus = 'AVAILABLE',
+  onReport,
+  reporting = false,
   fromChatRoom,
   chatRoomId,
   chatTitle,
@@ -765,9 +938,14 @@ function HeaderBack({
   chatReferenceId,
 }: {
   fromProfileList?: string;
+  fromEditComplete?: string;
   canManagePost?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  onChangeStatus?: (nextStatus: UsedItemTradeStatus) => void;
+  tradeStatus?: UsedItemTradeStatus;
+  onReport?: () => void;
+  reporting?: boolean;
   fromChatRoom?: string;
   chatRoomId?: string;
   chatTitle?: string;
@@ -777,10 +955,17 @@ function HeaderBack({
   chatReferenceType?: string;
   chatReferenceId?: string;
 }) {
+  const [menuVisible, setMenuVisible] = useState(false);
+
   return (
     <View style={styles.top}>
       <AppBackButton
         onPress={() => {
+          if (fromEditComplete === 'true') {
+            router.replace('/market' as any);
+            return;
+          }
+
           if (fromChatRoom === 'true' && chatRoomId) {
             if (router.canGoBack()) {
               router.back();
@@ -802,7 +987,12 @@ function HeaderBack({
             return;
           }
 
-          if (fromProfileList === 'market' || fromProfileList === 'liked') {
+          if (
+            fromProfileList === 'market' ||
+            fromProfileList === 'liked' ||
+            fromProfileList === 'saved' ||
+            fromProfileList === 'written'
+          ) {
             if (router.canGoBack()) {
               router.back();
               return;
@@ -819,27 +1009,100 @@ function HeaderBack({
         }}
       />
 
-      {canManagePost && (
-        <View style={styles.manageButtonRow}>
-          <Pressable style={styles.manageButton} onPress={onEdit}>
-            <Text style={styles.manageButtonText}>수정</Text>
-          </Pressable>
+      <Pressable
+        style={styles.moreButton}
+        onPress={() => setMenuVisible((prev) => !prev)}
+      >
+        <Ionicons name="ellipsis-horizontal" size={22} color="#111111" />
+      </Pressable>
 
+      {menuVisible && (
+        <>
           <Pressable
-            style={[styles.manageButton, styles.deleteManageButton]}
-            onPress={onDelete}
-          >
-            <Text style={[styles.manageButtonText, styles.deleteManageText]}>
-              삭제
-            </Text>
-          </Pressable>
-        </View>
+            style={styles.menuBackdrop}
+            onPress={() => setMenuVisible(false)}
+          />
+          <View style={styles.postMenuPopover}>
+            <View style={styles.postMenuArrow} />
+            {canManagePost ? (
+              <>
+                <Pressable
+                  style={styles.postMenuRow}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onEdit?.();
+                  }}
+                >
+                  <Ionicons name="create-outline" size={18} color="#111111" />
+                  <Text style={styles.postMenuText}>수정하기</Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.postMenuRow}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onChangeStatus?.(
+                      tradeStatus === 'COMPLETED' ? 'AVAILABLE' : 'COMPLETED',
+                    );
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      tradeStatus === 'COMPLETED'
+                        ? 'refresh-outline'
+                        : 'checkmark-circle-outline'
+                    }
+                    size={18}
+                    color="#111111"
+                  />
+                  <Text style={styles.postMenuText}>
+                    {tradeStatus === 'COMPLETED'
+                      ? '판매중으로 변경'
+                      : '거래완료로 변경'}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={styles.postMenuRow}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    onDelete?.();
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#E5484D" />
+                  <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
+                    삭제
+                  </Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable
+                style={styles.postMenuRow}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onReport?.();
+                }}
+              >
+                <Ionicons name="flag-outline" size={18} color="#E5484D" />
+                <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
+                  {reporting ? '신고 접수 중...' : '신고하기'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        </>
       )}
     </View>
   );
 }
 
-function ImageCarousel({ photos }: { photos: string[] }) {
+function ImageCarousel({
+  photos,
+  onOpenPhoto,
+}: {
+  photos: string[];
+  onOpenPhoto: (photo: string) => void;
+}) {
   if (photos.length === 0) {
     return (
       <View style={[styles.imageArea, styles.emptyImageArea]}>
@@ -852,11 +1115,13 @@ function ImageCarousel({ photos }: { photos: string[] }) {
     <View style={styles.imageArea}>
       <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
         {photos.map((photo, index) => (
-          <Image
+          <Pressable
             key={`${photo}-${index}`}
-            source={{ uri: photo }}
-            style={styles.heroImage}
-          />
+            style={styles.heroImageButton}
+            onPress={() => onOpenPhoto(photo)}
+          >
+            <Image source={{ uri: photo }} style={styles.heroImage} />
+          </Pressable>
         ))}
       </ScrollView>
 
@@ -868,6 +1133,30 @@ function ImageCarousel({ photos }: { photos: string[] }) {
         </View>
       )}
     </View>
+  );
+}
+
+function FullImageModal({
+  photo,
+  onClose,
+}: {
+  photo: string | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal transparent visible={Boolean(photo)} animationType="fade">
+      <View style={styles.fullImageOverlay}>
+        <Pressable style={styles.fullImageBackdrop} onPress={onClose} />
+
+        {photo && (
+          <Image source={{ uri: photo }} style={styles.fullImage} />
+        )}
+
+        <Pressable style={styles.fullImageCloseButton} onPress={onClose}>
+          <Ionicons name="close" size={24} color="#FFFFFF" />
+        </Pressable>
+      </View>
+    </Modal>
   );
 }
 
@@ -944,7 +1233,13 @@ function TradeInfo({ post }: { post: MarketDetailPost }) {
   );
 }
 
-function ItemList({ post }: { post: MarketDetailPost }) {
+function ItemList({
+  post,
+  onOpenPhoto,
+}: {
+  post: MarketDetailPost;
+  onOpenPhoto: (photo: string) => void;
+}) {
   return (
     <View>
       <Text style={styles.sectionTitle}>물품 목록</Text>
@@ -981,11 +1276,12 @@ function ItemList({ post }: { post: MarketDetailPost }) {
                     style={styles.itemPhotoRow}
                   >
                     {group.photos.map((photo, index) => (
-                      <Image
+                      <Pressable
                         key={`${group.category}-${photo}-${index}`}
-                        source={{ uri: photo }}
-                        style={styles.itemPhoto}
-                      />
+                        onPress={() => onOpenPhoto(photo)}
+                      >
+                        <Image source={{ uri: photo }} style={styles.itemPhoto} />
+                      </Pressable>
                     ))}
                   </ScrollView>
                 )}
@@ -1101,33 +1397,66 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
 
-  manageButtonRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  manageButton: {
-    minWidth: 46,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F5FA',
+  moreButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F6F8FC',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
   },
 
-  deleteManageButton: {
-    backgroundColor: '#FFF0F0',
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 8,
   },
 
-  manageButtonText: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: BLUE,
+  postMenuPopover: {
+    position: 'absolute',
+    top: 82,
+    right: 20,
+    width: 150,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E7ECF3',
+    shadowColor: '#0F2042',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
+    elevation: 8,
+    zIndex: 9,
   },
 
-  deleteManageText: {
+  postMenuArrow: {
+    position: 'absolute',
+    top: -7,
+    right: 17,
+    width: 14,
+    height: 14,
+    borderLeftWidth: 1,
+    borderTopWidth: 1,
+    borderColor: '#E7ECF3',
+    backgroundColor: '#FFFFFF',
+    transform: [{ rotate: '45deg' }],
+  },
+
+  postMenuRow: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+
+  postMenuText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#111111',
+  },
+
+  postMenuDangerText: {
     color: '#E5484D',
   },
 
@@ -1189,6 +1518,40 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
+  heroImageButton: {
+    width: SCREEN_WIDTH,
+    height: DETAIL_IMAGE_HEIGHT,
+  },
+
+  fullImageOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  fullImageBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
+  fullImage: {
+    width: SCREEN_WIDTH,
+    height: '78%',
+    resizeMode: 'contain',
+  },
+
+  fullImageCloseButton: {
+    position: 'absolute',
+    top: 54,
+    right: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   dots: {
     position: 'absolute',
     bottom: 14,
@@ -1240,6 +1603,18 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#111111',
     marginRight: 10,
+  },
+  completedBadge: {
+    flexShrink: 0,
+    borderRadius: 999,
+    backgroundColor: '#EEEEEE',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  completedBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#777777',
   },
 
   price: {

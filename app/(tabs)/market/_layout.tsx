@@ -5,6 +5,7 @@ export default function MarketLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
+        headerBackButtonMenuEnabled: false,
         animation: 'slide_from_right',
         gestureEnabled: true,
         fullScreenGestureEnabled: true,

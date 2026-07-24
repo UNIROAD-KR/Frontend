@@ -86,15 +86,16 @@ export const saveLocalMarketPost = async (
   forcedId?: string | number,
 ) => {
   const posts = await readPosts();
+  const id = forcedId
+    ? String(forcedId)
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const post: LocalMarketPost = {
     ...input,
-    id: forcedId
-      ? String(forcedId)
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id,
     createdAt: new Date().toISOString(),
   };
 
-  await writePosts([post, ...posts]);
+  await writePosts([post, ...posts.filter((item) => item.id !== id)]);
 
   return post;
 };

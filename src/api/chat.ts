@@ -1,7 +1,7 @@
 import { api } from './client';
 import { PageResponse } from './types';
 
-export type ChatReferenceType = 'TRADE' | 'MENTOR';
+export type ChatReferenceType = 'TRADE' | 'MENTOR' | 'TICKET';
 
 export interface ChatRoomResponse {
   roomId: number;
@@ -31,6 +31,11 @@ export interface ChatMessageResponse {
   readByOpponent?: boolean;
 }
 
+export interface ChatReadResponse {
+  roomId: number;
+  lastReadAt: string;
+}
+
 export const getChatRooms = () => {
   return api.get<ChatRoomResponse[]>('/api/v1/chat/rooms');
 };
@@ -47,7 +52,6 @@ export const getChatMessages = (roomId: number) => {
   return api.get<ChatMessageResponse[] | PageResponse<ChatMessageResponse>>(
     `/api/v1/chat/rooms/${roomId}/messages`,
     {
-      
       params: {
         page: 0,
         size: 30,
@@ -58,7 +62,7 @@ export const getChatMessages = (roomId: number) => {
 };
 
 export const readChatRoom = (roomId: number) => {
-  return api.post(`/api/v1/chat/rooms/${roomId}/read`);
+  return api.post<ChatReadResponse>(`/api/v1/chat/rooms/${roomId}/read`);
 };
 
 export const sendChatMessage = (roomId: number, message: string) => {

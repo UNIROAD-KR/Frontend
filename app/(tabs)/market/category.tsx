@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -14,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { saveMarketDraft } from '../../../src/storage/marketDraft';
+import { getMarketDraft, saveMarketDraft } from '../../../src/storage/marketDraft';
 
 type CategoryName =
   | '주방 용품'
@@ -34,6 +35,11 @@ type ItemState = {
 };
 
 type RawItemState = Omit<ItemState, 'originalName'>;
+
+type CategoryDetail = {
+  photos: string[];
+  description: string;
+};
 
 const BLUE = '#123F9F';
 
@@ -170,36 +176,144 @@ export default function MarketCategoryPage() {
     semester?: string;
     photoUrl?: string;
     photos?: string;
+    resumePreview?: string;
+    selectedItems?: string;
     draftSelectedCategories?: string;
     draftItemsByCategory?: string;
+    draftCategoryDetails?: string;
   }>();
 
+  const initialSelectedCategories = parseJsonArray<CategoryName>(
+    params.draftSelectedCategories,
+  );
   const [selectedCategories, setSelectedCategories] = useState<CategoryName[]>(
-    () => parseJsonArray<CategoryName>(params.draftSelectedCategories),
+    () => initialSelectedCategories,
+  );
+  const [activeCategory, setActiveCategory] = useState<CategoryName>(
+    () => initialSelectedCategories[0] ?? categories[0],
   );
 
   const [itemsByCategory, setItemsByCategory] = useState<
     Record<CategoryName, ItemState[]>
   >(() => parseDraftItems(params.draftItemsByCategory) ?? makeInitialItems());
+  const [draftCategoryDetails, setDraftCategoryDetails] = useState<
+    Record<string, CategoryDetail>
+  >(() => {
+    try {
+      const parsed = params.draftCategoryDetails
+        ? JSON.parse(params.draftCategoryDetails)
+        : {};
+
+      return parsed && typeof parsed === 'object'
+        ? (parsed as Record<string, CategoryDetail>)
+        : {};
+    } catch {
+      return {};
+    }
+  });
   const scrollRef = useRef<ScrollView>(null);
+  const resumedPreviewRef = useRef(false);
 
   const hasSelectedItem = useMemo(() => {
-    return selectedCategories.some((category) =>
+    return categories.some((category) =>
       itemsByCategory[category].some(
         (item) => item.checked && item.name.trim().length > 0,
       ),
     );
-  }, [itemsByCategory, selectedCategories]);
+  }, [itemsByCategory]);
 
-  const toggleCategory = (category: CategoryName) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((item) => item !== category)
-        : [...prev, category],
-    );
+  const getSelectedItemCount = (category: CategoryName) => {
+    return itemsByCategory[category].filter(
+      (item) => item.checked && item.name.trim().length > 0,
+    ).length;
+  };
+
+  const isSameWriteDraft = useCallback(
+    (write?: {
+      title?: string;
+      content?: string;
+      price?: string;
+      country?: string;
+      region?: string;
+      returnDate?: string;
+    }) => {
+      if (!write) return false;
+
+      return (
+        write.title === (params.title ?? '') &&
+        write.content === (params.content ?? '') &&
+        write.price === (params.price ?? '') &&
+        write.country === (params.country ?? '') &&
+        write.region === (params.region ?? '') &&
+        write.returnDate === (params.returnDate ?? '')
+      );
+    },
+    [params.content, params.country, params.price, params.region, params.returnDate, params.title],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let mounted = true;
+
+      const restorePreviewDraft = async () => {
+        const draft = await getMarketDraft();
+
+        if (!mounted || !draft?.preview || !isSameWriteDraft(draft.write)) {
+          return;
+        }
+
+        const fallbackItems = makeInitialItems();
+        const previewItems = Object.fromEntries(
+          categories.map((category) => [
+            category,
+            Array.isArray(draft.preview?.itemsByCategory[category])
+              ? draft.preview.itemsByCategory[category].map((item) => ({
+                  ...item,
+                  originalName: item.originalName ?? item.name,
+                }))
+              : fallbackItems[category],
+          ]),
+        ) as Record<CategoryName, ItemState[]>;
+
+        setItemsByCategory(previewItems);
+        const restoredCategories = categories.filter((category) =>
+          previewItems[category].some(
+            (item) => item.checked && item.name.trim().length > 0,
+          ),
+        );
+
+        setSelectedCategories(restoredCategories);
+        setActiveCategory(restoredCategories[0] ?? categories[0]);
+        setDraftCategoryDetails(
+          draft.preview.categoryDetails as Record<string, CategoryDetail>,
+        );
+      };
+
+      restorePreviewDraft().catch((error) => {
+        console.log('중고거래 미리보기 임시저장 복원 실패:', error);
+      });
+
+      return () => {
+        mounted = false;
+      };
+    }, [isSameWriteDraft]),
+  );
+
+  const openCategory = (category: CategoryName) => {
+    setActiveCategory(category);
+
+    if (!selectedCategories.includes(category)) {
+      setSelectedCategories((prev) => [...prev, category]);
+    }
   };
 
   const toggleItem = (category: CategoryName, index: number) => {
+    const targetItem = itemsByCategory[category][index];
+
+    if (targetItem && !targetItem.checked && !selectedCategories.includes(category)) {
+      setSelectedCategories((prev) => [...prev, category]);
+    }
+
     setItemsByCategory((prev) => ({
       ...prev,
       [category]: prev[category].map((item, itemIndex) =>
@@ -271,6 +385,10 @@ export default function MarketCategoryPage() {
   };
 
   const startEditItem = (category: CategoryName, index: number) => {
+    if (!selectedCategories.includes(category)) {
+      setSelectedCategories((prev) => [...prev, category]);
+    }
+
     setItemsByCategory((prev) => ({
       ...prev,
       [category]: prev[category].map((item, itemIndex) =>
@@ -300,12 +418,15 @@ export default function MarketCategoryPage() {
     }
 
     setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
+      scrollRef.current?.scrollTo({
+        y: 410,
+        animated: true,
+      });
     }, 180);
   };
 
-  const getSelectedGroups = () => {
-    return selectedCategories
+  const getSelectedGroups = useCallback(() => {
+    return categories
       .map((category) => ({
         category,
         items: itemsByCategory[category]
@@ -316,15 +437,17 @@ export default function MarketCategoryPage() {
           })),
       }))
       .filter((group) => group.items.length > 0);
-  };
+  }, [itemsByCategory]);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const selectedGroups = getSelectedGroups();
 
     if (selectedGroups.length === 0) {
       Alert.alert('선택 필요', '판매할 물품을 1개 이상 선택해주세요.');
       return;
     }
+
+    await saveCategoryDraft();
 
     router.push({
       pathname: '/market/preview',
@@ -340,6 +463,8 @@ export default function MarketCategoryPage() {
         photos: params.photos ?? '[]',
         type: params.type ?? 'all',
         selectedItems: JSON.stringify(selectedGroups),
+        draftItemsByCategory: JSON.stringify(itemsByCategory),
+        draftCategoryDetails: JSON.stringify(draftCategoryDetails),
       },
     } as any);
   };
@@ -359,11 +484,16 @@ export default function MarketCategoryPage() {
         photos: parseJsonArray<string>(params.photos),
       },
       category: {
-        selectedCategories,
+        selectedCategories: getSelectedGroups().map((group) => group.category),
         itemsByCategory,
       },
+      preview: {
+        selectedItems: JSON.stringify(getSelectedGroups()),
+        itemsByCategory,
+        categoryDetails: draftCategoryDetails,
+      },
     });
-  }, [itemsByCategory, params, selectedCategories]);
+  }, [draftCategoryDetails, getSelectedGroups, itemsByCategory, params]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -374,6 +504,62 @@ export default function MarketCategoryPage() {
 
     return () => clearTimeout(timer);
   }, [saveCategoryDraft]);
+
+  useEffect(() => {
+    if (params.resumePreview !== 'true' || resumedPreviewRef.current) {
+      return;
+    }
+
+    resumedPreviewRef.current = true;
+
+    const timer = setTimeout(async () => {
+      const selectedGroups = getSelectedGroups();
+
+      if (selectedGroups.length === 0) {
+        return;
+      }
+
+      await saveCategoryDraft();
+
+      router.push({
+        pathname: '/market/preview',
+        params: {
+          title: params.title ?? '',
+          content: params.content ?? '',
+          price: params.price ?? '',
+          country: params.country ?? '',
+          region: params.region ?? '',
+          returnDate: params.returnDate ?? '',
+          semester: params.semester ?? '',
+          photoUrl: params.photoUrl ?? '',
+          photos: params.photos ?? '[]',
+          type: params.type ?? 'all',
+          selectedItems: params.selectedItems || JSON.stringify(selectedGroups),
+          draftItemsByCategory: JSON.stringify(itemsByCategory),
+          draftCategoryDetails: JSON.stringify(draftCategoryDetails),
+        },
+      } as any);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [
+    draftCategoryDetails,
+    getSelectedGroups,
+    itemsByCategory,
+    params.content,
+    params.country,
+    params.photoUrl,
+    params.photos,
+    params.price,
+    params.region,
+    params.resumePreview,
+    params.returnDate,
+    params.selectedItems,
+    params.semester,
+    params.title,
+    params.type,
+    saveCategoryDraft,
+  ]);
 
   const handleTempSave = async () => {
     await saveCategoryDraft();
@@ -409,7 +595,8 @@ export default function MarketCategoryPage() {
 
         <View style={styles.categoryGrid}>
           {categories.map((category) => {
-            const selected = selectedCategories.includes(category);
+            const selected = activeCategory === category;
+            const selectedItemCount = getSelectedItemCount(category);
 
             return (
               <Pressable
@@ -418,7 +605,7 @@ export default function MarketCategoryPage() {
                   styles.categoryChip,
                   selected && styles.categoryChipSelected,
                 ]}
-                onPress={() => toggleCategory(category)}
+                onPress={() => openCategory(category)}
               >
                 <Text
                   style={[
@@ -428,152 +615,149 @@ export default function MarketCategoryPage() {
                 >
                   {category}
                 </Text>
+                {selectedItemCount > 0 && (
+                  <View style={styles.categoryCountBadge}>
+                    <Text style={styles.categoryCountText}>
+                      {selectedItemCount}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
             );
           })}
         </View>
 
-        {selectedCategories.length > 0 && (
-          <>
-            <View style={styles.titleRow}>
-              <Text style={styles.mainTitle}>물품 목록</Text>
-              <View style={styles.titleLine} />
-            </View>
+        <View style={styles.titleRow}>
+          <Text style={styles.mainTitle}>물품 목록</Text>
+          <View style={styles.titleLine} />
+        </View>
 
-            {selectedCategories.map((category) => (
-              <View key={category} style={styles.categoryBox}>
-                <Text style={styles.categoryTitle}>{category}</Text>
+        <View style={styles.categoryBox}>
+          <View style={styles.categoryTitleRow}>
+            <Text style={styles.categoryTitle}>{activeCategory}</Text>
+            <Text style={styles.categorySelectedCount}>
+              {getSelectedItemCount(activeCategory)}개 선택
+            </Text>
+          </View>
 
-                <View style={styles.itemGrid}>
-                  {itemsByCategory[category].map((item, index) => {
-                    const selected = item.checked;
+          <View style={styles.itemGrid}>
+            {itemsByCategory[activeCategory].map((item, index) => {
+              const selected = item.checked;
+              const category = activeCategory;
 
-                    if (selected) {
-                      return (
-                        <View
-                          key={`${category}-${index}`}
-                          style={styles.selectedItemCell}
+              if (selected) {
+                return (
+                  <View
+                    key={`${category}-${index}`}
+                    style={styles.selectedItemCell}
+                  >
+                    <View style={styles.selectedItemTop}>
+                      <View style={styles.selectedItemMain}>
+                        <Pressable
+                          style={[styles.checkBox, styles.checkBoxSelected]}
+                          onPress={() => toggleItem(category, index)}
                         >
-                          <View style={styles.selectedItemTop}>
-                            <View style={styles.selectedItemMain}>
-                              <Pressable
-                                style={[styles.checkBox, styles.checkBoxSelected]}
-                                onPress={() => toggleItem(category, index)}
-                              >
-                                <Text style={styles.checkText}>✓</Text>
-                              </Pressable>
+                          <Text style={styles.checkText}>✓</Text>
+                        </Pressable>
 
-                              {item.editing ? (
-                                <TextInput
-                                  style={styles.selectedItemInput}
-                                  value={item.name}
-                                  placeholder="품목 입력"
-                                  placeholderTextColor="#999999"
-                                  autoFocus
-                                  onFocus={() => {
-                                    setTimeout(() => {
-                                      scrollRef.current?.scrollTo({
-                                        y:
-                                          360 +
-                                          selectedCategories.indexOf(category) *
-                                            260,
-                                        animated: true,
-                                      });
-                                    }, 120);
-                                  }}
-                                  onChangeText={(value) =>
-                                    changeItemName(category, index, value)
-                                  }
-                                  onSubmitEditing={() =>
-                                    finishEditItem(category, index)
-                                  }
-                                  onBlur={() => finishEditItem(category, index)}
-                                />
-                              ) : (
-                                <>
-                                  <Text
-                                    style={styles.selectedItemName}
-                                    numberOfLines={1}
-                                  >
-                                    {item.name || '품목 입력'}
-                                  </Text>
+                        {item.editing ? (
+                          <TextInput
+                            style={styles.selectedItemInput}
+                            value={item.name}
+                            placeholder="품목 입력"
+                            placeholderTextColor="#999999"
+                            autoFocus
+                            onFocus={() => {
+                              setTimeout(() => {
+                                scrollRef.current?.scrollTo({
+                                  y: 390,
+                                  animated: true,
+                                });
+                              }, 120);
+                            }}
+                            onChangeText={(value) =>
+                              changeItemName(category, index, value)
+                            }
+                            onSubmitEditing={() =>
+                              finishEditItem(category, index)
+                            }
+                            onBlur={() => finishEditItem(category, index)}
+                          />
+                        ) : (
+                          <>
+                            <Text
+                              style={styles.selectedItemName}
+                              numberOfLines={1}
+                            >
+                              {item.name || '품목 입력'}
+                            </Text>
 
-                                  <Pressable
-                                    style={styles.editNameButton}
-                                    onPress={() => startEditItem(category, index)}
-                                    hitSlop={8}
-                                  >
-                                    <Ionicons
-                                      name="pencil"
-                                      size={14}
-                                      color="#555555"
-                                    />
-                                  </Pressable>
-                                </>
-                              )}
-                            </View>
+                            <Pressable
+                              style={styles.editNameButton}
+                              onPress={() => startEditItem(category, index)}
+                              hitSlop={8}
+                            >
+                              <Ionicons
+                                name="pencil"
+                                size={14}
+                                color="#555555"
+                              />
+                            </Pressable>
+                          </>
+                        )}
+                      </View>
 
-                            <View style={styles.quantityControl}>
-                              <Pressable
-                                style={styles.quantityButton}
-                                onPress={() =>
-                                  changeQuantity(category, index, 'minus')
-                                }
-                              >
-                                <Text style={styles.quantityButtonText}>−</Text>
-                              </Pressable>
-
-                              <Text style={styles.quantityNumber}>
-                                {item.quantity}
-                              </Text>
-
-                              <Pressable
-                                style={styles.quantityButton}
-                                onPress={() =>
-                                  changeQuantity(category, index, 'plus')
-                                }
-                              >
-                                <Text style={styles.quantityButtonText}>＋</Text>
-                              </Pressable>
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    }
-
-                    return (
-                      <Pressable
-                        key={`${category}-${index}`}
-                        style={styles.itemRow}
-                        onPress={() => toggleItem(category, index)}
-                      >
-                        <View
-                          style={[
-                            styles.checkBox,
-                            selected && styles.checkBoxSelected,
-                          ]}
+                      <View style={styles.quantityControl}>
+                        <Pressable
+                          style={styles.quantityButton}
+                          onPress={() =>
+                            changeQuantity(category, index, 'minus')
+                          }
                         >
-                          {selected && <Text style={styles.checkText}>✓</Text>}
-                        </View>
+                          <Text style={styles.quantityButtonText}>−</Text>
+                        </Pressable>
 
-                        <Text style={styles.itemName} numberOfLines={1}>
-                          {item.name}
+                        <Text style={styles.quantityNumber}>
+                          {item.quantity}
                         </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
 
+                        <Pressable
+                          style={styles.quantityButton}
+                          onPress={() =>
+                            changeQuantity(category, index, 'plus')
+                          }
+                        >
+                          <Text style={styles.quantityButtonText}>＋</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  </View>
+                );
+              }
+
+              return (
                 <Pressable
-                  style={styles.addButton}
-                  onPress={() => addCustomItem(category)}
+                  key={`${category}-${index}`}
+                  style={styles.itemRow}
+                  onPress={() => toggleItem(category, index)}
                 >
-                  <Text style={styles.addButtonText}>+ 추가하기</Text>
+                  <View style={styles.checkBox} />
+
+                  <Text style={styles.itemName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
                 </Pressable>
-              </View>
-            ))}
-          </>
-        )}
+              );
+            })}
+          </View>
+
+          <Pressable
+            style={styles.addButton}
+            onPress={() => addCustomItem(activeCategory)}
+          >
+            <Text style={styles.addButtonText}>+ 추가하기</Text>
+          </Pressable>
+        </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -638,7 +822,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 22,
     paddingTop: 12,
-    paddingBottom: 420,
+    paddingBottom: 380,
   },
 
   sectionTitle: {
@@ -663,6 +847,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F2F2F2',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
 
   categoryChipSelected: {
@@ -677,6 +862,24 @@ const styles = StyleSheet.create({
 
   categoryChipTextSelected: {
     color: '#FFFFFF',
+  },
+
+  categoryCountBadge: {
+    position: 'absolute',
+    right: 9,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+
+  categoryCountText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: BLUE,
   },
 
   titleRow: {
@@ -708,11 +911,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  categoryTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+
   categoryTitle: {
     fontSize: 14,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 10,
+  },
+
+  categorySelectedCount: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
   },
 
   itemGrid: {
@@ -869,7 +1084,7 @@ const styles = StyleSheet.create({
   },
 
   bottomSpacer: {
-    height: 320,
+    height: 280,
   },
 
   nextButton: {

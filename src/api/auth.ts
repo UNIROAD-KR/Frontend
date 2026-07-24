@@ -136,6 +136,10 @@ export const logout = () => {
   return api.post('/api/auth/logout');
 };
 
+export const deleteMyAccount = () => {
+  return api.delete<BaseResponse<void>>('/api/members/me');
+};
+
 export const getMemberMe = () => {
   return api.get<BaseResponse<MemberResponse>>('/api/members/me');
 };

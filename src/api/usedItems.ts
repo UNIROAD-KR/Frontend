@@ -24,6 +24,7 @@ export interface UsedItemRequest {
   semester: string;
   returnDate?: string;
   thumbnailImageUrl: string;
+  status?: string;
   items?: TradeItemRequest[];
   categoryImages?: TradeCategoryImageRequest[];
 }
@@ -35,6 +36,8 @@ export interface UsedItemSummaryResponse {
   country?: string;
   region: string;
   semester: string;
+  status?: 'AVAILABLE' | 'COMPLETED';
+  scrapCount?: number;
   thumbnailImageUrl: string;
   authorName: string;
   authorNickname?: string;
@@ -84,14 +87,45 @@ export interface UsedItemListResponse {
   nextCursorId: number | null;
 }
 
-export const getUsedItems = () => {
-  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items');
+export type UsedItemCursorParams = {
+  cursorId?: number;
+  size?: number;
+};
+
+export type UsedItemSearchParams = UsedItemCursorParams & {
+  title?: string;
+  country?: string;
+  region?: string;
+  content?: string;
+  status?: string;
+};
+
+export const getUsedItems = (params: UsedItemCursorParams = { size: 20 }) => {
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items', {
+    params,
+  });
+};
+
+export const searchUsedItems = (
+  params: UsedItemSearchParams = { size: 20 },
+) => {
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/search', {
+    params,
+  });
 };
 
 export const getMyUsedItems = (
   params: { cursorId?: number; size?: number } = { size: 20 },
 ) => {
   return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/my', {
+    params,
+  });
+};
+
+export const getScrappedUsedItems = (
+  params: { cursorId?: number; size?: number } = { size: 20 },
+) => {
+  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/scraps', {
     params,
   });
 };
@@ -104,6 +138,22 @@ export const createUsedItem = (data: UsedItemRequest) => {
   return api.post<BaseResponse<number>>('/api/used-items', data);
 };
 
+export const updateUsedItem = (id: number, data: UsedItemRequest) => {
+  return api.patch<BaseResponse<void>>(`/api/used-items/${id}`, data);
+};
+
 export const deleteUsedItem = (id: number) => {
   return api.delete<BaseResponse<void>>(`/api/used-items/${id}`);
+};
+
+export const toggleUsedItemScrap = (id: number) => {
+  return api.post<BaseResponse<boolean>>(`/api/used-items/${id}/scrap`);
+};
+
+export const completeUsedItem = (id: number) => {
+  return api.patch<BaseResponse<void>>(`/api/used-items/${id}/complete`);
+};
+
+export const reopenUsedItem = (id: number) => {
+  return api.patch<BaseResponse<void>>(`/api/used-items/${id}/reopen`);
 };
