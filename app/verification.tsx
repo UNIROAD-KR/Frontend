@@ -34,12 +34,12 @@ type PickedImage = {
   contentType: string;
 };
 
-const BLUE = '#123F9F';
-const NAVY = '#0F2042';
-const INK = '#111111';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const BLUE = '#3568DA';
+const NAVY = '#18202B';
+const INK = '#1A2029';
+const MUTED = '#7A8491';
+const LINE = '#E3E7EC';
+const SOFT = '#F2F4F7';
 
 const statusMeta: Record<
   VerificationStatus,
@@ -439,30 +439,25 @@ export default function VerificationPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
-    height: 104,
+    height: 94,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 10,
+    paddingTop: 44,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E8EBEF',
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -474,9 +469,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    paddingBottom: 54,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 100,
   },
   loadingBox: {
     minHeight: 320,
@@ -484,16 +479,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     color: INK,
     marginBottom: 12,
   },
   description: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#333333',
-    marginBottom: 34,
+    fontSize: 12,
+    lineHeight: 18,
+    color: MUTED,
+    marginBottom: 26,
   },
   sectionHeader: {
     marginTop: 28,
@@ -503,7 +498,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
     color: INK,
     marginBottom: 16,
@@ -517,18 +512,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF4FF',
   },
   summaryCard: {
-    borderRadius: 16,
-    backgroundColor: '#F2F7FF',
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DCE7FF',
-    padding: 18,
+    borderColor: '#E5E9EE',
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
   summaryIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: BLUE,
@@ -539,30 +534,30 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   summaryTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
     color: INK,
   },
   summaryDesc: {
     marginTop: 6,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: MUTED,
   },
   historyCard: {
     minHeight: 104,
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
     backgroundColor: '#FFFFFF',
-    padding: 12,
+    padding: 10,
     marginBottom: 12,
     flexDirection: 'row',
   },
   historyImage: {
-    width: 78,
-    height: 78,
-    borderRadius: 10,
+    width: 72,
+    height: 72,
+    borderRadius: 7,
     backgroundColor: SOFT,
     marginRight: 12,
   },
@@ -624,8 +619,8 @@ const styles = StyleSheet.create({
   },
   methodCard: {
     flex: 1,
-    minHeight: 122,
-    borderRadius: 12,
+    minHeight: 112,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
     backgroundColor: '#FFFFFF',
@@ -652,10 +647,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   previewCard: {
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DCE7FF',
-    backgroundColor: '#F8FBFF',
+    borderColor: '#E3E7EC',
+    backgroundColor: '#FFFFFF',
     padding: 10,
     marginBottom: 18,
     flexDirection: 'row',
@@ -664,7 +659,7 @@ const styles = StyleSheet.create({
   previewImage: {
     width: 58,
     height: 58,
-    borderRadius: 10,
+    borderRadius: 8,
     marginRight: 12,
   },
   previewTextBox: {
@@ -693,7 +688,7 @@ const styles = StyleSheet.create({
   infoBox: {
     borderWidth: 1,
     borderColor: LINE,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 18,
     paddingVertical: 16,
     marginTop: 8,
@@ -712,9 +707,9 @@ const styles = StyleSheet.create({
     color: '#222222',
   },
   primaryButton: {
-    height: 54,
-    borderRadius: 8,
-    backgroundColor: BLUE,
+    height: 50,
+    borderRadius: 7,
+    backgroundColor: '#18202B',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
@@ -723,7 +718,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5EAF2',
   },
   primaryButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     color: '#FFFFFF',
   },

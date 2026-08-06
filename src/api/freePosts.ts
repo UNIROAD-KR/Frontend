@@ -4,10 +4,10 @@ import { BaseResponse, CursorRequest, CursorResponse } from './types';
 export interface FreePostRequest {
   title: string;
   content: string;
-  country: string;
-  status: string;
   imageUrls?: string[];
 }
+
+export type FreePostStatusFilter = '전체' | '파견 전' | '파견 중';
 
 export interface FreePostSummaryResponse {
   id: number;
@@ -53,11 +53,41 @@ export interface FreePostLikeResponse {
   likeCount: number;
 }
 
-export const getFreePosts = (params: CursorRequest = { size: 10 }) => {
-  return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-    '/api/community/free-posts',
-    { params },
-  );
+const freePostListEndpointMap: Record<FreePostStatusFilter, string[]> = {
+  전체: ['/api/community/free-posts/all', '/api/community/free-posts'],
+  '파견 전': [
+    '/api/community/free-posts/pre-dispatch',
+    '/api/community/free-posts/before-dispatch',
+  ],
+  '파견 중': [
+    '/api/community/free-posts/dispatching',
+    '/api/community/free-posts/dispatched',
+  ],
+};
+
+export const getFreePosts = async (
+  params: CursorRequest = { size: 10 },
+  statusFilter: FreePostStatusFilter = '전체',
+) => {
+  const endpoints = freePostListEndpointMap[statusFilter];
+  let lastError: unknown = null;
+
+  for (const endpoint of endpoints) {
+    try {
+      return await api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
+        endpoint,
+        { params },
+      );
+    } catch (error: any) {
+      lastError = error;
+
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
 };
 
 export const getMyFreePosts = (params: CursorRequest = { size: 20 }) => {

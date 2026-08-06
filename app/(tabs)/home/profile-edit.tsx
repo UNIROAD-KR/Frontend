@@ -31,12 +31,12 @@ import {
 } from '@/src/constants/onboarding';
 
 const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
-const INK = '#111111';
-const MUTED = '#64748B';
-const SOFT = '#F6F8FC';
+const BLUE = '#3568DA';
+const INK = '#1A2029';
+const MUTED = '#7A8491';
+const SOFT = '#F2F4F7';
 const CARD = '#FFFFFF';
-const PAGE = '#F4F5F7';
+const PAGE = '#F6F7F9';
 
 const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중'];
 const dateLabels: Record<string, string> = {
@@ -734,26 +734,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 10,
+    paddingTop: 44,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
     position: 'relative',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
     zIndex: 1,
   },
   headerTitle: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 17,
-    fontSize: 18,
+    bottom: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
     textAlign: 'center',
@@ -762,71 +757,73 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 150,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 132,
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   avatarFrame: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#FFFFFF',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#EEF1F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '900',
     color: NAVY,
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 6,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 5,
   },
   sectionCard: {
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: '#E5E9EE',
     overflow: 'visible',
   },
   sectionBody: {
-    paddingHorizontal: 18,
-    paddingTop: 4,
-    paddingBottom: 10,
+    paddingHorizontal: 12,
+    paddingTop: 5,
+    paddingBottom: 8,
   },
   formSectionBody: {
     paddingBottom: 15,
   },
   infoRow: {
-    minHeight: 50,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginVertical: 5,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   editableInfoRow: {
     borderWidth: 1,
-    borderColor: '#C9DAFF',
-    borderRadius: 10,
-    backgroundColor: '#F8FBFF',
+    borderColor: '#DCE2E9',
+    borderRadius: 7,
+    backgroundColor: '#FFFFFF',
   },
   editableInfoRowSpacing: {
     marginBottom: 8,
   },
   readonlyInfoRow: {
-    borderRadius: 10,
-    backgroundColor: '#F1F3F5',
+    borderRadius: 7,
+    backgroundColor: '#F2F4F6',
   },
   infoRowDivider: {
     borderBottomWidth: 1,
@@ -835,7 +832,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     flexBasis: 92,
     flexShrink: 0,
-    fontSize: 14,
+    fontSize: 12,
     lineHeight: 19,
     fontWeight: '700',
     color: INK,
@@ -843,7 +840,7 @@ const styles = StyleSheet.create({
   infoValue: {
     flex: 1,
     minWidth: 0,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     color: NAVY,
     textAlign: 'right',
@@ -858,17 +855,17 @@ const styles = StyleSheet.create({
     color: '#A4ADBA',
   },
   editBadge: {
-    minWidth: 48,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: '#EAF1FF',
+    minWidth: 45,
+    height: 24,
+    borderRadius: 5,
+    backgroundColor: '#EDF2FF',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
   },
   editBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     color: BLUE,
   },
@@ -882,8 +879,8 @@ const styles = StyleSheet.create({
     color: NAVY,
   },
   input: {
-    minHeight: 44,
-    borderRadius: 12,
+    minHeight: 46,
+    borderRadius: 7,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
     paddingVertical: 0,
@@ -920,7 +917,7 @@ const styles = StyleSheet.create({
   },
   dateButton: {
     minHeight: 44,
-    borderRadius: 12,
+    borderRadius: 7,
     backgroundColor: PAGE,
     flexDirection: 'row',
     alignItems: 'center',
@@ -939,14 +936,14 @@ const styles = StyleSheet.create({
   },
   statusChip: {
     minHeight: 32,
-    borderRadius: 999,
+    borderRadius: 6,
     backgroundColor: PAGE,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
   statusChipSelected: {
-    backgroundColor: '#123F9F',
+    backgroundColor: '#18202B',
   },
   statusChipText: {
     fontSize: 13,
@@ -961,15 +958,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
-    backgroundColor: 'rgba(244,245,247,0.96)',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 20,
+    backgroundColor: 'rgba(246,247,249,0.96)',
   },
   footerButton: {
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: '#123F9F',
+    height: 50,
+    borderRadius: 7,
+    backgroundColor: '#3568DA',
     alignItems: 'center',
     justifyContent: 'center',
   },

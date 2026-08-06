@@ -10,10 +10,10 @@ import {
   View,
 } from 'react-native';
 
-const NAVY = '#0F2042';
+const NAVY = '#18202B';
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_GAP = 12;
-const CONTENT_PADDING = 22;
+const CARD_GAP = 10;
+const CONTENT_PADDING = 16;
 const SERVICE_CARD_WIDTH =
   (SCREEN_WIDTH - CONTENT_PADDING * 2 - CARD_GAP) / 2;
 
@@ -142,29 +142,24 @@ export default function MoreMenuScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 44,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -176,54 +171,49 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 22,
-    paddingTop: 22,
-    paddingBottom: 130,
+    paddingHorizontal: CONTENT_PADDING,
+    paddingTop: 16,
+    paddingBottom: 104,
   },
   groupSection: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   groupTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '900',
     color: '#111111',
-    marginBottom: 14,
+    marginBottom: 9,
   },
   groupGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    columnGap: 12,
-    rowGap: 12,
+    columnGap: CARD_GAP,
+    rowGap: CARD_GAP,
   },
   serviceCard: {
     width: SERVICE_CARD_WIDTH,
-    minHeight: 96,
-    borderRadius: 16,
+    minHeight: 86,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 14,
-    shadowColor: NAVY,
-    shadowOpacity: 0.015,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    paddingVertical: 12,
   },
   serviceIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#F6F8FC',
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#F0F2F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 11,
+    marginBottom: 8,
   },
   serviceTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: NAVY,
     textAlign: 'center',

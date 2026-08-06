@@ -5,6 +5,7 @@ const STORAGE_KEY = 'univ:ticket:draft';
 export type TicketDraft = {
   step: 1 | 2;
   ticketType: string | null;
+  customTicketType?: string;
   eventDate: string;
   checkoutDate: string;
   eventTime: string;

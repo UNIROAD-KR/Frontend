@@ -66,16 +66,16 @@ export function AppBackButton({
 
 const styles = StyleSheet.create({
   button: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#F6F8FC',
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
   },
   icon: {
-    width: 15,
-    height: 24,
+    width: 13,
+    height: 20,
     resizeMode: 'contain',
   },
 });

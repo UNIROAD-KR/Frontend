@@ -39,23 +39,18 @@ const TIME_ITEM_HEIGHT = 36;
 const TIME_WHEEL_HEIGHT = 180;
 const TIME_WHEEL_BOX_HEIGHT = 206;
 const calendarWeekDays = ['일', '월', '화', '수', '목', '금', '토'];
+type TicketTypeSelection = TicketType | 'OTHER';
 
 const ticketTypeOptions: {
   label: string;
-  value: TicketType | null;
-  disabledReason?: string;
+  value: TicketTypeSelection;
 }[] = [
   { label: '관광 티켓', value: 'TOUR' },
   { label: '콘서트 / 공연', value: 'CONCERT' },
   { label: '기차', value: 'TRAIN' },
   { label: '항공권', value: 'FLIGHT' },
   { label: '숙박', value: 'ACCOMMODATION' },
-  {
-    label: '기타',
-    value: null,
-    disabledReason:
-      '백엔드 티켓 타입에 OTHER가 추가되면 바로 등록할 수 있어요.',
-  },
+  { label: '기타', value: 'OTHER' },
 ];
 
 const ticketFieldLabels: Record<
@@ -119,6 +114,42 @@ const currencyOptions = ['€', '$', '₩', '¥', '£', '직접 입력'];
 
 const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
 
+const normalizeTimeInput = (value: string) => {
+  const trimmedValue = value.trim();
+  const colonMatch = /^(\d{1,2}):(\d{1,2})$/.exec(trimmedValue);
+  const digitMatch = /^(\d{3,4})$/.exec(trimmedValue);
+
+  let hourText = '';
+  let minuteText = '';
+
+  if (colonMatch) {
+    hourText = colonMatch[1];
+    minuteText = colonMatch[2];
+  } else if (digitMatch) {
+    const digits = digitMatch[1];
+    hourText = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+    minuteText = digits.length === 3 ? digits.slice(1) : digits.slice(2);
+  } else {
+    return null;
+  }
+
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
 const formatPriceInput = (value: string) => {
   const digits = onlyDigits(value);
 
@@ -135,7 +166,7 @@ const parseDateValue = (value: string) => {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
-const isRouteTicketType = (value: TicketType | null) =>
+const isRouteTicketType = (value: TicketTypeSelection | null) =>
   value === 'TRAIN' || value === 'FLIGHT';
 
 const splitRouteLocation = (value: string) => {
@@ -168,12 +199,14 @@ export default function TicketWritePage() {
   const editId = Number(params.editId);
   const isEditMode = Number.isFinite(editId);
   const [step, setStep] = useState<1 | 2>(1);
-  const [ticketType, setTicketType] = useState<TicketType | null>(
-    (params.ticketType as TicketType | undefined) ?? null,
+  const [ticketType, setTicketType] = useState<TicketTypeSelection | null>(
+    (params.ticketType as TicketTypeSelection | undefined) ?? null,
   );
+  const [customTicketType, setCustomTicketType] = useState('');
   const [eventDate, setEventDate] = useState(params.eventDate ?? '');
   const [checkoutDate, setCheckoutDate] = useState(params.checkoutDate ?? '');
   const [eventTime, setEventTime] = useState(params.eventTime ?? '');
+  const [timeError, setTimeError] = useState('');
   const [country, setCountry] = useState(params.country ?? '');
   const [location, setLocation] = useState(params.location ?? '');
   const initialRouteLocation = splitRouteLocation(params.location ?? '');
@@ -229,7 +262,12 @@ export default function TicketWritePage() {
   );
   const isAccommodation = ticketType === 'ACCOMMODATION';
   const isRouteTicket = isRouteTicketType(ticketType);
-  const fieldLabels = ticketType
+  const requiresCountry = !isRouteTicket;
+  const isCustomTicketType = ticketType === 'OTHER';
+  const normalizedEventTime = eventTime.trim()
+    ? normalizeTimeInput(eventTime)
+    : null;
+  const fieldLabels = ticketType && ticketType !== 'OTHER'
     ? ticketFieldLabels[ticketType]
     : ticketFieldLabels.TOUR;
   const resolvedLocation = isRouteTicket
@@ -253,7 +291,8 @@ export default function TicketWritePage() {
       if (!active || !draft) return;
 
       setStep(draft.step);
-      setTicketType(draft.ticketType as TicketType | null);
+      setTicketType(draft.ticketType as TicketTypeSelection | null);
+      setCustomTicketType(draft.customTicketType ?? '');
       setEventDate(draft.eventDate);
       setCheckoutDate(draft.checkoutDate);
       setEventTime(draft.eventTime);
@@ -294,9 +333,10 @@ export default function TicketWritePage() {
     () =>
       Boolean(
           ticketType &&
+          (!isCustomTicketType || customTicketType.trim()) &&
           eventDate &&
-          (isAccommodation ? checkoutDate : eventTime.trim()) &&
-          country &&
+          (isAccommodation ? checkoutDate : normalizedEventTime) &&
+          (!requiresCountry || country) &&
           resolvedLocation &&
           selectedCurrencyLabel &&
           transferPrice &&
@@ -306,9 +346,12 @@ export default function TicketWritePage() {
       ),
     [
       eventDate,
-      eventTime,
       checkoutDate,
       isAccommodation,
+      isCustomTicketType,
+      customTicketType,
+      normalizedEventTime,
+      requiresCountry,
       country,
       resolvedLocation,
       originalPrice,
@@ -374,6 +417,24 @@ export default function TicketWritePage() {
     }
 
     closePicker();
+  };
+
+  const handleTimeBlur = () => {
+    if (isAccommodation || !eventTime.trim()) {
+      setTimeError('');
+      return;
+    }
+
+    const normalizedTime = normalizeTimeInput(eventTime);
+
+    if (!normalizedTime) {
+      setTimeError('시간은 00:00 형식으로 입력해주세요.');
+      Alert.alert('시간 형식 오류', '시간은 00:00 형식으로 입력해주세요.');
+      return;
+    }
+
+    setEventTime(normalizedTime);
+    setTimeError('');
   };
 
   const snapTimeWheelToNearest = (
@@ -560,6 +621,7 @@ export default function TicketWritePage() {
     await saveTicketDraft({
       step,
       ticketType,
+      customTicketType,
       eventDate,
       checkoutDate,
       eventTime,
@@ -582,6 +644,14 @@ export default function TicketWritePage() {
   const handleSubmit = async () => {
     if (!ticketType || !canSubmit || !canGoNext) return;
 
+    if (ticketType === 'OTHER') {
+      Alert.alert(
+        'API 추가 필요',
+        '기타 티켓을 등록하려면 백엔드 TicketType enum에 OTHER와 직접 입력 종류 필드가 필요해요.',
+      );
+      return;
+    }
+
     const submitEventDate = isAccommodation
       ? `${eventDate}~${checkoutDate}`
       : eventDate;
@@ -592,8 +662,8 @@ export default function TicketWritePage() {
       title: title.trim(),
       content: content.trim(),
       eventDate: submitEventDate,
-      eventTime: isAccommodation ? '00:00' : eventTime.trim(),
-      country,
+      eventTime: isAccommodation ? '00:00' : normalizedEventTime ?? eventTime.trim(),
+      country: requiresCountry ? country : '이동',
       location: resolvedLocation,
       quantity,
       transferPrice: Number(onlyDigits(transferPrice)),
@@ -642,6 +712,20 @@ export default function TicketWritePage() {
     }
   };
 
+  const handleGoNext = () => {
+    if (!canGoNext) {
+      if (!isAccommodation && eventTime.trim() && !normalizedEventTime) {
+        Alert.alert('시간 형식 오류', '시간은 00:00 형식으로 입력해주세요.');
+        return;
+      }
+
+      Alert.alert('입력 오류', '필수 항목을 모두 입력해주세요.');
+      return;
+    }
+
+    setStep(2);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -674,12 +758,16 @@ export default function TicketWritePage() {
             {isEditMode ? '티켓양도 수정하기' : '티켓양도하기'}
           </Text>
           <Pressable
-            style={styles.tempSaveButton}
             onPress={handleTempSave}
             hitSlop={8}
           >
-            <Text style={styles.tempSaveIcon}>🔖</Text>
+            <Text style={styles.tempSaveText}>임시저장</Text>
           </Pressable>
+        </View>
+
+        <View style={styles.progressRow}>
+          <View style={styles.progressActive} />
+          <View style={[styles.progress, step === 2 && styles.progressActive]} />
         </View>
 
         {step === 1 ? (
@@ -687,29 +775,22 @@ export default function TicketWritePage() {
             <Text style={styles.sectionLabel}>티켓 종류</Text>
             <View style={styles.typeGrid}>
               {ticketTypeOptions.map((option) => {
-                const active = option.value !== null && ticketType === option.value;
+                const active = ticketType === option.value;
 
                 return (
                   <Pressable
                     key={option.label}
                     style={[
                       styles.typeButton,
-                      option.value === null && styles.typeButtonDisabled,
                       active && styles.typeButtonActive,
                     ]}
                     onPress={() => {
-                      if (option.value === null) {
-                        Alert.alert('API 추가 필요', option.disabledReason);
-                        return;
-                      }
-
                       setTicketType(option.value);
                     }}
                   >
                     <Text
                       style={[
                         styles.typeText,
-                        option.value === null && styles.typeTextDisabled,
                         active && styles.typeTextActive,
                       ]}
                       numberOfLines={1}
@@ -720,6 +801,20 @@ export default function TicketWritePage() {
                 );
               })}
             </View>
+
+            {isCustomTicketType && (
+              <View style={styles.fullGroup}>
+                <Text style={styles.inputLabel}>티켓 종류 직접 입력</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="예: 박물관 입장권"
+                  placeholderTextColor="#9B9B9B"
+                  value={customTicketType}
+                  onChangeText={setCustomTicketType}
+                  returnKeyType="next"
+                />
+              </View>
+            )}
 
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionLabel, styles.sectionHeaderLabel]}>
@@ -810,14 +905,29 @@ export default function TicketWritePage() {
                     {fieldLabels.time}
                   </Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, timeError && styles.inputError]}
                     placeholder="예: 19:30"
                     placeholderTextColor="#9B9B9B"
                     value={eventTime}
-                    onChangeText={setEventTime}
+                    onChangeText={(value) => {
+                      setEventTime(value);
+                      setTimeError('');
+                    }}
+                    onBlur={handleTimeBlur}
                     returnKeyType="next"
-                    onSubmitEditing={() => setCountryPickerVisible(true)}
+                    onSubmitEditing={() => {
+                      handleTimeBlur();
+                      if (requiresCountry) {
+                        setCountryPickerVisible(true);
+                        return;
+                      }
+
+                      focusNextField(departureInputRef);
+                    }}
                   />
+                  {timeError ? (
+                    <Text style={styles.errorText}>{timeError}</Text>
+                  ) : null}
                 </View>
               </View>
             )}
@@ -871,30 +981,32 @@ export default function TicketWritePage() {
             </View>
 
             <View style={styles.twoColumnRow}>
-              <View style={styles.halfGroup}>
-                <Text style={styles.inputLabel}>국가</Text>
-                <Pressable
-                  style={styles.selectInput}
-                  onPress={() => setCountryPickerVisible(true)}
-                >
-                  <Text
-                    style={[
-                      styles.selectText,
-                      country && styles.selectTextActive,
-                    ]}
+              {requiresCountry && (
+                <View style={styles.halfGroup}>
+                  <Text style={styles.inputLabel}>국가</Text>
+                  <Pressable
+                    style={styles.selectInput}
+                    onPress={() => setCountryPickerVisible(true)}
                   >
-                    {country || '선택'}
-                  </Text>
-                  <Ionicons
-                    name="chevron-down"
-                    size={16}
-                    color="#A0A0A0"
-                    style={styles.chevronIcon}
-                  />
-                </Pressable>
-              </View>
+                    <Text
+                      style={[
+                        styles.selectText,
+                        country && styles.selectTextActive,
+                      ]}
+                    >
+                      {country || '선택'}
+                    </Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={16}
+                      color="#A0A0A0"
+                      style={styles.chevronIcon}
+                    />
+                  </Pressable>
+                </View>
+              )}
 
-              <View style={styles.halfGroup}>
+              <View style={requiresCountry ? styles.halfGroup : styles.fullFlexGroup}>
                 <Text style={styles.inputLabel} numberOfLines={1}>
                   {fieldLabels.location}
                 </Text>
@@ -1070,7 +1182,7 @@ export default function TicketWritePage() {
             <Pressable
               style={[styles.bottomButton, !canGoNext && styles.buttonDisabled]}
               disabled={!canGoNext}
-              onPress={() => setStep(2)}
+              onPress={handleGoNext}
             >
               <Text style={styles.bottomButtonText}>다음 (1/2)</Text>
             </Pressable>
@@ -1627,6 +1739,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: '#111111',
   },
+  tempSaveText: {
+    minWidth: 58,
+    textAlign: 'right',
+    fontSize: 14,
+    fontWeight: '800',
+    color: BLUE,
+  },
   tempSaveButton: {
     width: 46,
     height: 46,
@@ -1638,6 +1757,23 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 38,
     textAlign: 'center',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 26,
+  },
+  progress: {
+    flex: 1,
+    height: 4,
+    borderRadius: 99,
+    backgroundColor: '#E5E5E5',
+  },
+  progressActive: {
+    flex: 1,
+    height: 4,
+    borderRadius: 99,
+    backgroundColor: BLUE,
   },
   sectionLabel: {
     fontSize: 15,
@@ -1709,6 +1845,9 @@ const styles = StyleSheet.create({
   halfGroup: {
     flex: 1,
   },
+  fullFlexGroup: {
+    flex: 1,
+  },
   fullGroup: {
     marginBottom: 13,
   },
@@ -1764,6 +1903,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#111111',
     marginBottom: 15,
+  },
+  inputError: {
+    borderColor: '#E5484D',
+    marginBottom: 6,
+  },
+  errorText: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '700',
+    color: '#E5484D',
+    marginBottom: 8,
   },
   currencyControlRow: {
     flexDirection: 'row',

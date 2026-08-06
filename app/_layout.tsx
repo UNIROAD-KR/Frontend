@@ -1,14 +1,9 @@
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import {
   registerDeviceForPushNotifications,
   subscribeToFcmTokenRefresh,
@@ -16,8 +11,6 @@ import {
 } from '@/src/notifications/push';
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   useEffect(() => {
     const unsubscribeForeground = subscribeToForegroundPushNotifications();
     const unsubscribeTokenRefresh = subscribeToFcmTokenRefresh();
@@ -33,7 +26,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -81,7 +74,7 @@ export default function RootLayout() {
         <Stack.Screen name="id-login" />
       </Stack>
 
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </ThemeProvider>
   );
 }

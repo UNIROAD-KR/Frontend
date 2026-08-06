@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = 'https://api.uniroad-kr.store';
+const REQUEST_TIMEOUT_MS = 6000;
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -14,6 +15,7 @@ type FailedQueueItem = {
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -73,9 +75,15 @@ api.interceptors.response.use(
         throw new Error('No refresh token available');
       }
 
-      const { data } = await axios.post(`${API_BASE_URL}/api/auth/reissue`, {
-        refreshToken,
-      });
+      const { data } = await axios.post(
+        `${API_BASE_URL}/api/auth/reissue`,
+        {
+          refreshToken,
+        },
+        {
+          timeout: REQUEST_TIMEOUT_MS,
+        },
+      );
 
       const newAccessToken = data.data.accessToken;
       const newRefreshToken = data.data.refreshToken;

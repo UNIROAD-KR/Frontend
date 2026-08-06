@@ -23,6 +23,7 @@ import {
   CUSTOM_COUNTRY_OPTION,
   ONBOARDING_NICKNAME_KEY,
 } from '@/src/constants/onboarding';
+import { designColors } from '@/src/styles/design-tokens';
 
 const resolveCountrySelection = (savedCountry: string | null) => {
   if (!savedCountry) {
@@ -266,7 +267,7 @@ export default function CountryPage() {
   );
 }
 
-const BLUE = '#123F9F';
+const BLUE = designColors.ink;
 
 const styles = StyleSheet.create({
   container: {

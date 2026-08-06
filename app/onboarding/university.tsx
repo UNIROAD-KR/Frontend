@@ -26,6 +26,7 @@ import {
   parseDispatchSemester,
   universityOptions,
 } from '@/src/constants/onboarding';
+import { designColors } from '@/src/styles/design-tokens';
 
 type DateStorageKey =
   | 'applicationDeadline'
@@ -599,7 +600,7 @@ export default function UniversityPage() {
   );
 }
 
-const BLUE = '#123F9F';
+const BLUE = designColors.ink;
 
 const styles = StyleSheet.create({
   container: {

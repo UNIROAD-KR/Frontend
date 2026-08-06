@@ -4,6 +4,7 @@ import { BaseResponse } from './types';
 export type ReportTargetType =
   | 'FREE_POST'
   | 'USED_ITEM'
+  | 'TICKET_TRANSFER'
   | 'COMPANION'
   | 'MEMBER';
 

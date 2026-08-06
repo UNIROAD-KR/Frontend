@@ -74,7 +74,6 @@ export default function CommunityWriteScreen() {
     currentParticipants?: string;
     genderRatio?: string;
     status?: 'RECRUITING' | 'COMPLETED';
-    freeStatus?: string;
     imageUrls?: string;
   }>();
   const isCompanion = params.type === 'companion';
@@ -95,7 +94,6 @@ export default function CommunityWriteScreen() {
   const [status, setStatus] = useState<'RECRUITING' | 'COMPLETED'>(
     params.status || 'RECRUITING',
   );
-  const [freeStatus, setFreeStatus] = useState(params.freeStatus || '파견 중');
   const [dateTarget, setDateTarget] = useState<DateTarget>(null);
   const [draftDate, setDraftDate] = useState(new Date());
   const [photos, setPhotos] = useState<string[]>(() => {
@@ -225,16 +223,14 @@ export default function CommunityWriteScreen() {
   };
 
   const buildFreePostPayload = (imageUrls: string[]): FreePostRequest | null => {
-    if (!title.trim() || !body.trim() || !country.trim() || !freeStatus.trim()) {
-      Alert.alert('입력 오류', '제목, 내용, 국가, 상태를 모두 입력해주세요.');
+    if (!title.trim() || !body.trim()) {
+      Alert.alert('입력 오류', '제목과 내용을 입력해주세요.');
       return null;
     }
 
     return {
       title: title.trim(),
       content: body.trim(),
-      country: country.trim(),
-      status: freeStatus.trim(),
       imageUrls,
     };
   };
@@ -401,8 +397,7 @@ export default function CommunityWriteScreen() {
         !region.trim() ||
         !startDate ||
         !endDate ||
-        !capacity.trim())) ||
-    (!isCompanion && (!country.trim() || !freeStatus.trim()));
+        !capacity.trim()));
 
   return (
     <KeyboardAvoidingView
@@ -439,44 +434,6 @@ export default function CommunityWriteScreen() {
 
         {!isCompanion && (
           <>
-            <View style={styles.inlineFields}>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>국가</Text>
-                <TextInput
-                  style={styles.input}
-                  value={country}
-                  onChangeText={setCountry}
-                  placeholder="예: 독일"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>상태</Text>
-                <View style={styles.statusSelect}>
-                  {['파견 전', '파견 중', '귀국 후'].map((item) => {
-                    const active = freeStatus === item;
-
-                    return (
-                      <Pressable
-                        key={item}
-                        style={[styles.statusSelectButton, active && styles.statusSelectActive]}
-                        onPress={() => setFreeStatus(item)}
-                      >
-                        <Text
-                          style={[
-                            styles.statusSelectText,
-                            active && styles.statusSelectTextActive,
-                          ]}
-                        >
-                          {item}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
-
             <View style={styles.fieldGroup}>
               <View style={styles.photoHeader}>
                 <Text style={styles.label}>사진</Text>

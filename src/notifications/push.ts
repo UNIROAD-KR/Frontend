@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 import { registerFcmToken } from '@/src/api/notifications';
 
 const LAST_REGISTERED_TOKEN_KEY = 'univ:notifications:last-registered-fcm-token';
+const isNativePushRuntime = Platform.OS !== 'web';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -17,7 +18,9 @@ Notifications.setNotificationHandler({
   }),
 });
 
-messaging().setBackgroundMessageHandler(async () => {});
+if (isNativePushRuntime) {
+  messaging().setBackgroundMessageHandler(async () => {});
+}
 
 const configureAndroidChannel = async () => {
   if (Platform.OS !== 'android') {
@@ -33,6 +36,10 @@ const configureAndroidChannel = async () => {
 };
 
 export const registerDeviceForPushNotifications = async (options?: { force?: boolean }) => {
+  if (!isNativePushRuntime) {
+    return null;
+  }
+
   const accessToken = await AsyncStorage.getItem('accessToken');
 
   if (!accessToken || !Device.isDevice) {
@@ -70,6 +77,10 @@ export const registerDeviceForPushNotifications = async (options?: { force?: boo
 };
 
 export const subscribeToFcmTokenRefresh = () => {
+  if (!isNativePushRuntime) {
+    return () => {};
+  }
+
   return messaging().onTokenRefresh(async (token) => {
     const accessToken = await AsyncStorage.getItem('accessToken');
 
@@ -83,6 +94,10 @@ export const subscribeToFcmTokenRefresh = () => {
 };
 
 export const subscribeToForegroundPushNotifications = () => {
+  if (!isNativePushRuntime) {
+    return () => {};
+  }
+
   return messaging().onMessage(async (remoteMessage) => {
     const title =
       remoteMessage.notification?.title ??

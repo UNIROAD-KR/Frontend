@@ -97,6 +97,12 @@ export default function NotificationsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchNotifications(true);
+
+      const timer = setInterval(() => {
+        fetchNotifications(false);
+      }, 10000);
+
+      return () => clearInterval(timer);
     }, [fetchNotifications]),
   );
 

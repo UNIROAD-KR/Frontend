@@ -1,42 +1,121 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, router, usePathname } from 'expo-router';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { Tabs, router } from 'expo-router';
 import React from 'react';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function TabLayout() {
-  const pathname = usePathname();
+const tabMeta = {
+  home: {
+    label: '홈 화면',
+    icon: 'home-outline',
+    activeIcon: 'home',
+  },
+  explore: {
+    label: '탐색하기',
+    icon: 'search-outline',
+    activeIcon: 'search',
+  },
+  community: {
+    label: '커뮤니티',
+    icon: 'people-outline',
+    activeIcon: 'people',
+  },
+  market: {
+    label: '중고마켓',
+    icon: 'bag-handle-outline',
+    activeIcon: 'bag-handle',
+  },
+  chat: {
+    label: '채팅관리',
+    icon: 'chatbubbles-outline',
+    activeIcon: 'chatbubbles',
+  },
+} as const satisfies Record<
+  string,
+  {
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    activeIcon: keyof typeof Ionicons.glyphMap;
+  }
+>;
 
-  const isMarketActive =
-    pathname.startsWith('/market') || pathname.includes('/home/market');
-  const isHomeActive = pathname === '/home' || pathname === '/';
-  const isExploreActive = pathname.includes('/home/explore');
-  const isCommunityActive = pathname.includes('/community');
-  const isChatActive = pathname === '/chat' || pathname.startsWith('/chat/');
+function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const tabBarWidth = Math.max(screenWidth - 32, 280);
+  const tabContentWidth = tabBarWidth - 10;
+  // Keep the selected pill compact on wider phones while leaving enough room for every label.
+  const activeTabWidth = Math.min(Math.max(tabContentWidth * 0.32, 112), 124);
+  const inactiveTabWidth = (tabContentWidth - activeTabWidth) / 4;
 
   return (
+    <View
+      style={[
+        styles.tabBar,
+        {
+          width: tabBarWidth,
+          bottom: Math.max(insets.bottom, 12),
+        },
+      ]}
+    >
+      {state.routes.map((route, routeIndex) => {
+        const meta = tabMeta[route.name as keyof typeof tabMeta];
+
+        if (!meta) {
+          return null;
+        }
+
+        const active = state.index === routeIndex;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!active && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <Pressable
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityLabel={meta.label}
+            accessibilityState={active ? { selected: true } : {}}
+            onPress={onPress}
+            style={[
+              styles.tabSlot,
+              active ? styles.tabSlotActive : styles.tabSlotInactive,
+              { width: active ? activeTabWidth : inactiveTabWidth },
+            ]}
+          >
+            <Ionicons
+              name={active ? meta.activeIcon : meta.icon}
+              size={24}
+              color={active ? '#FFFFFF' : '#75808F'}
+            />
+            {active ? (
+              <Text numberOfLines={1} style={styles.activeLabel}>
+                {meta.label}
+              </Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
     <Tabs
+      tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#111111',
-        tabBarInactiveTintColor: '#777',
-        tabBarStyle: {
-          height: 92,
-          paddingTop: 10,
-          paddingBottom: 18,
-          backgroundColor: '#FAFAFA',
-          borderTopWidth: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
-          marginTop: 0,
-        },
-        tabBarIconStyle: {
-          marginBottom: -1,
-        },
-        tabBarItemStyle: {
-          paddingTop: 1,
-          paddingBottom: 8,
-        },
       }}
     >
       <Tabs.Screen
@@ -49,19 +128,6 @@ export default function TabLayout() {
         }}
         options={{
           title: '홈',
-          tabBarIcon: () => (
-            <Ionicons
-              name={isHomeActive ? 'home' : 'home-outline'}
-              size={26}
-              color={isHomeActive ? '#111111' : '#6d7075'}
-            />
-          ),
-          tabBarLabelStyle: {
-            color: isHomeActive ? '#111111' : '#6d7075',
-            fontSize: 12,
-            fontWeight: '600',
-            marginTop: 0,
-          },
         }}
       />
       <Tabs.Screen
@@ -69,30 +135,11 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-
-            if (pathname.includes('/home/explore')) {
-              router.replace('/home/explore');
-              return;
-            }
-
-            router.replace('/home/explore');
+            router.replace('/explore' as any);
           },
         }}
         options={{
-          title: '탐색',
-          tabBarIcon: () => (
-            <Ionicons
-              name={isExploreActive ? 'school' : 'school-outline'}
-              size={26}
-              color={isExploreActive ? '#111111' : '#6d7075'}
-            />
-          ),
-          tabBarLabelStyle: {
-            color: isExploreActive ? '#111111' : '#6d7075',
-            fontSize: 12,
-            fontWeight: '600',
-            marginTop: 0,
-          },
+          title: '탐색하기',
         }}
       />
 
@@ -109,19 +156,6 @@ export default function TabLayout() {
         }}
         options={{
           title: '커뮤니티',
-          tabBarIcon: () => (
-            <Ionicons
-              name={isCommunityActive ? 'people' : 'people-outline'}
-              size={26}
-              color={isCommunityActive ? '#111111' : '#6d7075'}
-            />
-          ),
-          tabBarLabelStyle: {
-            color: isCommunityActive ? '#111111' : '#6d7075',
-            fontSize: 12,
-            fontWeight: '600',
-            marginTop: 0,
-          },
         }}
       />
 
@@ -138,20 +172,7 @@ export default function TabLayout() {
           },
         }}
         options={{
-          title: '중고 마켓',
-          tabBarIcon: () => (
-            <Ionicons
-              name={isMarketActive ? 'cart' : 'cart-outline'}
-              size={26}
-              color={isMarketActive ? '#111111' : '#6d7075'}
-            />
-          ),
-          tabBarLabelStyle: {
-            color: isMarketActive ? '#111111' : '#6d7075',
-            fontSize: 12,
-            fontWeight: '600',
-            marginTop: 0,
-          },
+          title: '중고마켓',
         }}
       />
 
@@ -164,20 +185,7 @@ export default function TabLayout() {
           },
         }}
         options={{
-          title: '채팅',
-          tabBarIcon: () => (
-            <Ionicons
-              name={isChatActive ? 'chatbubbles' : 'chatbubbles-outline'}
-              size={25}
-              color={isChatActive ? '#111111' : '#6d7075'}
-            />
-          ),
-          tabBarLabelStyle: {
-            color: isChatActive ? '#111111' : '#6d7075',
-            fontSize: 12,
-            fontWeight: '600',
-            marginTop: 0,
-          },
+          title: '채팅관리',
         }}
       />
 
@@ -185,3 +193,44 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    position: 'absolute',
+    left: 16,
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 5,
+    borderRadius: 34,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#111820',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  tabSlot: {
+    height: '100%',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  tabSlotInactive: {
+    flexShrink: 0,
+  },
+  tabSlotActive: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#19212C',
+  },
+  activeLabel: {
+    flexShrink: 1,
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+});

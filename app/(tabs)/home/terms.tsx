@@ -3,10 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { TERMS_OF_SERVICE } from '../../../constants/legal';
 
-const NAVY = '#0F2042';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const NAVY = '#18202B';
+const MUTED = '#7A8491';
+const LINE = '#E3E7EC';
 
 function renderLegalText(content: string) {
   return content.split('\n').map((line, index) => {
@@ -57,29 +56,24 @@ export default function TermsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 44,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -88,20 +82,20 @@ const styles = StyleSheet.create({
     height: 38,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 130,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 104,
   },
   section: {
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
-    padding: 18,
+    padding: 15,
     marginBottom: 14,
   },
   sectionBody: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 12,
+    lineHeight: 20,
     fontWeight: '700',
     color: MUTED,
   },

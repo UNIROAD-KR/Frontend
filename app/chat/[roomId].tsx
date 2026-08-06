@@ -41,6 +41,7 @@ type ChatMessage = {
   readCount?: number;
   read?: boolean;
   readByOpponent?: boolean;
+  isRead?: boolean;
 };
 
 type ProductInfo = {
@@ -71,6 +72,7 @@ const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   readCount: item.readCount,
   read: item.read,
   readByOpponent: item.readByOpponent,
+  isRead: item.isRead,
 });
 
 const sortMessagesByTime = (items: ChatMessage[]) => {
@@ -119,6 +121,10 @@ const formatMessageTime = (value: string) => {
 };
 
 const getReadStatus = (item: ChatMessage) => {
+  if (item.isRead) {
+    return '읽음';
+  }
+
   if (item.readByOpponent || item.read || item.unreadCount === 0) {
     return '읽음';
   }
@@ -328,16 +334,21 @@ export default function ChatRoomPage() {
     if (reporting) return;
 
     const numericReferenceId = Number(effectiveReferenceId);
-    const target = effectiveOpponentMemberId
+    const target = effectiveReferenceType === 'TICKET' && Number.isFinite(numericReferenceId)
       ? {
-          targetType: 'MEMBER' as const,
-          targetId: effectiveOpponentMemberId,
+          targetType: 'TICKET_TRANSFER' as const,
+          targetId: numericReferenceId,
         }
       : effectiveReferenceType === 'TRADE' && Number.isFinite(numericReferenceId)
         ? {
             targetType: 'USED_ITEM' as const,
             targetId: numericReferenceId,
           }
+        : effectiveOpponentMemberId
+          ? {
+              targetType: 'MEMBER' as const,
+              targetId: effectiveOpponentMemberId,
+            }
         : null;
 
     if (!target) {
@@ -480,6 +491,14 @@ export default function ChatRoomPage() {
               pathname: '/market/ticket-preview',
               params: {
                 id: effectiveReferenceId,
+                fromChatRoom: 'true',
+                chatRoomId: roomId,
+                chatTitle: productTitle,
+                chatPrice: productPrice,
+                chatThumbnail: productThumbnail,
+                chatSellerName: displaySellerName,
+                chatReferenceType: effectiveReferenceType,
+                chatReferenceId: effectiveReferenceId,
               },
             } as any);
           }

@@ -12,6 +12,7 @@ import {
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { ONBOARDING_NICKNAME_KEY } from '@/src/constants/onboarding';
+import { designColors } from '@/src/styles/design-tokens';
 
 type Gender = 'female' | 'male' | '';
 
@@ -200,7 +201,7 @@ export default function ProfilePage() {
   );
 }
 
-const BLUE = '#123F9F';
+const BLUE = designColors.ink;
 
 const styles = StyleSheet.create({
   container: {

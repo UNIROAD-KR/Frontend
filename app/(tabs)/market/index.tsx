@@ -239,6 +239,8 @@ export default function MarketPage() {
   const [bookmarkedIds, setBookmarkedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
   const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
+  const [marketListError, setMarketListError] = useState('');
+  const [ticketListError, setTicketListError] = useState('');
   const [ticketCurrencyMap, setTicketCurrencyMap] = useState<Record<string, string>>(
     {},
   );
@@ -398,6 +400,7 @@ export default function MarketPage() {
 
   const fetchUsedItems = useCallback(async (keyword = '', country = '전체') => {
     try {
+      setMarketListError('');
       const keywordText = keyword.trim();
       const countryParam = country === '전체' ? undefined : country;
 
@@ -434,6 +437,7 @@ export default function MarketPage() {
         '중고거래 목록 조회 실패:',
         error.response?.data || error.message,
       );
+      setMarketListError('중고거래 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
       setItems([]);
     }
   }, []);
@@ -441,6 +445,9 @@ export default function MarketPage() {
   const fetchTickets = useCallback(
     async (cursorId?: number, keyword = '', country = '전체') => {
     try {
+      if (!cursorId) {
+        setTicketListError('');
+      }
       const keywordText = keyword.trim();
       const countryParam = country === '전체' ? undefined : country;
       const shouldSearchByKeyword = keywordText.length > 0;
@@ -501,6 +508,7 @@ export default function MarketPage() {
     } catch (error: any) {
       console.log('티켓 양도 목록 조회 실패:', error.response?.data || error.message);
       if (!cursorId) {
+        setTicketListError('티켓 양도 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.');
         setTickets([]);
         setTicketNextCursorId(null);
         setTicketHasNext(false);
@@ -1033,7 +1041,18 @@ export default function MarketPage() {
         </View>
 
         {selectedTab === 'bulk' ? (
-          filteredItems.length > 0 ? (
+          marketListError ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>목록을 불러오지 못했어요</Text>
+              <Text style={styles.emptyText}>{marketListError}</Text>
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => fetchUsedItems(searchKeyword, selectedCountry)}
+              >
+                <Text style={styles.retryButtonText}>다시 시도</Text>
+              </Pressable>
+            </View>
+          ) : filteredItems.length > 0 ? (
             <View style={styles.postList}>
               {filteredItems.map((item) => (
                 <Pressable
@@ -1115,6 +1134,17 @@ export default function MarketPage() {
               <Text style={styles.emptyText}>첫 거래글을 기다리고 있어요.</Text>
             </View>
           )
+        ) : ticketListError ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>목록을 불러오지 못했어요</Text>
+            <Text style={styles.emptyText}>{ticketListError}</Text>
+            <Pressable
+              style={styles.retryButton}
+              onPress={() => fetchTickets(undefined, searchKeyword, selectedCountry)}
+            >
+              <Text style={styles.retryButtonText}>다시 시도</Text>
+            </Pressable>
+          </View>
         ) : (
           <View style={styles.ticketList}>
             {filteredTickets.map((item) => (
@@ -1497,6 +1527,21 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#777777',
     textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 16,
+    minWidth: 96,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#FFFFFF',
   },
 
   postCard: {

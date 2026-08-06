@@ -1,18 +1,20 @@
 import { StyleSheet } from 'react-native';
 
-export const BLUE = '#123F9F';
+import { designColors } from './design-tokens';
+
+export const BLUE = designColors.ink;
 
 export const signupStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
 
   content: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 56,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 22,
   },
 
   header: {
@@ -20,7 +22,7 @@ export const signupStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 30,
+    marginBottom: 34,
   },
 
   headerBlank: {
@@ -28,29 +30,30 @@ export const signupStyles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 21,
+    fontSize: 16,
     fontWeight: '900',
-    color: '#000000',
+    color: '#18202B',
     textAlign: 'center',
-    letterSpacing: -0.4,
+    letterSpacing: 0,
   },
 
   label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#344054',
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#66717F',
     marginBottom: 9,
   },
 
   input: {
-    height: 46,
-    borderRadius: 10,
+    height: 50,
+    borderRadius: 7,
     borderWidth: 1,
-    borderColor: '#D6DCE5',
+    borderColor: '#E2E6EB',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    fontSize: 16,
-    color: '#111111',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A2029',
     marginBottom: 7,
   },
 
@@ -91,9 +94,9 @@ export const signupStyles = StyleSheet.create({
   },
 
   checkButton: {
-    width: 92,
-    height: 46,
-    borderRadius: 10,
+    width: 82,
+    height: 50,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: '#D6DCE5',
     backgroundColor: '#FFFFFF',

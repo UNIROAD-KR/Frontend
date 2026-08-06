@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 
@@ -9,10 +10,9 @@ export default function VerificationCompletePage() {
       <AppBackButton fallbackHref="/home" style={styles.backButton} />
 
       <View style={styles.centerArea}>
-        <Image
-          source={require('../assets/images/school_icon.png')}
-          style={styles.logo}
-        />
+        <View style={styles.iconBox}>
+          <Ionicons name="checkmark" size={28} color="#FFFFFF" />
+        </View>
 
         <View style={styles.badge}>
           <Text style={styles.badgeText}>제출 완료!</Text>
@@ -32,80 +32,83 @@ export default function VerificationCompletePage() {
   );
 }
 
-const BLUE = '#102BE0';
+const BLUE = '#3568DA';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
     paddingHorizontal: 24,
   },
 
   backButton: {
     position: 'absolute',
-    top: 52,
-    left: 24,
+    top: 44,
+    left: 16,
     zIndex: 10,
   },
 
   centerArea: {
     alignItems: 'center',
-    marginTop: 300,
+    marginTop: 'auto',
+    marginBottom: 'auto',
   },
-
-  logo: {
-    width: 28,
-    height: 28,
-    resizeMode: 'contain',
-    marginBottom: 20,
+  iconBox: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
   },
 
   badge: {
-    width: '100%',
-    height: 39,
-    borderRadius: 4,
-    backgroundColor: '#F1F1F1',
+    borderRadius: 5,
+    backgroundColor: '#EAF0FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 42,
+    marginBottom: 20,
   },
 
   badgeText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#000000',
+    fontSize: 12,
+    fontWeight: '800',
+    color: BLUE,
   },
 
   title: {
-    fontSize: 25,
-    lineHeight: 38,
+    fontSize: 22,
+    lineHeight: 31,
     fontWeight: '900',
-    color: '#000000',
+    color: '#18202B',
     textAlign: 'center',
-    marginBottom: 42,
+    marginBottom: 12,
   },
 
   subtitle: {
-    fontSize: 14,
-    color: '#333333',
+    fontSize: 12,
+    color: '#7A8491',
     textAlign: 'center',
   },
 
   button: {
     position: 'absolute',
-    left: 24,
-    right: 24,
-    bottom: 64,
-    height: 53,
-    borderRadius: 5,
+    left: 16,
+    right: 16,
+    bottom: 30,
+    height: 50,
+    borderRadius: 7,
     backgroundColor: BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
   },
 });

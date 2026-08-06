@@ -162,6 +162,25 @@ export default function LoginPage() {
     closeSheet(() => router.push('/email-login'));
   };
 
+  const openUiPreview = async () => {
+    await AsyncStorage.multiSet([
+      ['nickname', '김하니'],
+      ['university', '한국대학교'],
+      ['homeUniversity', '한국대학교'],
+      ['dispatchedCountry', '독일'],
+      ['dispatchedRegion', '베를린'],
+      ['dispatchedUniversity', '베를린 자유대학교'],
+      ['profileStatus', '출국 준비 중'],
+      ['dispatchSemester', '2026년 2학기'],
+      ['isVerified', 'true'],
+    ]);
+
+    router.replace({
+      pathname: '/home/profile-card',
+      params: { preview: 'true' },
+    } as any);
+  };
+
   const handleSocialLogin = async (provider: string, intent: SocialIntent) => {
     try {
       let sdkAccessToken = '';
@@ -235,6 +254,14 @@ export default function LoginPage() {
     } catch (error: any) {
       console.log(`${provider} 로그인 실패:`, error.response?.data || error.message);
       if (error.code === 'ERR_REQUEST_CANCELED') return;
+      if (error.code === 'ECONNABORTED') {
+        Alert.alert(
+          '서버 연결 실패',
+          '로그인 서버가 응답하지 않아요. 백엔드 서버 상태를 확인해주세요.',
+        );
+        return;
+      }
+
       Alert.alert(
         intent === 'signup' ? '소셜 회원가입 실패' : '소셜 로그인 실패',
         '처리 중 문제가 발생했습니다.',
@@ -244,6 +271,9 @@ export default function LoginPage() {
 
   const renderCarouselItem = ({ item }: { item: typeof CAROUSEL_ITEMS[0] }) => (
     <View style={styles.carouselItem}>
+      <View style={styles.categoryPill}>
+        <Text style={styles.carouselCategory}>{item.category}</Text>
+      </View>
       <View style={styles.illustrationContainer}>
         <Image
           source={item.image}
@@ -251,7 +281,6 @@ export default function LoginPage() {
           resizeMode="contain"
         />
       </View>
-      <Text style={styles.carouselCategory}>{item.category}</Text>
       <Text style={styles.carouselTitle}>{item.title}</Text>
       <Text style={styles.carouselDescription}>{item.description}</Text>
     </View>
@@ -260,6 +289,10 @@ export default function LoginPage() {
   // Social buttons used in both sheets
   const SocialButtons = ({ intent }: { intent: SocialIntent }) => (
     <View style={styles.socialRow}>
+      <TouchableOpacity onPress={() => handleSocialLogin('kakao', intent)}>
+        <Image source={require('../assets/images/kakao.png')} style={styles.socialImage} />
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.socialCircle, styles.naverBg]}
         onPress={() => handleSocialLogin('naver', intent)}
@@ -269,10 +302,6 @@ export default function LoginPage() {
 
       <TouchableOpacity onPress={() => handleSocialLogin('google', intent)}>
         <Image source={require('../assets/images/google.png')} style={styles.socialImage} />
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => handleSocialLogin('kakao', intent)}>
-        <Image source={require('../assets/images/kakao.png')} style={styles.socialImage} />
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => handleSocialLogin('apple', intent)}>
@@ -320,11 +349,11 @@ export default function LoginPage() {
         </TouchableOpacity>
       </View>
 
-      {/* Find account */}
-      <TouchableOpacity style={styles.findAccountRow}>
-        <Text style={styles.findAccountText}>  </Text>
-        <Text style={styles.findAccountLink}> </Text>
-      </TouchableOpacity>
+      {__DEV__ ? (
+        <TouchableOpacity style={styles.previewButton} onPress={openUiPreview}>
+          <Text style={styles.previewButtonText}>UI 미리보기</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* Overlay + Bottom Sheet */}
       {activeSheet !== null && (
@@ -341,13 +370,8 @@ export default function LoginPage() {
             {/* LOGIN SHEET */}
             {activeSheet === 'login' && (
               <>
-                <Text style={styles.sheetTitle}>로그인 방법 선택</Text>
+                <Text style={styles.sheetTitle}>로그인 방식</Text>
                 <SocialButtons intent="login" />
-                <View style={styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>또는</Text>
-                  <View style={styles.dividerLine} />
-                </View>
                 <TouchableOpacity style={styles.idButton} onPress={handleIdLogin}>
                   <Text style={styles.idButtonText}>아이디로 로그인</Text>
                 </TouchableOpacity>
@@ -374,7 +398,7 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   carousel: {
     flex: 1,
@@ -384,95 +408,117 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: 30,
+    paddingTop: 68,
+    paddingBottom: 12,
+  },
+  categoryPill: {
+    borderRadius: 5,
+    backgroundColor: '#E8EBEF',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    marginBottom: 12,
   },
   illustrationContainer: {
-    width: SCREEN_WIDTH * 0.65,
-    height: SCREEN_WIDTH * 0.65,
+    width: SCREEN_WIDTH * 0.62,
+    height: SCREEN_WIDTH * 0.48,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   illustration: {
     width: '100%',
     height: '100%',
   },
   carouselCategory: {
-    fontSize: 13,
-    color: '#888888',
-    marginBottom: 10,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '800',
+    color: '#5F6875',
   },
   carouselTitle: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#111111',
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#171C24',
     textAlign: 'center',
-    lineHeight: 34,
-    marginBottom: 14,
-    letterSpacing: -0.5,
+    lineHeight: 31,
+    marginBottom: 10,
+    letterSpacing: 0,
   },
   carouselDescription: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#76808D',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 18,
   },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 24,
+    gap: 5,
+    marginBottom: 28,
   },
   dot: {
-    height: 8,
-    borderRadius: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 3,
   },
   dotActive: {
-    width: 20,
-    backgroundColor: '#0B48B8',
+    backgroundColor: '#4F63FF',
   },
   dotInactive: {
-    width: 8,
-    backgroundColor: '#D9D9D9',
+    backgroundColor: '#CDD2D9',
   },
   bottomButtons: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    marginBottom: 14,
-    height: 48,
+    gap: 8,
+    paddingHorizontal: 14,
+    marginBottom: __DEV__ ? 10 : 34,
+    height: 50,
   },
   loginButton: {
     flex: 1,
-    height: 48,
-    borderWidth: 1.5,
-    borderColor: '#CCCCCC',
-    borderRadius: 10,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#DFE3E8',
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
   },
   loginButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111111',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1C222B',
   },
   signupButton: {
     flex: 1,
-    height: 48,
-    backgroundColor: '#0B48B8',
-    borderRadius: 10,
+    height: 50,
+    backgroundColor: '#171E28',
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
   },
   signupButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '800',
     color: '#FFFFFF',
+  },
+  previewButton: {
+    alignSelf: 'center',
+    minHeight: 28,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 18,
+  },
+  previewButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8A94A1',
+    textDecorationLine: 'underline',
   },
   findAccountRow: {
     flexDirection: 'row',
@@ -500,11 +546,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingBottom: 48,
-    paddingTop: 12,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 24,
+    paddingBottom: 38,
+    paddingTop: 13,
     zIndex: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -513,50 +559,50 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   sheetHandle: {
-    width: 40,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D9DEE5',
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   sheetTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111111',
+    fontWeight: '900',
+    color: '#161C25',
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 24,
   },
   sheetSubtitle: {
     fontSize: 13,
-    color: '#888888',
+    color: '#7A8491',
     textAlign: 'center',
-    marginBottom: 24,
+    marginTop: -15,
+    marginBottom: 20,
   },
   socialRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
-    marginBottom: 8,
+    marginBottom: 26,
   },
   socialCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   socialImage: {
-    width: 56,
-    height: 56,
+    width: 44,
+    height: 44,
     resizeMode: 'contain',
   },
-  appleImage:{
-    width: 80,
-    height: 80,
+  appleImage: {
+    width: 44,
+    height: 44,
     resizeMode: 'contain',
-    marginLeft: -8,
   },
   naverBg: {
     backgroundColor: '#03C75A',
@@ -565,7 +611,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   naverText: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '900',
     color: '#FFFFFF',
   },
@@ -593,18 +639,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#DDE2E8',
+    borderRadius: 7,
     gap: 10,
   },
   idButtonIcon: {
     fontSize: 17,
   },
   idButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#222222',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1A2029',
   },
 });

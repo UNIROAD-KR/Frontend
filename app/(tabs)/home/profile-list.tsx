@@ -38,12 +38,12 @@ import {
   UsedItemSummaryResponse,
 } from '../../../src/api/usedItems';
 
-const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
-const INK = '#111111';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const NAVY = '#18202B';
+const BLUE = '#3568DA';
+const INK = '#1A2029';
+const MUTED = '#7A8491';
+const LINE = '#E3E7EC';
+const SOFT = '#F1F3F6';
 const SAVED_TICKET_POSTS_STORAGE_KEY = 'univ:profile:saved-ticket-posts';
 const RECENT_POSTS_STORAGE_KEY = 'univ:profile:recent-posts';
 const LIKED_FREE_POSTS_STORAGE_KEY = 'univ:profile:liked-free-posts';
@@ -824,6 +824,11 @@ export default function ProfileListScreen() {
     ? subCategoryTabsByGroup[selectedGroup]
     : categoryTabs;
   const itemCountLabel = useMemo(() => `${visibleItems.length}개`, [visibleItems.length]);
+  const selectedGroupLabel = groupTabs.find((tab) => tab.key === selectedGroup)?.label;
+  const selectedCategoryLabel = currentCategoryTabs?.find(
+    (tab) => tab.key === selectedCategory,
+  )?.label;
+  const compactSummary = listType === 'saved';
 
   return (
     <View style={styles.container}>
@@ -848,18 +853,30 @@ export default function ProfileListScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIconBox}>
-            <Ionicons name={config.icon} size={25} color={BLUE} />
+        {compactSummary ? (
+          <View style={styles.compactSummaryBox}>
+            <View>
+              <Text style={styles.compactSummaryTitle}>저장한 글</Text>
+              <Text style={styles.compactSummaryMeta}>
+                {[selectedGroupLabel, selectedCategoryLabel].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+            <Text style={styles.compactSummaryCount}>{itemCountLabel}</Text>
           </View>
-          <View style={styles.heroTextBox}>
-            <Text style={styles.heroTitle}>{config.title}</Text>
-            <Text style={styles.heroDesc}>{config.description}</Text>
+        ) : (
+          <View style={styles.heroCard}>
+            <View style={styles.heroIconBox}>
+              <Ionicons name={config.icon} size={25} color={BLUE} />
+            </View>
+            <View style={styles.heroTextBox}>
+              <Text style={styles.heroTitle}>{config.title}</Text>
+              <Text style={styles.heroDesc}>{config.description}</Text>
+            </View>
+            <Text style={styles.countPill} numberOfLines={1}>
+              {itemCountLabel}
+            </Text>
           </View>
-          <Text style={styles.countPill} numberOfLines={1}>
-            {itemCountLabel}
-          </Text>
-        </View>
+        )}
 
         {usesGroupedTabs ? (
           <View style={styles.groupTabs}>
@@ -975,28 +992,23 @@ export default function ProfileListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingBottom: 15,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -1008,25 +1020,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   heroCard: {
-    minHeight: 106,
-    borderRadius: 20,
-    backgroundColor: '#F4F8FF',
+    minHeight: 82,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DCE7FF',
-    padding: 18,
+    borderColor: '#E5E9EE',
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
   },
   heroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
+    width: 40,
+    height: 40,
+    borderRadius: 9,
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1035,7 +1047,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heroTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '900',
     color: INK,
   },
@@ -1048,9 +1060,43 @@ const styles = StyleSheet.create({
   },
   countPill: {
     flexShrink: 0,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    backgroundColor: '#EDF2FF',
     paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    fontWeight: '900',
+    color: BLUE,
+  },
+  compactSummaryBox: {
+    minHeight: 58,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: LINE,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  compactSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: INK,
+  },
+  compactSummaryMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '800',
+    color: MUTED,
+  },
+  compactSummaryCount: {
+    flexShrink: 0,
+    borderRadius: 5,
+    backgroundColor: '#EDF2FF',
+    paddingHorizontal: 11,
     paddingVertical: 6,
     fontSize: 12,
     fontWeight: '900',
@@ -1059,23 +1105,23 @@ const styles = StyleSheet.create({
   categoryTabs: {
     marginTop: 14,
     flexDirection: 'row',
-    borderRadius: 16,
-    backgroundColor: SOFT,
+    borderRadius: 8,
+    backgroundColor: '#EEF1F4',
     padding: 4,
     gap: 4,
   },
   groupTabs: {
     marginTop: 14,
     flexDirection: 'row',
-    borderRadius: 16,
-    backgroundColor: '#EAF1FF',
+    borderRadius: 8,
+    backgroundColor: '#EAF0FF',
     padding: 4,
     gap: 4,
   },
   groupTab: {
     flex: 1,
-    minHeight: 40,
-    borderRadius: 12,
+    minHeight: 36,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1083,7 +1129,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   groupTabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '900',
     color: MUTED,
   },
@@ -1092,8 +1138,8 @@ const styles = StyleSheet.create({
   },
   categoryTab: {
     flex: 1,
-    minHeight: 38,
-    borderRadius: 12,
+    minHeight: 36,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
@@ -1107,7 +1153,7 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   categoryTabText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
     color: MUTED,
   },
@@ -1128,7 +1174,7 @@ const styles = StyleSheet.create({
   emptyBox: {
     marginTop: 18,
     minHeight: 260,
-    borderRadius: 20,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: LINE,
@@ -1137,16 +1183,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   emptyIconBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 20,
-    backgroundColor: '#F4F8FF',
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
     color: INK,
     textAlign: 'center',
@@ -1164,20 +1210,20 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   card: {
-    minHeight: 88,
-    borderRadius: 18,
+    minHeight: 78,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: LINE,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
   },
   cardIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 9,
     backgroundColor: SOFT,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1195,15 +1241,15 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '900',
     color: INK,
   },
   badge: {
     flexShrink: 1,
     maxWidth: 96,
-    borderRadius: 999,
-    backgroundColor: '#EAF1FF',
+    borderRadius: 5,
+    backgroundColor: '#EAF0FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
   },

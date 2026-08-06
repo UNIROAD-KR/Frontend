@@ -151,14 +151,12 @@ export default function ProfileSettingsScreen() {
   );
 
   const performLogout = async () => {
-    try {
-      await logout();
-    } catch (error: any) {
+    void logout().catch((error: any) => {
       console.log('로그아웃 API 실패:', error.response?.data || error.message);
-    } finally {
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
-      router.replace('/login' as any);
-    }
+    });
+
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+    router.replace('/login' as any);
   };
 
   const confirmLogout = () => {
@@ -333,29 +331,24 @@ function SettingSection({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
-    backgroundColor: '#FFFFFF',
+    paddingTop: 44,
+    paddingBottom: 12,
+    backgroundColor: '#F6F7F9',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -367,24 +360,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 130,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 104,
   },
   profileCard: {
-    borderRadius: 20,
-    backgroundColor: '#F4F8FF',
+    borderRadius: 9,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DCE7FF',
-    padding: 18,
+    borderColor: '#E5E9EE',
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarBox: {
-    width: 58,
-    height: 58,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#EEF1F5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -394,7 +387,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   nickname: {
-    fontSize: 19,
+    fontSize: 16,
     fontWeight: '900',
     color: INK,
   },
@@ -408,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     alignSelf: 'flex-start',
     maxWidth: '100%',
-    borderRadius: 999,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -425,34 +418,34 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: '900',
     color: INK,
     marginBottom: 10,
   },
   sectionCard: {
-    borderRadius: 18,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: '#E5E9EE',
     overflow: 'hidden',
   },
   row: {
-    minHeight: 76,
+    minHeight: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 13,
+    paddingHorizontal: 13,
+    paddingVertical: 9,
   },
   divider: {
     borderBottomWidth: 1,
     borderBottomColor: '#EEF2F7',
   },
   rowIconBox: {
-    width: 43,
-    height: 43,
-    borderRadius: 15,
-    backgroundColor: SOFT,
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    backgroundColor: '#F0F2F5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -466,7 +459,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   rowTitle: {
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: '900',
     color: INK,
   },
@@ -474,8 +467,8 @@ const styles = StyleSheet.create({
     color: '#E5484D',
   },
   rowDesc: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: 2,
+    fontSize: 10,
     fontWeight: '700',
     color: MUTED,
   },

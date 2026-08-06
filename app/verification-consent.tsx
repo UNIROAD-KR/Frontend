@@ -10,11 +10,10 @@ import {
   VERIFICATION_CONSENT_AGREED_KEY,
 } from '../src/utils/verification';
 
-const BLUE = '#123F9F';
-const NAVY = '#0F2042';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const BLUE = '#3568DA';
+const NAVY = '#18202B';
+const MUTED = '#7A8491';
+const LINE = '#E3E7EC';
 
 function renderConsentText(content: string) {
   return content
@@ -127,29 +126,24 @@ export default function VerificationConsentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 44,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: '#E8EBEF',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -161,34 +155,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 150,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 136,
   },
   title: {
-    fontSize: 22,
-    lineHeight: 29,
+    fontSize: 20,
+    lineHeight: 28,
     fontWeight: '900',
     color: NAVY,
   },
   subtitle: {
     marginTop: 8,
     marginBottom: 18,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '700',
     color: MUTED,
   },
   card: {
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
-    padding: 18,
+    padding: 15,
     backgroundColor: '#FFFFFF',
   },
   bodyText: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 12,
+    lineHeight: 20,
     fontWeight: '700',
     color: MUTED,
   },
@@ -206,9 +200,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 28,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 22,
     borderTopWidth: 1,
     borderTopColor: '#EEF1F5',
     backgroundColor: '#FFFFFF',
@@ -240,23 +234,23 @@ const styles = StyleSheet.create({
   },
   agreeText: {
     flex: 1,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: '700',
     color: '#344054',
   },
   continueButton: {
-    height: 52,
-    borderRadius: 8,
+    height: 50,
+    borderRadius: 7,
     backgroundColor: '#D9DCE4',
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueButtonActive: {
-    backgroundColor: BLUE,
+    backgroundColor: '#18202B',
   },
   continueButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
     color: '#FFFFFF',
   },

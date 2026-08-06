@@ -17,6 +17,7 @@ import {
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
 import { getNicknameError, ONBOARDING_NICKNAME_KEY } from '@/src/constants/onboarding';
+import { designColors } from '@/src/styles/design-tokens';
 
 export default function NicknamePage() {
   const scrollRef = useResetScrollOnFocus();
@@ -135,7 +136,7 @@ export default function NicknamePage() {
   );
 }
 
-const BLUE = '#123F9F';
+const BLUE = designColors.ink;
 
 const styles = StyleSheet.create({
   container: {

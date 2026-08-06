@@ -17,11 +17,10 @@ import {
   NoticeResponse,
 } from '../../../src/api/notices';
 
-const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const NAVY = '#18202B';
+const BLUE = '#3568DA';
+const MUTED = '#7A8491';
+const LINE = '#E3E7EC';
 
 const normalizeNotices = (data: unknown): NoticeResponse[] => {
   if (Array.isArray(data)) {
@@ -198,29 +197,24 @@ export default function NoticesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
+    paddingTop: 44,
+    paddingBottom: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
+    backgroundColor: 'transparent',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },
@@ -229,9 +223,9 @@ const styles = StyleSheet.create({
     height: 38,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 130,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 104,
   },
   loadingBox: {
     minHeight: 220,
@@ -240,7 +234,7 @@ const styles = StyleSheet.create({
   },
   emptyBox: {
     minHeight: 260,
-    borderRadius: 20,
+    borderRadius: 9,
     borderWidth: 1,
     borderColor: LINE,
     alignItems: 'center',
@@ -248,16 +242,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyIconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    backgroundColor: '#F4F8FF',
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: '#EEF2F8',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
     color: NAVY,
     textAlign: 'center',
@@ -271,26 +265,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noticeCard: {
-    borderRadius: 18,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
     backgroundColor: '#FFFFFF',
-    padding: 18,
-    marginBottom: 14,
+    padding: 14,
+    marginBottom: 10,
   },
   noticeCardExpanded: {
-    borderColor: '#DCE7FF',
-    backgroundColor: '#F8FBFF',
+    borderColor: '#D8E2FF',
+    backgroundColor: '#F5F8FF',
   },
   noticeTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   pinBadge: {
-    borderRadius: 999,
-    backgroundColor: '#F4F8FF',
+    borderRadius: 5,
+    backgroundColor: '#EAF0FF',
     paddingHorizontal: 9,
     paddingVertical: 5,
     flexDirection: 'row',
@@ -309,8 +303,8 @@ const styles = StyleSheet.create({
   },
   noticeTitle: {
     flex: 1,
-    fontSize: 17,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: '900',
     color: NAVY,
   },
@@ -320,9 +314,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   noticeContent: {
-    marginTop: 9,
-    fontSize: 14,
-    lineHeight: 21,
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 19,
     fontWeight: '700',
     color: MUTED,
   },

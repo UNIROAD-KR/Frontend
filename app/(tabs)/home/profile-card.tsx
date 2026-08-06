@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -153,6 +153,8 @@ const statusDisplayMap: Record<string, string> = {
 };
 
 export default function ProfileCardScreen() {
+  const { preview } = useLocalSearchParams<{ preview?: string }>();
+  const isPreview = preview === 'true';
   const [isVerified, setIsVerified] = useState(false);
   const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [profile, setProfile] = useState({
@@ -195,6 +197,21 @@ export default function ProfileCardScreen() {
         setIsVerified(savedIsVerified === 'true');
         setIsVerificationPending(false);
         const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
+
+        if (isPreview) {
+          setIsVerified(true);
+          setProfile((prev) => ({
+            ...prev,
+            nickname: nickname || '김하니',
+            country: dispatchedCountry || '독일',
+            region: dispatchedRegion || '베를린',
+            university: dispatchedUniversity || '베를린 자유대학교',
+            homeUniversity: homeUniversity || '한국대학교',
+            status: profileStatus || '출국 준비 중',
+            avatarUri: profileAvatarUri || null,
+          }));
+          return;
+        }
 
         let apiProfile = {
           nickname: null as string | null,
@@ -254,7 +271,7 @@ export default function ProfileCardScreen() {
       };
 
       loadProfile();
-    }, []),
+    }, [isPreview]),
   );
 
   const openRoute = (route?: RouteTarget) => {
@@ -263,14 +280,12 @@ export default function ProfileCardScreen() {
   };
 
   const performLogout = async () => {
-    try {
-      await logout();
-    } catch (error: any) {
+    void logout().catch((error: any) => {
       console.log('로그아웃 API 실패:', error.response?.data || error.message);
-    } finally {
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
-      router.replace('/login' as any);
-    }
+    });
+
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+    router.replace('/login' as any);
   };
 
   const confirmLogout = () => {
@@ -384,7 +399,7 @@ export default function ProfileCardScreen() {
             </View>
 
             <View style={styles.profileManage}>
-              <Ionicons name="pencil-outline" size={16} color={NAVY} />
+              <Text style={styles.profileManageText}>프로필 편집</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -515,34 +530,30 @@ function MenuSection({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F7F9',
   },
   header: {
-    height: 104,
+    height: 94,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 10,
+    paddingTop: 44,
+    paddingBottom: 8,
     backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF1F5',
     position: 'relative',
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: SOFT,
     zIndex: 1,
   },
   headerTitle: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 17,
-    fontSize: 18,
+    bottom: 14,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
     textAlign: 'center',
@@ -551,34 +562,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 7,
-    paddingBottom: 130,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 104,
   },
   profileCard: {
-    borderRadius: 16,
-    backgroundColor: '#F2F7FF',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8EBEF',
     paddingHorizontal: 14,
-    paddingTop: 18,
-    paddingBottom: 18,
-    shadowColor: NAVY,
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.025,
-    shadowRadius: 14,
-    elevation: 1,
+    paddingVertical: 14,
   },
   profileMain: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#ffffff',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#EEF1F5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 11,
     position: 'relative',
   },
   avatar: {
@@ -612,42 +619,46 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   profileMeta: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 5,
+    fontSize: 11,
     fontWeight: '700',
-    color: INK,
+    color: MUTED,
     textAlign: 'left',
   },
   profileManage: {
-    width: 28,
-    height: 28,
+    minWidth: 57,
+    height: 26,
+    borderWidth: 1,
+    borderColor: '#DCE1E7',
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 7,
+  },
+  profileManageText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#5A6470',
   },
   verificationCard: {
-    minHeight: 60,
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 18,
-    borderRadius: 10,
+    marginTop: 10,
+    borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    shadowColor: NAVY,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.025,
-    shadowRadius: 14,
-    elevation: 1,
   },
   verificationCardDone: {
-    backgroundColor: '#123F9F',
+    backgroundColor: '#171F2A',
   },
   verificationCardPending: {
-    backgroundColor: '#123F9F',
+    backgroundColor: '#171F2A',
   },
   verificationIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -664,13 +675,13 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   verificationTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 3,
   },
   verificationDesc: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     lineHeight: 15,
     color: 'rgba(255,255,255,0.78)',
@@ -687,45 +698,42 @@ const styles = StyleSheet.create({
     color: BLUE,
   },
   section: {
-    marginTop: 18,
+    marginTop: 12,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '800',
     color: MUTED,
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 6,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 5,
   },
   sectionCard: {
-    borderRadius: 18,
-    backgroundColor: CARD,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8EBEF',
     overflow: 'hidden',
-    shadowColor: NAVY,
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.025,
-    shadowRadius: 14,
-    elevation: 1,
   },
   menuRow: {
-    minHeight: 50,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 5,
   },
   menuDivider: {
     borderBottomWidth: 1,
     borderBottomColor: '#EAEDF2',
   },
   menuIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: '#F1F3F6',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 9,
   },
   menuIconDanger: {
     backgroundColor: '#FFF1F1',
@@ -735,9 +743,9 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   menuTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: NAVY,
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#26303C',
   },
   menuTitleDanger: {
     color: '#E5484D',

@@ -22,6 +22,7 @@ import {
   getCompanionPosts,
 } from '../../src/api/companion';
 import {
+  FreePostStatusFilter,
   FreePostSummaryResponse,
   getFreePosts,
 } from '../../src/api/freePosts';
@@ -29,6 +30,7 @@ import { BLUE, GREEN } from '../../src/data/community';
 
 const communityTabs = ['자유 게시판', '동행 구하기'] as const;
 const countryFilters = ['전체 국가', '프랑스', '독일', '스페인', '네덜란드'];
+const boardStatusFilters = ['전체', '파견 전', '파견 중'] as const;
 const companionStatusFilters = ['전체', '모집중', '모집완료'];
 const sortFilters = ['최신순', '마감임박순'];
 const COMMUNITY_PAGE_SIZE = 10;
@@ -112,6 +114,8 @@ export default function CommunityScreen() {
   const { width } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
   const [boardKeyword, setBoardKeyword] = useState('');
+  const [selectedBoardStatus, setSelectedBoardStatus] =
+    useState<FreePostStatusFilter>('전체');
   const [selectedCompanionStatus, setSelectedCompanionStatus] = useState('전체');
   const [selectedCompanionCountry, setSelectedCompanionCountry] = useState('전체 국가');
   const [companionStartDate, setCompanionStartDate] = useState('');
@@ -142,6 +146,7 @@ export default function CommunityScreen() {
     cursorId?: number,
     append = false,
     keywordText = boardKeywordRef.current,
+    statusFilter = selectedBoardStatus,
   ) => {
     const keyword = keywordText.trim();
     try {
@@ -149,7 +154,7 @@ export default function CommunityScreen() {
         cursorId,
         keyword: keyword.length > 0 ? keyword : undefined,
         size: COMMUNITY_PAGE_SIZE,
-      });
+      }, statusFilter);
       const cursorData = freeResponse.data.data;
       const nextItems = cursorData?.items ?? [];
 
@@ -159,7 +164,7 @@ export default function CommunityScreen() {
     } catch (error: any) {
       console.log('자유게시판 목록 조회 실패:', error.response?.data || error.message);
     }
-  }, []);
+  }, [selectedBoardStatus]);
 
   const loadCompanionPosts = useCallback(async (cursorId?: number, append = false) => {
     try {
@@ -198,7 +203,7 @@ export default function CommunityScreen() {
 
     setLoadingMoreBoard(true);
     try {
-      await loadFreePosts(boardNextCursorId, true);
+      await loadFreePosts(boardNextCursorId, true, boardKeywordRef.current, selectedBoardStatus);
     } finally {
       setLoadingMoreBoard(false);
     }
@@ -232,11 +237,11 @@ export default function CommunityScreen() {
     }
 
     const timer = setTimeout(() => {
-      loadFreePosts(undefined, false, boardKeyword);
+      loadFreePosts(undefined, false, boardKeyword, selectedBoardStatus);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [boardKeyword, loadFreePosts]);
+  }, [boardKeyword, loadFreePosts, selectedBoardStatus]);
 
   const companionCountryFilterItems = useMemo(
     () => [
@@ -263,11 +268,13 @@ export default function CommunityScreen() {
         const matchesKeyword =
           keyword.length === 0 ||
           `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
+        const matchesStatus =
+          selectedBoardStatus === '전체' || post.status === selectedBoardStatus;
 
-        return matchesKeyword;
+        return matchesKeyword && matchesStatus;
       });
     },
-    [boardKeyword, boardPosts],
+    [boardKeyword, boardPosts, selectedBoardStatus],
   );
 
   const filteredCompanions = useMemo(
@@ -427,6 +434,36 @@ export default function CommunityScreen() {
                 onChangeText={setBoardKeyword}
               />
             </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.boardStatusFilterRow}
+            >
+              {boardStatusFilters.map((status) => {
+                const active = selectedBoardStatus === status;
+
+                return (
+                  <Pressable
+                    key={status}
+                    style={[
+                      styles.boardStatusFilter,
+                      active && styles.boardStatusFilterActive,
+                    ]}
+                    onPress={() => setSelectedBoardStatus(status)}
+                  >
+                    <Text
+                      style={[
+                        styles.boardStatusFilterText,
+                        active && styles.boardStatusFilterTextActive,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             <View style={[styles.boardList, isWide && styles.gridList]}>
               {filteredBoardPosts.map((post) => (
@@ -933,6 +970,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111111',
     paddingVertical: 0,
+  },
+  boardStatusFilterRow: {
+    gap: 8,
+    paddingRight: 4,
+    marginBottom: 15,
+  },
+  boardStatusFilter: {
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 13,
+  },
+  boardStatusFilterActive: {
+    borderColor: '#DCE7FF',
+    backgroundColor: '#EAF1FF',
+  },
+  boardStatusFilterText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  boardStatusFilterTextActive: {
+    color: BLUE,
   },
   dropdownWrap: {
     position: 'relative',

@@ -29,6 +29,7 @@ export interface ChatMessageResponse {
   readCount?: number;
   read?: boolean;
   readByOpponent?: boolean;
+  isRead?: boolean;
 }
 
 export interface ChatReadResponse {

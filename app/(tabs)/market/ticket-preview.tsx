@@ -312,12 +312,33 @@ const syncLikedTicketPost = async (
 };
 
 export default function TicketPreviewPage() {
-  const { id, fromProfileList, fromEditComplete, fromCreateComplete } =
+  const {
+    id,
+    fromProfileList,
+    fromEditComplete,
+    fromCreateComplete,
+    fromChatRoom,
+    chatRoomId,
+    chatTitle,
+    chatPrice,
+    chatThumbnail,
+    chatSellerName,
+    chatReferenceType,
+    chatReferenceId,
+  } =
     useLocalSearchParams<{
     id?: string;
     fromProfileList?: string;
     fromEditComplete?: string;
     fromCreateComplete?: string;
+    fromChatRoom?: string;
+    chatRoomId?: string;
+    chatTitle?: string;
+    chatPrice?: string;
+    chatThumbnail?: string;
+    chatSellerName?: string;
+    chatReferenceType?: string;
+    chatReferenceId?: string;
   }>();
   const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState<'ticket' | 'seller'>('ticket');
@@ -408,6 +429,27 @@ export default function TicketPreviewPage() {
         <AppBackButton
           style={[styles.centerBackButton, { top: topSafePadding }]}
           onPress={() => {
+            if (fromChatRoom === 'true' && chatRoomId) {
+              if (router.canGoBack()) {
+                router.back();
+                return;
+              }
+
+              router.replace({
+                pathname: '/chat/[roomId]',
+                params: {
+                  roomId: chatRoomId,
+                  title: chatTitle ?? '',
+                  price: chatPrice ?? '',
+                  thumbnail: chatThumbnail ?? '',
+                  sellerName: chatSellerName ?? '',
+                  referenceType: chatReferenceType ?? 'TICKET',
+                  referenceId: chatReferenceId ?? '',
+                },
+              } as any);
+              return;
+            }
+
             if (fromEditComplete === 'true' || fromCreateComplete === 'true') {
               router.replace({
                 pathname: '/market',
@@ -553,25 +595,20 @@ export default function TicketPreviewPage() {
   const submitReportTicket = async (reason: ReportReason) => {
     if (reporting) return;
 
-    const authorMemberId = getTicketAuthorMemberId(ticket);
-
-    if (!authorMemberId) {
-      Alert.alert(
-        '신고 API 정보 필요',
-        '티켓 양도 신고는 작성자 memberId가 응답에 있어야 정확히 접수할 수 있어요. 백엔드에 티켓 상세 응답 authorMemberId 추가 또는 신고 타입 TICKET 추가를 요청해야 해요.',
-      );
+    if (!ticket?.id) {
+      Alert.alert('신고할 수 없어요', '신고 대상 게시글 정보를 불러오지 못했어요.');
       return;
     }
 
     try {
       setReporting(true);
       await createReport({
-        targetType: 'MEMBER',
-        targetId: authorMemberId,
+        targetType: 'TICKET_TRANSFER',
+        targetId: ticket.id,
         reason,
-        detail: `티켓 양도글 #${ticket.id}에서 신고된 판매자입니다.`,
+        detail: `티켓 양도글 #${ticket.id} 신고`,
       });
-      Alert.alert('신고 접수', '운영팀이 게시글과 판매자를 확인할게요.');
+      Alert.alert('신고 접수', '운영팀이 게시글을 확인할게요.');
     } catch (error: any) {
       console.log('티켓 양도 신고 실패:', error.response?.data || error.message);
       Alert.alert(
@@ -660,6 +697,27 @@ export default function TicketPreviewPage() {
           <AppBackButton
             style={styles.backButton}
             onPress={() => {
+              if (fromChatRoom === 'true' && chatRoomId) {
+                if (router.canGoBack()) {
+                  router.back();
+                  return;
+                }
+
+                router.replace({
+                  pathname: '/chat/[roomId]',
+                  params: {
+                    roomId: chatRoomId,
+                    title: chatTitle ?? '',
+                    price: chatPrice ?? '',
+                    thumbnail: chatThumbnail ?? '',
+                    sellerName: chatSellerName ?? '',
+                    referenceType: chatReferenceType ?? 'TICKET',
+                    referenceId: chatReferenceId ?? '',
+                  },
+                } as any);
+                return;
+              }
+
               if (fromEditComplete === 'true' || fromCreateComplete === 'true') {
                 router.replace({
                   pathname: '/market',
