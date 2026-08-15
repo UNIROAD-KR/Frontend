@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
+import { mockApiAdapter } from './mockAdapter';
+
 const API_BASE_URL = 'https://api.uniroad-kr.store';
 const REQUEST_TIMEOUT_MS = 6000;
+// 백엔드가 복구되면 false로 바꾸면 실제 서버를 다시 사용합니다.
+export const USE_MOCK_API = __DEV__;
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -16,6 +20,7 @@ type FailedQueueItem = {
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
+  adapter: USE_MOCK_API ? mockApiAdapter : undefined,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -33,7 +33,7 @@ import {
 } from '../../../src/storage/marketPosts';
 import { getMemberMe } from '../../../src/api/auth';
 import { createReport, ReportReason } from '../../../src/api/reports';
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 import {
   getUsedItemStatus,
   saveUsedItemStatus,
@@ -1005,7 +1005,7 @@ function HeaderBack({
             return;
           }
 
-          router.back();
+          goBackOrReplace('/market');
         }}
       />
 

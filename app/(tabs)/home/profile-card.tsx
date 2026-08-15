@@ -1,9 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ComponentType } from 'react';
 import {
   Alert,
   Image,
@@ -13,46 +12,67 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { SvgProps } from 'react-native-svg';
 
+import ArrowRightIcon from '@/assets/icon/Property 1=arrow2, Property 2=right.svg';
+import AllServicesIcon from '@/assets/icon/profile/all-services.svg';
+import AccountSettingsIcon from '@/assets/icon/profile/account-settings.svg';
+import AppVersionIcon from '@/assets/icon/profile/app-version.svg';
+import ContactIcon from '@/assets/icon/profile/contact.svg';
+import FreePostsIcon from '@/assets/icon/profile/free-posts.svg';
+import HeartIcon from '@/assets/icon/profile/heart.svg';
+import LogoutIcon from '@/assets/icon/profile/logout.svg';
+import NoticesIcon from '@/assets/icon/profile/notices.svg';
+import NotificationsIcon from '@/assets/icon/profile/notifications.svg';
+import PrivacyIcon from '@/assets/icon/profile/privacy.svg';
+import ProfileEditButton from '@/assets/icon/profile/profile-edit-button.svg';
+import TermsIcon from '@/assets/icon/profile/terms.svg';
+import VerificationApprovedCardIcon from '@/assets/icon/profile/verification-approved-card.svg';
+import VerificationIcon from '@/assets/icon/profile/verification.svg';
+import VerificationPendingIcon from '@/assets/icon/profile/verification-pending.svg';
+import WrittenPostsIcon from '@/assets/icon/profile/written-posts.svg';
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { deleteMyAccount, getMemberMe, logout } from '../../../src/api/auth';
+import { getMemberMe, logout } from '../../../src/api/auth';
 import { getMyVerifications } from '../../../src/api/verification';
 import { openKakaoContact } from '../../../src/utils/contact';
 
-const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
-const INK = '#111111';
+const NAVY = '#18202B';
+const INK = '#141416';
 const MUTED = '#64748B';
-const SOFT = '#F6F8FC';
-const CARD = '#FAFBFC';
 const APP_VERSION = Constants.expoConfig?.version ?? '1.0.0';
 
 type RouteTarget = unknown;
+type SvgIcon = ComponentType<SvgProps>;
+type MenuIcon = SvgIcon | number;
 
 type MenuItem = {
   title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  description?: string;
+  icon: MenuIcon;
   route?: RouteTarget;
-  action?: 'logout' | 'contact' | 'withdraw';
+  action?: 'logout' | 'contact';
   value?: string;
-  danger?: boolean;
 };
 
 const activityItems: MenuItem[] = [
   {
-    title: '스크랩/저장한 글',
-    description: '나중에 다시 볼 글을 카테고리별로 확인',
-    icon: 'bookmark-outline',
+    title: '좋아요 누른 글',
+    icon: HeartIcon,
     route: {
       pathname: '/home/profile-list',
-      params: { type: 'saved' },
+      params: { type: 'liked' },
+    },
+  },
+  {
+    title: '자유게시판 작성글',
+    icon: FreePostsIcon,
+    route: {
+      pathname: '/home/profile-list',
+      params: { type: 'free' },
     },
   },
   {
     title: '내가 쓴 글',
-    description: '커뮤니티와 중고마켓 작성글을 한 번에 확인',
-    icon: 'create-outline',
+    icon: WrittenPostsIcon,
     route: {
       pathname: '/home/profile-list',
       params: { type: 'written' },
@@ -63,34 +83,25 @@ const activityItems: MenuItem[] = [
 const accountItems: MenuItem[] = [
   {
     title: '계정 설정',
-    description: '아이디 확인 및 비밀번호 변경',
-    icon: 'settings-outline',
+    icon: AccountSettingsIcon,
     route: '/home/account-settings',
   },
   {
-    title: '파견교 인증',
-    description: '파견교 인증 상태 확인',
-    icon: 'shield-checkmark-outline',
-    route: '/verification',
-  },
-  {
     title: '알림 설정',
-    icon: 'notifications-outline',
+    icon: NotificationsIcon,
     route: '/home/profile-notifications',
   },
   {
-    title: '프로필 수정',
-    description: '이름, 학교, 파견 정보를 수정',
-    icon: 'person-outline',
-    route: '/home/profile-edit',
+    title: '파견교 인증',
+    icon: VerificationIcon,
+    route: '/verification',
   },
 ];
 
 const serviceItems: MenuItem[] = [
   {
     title: '전체 서비스',
-    description: '유니로드의 모든 기능 보기',
-    icon: 'apps-outline',
+    icon: AllServicesIcon,
     route: '/home/more-menu',
   },
 ];
@@ -98,26 +109,22 @@ const serviceItems: MenuItem[] = [
 const guideItems: MenuItem[] = [
   {
     title: '앱 버전',
-    description: '현재 앱 버전',
-    icon: 'phone-portrait-outline',
+    icon: AppVersionIcon,
     value: `v${APP_VERSION}`,
   },
   {
     title: '문의하기',
-    description: '오픈채팅방으로 이동',
-    icon: 'chatbubble-ellipses-outline',
+    icon: ContactIcon,
     action: 'contact',
   },
   {
     title: '공지사항',
-    description: '서비스 업데이트와 운영 안내',
-    icon: 'megaphone-outline',
+    icon: NoticesIcon,
     route: '/home/notices',
   },
   {
     title: '서비스 이용약관',
-    description: '유니로드 이용 약관 확인',
-    icon: 'document-text-outline',
+    icon: TermsIcon,
     route: '/home/terms',
   },
 ];
@@ -125,23 +132,13 @@ const guideItems: MenuItem[] = [
 const extraItems: MenuItem[] = [
   {
     title: '개인정보 처리방침',
-    description: '개인정보 수집 및 이용 안내',
-    icon: 'shield-outline',
+    icon: PrivacyIcon,
     route: '/home/privacy-policy',
   },
   {
     title: '로그아웃',
-    description: '현재 계정에서 나가기',
-    icon: 'log-out-outline',
+    icon: LogoutIcon,
     action: 'logout',
-    danger: true,
-  },
-  {
-    title: '회원탈퇴하기',
-    description: '계정과 이용 기록 삭제',
-    icon: 'person-remove-outline',
-    action: 'withdraw',
-    danger: true,
   },
 ];
 
@@ -295,41 +292,9 @@ export default function ProfileCardScreen() {
     ]);
   };
 
-  const performWithdraw = async () => {
-    try {
-      await deleteMyAccount();
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
-      Alert.alert('회원탈퇴 완료', '계정이 삭제되었습니다.', [
-        { text: '확인', onPress: () => router.replace('/login' as any) },
-      ]);
-    } catch (error: any) {
-      console.log('회원탈퇴 실패:', error.response?.data || error.message);
-      Alert.alert(
-        '회원탈퇴 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
-      );
-    }
-  };
-
-  const confirmWithdraw = () => {
-    Alert.alert(
-      '회원탈퇴하기',
-      '탈퇴하면 계정과 연관 데이터가 삭제돼요. 정말 탈퇴하시겠습니까?',
-      [
-        { text: '취소', style: 'cancel' },
-        { text: '탈퇴하기', style: 'destructive', onPress: performWithdraw },
-      ],
-    );
-  };
-
   const handleMenuPress = (item: MenuItem) => {
     if (item.action === 'logout') {
       confirmLogout();
-      return;
-    }
-
-    if (item.action === 'withdraw') {
-      confirmWithdraw();
       return;
     }
 
@@ -343,27 +308,18 @@ export default function ProfileCardScreen() {
     openRoute(item.route);
   };
 
-  const verificationIconName: keyof typeof Ionicons.glyphMap = isVerified
-    ? 'shield-checkmark'
-    : isVerificationPending
-      ? 'time-outline'
-      : 'shield-outline';
-  const verificationTitle = isVerified
-    ? '교환학생 인증 완료'
-    : isVerificationPending
-      ? '교환학생 인증 검토중'
-      : '교환학생 인증이 필요해요';
-  const verificationDescription = isVerified
-    ? '파견교 인증이 완료되어 안전한 교환학생 멤버로 표시됩니다.'
-    : isVerificationPending
-      ? '제출한 인증 서류를 확인하고 있어요.'
-      : '인증하고 중고거래·동행 모집 이용하기';
-  const verificationPillLabel = isVerified ? '완료' : '검토중';
-
+  const isVerificationApproved = isVerified;
+  const VerificationStatusIcon = isVerificationApproved
+    ? VerificationApprovedCardIcon
+    : VerificationPendingIcon;
+  const verificationTitle = isVerificationApproved ? '교환학생 인증 완료' : '교환학생 인증 검토 중';
+  const verificationDescription = isVerificationApproved
+    ? '인증이 완료되어 안전한 교환학생으로 표시됨'
+    : '제출하신 인증 서류를 확인하고 있어요';
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <AppBackButton style={styles.backButton} />
+        <AppBackButton fallbackHref="/home" style={styles.backButton} />
         <Text style={styles.headerTitle}>내 프로필</Text>
       </View>
 
@@ -372,22 +328,15 @@ export default function ProfileCardScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.profileCard}>
-          <TouchableOpacity
-            style={styles.profileMain}
-            onPress={() => router.push('/home/profile-edit' as any)}
-            activeOpacity={0.86}
-          >
+        <TouchableOpacity
+          style={styles.profileCard}
+          onPress={() => router.push('/home/profile-edit' as any)}
+          activeOpacity={0.86}
+        >
+          <View style={styles.profileMain}>
             <View style={styles.avatarWrap}>
               {profile.avatarUri ? (
                 <Image source={{ uri: profile.avatarUri }} style={styles.avatar} />
-              ) : (
-                <Ionicons name="person" size={25} color={INK} />
-              )}
-              {isVerified ? (
-                <View style={styles.exchangeBadge}>
-                  <Ionicons name="shield-checkmark" size={11} color={BLUE} />
-                </View>
               ) : null}
             </View>
 
@@ -398,51 +347,40 @@ export default function ProfileCardScreen() {
               </Text>
             </View>
 
-            <View style={styles.profileManage}>
-              <Text style={styles.profileManageText}>프로필 편집</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            <ProfileEditButton width={86} height={36} />
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.verificationCard,
-            isVerified ? styles.verificationCardDone : styles.verificationCardPending,
+            isVerificationApproved && styles.verificationCardApproved,
           ]}
           onPress={() => router.push('/verification' as any)}
           activeOpacity={0.86}
         >
-          <View
-            style={[
-              styles.verificationIconBox,
-              isVerified
-                ? styles.verificationIconBoxDone
-                : styles.verificationIconBoxPending,
-            ]}
-          >
-            <Ionicons
-              name={verificationIconName}
-              size={20}
-              color="#FFFFFF"
-            />
-          </View>
+          <VerificationStatusIcon width={40} height={40} style={styles.verificationIcon} />
 
           <View style={styles.verificationTextBox}>
-            <Text style={styles.verificationTitle}>
+            <Text style={[
+              styles.verificationTitle,
+              isVerificationApproved && styles.verificationTitleApproved,
+            ]}>
               {verificationTitle}
             </Text>
-            <Text style={styles.verificationDesc} numberOfLines={2}>
+            <Text style={[
+              styles.verificationDesc,
+              isVerificationApproved && styles.verificationDescApproved,
+            ]} numberOfLines={2}>
               {verificationDescription}
             </Text>
           </View>
 
-          {isVerified || isVerificationPending ? (
-            <View style={styles.verificationPill}>
-              <Text style={styles.verificationPillText}>{verificationPillLabel}</Text>
-            </View>
-          ) : (
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.78)" />
-          )}
+          <ArrowRightIcon
+            width={18}
+            height={18}
+            color={isVerificationApproved ? '#FFFFFF' : '#64748B'}
+          />
         </TouchableOpacity>
 
         <MenuSection
@@ -451,24 +389,28 @@ export default function ProfileCardScreen() {
           onPressItem={handleMenuPress}
         />
         <MenuSection
-          title="계정 / 설정"
+          title="계정 및 설정"
           items={accountItems}
           onPressItem={handleMenuPress}
-        />
-        <MenuSection
-          title="서비스"
-          items={serviceItems}
-          onPressItem={handleMenuPress}
+          separated
         />
         <MenuSection
           title="이용 안내"
           items={guideItems}
           onPressItem={handleMenuPress}
+          separated
+        />
+        <MenuSection
+          title="서비스"
+          items={serviceItems}
+          onPressItem={handleMenuPress}
+          separated
         />
         <MenuSection
           title="기타"
           items={extraItems}
           onPressItem={handleMenuPress}
+          separated
         />
       </ScrollView>
     </View>
@@ -479,50 +421,49 @@ function MenuSection({
   title,
   items,
   onPressItem,
+  separated = false,
 }: {
   title: string;
   items: MenuItem[];
   onPressItem: (item: MenuItem) => void;
+  separated?: boolean;
 }) {
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+    <View style={[styles.section, separated && styles.sectionSeparated]}>
+      <Text style={styles.sectionTitle}>{title}</Text>
 
-        {items.map((item, index) => {
-          const interactive = !!item.route || !!item.action;
+      {items.map((item) => {
+        const interactive = !!item.route || !!item.action;
+        const MenuIcon = item.icon;
 
-          return (
-            <TouchableOpacity
-              key={item.title}
-              style={[styles.menuRow, index < items.length - 1 && styles.menuDivider]}
-              onPress={() => onPressItem(item)}
-              activeOpacity={interactive ? 0.82 : 1}
-              disabled={!interactive}
-            >
-              <View style={[styles.menuIconBox, item.danger && styles.menuIconDanger]}>
-                <Ionicons
-                  name={item.icon}
-                  size={18}
-                  color={item.danger ? '#E5484D' : NAVY}
-                />
-              </View>
+        return (
+          <TouchableOpacity
+            key={item.title}
+            style={styles.menuRow}
+            onPress={() => onPressItem(item)}
+            activeOpacity={interactive ? 0.82 : 1}
+            disabled={!interactive}
+          >
+            <View style={styles.menuIconBox}>
+              {typeof MenuIcon === 'number' ? (
+                <Image source={MenuIcon} style={styles.menuRasterIcon} resizeMode="contain" />
+              ) : (
+                <MenuIcon width={21} height={21} />
+              )}
+            </View>
 
-              <View style={styles.menuTextBox}>
-                <Text style={[styles.menuTitle, item.danger && styles.menuTitleDanger]}>
-                  {item.title}
-                </Text>
-              </View>
+            <View style={styles.menuTextBox}>
+              <Text style={styles.menuTitle}>{item.title}</Text>
+            </View>
 
-              {item.value ? (
-                <Text style={styles.menuValue}>{item.value}</Text>
-              ) : interactive ? (
-                <Ionicons name="chevron-forward" size={17} color={INK} />
-              ) : null}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+            {item.value ? (
+              <Text style={styles.menuValue}>{item.value}</Text>
+            ) : interactive ? (
+              <ArrowRightIcon width={18} height={18} color={INK} />
+            ) : null}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -530,19 +471,17 @@ function MenuSection({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: '#F6F8FA',
   },
   header: {
-    height: 94,
+    height: 118,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 44,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF1F5',
+    paddingHorizontal: 16,
+    paddingTop: 43,
+    paddingBottom: 12,
+    backgroundColor: '#F6F8FA',
     position: 'relative',
   },
   backButton: {
@@ -552,9 +491,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 14,
+    top: 57,
+    height: 34,
+    lineHeight: 34,
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: '800',
     color: NAVY,
     textAlign: 'center',
   },
@@ -562,197 +503,140 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 104,
+    paddingBottom: 120,
   },
   profileCard: {
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8EBEF',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    marginHorizontal: 16,
+    minHeight: 60,
   },
   profileMain: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatarWrap: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#EEF1F5',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E1E4E9',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 11,
+    marginRight: 12,
     position: 'relative',
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-  },
-  exchangeBadge: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE7FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   profileInfo: {
     flex: 1,
     alignItems: 'flex-start',
     minWidth: 0,
-    paddingRight: 10,
+    paddingRight: 8,
   },
   nickname: {
-    fontSize: 16,
+    fontSize: 20,
+    lineHeight: 27,
     fontWeight: '900',
     color: INK,
     textAlign: 'left',
   },
   profileMeta: {
-    marginTop: 5,
-    fontSize: 11,
-    fontWeight: '700',
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '600',
     color: MUTED,
     textAlign: 'left',
   },
-  profileManage: {
-    minWidth: 57,
-    height: 26,
-    borderWidth: 1,
-    borderColor: '#DCE1E7',
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 7,
-  },
-  profileManageText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#5A6470',
-  },
   verificationCard: {
-    minHeight: 58,
+    minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    marginTop: 16,
+    marginHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#DFE4EA',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  verificationCardDone: {
-    backgroundColor: '#171F2A',
+  verificationCardApproved: {
+    borderColor: '#18202B',
+    backgroundColor: '#18202B',
   },
-  verificationCardPending: {
-    backgroundColor: '#171F2A',
-  },
-  verificationIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  verificationIcon: {
     marginRight: 12,
-  },
-  verificationIconBoxDone: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-  },
-  verificationIconBoxPending: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   verificationTextBox: {
     flex: 1,
     minWidth: 0,
-    paddingRight: 10,
+    paddingRight: 8,
   },
   verificationTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
+    color: '#18202B',
+    marginBottom: 2,
+  },
+  verificationTitleApproved: {
     color: '#FFFFFF',
-    marginBottom: 3,
   },
   verificationDesc: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
-    lineHeight: 15,
-    color: 'rgba(255,255,255,0.78)',
+    lineHeight: 17,
+    color: '#64748B',
   },
-  verificationPill: {
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-  verificationPillText: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: BLUE,
+  verificationDescApproved: {
+    color: '#ABB4C0',
   },
   section: {
-    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+  },
+  sectionSeparated: {
+    borderTopWidth: 8,
+    borderTopColor: '#F0F2F6',
+    marginTop: 20,
+    paddingTop: 18,
   },
   sectionTitle: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 12,
+    fontWeight: '700',
     color: MUTED,
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    paddingBottom: 5,
-  },
-  sectionCard: {
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E8EBEF',
-    overflow: 'hidden',
+    paddingBottom: 8,
   },
   menuRow: {
-    minHeight: 46,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 5,
-  },
-  menuDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#EAEDF2',
+    paddingVertical: 4,
   },
   menuIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
-    backgroundColor: '#F1F3F6',
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 9,
+    marginRight: 8,
   },
-  menuIconDanger: {
-    backgroundColor: '#FFF1F1',
+  menuRasterIcon: {
+    width: 22,
+    height: 22,
   },
   menuTextBox: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 8,
   },
   menuTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#26303C',
-  },
-  menuTitleDanger: {
-    color: '#E5484D',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#27303C',
   },
   menuValue: {
     fontSize: 13,
-    fontWeight: '900',
+    fontWeight: '800',
     color: MUTED,
   },
 });

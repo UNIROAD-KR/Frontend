@@ -1,7 +1,9 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import {
@@ -10,8 +12,16 @@ import {
   subscribeToForegroundPushNotifications,
 } from '@/src/notifications/push';
 
+if (Platform.OS !== 'web') {
+  void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+}
+
 export default function RootLayout() {
   useEffect(() => {
+    if (Platform.OS !== 'web') {
+      void SplashScreen.hideAsync().catch(() => undefined);
+    }
+
     const unsubscribeForeground = subscribeToForegroundPushNotifications();
     const unsubscribeTokenRefresh = subscribeToFcmTokenRefresh();
 
@@ -43,9 +53,12 @@ export default function RootLayout() {
             fullScreenGestureEnabled: true,
           }}
         />
+        <Stack.Screen name="signup-success" />
         <Stack.Screen name="verification-consent" />
         <Stack.Screen name="verification" />
         <Stack.Screen name="verification-complete" />
+        <Stack.Screen name="onboarding/consent" />
+        <Stack.Screen name="onboarding/profile-setup" />
         <Stack.Screen name="onboarding/nickname" />
         <Stack.Screen name="onboarding/profile" />
         <Stack.Screen name="onboarding/university" />

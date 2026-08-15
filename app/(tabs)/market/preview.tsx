@@ -1839,7 +1839,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     backgroundColor: '#F6F8FC',
   },
-  headerTitle: { fontSize: 17, fontWeight: '900', color: '#111111' },
+  headerTitle: { fontSize: 16, fontWeight: '900', color: '#111111' },
   tempSave: { fontSize: 13, color: '#BDBDBD', fontWeight: '700' },
 
   photoSection: {

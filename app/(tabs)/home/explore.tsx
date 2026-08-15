@@ -1323,7 +1323,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
     letterSpacing: 0,

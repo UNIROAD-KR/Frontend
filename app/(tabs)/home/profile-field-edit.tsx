@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
     paddingBottom: 17,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: INK,
   },

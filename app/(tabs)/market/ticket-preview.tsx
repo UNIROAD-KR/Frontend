@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 import {
   deleteTicket,
   getMyTickets,
@@ -471,7 +471,7 @@ export default function TicketPreviewPage() {
               return;
             }
 
-            router.back();
+            goBackOrReplace('/market');
           }}
         />
         <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요</Text>
@@ -739,7 +739,7 @@ export default function TicketPreviewPage() {
                 return;
               }
 
-              router.back();
+              goBackOrReplace('/market');
             }}
           />
 

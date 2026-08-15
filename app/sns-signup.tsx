@@ -167,20 +167,7 @@ export default function SnsSignupPage() {
       await socialSignUp(signUpData);
       await clearOnboardingDraft();
       setTermsVisible(false);
-
-      Alert.alert('가입 완료', '아이디와 비밀번호 설정이 완료되었습니다.', [
-        {
-          text: '확인',
-          onPress: () => {
-            router.push({
-              pathname: '/onboarding/nickname',
-              params: {
-                username: username.trim(),
-              },
-            } as any);
-          },
-        },
-      ]);
+      router.replace('/signup-success');
     } catch (error: any) {
       console.log('소셜 회원가입 실패:', error.response?.data || error.message);
       Alert.alert(
@@ -589,4 +576,3 @@ function TermAgreementRow({
     </View>
   );
 }
-

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 
 import { getMemberMe } from '../src/api/auth';
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 import {
   CompanionPostResponse,
   deleteCompanionPost,
@@ -445,7 +445,7 @@ export default function CommunityDetailScreen() {
               await deleteFreePost(postId);
             }
 
-            router.back();
+            goBackOrReplace('/community');
           } catch (error: any) {
             console.log('게시글 삭제 실패:', error.response?.data || error.message);
             Alert.alert('삭제 실패', '게시글을 삭제하지 못했어요.');
@@ -522,7 +522,7 @@ export default function CommunityDetailScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요.</Text>
-        <Pressable style={styles.emptyButton} onPress={() => router.back()}>
+        <Pressable style={styles.emptyButton} onPress={() => goBackOrReplace('/community')}>
           <Text style={styles.emptyButtonText}>돌아가기</Text>
         </Pressable>
       </View>
@@ -551,7 +551,7 @@ export default function CommunityDetailScreen() {
               return;
             }
 
-            router.back();
+            goBackOrReplace('/community');
           }}
           style={styles.headerIconButton}
         />
@@ -897,7 +897,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
   },

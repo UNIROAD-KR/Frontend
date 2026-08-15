@@ -1,44 +1,69 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs, router } from 'expo-router';
-import React from 'react';
+import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SvgProps } from 'react-native-svg';
+
+import ChatFilledIcon from '@/assets/icon/Property 1=chat, Property 2=fill.svg';
+import ChatLineIcon from '@/assets/icon/Property 1=chat, Property 2=line.svg';
+import CommunityFilledIcon from '@/assets/icon/Property 1=community, Property 2=fill.svg';
+import CommunityLineIcon from '@/assets/icon/Property 1=community, Property 2=line.svg';
+import HomeFilledIcon from '@/assets/icon/Property 1=home, Property 2=fill.svg';
+import HomeLineIcon from '@/assets/icon/Property 1=home, Property 2=line.svg';
+import SearchFilledIcon from '@/assets/icon/Property 1=search, Property 2=fill.svg';
+import SearchLineIcon from '@/assets/icon/Property 1=search, Property 2=line.svg';
+import ShopFilledIcon from '@/assets/icon/Property 1=shop, Property 2=fill.svg';
+
+type SvgIcon = ComponentType<SvgProps>;
+type TabIcon = SvgIcon | keyof typeof Ionicons.glyphMap;
 
 const tabMeta = {
   home: {
     label: '홈 화면',
-    icon: 'home-outline',
-    activeIcon: 'home',
+    icon: HomeLineIcon,
+    activeIcon: HomeFilledIcon,
   },
   explore: {
     label: '탐색하기',
-    icon: 'search-outline',
-    activeIcon: 'search',
+    icon: SearchLineIcon,
+    activeIcon: SearchFilledIcon,
   },
   community: {
     label: '커뮤니티',
-    icon: 'people-outline',
-    activeIcon: 'people',
+    icon: CommunityLineIcon,
+    activeIcon: CommunityFilledIcon,
   },
   market: {
     label: '중고마켓',
     icon: 'bag-handle-outline',
-    activeIcon: 'bag-handle',
+    activeIcon: ShopFilledIcon,
   },
   chat: {
     label: '채팅관리',
-    icon: 'chatbubbles-outline',
-    activeIcon: 'chatbubbles',
+    icon: ChatLineIcon,
+    activeIcon: ChatFilledIcon,
   },
 } as const satisfies Record<
   string,
   {
     label: string;
-    icon: keyof typeof Ionicons.glyphMap;
-    activeIcon: keyof typeof Ionicons.glyphMap;
+    icon: TabIcon;
+    activeIcon: TabIcon;
   }
 >;
+
+function TabBarIcon({ icon, active }: { icon: TabIcon; active: boolean }) {
+  const color = active ? '#FFFFFF' : '#75808F';
+
+  if (typeof icon === 'string') {
+    return <Ionicons name={icon} size={24} color={color} />;
+  }
+
+  const Icon = icon;
+  return <Icon width={24} height={24} color={color} />;
+}
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
@@ -93,11 +118,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               { width: active ? activeTabWidth : inactiveTabWidth },
             ]}
           >
-            <Ionicons
-              name={active ? meta.activeIcon : meta.icon}
-              size={24}
-              color={active ? '#FFFFFF' : '#75808F'}
-            />
+            <TabBarIcon icon={active ? meta.activeIcon : meta.icon} active={active} />
             {active ? (
               <Text numberOfLines={1} style={styles.activeLabel}>
                 {meta.label}

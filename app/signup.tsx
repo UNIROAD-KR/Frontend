@@ -162,8 +162,7 @@ export default function SignupPage() {
 
       await clearOnboardingDraft();
       setTermsVisible(false);
-      Alert.alert('가입 완료', '회원가입이 완료되었습니다.');
-      router.replace('/onboarding/nickname');
+      router.replace('/signup-success');
     } catch (error: any) {
       console.log('회원가입 실패:', error.response?.data || error.message);
       Alert.alert('회원가입 실패', '입력 정보를 다시 확인해주세요.');
@@ -596,4 +595,3 @@ function TermAgreementRow({
     </View>
   );
 }
-

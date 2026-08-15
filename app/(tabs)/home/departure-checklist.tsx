@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: NAVY,
   },

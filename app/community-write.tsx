@@ -30,7 +30,7 @@ import {
 import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 import { BLUE } from '../src/data/community';
 import { canUseMarketWithoutVerification } from '../src/utils/verification';
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 
 type DateTarget = 'start' | 'end' | null;
 const MAX_FREE_POST_PHOTOS = 10;
@@ -343,7 +343,7 @@ export default function CommunityWriteScreen() {
         Alert.alert(
           isEdit ? '수정 완료' : '등록 완료',
           isEdit ? '게시글을 수정했어요.' : '게시글을 등록했어요.',
-          [{ text: '확인', onPress: () => router.back() }],
+          [{ text: '확인', onPress: () => goBackOrReplace('/community') }],
         );
       } catch (error: any) {
         console.log('자유게시판 저장 실패:', error.response?.data || error.message);
@@ -375,7 +375,7 @@ export default function CommunityWriteScreen() {
       Alert.alert(
         isEdit ? '수정 완료' : '등록 완료',
         isEdit ? '동행 모집 글을 수정했어요.' : '동행 모집 글을 등록했어요.',
-        [{ text: '확인', onPress: () => router.back() }],
+        [{ text: '확인', onPress: () => goBackOrReplace('/community') }],
       );
     } catch (error: any) {
       console.log('동행 모집 저장 실패:', error.response?.data || error.message);
@@ -406,7 +406,7 @@ export default function CommunityWriteScreen() {
     >
       <View style={styles.header}>
         <AppBackButton
-          onPress={() => router.back()}
+          onPress={() => goBackOrReplace('/community')}
           style={styles.backButton}
         />
         <Text style={styles.headerTitle}>{screenText.title}</Text>
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
   },

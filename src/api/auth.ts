@@ -29,7 +29,7 @@ export type CurrentSituation =
 export interface OnboardingRequest {
   age?: number;
   nickname: string;
-  gender: 'MALE' | 'FEMALE';
+  gender?: 'MALE' | 'FEMALE';
   currentSituation: CurrentSituation;
   domesticUniversity: string;
   dispatchedUniversity?: string;

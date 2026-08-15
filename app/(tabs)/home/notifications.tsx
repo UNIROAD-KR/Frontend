@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
     backgroundColor: SOFT,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '900',
     color: NAVY,
   },

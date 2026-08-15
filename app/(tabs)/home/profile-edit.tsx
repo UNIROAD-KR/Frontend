@@ -1,10 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Alert,
   Image,
@@ -15,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -25,20 +25,33 @@ import {
   type MemberProfileUpdateRequest,
 } from '../../../src/api/auth';
 import { AppBackButton } from '@/components/ui/app-back-button';
+import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
+import DropdownArrowIcon from '@/assets/icon/Property 1=arrow2, Property 2=down.svg';
+import ProfileEditAvatarActionIcon from '@/assets/icon/profile/profile-edit-avatar-action.svg';
+import ProfileEditAvatarBackground from '@/assets/icon/profile/profile-edit-avatar-background.svg';
+import ProfileEditLockIcon from '@/assets/icon/profile/profile-edit-lock.svg';
+import AvatarCameraIcon from '@/assets/icon/profile/avatar-camera.svg';
+import AvatarLibraryIcon from '@/assets/icon/profile/avatar-library.svg';
 import {
+  CUSTOM_COUNTRY_OPTION,
+  countryOptions,
+  dispatchSemesterTerms,
   formatDispatchSemester,
+  getNicknameError,
   parseDispatchSemester,
+  universityOptions,
 } from '@/src/constants/onboarding';
 
 const NAVY = '#0F2042';
 const BLUE = '#3568DA';
 const INK = '#1A2029';
 const MUTED = '#7A8491';
-const SOFT = '#F2F4F7';
-const CARD = '#FFFFFF';
 const PAGE = '#F6F7F9';
 
 const statusOptions = ['지원 준비 중', '출국 준비 중', '파견 중'];
+const semesterYearOptions = Array.from({ length: 12 }, (_, index) =>
+  String(new Date().getFullYear() - 3 + index),
+);
 const dateLabels: Record<string, string> = {
   '지원 준비 중': '지원 마감일',
   '출국 준비 중': '출국일',
@@ -66,7 +79,9 @@ const profileStatusByCurrentSituation: Record<CurrentSituation, string> = {
   RETURNED: '귀국',
 };
 type DateFieldKey = 'applicationDeadline' | 'departureDate' | 'dispatchStartDate' | 'returnDate';
+type DatePart = 'year' | 'month' | 'day';
 type EditSnapshot = {
+  avatarUri: string;
   nickname: string;
   homeUniversity: string;
   country: string;
@@ -108,7 +123,11 @@ const normalizeDispatchSemester = (value?: string | number | null) => {
 };
 
 export default function ProfileEditScreen() {
+  const insets = useSafeAreaInsets();
+  // Keep the fixed save action above the floating bottom tab on every device.
+  const footerBottomOffset = 64 + Math.max(insets.bottom, 12) + 12;
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
   const [homeUniversity, setHomeUniversity] = useState('');
@@ -121,13 +140,20 @@ export default function ProfileEditScreen() {
   const [dispatchStartDate, setDispatchStartDate] = useState<Date | null>(null);
   const [returnDate, setReturnDate] = useState<Date | null>(null);
   const [dispatchSemester, setDispatchSemester] = useState('');
-  const [showPicker, setShowPicker] = useState(false);
-  const [draftDate, setDraftDate] = useState(createDate(2026, 8, 21));
-  const [activeDateField, setActiveDateField] = useState<DateFieldKey>('departureDate');
+  const [universityPickerVisible, setUniversityPickerVisible] = useState(false);
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [semesterYearPickerVisible, setSemesterYearPickerVisible] = useState(false);
+  const [customCountryMode, setCustomCountryMode] = useState(false);
+  const [openDateDropdown, setOpenDateDropdown] = useState<{
+    field: DateFieldKey;
+    part: DatePart;
+  } | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [initialSnapshot, setInitialSnapshot] = useState<EditSnapshot | null>(null);
   const [loadedCurrentSituation, setLoadedCurrentSituation] = useState<CurrentSituation | null>(null);
 
   const currentSnapshot: EditSnapshot = {
+    avatarUri: avatarUri || '',
     nickname: nickname.trim(),
     homeUniversity: homeUniversity.trim(),
     country: country.trim(),
@@ -147,15 +173,70 @@ export default function ProfileEditScreen() {
       const snapshotKey = key as keyof EditSnapshot;
       return currentSnapshot[snapshotKey] !== initialSnapshot[snapshotKey];
     });
+  const nicknameError = getNicknameError(nickname);
+  const parsedDispatchSemester = parseDispatchSemester(dispatchSemester);
+  const isDispatchSemesterValid =
+    !dispatchSemester || Boolean(parsedDispatchSemester.year && parsedDispatchSemester.term);
+  const canSave = hasChanges && Boolean(nickname.trim()) && !nicknameError && isDispatchSemesterValid;
 
-  const openFieldEdit = (
-    field: 'nickname' | 'homeUniversity' | 'country' | 'dispatchedUniversity' | 'dispatchSemester',
-    value: string,
-  ) => {
-    router.push({
-      pathname: '/home/profile-field-edit',
-      params: { field, value, region },
-    } as any);
+  const chooseAvatar = async (source: 'camera' | 'library') => {
+    setAvatarPickerVisible(false);
+    const permission =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        '권한 필요',
+        source === 'camera'
+          ? '프로필 사진을 촬영하려면 카메라 접근 권한이 필요합니다.'
+          : '프로필 사진을 선택하려면 사진첩 접근 권한이 필요합니다.',
+      );
+      return;
+    }
+
+    const pickerOptions = {
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.9,
+    } as const;
+    const result =
+      source === 'camera'
+        ? await ImagePicker.launchCameraAsync(pickerOptions)
+        : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+
+    if (!result.canceled && result.assets[0]) {
+      setAvatarUri(result.assets[0].uri);
+    }
+  };
+
+  const selectUniversity = (value: string) => {
+    setHomeUniversity(value);
+    setUniversityPickerVisible(false);
+  };
+
+  const selectCountry = (value: string) => {
+    if (value === CUSTOM_COUNTRY_OPTION) {
+      setCountry('');
+      setCustomCountryMode(true);
+    } else {
+      setCountry(value);
+      setCustomCountryMode(false);
+    }
+
+    setCountryPickerVisible(false);
+  };
+
+  const selectSemesterYear = (year: string) => {
+    const { term } = parseDispatchSemester(dispatchSemester);
+    setDispatchSemester(term ? formatDispatchSemester(year, term) : year);
+    setSemesterYearPickerVisible(false);
+  };
+
+  const selectSemesterTerm = (term: (typeof dispatchSemesterTerms)[number]) => {
+    const { year } = parseDispatchSemester(dispatchSemester);
+    setDispatchSemester(year ? formatDispatchSemester(year, term) : term);
   };
 
   useFocusEffect(
@@ -242,6 +323,7 @@ export default function ProfileEditScreen() {
       setHomeUniversity(nextHomeUniversity);
       setDispatchedUniversity(nextDispatchedUniversity);
       setCountry(nextCountry);
+      setCustomCountryMode(Boolean(nextCountry) && !countryOptions.includes(nextCountry));
       setRegion(nextRegion);
       setStatus(nextStatus);
       setLoadedCurrentSituation(nextCurrentSituation);
@@ -251,6 +333,7 @@ export default function ProfileEditScreen() {
       setReturnDate(nextReturnDate);
       setDispatchSemester(nextDispatchSemester);
       const loadedSnapshot = {
+        avatarUri: nextAvatar || '',
         nickname: nextNickname.trim(),
         homeUniversity: nextHomeUniversity.trim(),
         country: nextCountry.trim(),
@@ -271,18 +354,18 @@ export default function ProfileEditScreen() {
     }, []),
   );
 
-  const setActiveDate = (date: Date) => {
-    if (activeDateField === 'applicationDeadline') {
+  const setDateForField = (field: DateFieldKey, date: Date) => {
+    if (field === 'applicationDeadline') {
       setApplicationDeadline(date);
       return;
     }
 
-    if (activeDateField === 'departureDate') {
+    if (field === 'departureDate') {
       setDepartureDate(date);
       return;
     }
 
-    if (activeDateField === 'dispatchStartDate') {
+    if (field === 'dispatchStartDate') {
       setDispatchStartDate(date);
       return;
     }
@@ -290,10 +373,10 @@ export default function ProfileEditScreen() {
     setReturnDate(date);
   };
 
-  const getFallbackDate = () => {
-    if (activeDateField === 'applicationDeadline') return createDate(2026, 3, 18);
-    if (activeDateField === 'departureDate') return createDate(2026, 8, 21);
-    if (activeDateField === 'dispatchStartDate') return createDate(2026, 9, 1);
+  const getFallbackDate = (field: DateFieldKey) => {
+    if (field === 'applicationDeadline') return createDate(2026, 3, 18);
+    if (field === 'departureDate') return createDate(2026, 8, 21);
+    if (field === 'dispatchStartDate') return createDate(2026, 9, 1);
     return createDate(2027, 1, 15);
   };
 
@@ -304,25 +387,32 @@ export default function ProfileEditScreen() {
     return returnDate;
   };
 
-  const getDateLabelByField = (field: DateFieldKey) => {
-    if (field === 'applicationDeadline') return '지원 마감일';
-    if (field === 'departureDate') return '출국일';
-    if (field === 'dispatchStartDate') return '파견 시작일';
-    return '귀국일';
+  const toggleDateDropdown = (field: DateFieldKey, part: DatePart) => {
+    setOpenDateDropdown((current) =>
+      current?.field === field && current.part === part ? null : { field, part },
+    );
+
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+    });
   };
 
-  const openDatePicker = (field: DateFieldKey) => {
-    setActiveDateField(field);
-    setDraftDate(getDateByField(field) || getFallbackDate());
-    setShowPicker(true);
-  };
+  const selectDatePart = (field: DateFieldKey, part: DatePart, value: string) => {
+    const currentDate = getDateByField(field) || getFallbackDate(field);
+    const nextYear = part === 'year' ? Number(value) : currentDate.getFullYear();
+    const nextMonth = part === 'month' ? Number(value) : currentDate.getMonth() + 1;
+    const maxDay = new Date(nextYear, nextMonth, 0).getDate();
+    const nextDay = Math.min(part === 'day' ? Number(value) : currentDate.getDate(), maxDay);
 
-  const completeDatePicker = () => {
-    setActiveDate(draftDate);
-    setShowPicker(false);
+    setDateForField(field, createDate(nextYear, nextMonth, nextDay));
+    setOpenDateDropdown(null);
   };
 
   const saveProfile = async () => {
+    if (!canSave) {
+      return;
+    }
+
     const [savedStatus, savedDeparturePrepStartDate] = await Promise.all([
       AsyncStorage.getItem('profileStatus'),
       AsyncStorage.getItem('departurePrepStartDate'),
@@ -410,63 +500,83 @@ export default function ProfileEditScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: footerBottomOffset + 76 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.avatarSection}>
-          <View style={styles.avatarFrame}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            ) : (
-              <Ionicons name="person" size={24} color={INK} />
-            )}
+        <View style={styles.profileIntro}>
+          <View style={styles.profileIntroText}>
+            <Text style={styles.screenTitle}>프로필 편집하기</Text>
+            <Text style={styles.screenDescription}>원하시는 프로필 정보를 편집할 수 있어요</Text>
           </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="프로필 사진 변경"
+            style={styles.avatarEditButton}
+            onPress={() => setAvatarPickerVisible(true)}
+          >
+            <ProfileEditAvatarBackground width={80} height={80} />
+            {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : null}
+            <ProfileEditAvatarActionIcon width={24} height={24} style={styles.avatarEditIcon} />
+          </Pressable>
         </View>
 
-        <InfoSection title="기본 정보">
-          <EditableInfoRow
-            label="닉네임"
-            value={nickname}
-            placeholder="미설정"
-            onPress={() => openFieldEdit('nickname', nickname)}
-            withDivider
-          />
-          <ReadonlyInfoRow label="이름" value={name} />
-        </InfoSection>
+        <ProfileTextField
+          label="닉네임"
+          value={nickname}
+          onChangeText={setNickname}
+          placeholder="닉네임을 입력하세요"
+          counter={`${nickname.length}/12`}
+          error={nicknameError}
+        />
 
-        <InfoSection title="학교 정보">
-          <EditableInfoRow
-            label="소속 대학"
-            value={homeUniversity}
-            placeholder="미설정"
-            onPress={() => openFieldEdit('homeUniversity', homeUniversity)}
-            withDivider
-          />
-          <EditableInfoRow
-            label="파견 국가 및 지역"
-            value={[country, region].filter(Boolean).join(' ')}
-            placeholder="미설정"
-            onPress={() => openFieldEdit('country', country)}
-            withDivider
-          />
-          <EditableInfoRow
-            label="파견교"
-            value={dispatchedUniversity}
-            placeholder="미정"
-            onPress={() => openFieldEdit('dispatchedUniversity', dispatchedUniversity)}
-            withDivider
-          />
-          <EditableInfoRow
-            label="파견 학기"
-            value={dispatchSemester}
-            placeholder="파견 학기 선택"
-            onPress={() => openFieldEdit('dispatchSemester', dispatchSemester)}
-          />
-        </InfoSection>
+        <ReadonlyNameField value={name} />
 
-        <FormSection title="파견 상태">
+        <View style={styles.sectionDivider} />
+
+        <ProfileSelectField
+          label="소속 대학"
+          value={homeUniversity}
+          placeholder="소속 대학 선택"
+          onPress={() => setUniversityPickerVisible(true)}
+        />
+
+        <CountryRegionFields
+          country={country}
+          region={region}
+          customCountryMode={customCountryMode}
+          onPress={() => setCountryPickerVisible(true)}
+          onChangeCountry={setCountry}
+          onChangeRegion={setRegion}
+        />
+
+        <ProfileSelectField
+          label="파견교"
+          value={dispatchedUniversity}
+          placeholder="파견교 입력"
+          editable
+          onChangeText={setDispatchedUniversity}
+        />
+
+        <SemesterField
+          value={dispatchSemester}
+          onPress={() => {
+            setSemesterYearPickerVisible((visible) => !visible);
+            requestAnimationFrame(() => {
+              scrollRef.current?.scrollToEnd({ animated: true });
+            });
+          }}
+          onSelectTerm={selectSemesterTerm}
+          yearOptions={semesterYearOptions}
+          yearPickerVisible={semesterYearPickerVisible}
+          onSelectYear={selectSemesterYear}
+        />
+
+        <View style={styles.statusField}>
+          <Text style={styles.fieldLabel}>파견 상태</Text>
           <View style={styles.optionGrid}>
             {statusOptions.map((option) => {
               const selected = status === option;
@@ -485,203 +595,376 @@ export default function ProfileEditScreen() {
               );
             })}
           </View>
+        </View>
 
-          {status === '파견 중' ? (
-            <>
-              <DateField
-                field="dispatchStartDate"
-                label="파견 시작일"
-                value={dispatchStartDate}
-                onPress={openDatePicker}
-              />
-              <DateField
-                field="returnDate"
-                label="귀국일"
-                value={returnDate}
-                onPress={openDatePicker}
-                optional
-              />
-            </>
-          ) : (
+        {status === '파견 중' ? (
+          <>
             <DateField
-              field={
-                status === '지원 준비 중'
-                  ? 'applicationDeadline'
-                  : status === '출국 준비 중'
-                    ? 'departureDate'
-                    : 'returnDate'
-              }
-              label={dateLabels[status]}
-              value={
-                status === '지원 준비 중'
-                  ? applicationDeadline
-                  : status === '출국 준비 중'
-                    ? departureDate
-                    : returnDate
-              }
-              onPress={openDatePicker}
-              optional={status === '귀국'}
+              field="dispatchStartDate"
+              label="파견 시작일"
+              value={dispatchStartDate}
+              openPart={openDateDropdown?.field === 'dispatchStartDate' ? openDateDropdown.part : null}
+              onToggle={toggleDateDropdown}
+              onSelect={selectDatePart}
             />
-          )}
-        </FormSection>
+            <DateField
+              field="returnDate"
+              label="귀국일"
+              value={returnDate}
+              openPart={openDateDropdown?.field === 'returnDate' ? openDateDropdown.part : null}
+              onToggle={toggleDateDropdown}
+              onSelect={selectDatePart}
+              optional
+            />
+          </>
+        ) : (
+          <DateField
+            field={
+              status === '지원 준비 중'
+                ? 'applicationDeadline'
+                : status === '출국 준비 중'
+                  ? 'departureDate'
+                  : 'returnDate'
+            }
+            label={dateLabels[status]}
+            value={
+              status === '지원 준비 중'
+                ? applicationDeadline
+                : status === '출국 준비 중'
+                  ? departureDate
+                  : returnDate
+            }
+            openPart={
+              openDateDropdown?.field ===
+              (status === '지원 준비 중'
+                ? 'applicationDeadline'
+                : status === '출국 준비 중'
+                  ? 'departureDate'
+                  : 'returnDate')
+                ? openDateDropdown.part
+                : null
+            }
+            onToggle={toggleDateDropdown}
+            onSelect={selectDatePart}
+            optional={status === '귀국'}
+          />
+        )}
 
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { bottom: footerBottomOffset, paddingBottom: 0 }]}>
         <TouchableOpacity
-          style={[styles.footerButton, !hasChanges && styles.footerButtonDisabled]}
+          style={[styles.footerButton, !canSave && styles.footerButtonDisabled]}
           onPress={saveProfile}
-          activeOpacity={hasChanges ? 0.88 : 1}
-          disabled={!hasChanges}
+          activeOpacity={canSave ? 0.88 : 1}
+          disabled={!canSave}
         >
-          <Text style={[styles.footerButtonText, !hasChanges && styles.footerButtonTextDisabled]}>
-            변경하기
+          <Text style={[styles.footerButtonText, !canSave && styles.footerButtonTextDisabled]}>
+            변동사항 저장하기
           </Text>
         </TouchableOpacity>
       </View>
 
       <Modal
+        visible={avatarPickerVisible}
         transparent
-        visible={showPicker}
-        animationType="slide"
-        onRequestClose={() => setShowPicker(false)}
+        animationType="fade"
+        onRequestClose={() => setAvatarPickerVisible(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowPicker(false)}>
-          <Pressable style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              <TouchableOpacity onPress={() => setShowPicker(false)} activeOpacity={0.8}>
-                <Text style={styles.sheetCancelText}>취소</Text>
-              </TouchableOpacity>
-              <Text style={styles.sheetTitle}>{getDateLabelByField(activeDateField)}</Text>
-              <TouchableOpacity onPress={completeDatePicker} activeOpacity={0.8}>
-                <Text style={styles.sheetDoneText}>완료</Text>
-              </TouchableOpacity>
-            </View>
-
-            <DateTimePicker
-              value={draftDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              themeVariant="light"
-              textColor={INK}
-              accentColor={BLUE}
-              onChange={(_, selectedDate) => {
-                if (!selectedDate) {
-                  if (Platform.OS !== 'ios') setShowPicker(false);
-                  return;
-                }
-
-                if (Platform.OS === 'ios') {
-                  setDraftDate(selectedDate);
-                  return;
-                }
-
-                setActiveDate(selectedDate);
-                setShowPicker(false);
-              }}
-              style={styles.sheetDatePicker}
-            />
-          </Pressable>
-        </Pressable>
+        <View style={styles.avatarPickerOverlay}>
+          <Pressable style={styles.avatarPickerBackdrop} onPress={() => setAvatarPickerVisible(false)} />
+          <View style={[styles.avatarPickerSheet, { paddingBottom: Math.max(insets.bottom, 12) + 14 }]}>
+            <View style={styles.avatarPickerHandle} />
+            <TouchableOpacity
+              style={styles.avatarPickerOption}
+              onPress={() => chooseAvatar('camera')}
+              activeOpacity={0.72}
+            >
+              <AvatarCameraIcon width={20} height={18} />
+              <Text style={styles.avatarPickerOptionText}>카메라로 촬영하기</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.avatarPickerOption}
+              onPress={() => chooseAvatar('library')}
+              activeOpacity={0.72}
+            >
+              <AvatarLibraryIcon width={20} height={20} />
+              <Text style={styles.avatarPickerOptionText}>앨범에서 이미지 선택</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
+
+      <OnboardingSelectModal
+        visible={universityPickerVisible}
+        title="소속 대학 선택하기"
+        options={universityOptions}
+        selectedValue={homeUniversity}
+        selectionMode="confirm"
+        searchPlaceholder="학교명으로 찾아보세요"
+        onClose={() => setUniversityPickerVisible(false)}
+        onSelect={selectUniversity}
+      />
+
+      <OnboardingSelectModal
+        visible={countryPickerVisible}
+        title="파견 국가 선택하기"
+        options={countryOptions}
+        selectedValue={customCountryMode ? CUSTOM_COUNTRY_OPTION : country}
+        selectionMode="confirm"
+        searchPlaceholder="국가명으로 찾아보세요"
+        onClose={() => setCountryPickerVisible(false)}
+        onSelect={selectCountry}
+      />
     </KeyboardAvoidingView>
   );
 }
 
-function InfoSection({
-  title,
-  children,
+function ProfileTextField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  counter,
+  error,
 }: {
-  title: string;
-  children: ReactNode;
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  counter?: string;
+  error?: string;
 }) {
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={styles.sectionBody}>{children}</View>
+    <View style={styles.profileField}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={[styles.textInputWrap, error && styles.textInputWrapError]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#B1B8C1"
+          maxLength={12}
+          returnKeyType="done"
+          style={styles.profileTextInput}
+        />
+        {counter ? <Text style={styles.textCounter}>{counter}</Text> : null}
+      </View>
+      {error ? <Text style={styles.nicknameError}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function ReadonlyNameField({ value }: { value: string }) {
+  return (
+    <View style={styles.profileField}>
+      <Text style={styles.fieldLabel}>이름</Text>
+      <View style={styles.readonlyInput}>
+        <Text style={[styles.readonlyInputText, !value && styles.readonlyInputPlaceholder]}>
+          {value || '이름'}
+        </Text>
+        <ProfileEditLockIcon width={24} height={24} />
       </View>
     </View>
   );
 }
 
-function ReadonlyInfoRow({
-  label,
-  value,
-  withDivider = false,
-}: {
-  label: string;
-  value: string;
-  withDivider?: boolean;
-}) {
-  return (
-    <View style={[styles.infoRow, styles.readonlyInfoRow, withDivider && styles.infoRowDivider]}>
-      <Text style={[styles.infoLabel, styles.readonlyInfoLabel]}>{label}</Text>
-      <Text style={[styles.infoValue, styles.readonlyInfoValue]} numberOfLines={1}>
-        {value || '-'}
-      </Text>
-      <Ionicons name="lock-closed-outline" size={15} color="#A4ADBA" />
-    </View>
-  );
-}
-
-function EditableInfoRow({
+function ProfileSelectField({
   label,
   value,
   placeholder,
   onPress,
-  withDivider = false,
+  editable = false,
+  onChangeText,
 }: {
   label: string;
   value: string;
   placeholder: string;
-  onPress: () => void;
-  withDivider?: boolean;
+  onPress?: () => void;
+  editable?: boolean;
+  onChangeText?: (value: string) => void;
 }) {
   return (
-    <TouchableOpacity
-      style={[
-        styles.infoRow,
-        styles.editableInfoRow,
-        withDivider && styles.editableInfoRowSpacing,
-      ]}
-      onPress={onPress}
-      activeOpacity={0.82}
-    >
-      <Text
-        style={styles.infoLabel}
-        numberOfLines={label === '파견 국가 및 지역' ? 2 : 1}
-      >
-        {label === '파견 국가 및 지역' ? '파견 국가 및\n지역' : label}
-      </Text>
-      <Text
-        style={[styles.infoValue, !value.trim() && styles.infoPlaceholder]}
-        numberOfLines={1}
-      >
-        {value.trim() || placeholder}
-      </Text>
-      <View style={styles.editBadge}>
-        <Ionicons name="create-outline" size={13} color={BLUE} />
-        <Text style={styles.editBadgeText}>수정</Text>
-      </View>
-    </TouchableOpacity>
+    <View style={styles.profileField}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {editable ? (
+        <View style={styles.selectInput}>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder}
+            placeholderTextColor="#B1B8C1"
+            style={styles.selectTextInput}
+            returnKeyType="done"
+          />
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.selectInput} onPress={onPress} activeOpacity={0.84}>
+          <Text style={[styles.selectInputText, !value && styles.selectInputPlaceholder]}>
+            {value || placeholder}
+          </Text>
+          <DropdownArrowIcon width={16} height={16} />
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
-function FormSection({
-  title,
-  children,
+function CountryRegionFields({
+  country,
+  region,
+  customCountryMode,
+  onPress,
+  onChangeCountry,
+  onChangeRegion,
 }: {
-  title: string;
-  children: ReactNode;
+  country: string;
+  region: string;
+  customCountryMode: boolean;
+  onPress: () => void;
+  onChangeCountry: (value: string) => void;
+  onChangeRegion: (value: string) => void;
 }) {
   return (
-    <View style={styles.section}>
-      <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={[styles.sectionBody, styles.formSectionBody]}>{children}</View>
+    <View style={styles.profileField}>
+      <Text style={styles.fieldLabel}>파견 국가 및 지역</Text>
+      {customCountryMode ? (
+        <View style={styles.selectInput}>
+          <TextInput
+            value={country}
+            onChangeText={onChangeCountry}
+            placeholder="파견 국가 입력"
+            placeholderTextColor="#B1B8C1"
+            style={styles.selectTextInput}
+            returnKeyType="next"
+          />
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.selectInput} onPress={onPress} activeOpacity={0.84}>
+          <Text style={[styles.selectInputText, !country && styles.selectInputPlaceholder]}>
+            {country || '파견 국가 선택'}
+          </Text>
+          <DropdownArrowIcon width={16} height={16} />
+        </TouchableOpacity>
+      )}
+      <View style={[styles.selectInput, styles.regionInput]}>
+        <TextInput
+          value={region}
+          onChangeText={onChangeRegion}
+          placeholder="파견 지역 입력"
+          placeholderTextColor="#B1B8C1"
+          style={styles.selectTextInput}
+          returnKeyType="done"
+        />
       </View>
+    </View>
+  );
+}
+
+function SemesterField({
+  value,
+  onPress,
+  onSelectTerm,
+  yearOptions,
+  yearPickerVisible,
+  onSelectYear,
+}: {
+  value: string;
+  onPress: () => void;
+  onSelectTerm: (term: (typeof dispatchSemesterTerms)[number]) => void;
+  yearOptions: string[];
+  yearPickerVisible: boolean;
+  onSelectYear: (year: string) => void;
+}) {
+  const { year, term } = parseDispatchSemester(value);
+
+  return (
+    <View style={styles.profileField}>
+      <Text style={styles.fieldLabel}>파견 학기</Text>
+      <InlineDropdown
+        value={year}
+        placeholder="파견 년도 선택"
+        open={yearPickerVisible}
+        options={yearOptions}
+        onPress={onPress}
+        onSelect={onSelectYear}
+        displayValue={year ? `${year}년` : ''}
+      />
+      <View style={styles.semesterChipRow}>
+        {dispatchSemesterTerms.map((option) => {
+          const selected = term === option;
+
+          return (
+            <TouchableOpacity
+              key={option}
+              style={[styles.semesterChip, selected && styles.semesterChipSelected]}
+              onPress={() => onSelectTerm(option)}
+              activeOpacity={0.84}
+            >
+              <Text style={[styles.semesterChipText, selected && styles.semesterChipTextSelected]}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function InlineDropdown({
+  value,
+  placeholder,
+  open,
+  options,
+  onPress,
+  onSelect,
+  displayValue,
+}: {
+  value: string;
+  placeholder: string;
+  open: boolean;
+  options: string[];
+  onPress: () => void;
+  onSelect: (value: string) => void;
+  displayValue?: string;
+}) {
+  return (
+    <View style={[styles.inlineDropdownAnchor, open && styles.inlineDropdownAnchorOpen]}>
+      <TouchableOpacity style={styles.selectInput} onPress={onPress} activeOpacity={0.84}>
+        <Text style={[styles.selectInputText, !value && styles.selectInputPlaceholder]}>
+          {displayValue || value || placeholder}
+        </Text>
+        <DropdownArrowIcon width={16} height={16} />
+      </TouchableOpacity>
+      {open ? (
+        <View style={styles.inlineDropdownMenu}>
+          <ScrollView
+            style={styles.inlineDropdownScroll}
+            showsVerticalScrollIndicator
+            persistentScrollbar
+            nestedScrollEnabled
+          >
+            {options.map((option) => {
+              const selected = option === value;
+
+              return (
+                <Pressable
+                  key={option}
+                  style={styles.inlineDropdownOption}
+                  onPress={() => onSelect(option)}
+                >
+                  <Text style={[styles.inlineDropdownOptionText, selected && styles.inlineDropdownOptionTextSelected]}>
+                    {option.endsWith('년') || option.endsWith('월') || option.endsWith('일')
+                      ? option
+                      : `${option}년`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -690,15 +973,32 @@ function DateField({
   field,
   label,
   value,
-  onPress,
+  openPart,
+  onToggle,
+  onSelect,
   optional = false,
 }: {
   field: DateFieldKey;
   label: string;
   value: Date | null;
-  onPress: (field: DateFieldKey) => void;
+  openPart: DatePart | null;
+  onToggle: (field: DateFieldKey, part: DatePart) => void;
+  onSelect: (field: DateFieldKey, part: DatePart, value: string) => void;
   optional?: boolean;
 }) {
+  const referenceDate = value || new Date();
+  const year = value ? String(value.getFullYear()) : '';
+  const month = value ? String(value.getMonth() + 1).padStart(2, '0') : '';
+  const day = value ? String(value.getDate()).padStart(2, '0') : '';
+  const yearOptions = Array.from({ length: 12 }, (_, index) =>
+    String(new Date().getFullYear() - 3 + index),
+  );
+  const monthOptions = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'));
+  const dayOptions = Array.from(
+    { length: new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate() },
+    (_, index) => String(index + 1).padStart(2, '0'),
+  );
+
   return (
     <View style={styles.dateField}>
       <View style={styles.dateLabelRow}>
@@ -706,22 +1006,84 @@ function DateField({
         {optional && <Text style={styles.optionalText}>선택</Text>}
       </View>
 
-      <TouchableOpacity style={styles.dateButton} onPress={() => onPress(field)} activeOpacity={0.84}>
-        <Ionicons name="calendar-outline" size={18} color={BLUE} />
-        <Text style={[styles.dateButtonText, !value && styles.datePlaceholderText]}>
-          {value ? formatDate(value) : getDateFieldPlaceholder(field)}
-        </Text>
-        <Ionicons name="chevron-forward" size={17} color="#A4ADBA" />
-      </TouchableOpacity>
+      <View style={styles.dateSelectRow}>
+        <CompactInlineDropdown
+          value={year}
+          placeholder="연도"
+          suffix="년"
+          open={openPart === 'year'}
+          options={yearOptions}
+          onPress={() => onToggle(field, 'year')}
+          onSelect={(nextValue) => onSelect(field, 'year', nextValue)}
+        />
+        <CompactInlineDropdown
+          value={month}
+          placeholder="월"
+          suffix="월"
+          open={openPart === 'month'}
+          options={monthOptions}
+          onPress={() => onToggle(field, 'month')}
+          onSelect={(nextValue) => onSelect(field, 'month', nextValue)}
+        />
+        <CompactInlineDropdown
+          value={day}
+          placeholder="일"
+          suffix="일"
+          open={openPart === 'day'}
+          options={dayOptions}
+          onPress={() => onToggle(field, 'day')}
+          onSelect={(nextValue) => onSelect(field, 'day', nextValue)}
+        />
+      </View>
     </View>
   );
 }
 
-function getDateFieldPlaceholder(field: DateFieldKey) {
-  if (field === 'applicationDeadline') return '지원 마감일 선택';
-  if (field === 'departureDate') return '출국일 선택';
-  if (field === 'dispatchStartDate') return '파견 시작일 선택';
-  return '귀국일 선택';
+function CompactInlineDropdown({
+  value,
+  placeholder,
+  suffix,
+  open,
+  options,
+  onPress,
+  onSelect,
+}: {
+  value: string;
+  placeholder: string;
+  suffix: string;
+  open: boolean;
+  options: string[];
+  onPress: () => void;
+  onSelect: (value: string) => void;
+}) {
+  return (
+    <View style={[styles.compactDropdownAnchor, open && styles.compactDropdownAnchorOpen]}>
+      <TouchableOpacity style={styles.dateSelect} onPress={onPress} activeOpacity={0.84}>
+        <Text style={[styles.dateSelectText, !value && styles.dateSelectPlaceholder]}>
+          {value ? `${value}${suffix}` : placeholder}
+        </Text>
+        <DropdownArrowIcon width={16} height={16} />
+      </TouchableOpacity>
+      {open ? (
+        <View style={styles.compactDropdownMenu}>
+          <ScrollView
+            style={styles.inlineDropdownScroll}
+            showsVerticalScrollIndicator
+            persistentScrollbar
+            nestedScrollEnabled
+          >
+            {options.map((option) => (
+              <Pressable key={option} style={styles.inlineDropdownOption} onPress={() => onSelect(option)}>
+                <Text style={[styles.inlineDropdownOptionText, value === option && styles.inlineDropdownOptionTextSelected]}>
+                  {option}{suffix}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -730,13 +1092,14 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE,
   },
   header: {
+    height: 118,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 44,
-    paddingBottom: 8,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 12,
+    backgroundColor: PAGE,
     position: 'relative',
   },
   iconBtn: {
@@ -745,9 +1108,11 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     position: 'absolute',
+    top: 57,
     left: 0,
     right: 0,
-    bottom: 14,
+    height: 34,
+    lineHeight: 34,
     fontSize: 16,
     fontWeight: '900',
     color: NAVY,
@@ -758,151 +1123,287 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 132,
+    paddingTop: 26,
+    paddingBottom: 146,
   },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarFrame: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#EEF1F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-  },
-  section: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '900',
-    color: NAVY,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 5,
-  },
-  sectionCard: {
-    borderRadius: 8,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: '#E5E9EE',
-    overflow: 'visible',
-  },
-  sectionBody: {
-    paddingHorizontal: 12,
-    paddingTop: 5,
-    paddingBottom: 8,
-  },
-  formSectionBody: {
-    paddingBottom: 15,
-  },
-  infoRow: {
-    minHeight: 48,
+  profileIntro: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginVertical: 5,
-    paddingHorizontal: 10,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
-  editableInfoRow: {
-    borderWidth: 1,
-    borderColor: '#DCE2E9',
-    borderRadius: 7,
-    backgroundColor: '#FFFFFF',
+  profileIntroText: {
+    flex: 1,
+    paddingTop: 7,
   },
-  editableInfoRowSpacing: {
-    marginBottom: 8,
-  },
-  readonlyInfoRow: {
-    borderRadius: 7,
-    backgroundColor: '#F2F4F6',
-  },
-  infoRowDivider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF0F3',
-  },
-  infoLabel: {
-    flexBasis: 92,
-    flexShrink: 0,
-    fontSize: 12,
-    lineHeight: 19,
-    fontWeight: '700',
+  screenTitle: {
+    fontSize: 24,
+    lineHeight: 34,
+    fontWeight: '900',
     color: INK,
   },
-  infoValue: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 12,
+  screenDescription: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: '700',
-    color: NAVY,
-    textAlign: 'right',
+    color: MUTED,
   },
-  readonlyInfoLabel: {
-    color: '#9AA3AF',
+  avatarEditButton: {
+    width: 80,
+    height: 80,
+    marginLeft: 16,
+    position: 'relative',
   },
-  readonlyInfoValue: {
-    color: '#9AA3AF',
+  avatar: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 76,
+    height: 76,
+    borderRadius: 38,
   },
-  infoPlaceholder: {
-    color: '#A4ADBA',
+  avatarEditIcon: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
   },
-  editBadge: {
-    minWidth: 45,
-    height: 24,
-    borderRadius: 5,
-    backgroundColor: '#EDF2FF',
+  avatarPickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  avatarPickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  avatarPickerSheet: {
+    minHeight: 168,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    backgroundColor: '#F6F8FA',
+    paddingHorizontal: 16,
+    paddingTop: 26,
+  },
+  avatarPickerHandle: {
+    position: 'absolute',
+    top: 8,
+    alignSelf: 'center',
+    width: 80,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#D1D6DC',
+  },
+  avatarPickerOption: {
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 3,
+    gap: 14,
   },
-  editBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: BLUE,
+  avatarPickerOptionText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#252C37',
   },
-  field: {
-    marginBottom: 12,
+  profileField: {
+    marginBottom: 22,
   },
   fieldLabel: {
     marginBottom: 8,
     fontSize: 14,
     fontWeight: '900',
-    color: NAVY,
+    color: '#64748B',
   },
-  input: {
-    minHeight: 46,
-    borderRadius: 7,
+  textInputWrap: {
+    height: 52,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
-    paddingVertical: 0,
-    fontSize: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  textInputWrapError: {
+    borderColor: '#FF4D4F',
+  },
+  profileTextInput: {
+    flex: 1,
+    minWidth: 0,
+    height: '100%',
+    padding: 0,
+    fontSize: 16,
     fontWeight: '700',
     color: INK,
   },
-  disabledInput: {
-    backgroundColor: '#FFFFFF',
+  textCounter: {
+    marginLeft: 12,
+    fontSize: 14,
+    fontWeight: '800',
     color: INK,
+  },
+  nicknameError: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    color: '#FF4D4F',
+  },
+  readonlyInput: {
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: '#F0F2F6',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  readonlyInputText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#B1B8C1',
+  },
+  readonlyInputPlaceholder: {
+    color: '#B1B8C1',
+  },
+  sectionDivider: {
+    height: 8,
+    marginHorizontal: -16,
+    marginBottom: 22,
+    backgroundColor: '#EEF1F4',
+  },
+  selectInput: {
+    height: 52,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectInputText: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 12,
+    fontSize: 16,
+    fontWeight: '700',
+    color: INK,
+  },
+  selectTextInput: {
+    flex: 1,
+    minWidth: 0,
+    height: '100%',
+    padding: 0,
+    fontSize: 16,
+    fontWeight: '700',
+    color: INK,
+  },
+  selectInputPlaceholder: {
+    color: '#B1B8C1',
+  },
+  regionInput: {
+    marginTop: 6,
+  },
+  semesterChipRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8,
+  },
+  inlineDropdownAnchor: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  inlineDropdownAnchorOpen: {
+    zIndex: 30,
+  },
+  inlineDropdownMenu: {
+    position: 'absolute',
+    top: 51,
+    right: 0,
+    left: 0,
+    height: 206,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    shadowColor: '#141416',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  compactDropdownAnchor: {
+    flex: 1,
+    position: 'relative',
+    zIndex: 1,
+  },
+  compactDropdownAnchorOpen: {
+    zIndex: 30,
+  },
+  compactDropdownMenu: {
+    position: 'absolute',
+    top: 51,
+    right: 0,
+    left: 0,
+    height: 156,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+    shadowColor: '#141416',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 6,
+  },
+  inlineDropdownScroll: {
+    flex: 1,
+  },
+  inlineDropdownOption: {
+    height: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 15,
+  },
+  inlineDropdownOptionText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: INK,
+  },
+  inlineDropdownOptionTextSelected: {
+    fontWeight: '900',
+    color: '#006BFF',
+  },
+  semesterChip: {
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  semesterChipSelected: {
+    backgroundColor: '#191F28',
+  },
+  semesterChipText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#8B95A1',
+  },
+  semesterChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  statusField: {
+    marginBottom: 22,
   },
   optionGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingTop: 8,
+    gap: 6,
   },
   dateField: {
-    marginTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E6EC',
-    paddingTop: 12,
+    marginBottom: 22,
   },
   dateLabelRow: {
     flexDirection: 'row',
@@ -911,44 +1412,48 @@ const styles = StyleSheet.create({
   },
   optionalText: {
     marginBottom: 8,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: MUTED,
   },
-  dateButton: {
-    minHeight: 44,
-    borderRadius: 7,
-    backgroundColor: PAGE,
+  dateSelectRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  dateSelect: {
+    height: 52,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  dateButtonText: {
-    flex: 1,
+  dateSelectText: {
     fontSize: 14,
     fontWeight: '700',
     color: INK,
   },
-  datePlaceholderText: {
-    fontWeight: '700',
-    color: '#A4ADBA',
+  dateSelectPlaceholder: {
+    color: '#B1B8C1',
   },
   statusChip: {
-    minHeight: 32,
-    borderRadius: 6,
-    backgroundColor: PAGE,
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
   },
   statusChipSelected: {
-    backgroundColor: '#18202B',
+    backgroundColor: '#191F28',
   },
   statusChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#A4ADBA',
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#8B95A1',
   },
   statusChipTextSelected: {
     color: '#FFFFFF',
@@ -960,18 +1465,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 20,
-    backgroundColor: 'rgba(246,247,249,0.96)',
+    paddingBottom: 30,
+    backgroundColor: PAGE,
   },
   footerButton: {
-    height: 50,
-    borderRadius: 7,
-    backgroundColor: '#3568DA',
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: '#191F28',
     alignItems: 'center',
     justifyContent: 'center',
   },
   footerButtonDisabled: {
-    backgroundColor: '#D8DEE8',
+    backgroundColor: '#B1B8C1',
   },
   footerButtonText: {
     fontSize: 14,
@@ -979,55 +1484,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   footerButtonTextDisabled: {
-    color: '#8B95A1',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(15,32,66,0.28)',
-  },
-  bottomSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 30,
-  },
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 42,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: '#D8DEE8',
-    marginBottom: 12,
-  },
-  sheetHeader: {
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEF2F7',
-  },
-  sheetTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: NAVY,
-  },
-  sheetCancelText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: MUTED,
-  },
-  sheetDoneText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: BLUE,
-  },
-  sheetDatePicker: {
-    alignSelf: 'stretch',
-    height: 216,
-    backgroundColor: '#FFFFFF',
+    color: '#FFFFFF',
   },
 });

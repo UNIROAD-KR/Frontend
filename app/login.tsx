@@ -4,7 +4,7 @@ import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 import NaverLogin from '@react-native-seoul/naver-login';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -24,40 +24,87 @@ import { registerDeviceForPushNotifications } from '../src/notifications/push';
 import { clearOnboardingDraft } from '../src/storage/onboardingDraft';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ILLUSTRATION_SIZE = Math.min(SCREEN_WIDTH - 40, 240);
 
 const CAROUSEL_ITEMS = [
   {
     id: '1',
     category: '중고거래',
     title: '인증된 학생들과\n안전하게 거래하세요',
-    description: '교환학생이 직접 인증한 회원들과 티켓, 생활용품, 교재를\n 거래할 수 있어요.',
+    description: '교환학생이 직접 인증한 회원들과\n티켓, 생활용품, 교재를 거래할 수 있어요.',
     image: require('../assets/images/illust_trade.png'),
   },
   {
     id: '2',
     category: '동행',
     title: '같이 가는 친구를\n쉽게 찾을 수 있어요',
-    description: '여행, 공연, 맛집 탐방까지 같은 학교 학생들과 동행을\n 구해보세요.',
+    description: '여행, 공연, 맛집 탐방까지\n같은 학교 학생들과 동행을 구해보세요.',
     image: require('../assets/images/illust_companion.png'),
   },
   {
     id: '3',
     category: '커뮤니티',
     title: '교환학생 이야기를\n모아보세요',
-    description: '기숙사, 수강신청, 생활 정보 등 실제 파견 학생들의 이야기를 만나보세요.',
+    description: '기숙사, 수강신청, 생활정보 등\n실제 파견 학생들의 이야기를 만나보세요.',
     image: require('../assets/images/illust_community.png'),
   },
   {
     id: '4',
     category: '정보탐색',
     title: '교환학생 정보를\n빠르게 찾아보세요',
-    description: '학교별 후기와 국가별 정보를 한 곳에서 확인할 수 있어요.',
+    description: '학교별 후기와 국가별 정보를\n한 곳에서 확인할 수 있어요.',
     image: require('../assets/images/illust_info.png'),
   },
 ];
 
 type SheetType = 'login' | 'signup' | null;
 type SocialIntent = 'login' | 'signup';
+const SHOW_TEMP_ONBOARDING_SIGNUP = __DEV__;
+
+const SOCIAL_LOGIN_ICONS = {
+  kakao: require('../assets/images/login/kakao-round.png'),
+  naver: require('../assets/images/login/naver-round.png'),
+  google: require('../assets/images/login/google-round.png'),
+  apple: require('../assets/images/login/apple-round.png'),
+} as const;
+
+type SocialProvider = keyof typeof SOCIAL_LOGIN_ICONS;
+
+const SocialButtons = memo(function SocialButtons({
+  intent,
+  onSocialLogin,
+}: {
+  intent: SocialIntent;
+  onSocialLogin: (provider: SocialProvider, intent: SocialIntent) => void;
+}) {
+  const socialButtons: Array<{ provider: SocialProvider; light?: boolean }> = [
+    { provider: 'kakao' },
+    { provider: 'naver' },
+    { provider: 'google', light: true },
+    { provider: 'apple', light: true },
+  ];
+
+  return (
+    <View style={styles.socialRow}>
+      {socialButtons.map(({ provider, light }) => (
+        <TouchableOpacity
+          key={provider}
+          style={[styles.socialButton, light && styles.lightSocialButton]}
+          onPress={() => onSocialLogin(provider, intent)}
+        >
+          <Image
+            source={SOCIAL_LOGIN_ICONS[provider]}
+            style={[
+              styles.socialIcon,
+              provider === 'apple' && styles.appleSocialIcon,
+            ]}
+            fadeDuration={0}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+});
 
 export default function LoginPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -80,6 +127,9 @@ export default function LoginPage() {
       serviceUrlSchemeIOS: 'naverlogin',
     });
 
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => {
         const next = (prev + 1) % CAROUSEL_ITEMS.length;
@@ -162,6 +212,15 @@ export default function LoginPage() {
     closeSheet(() => router.push('/email-login'));
   };
 
+  const handleTemporarySignup = async () => {
+    await AsyncStorage.multiSet([
+      ['accessToken', 'mock-access-token'],
+      ['refreshToken', 'mock-refresh-token'],
+    ]);
+    await clearOnboardingDraft();
+    closeSheet(() => router.push('/signup-success'));
+  };
+
   const openUiPreview = async () => {
     await AsyncStorage.multiSet([
       ['nickname', '김하니'],
@@ -181,7 +240,10 @@ export default function LoginPage() {
     } as any);
   };
 
-  const handleSocialLogin = async (provider: string, intent: SocialIntent) => {
+  const handleSocialLogin = useCallback(async (
+    provider: SocialProvider,
+    intent: SocialIntent,
+  ) => {
     try {
       let sdkAccessToken = '';
 
@@ -267,7 +329,7 @@ export default function LoginPage() {
         '처리 중 문제가 발생했습니다.',
       );
     }
-  };
+  }, []);
 
   const renderCarouselItem = ({ item }: { item: typeof CAROUSEL_ITEMS[0] }) => (
     <View style={styles.carouselItem}>
@@ -283,31 +345,6 @@ export default function LoginPage() {
       </View>
       <Text style={styles.carouselTitle}>{item.title}</Text>
       <Text style={styles.carouselDescription}>{item.description}</Text>
-    </View>
-  );
-
-  // Social buttons used in both sheets
-  const SocialButtons = ({ intent }: { intent: SocialIntent }) => (
-    <View style={styles.socialRow}>
-      <TouchableOpacity onPress={() => handleSocialLogin('kakao', intent)}>
-        <Image source={require('../assets/images/kakao.png')} style={styles.socialImage} />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.socialCircle, styles.naverBg]}
-        onPress={() => handleSocialLogin('naver', intent)}
-      >
-        <Text style={styles.naverText}>N</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => handleSocialLogin('google', intent)}>
-        <Image source={require('../assets/images/google.png')} style={styles.socialImage} />
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => handleSocialLogin('apple', intent)}>
-    <Image source={require('../assets/images/apple.png')} style={styles.appleImage}/>
-    </TouchableOpacity>
-
     </View>
   );
 
@@ -349,12 +386,6 @@ export default function LoginPage() {
         </TouchableOpacity>
       </View>
 
-      {__DEV__ ? (
-        <TouchableOpacity style={styles.previewButton} onPress={openUiPreview}>
-          <Text style={styles.previewButtonText}>UI 미리보기</Text>
-        </TouchableOpacity>
-      ) : null}
-
       {/* Overlay + Bottom Sheet */}
       {activeSheet !== null && (
         <>
@@ -371,7 +402,7 @@ export default function LoginPage() {
             {activeSheet === 'login' && (
               <>
                 <Text style={styles.sheetTitle}>로그인 방식</Text>
-                <SocialButtons intent="login" />
+                <SocialButtons intent="login" onSocialLogin={handleSocialLogin} />
                 <TouchableOpacity style={styles.idButton} onPress={handleIdLogin}>
                   <Text style={styles.idButtonText}>아이디로 로그인</Text>
                 </TouchableOpacity>
@@ -385,7 +416,17 @@ export default function LoginPage() {
                 <Text style={styles.sheetSubtitle}>
                   소셜 계정으로 간편하게 시작하세요
                 </Text>
-                <SocialButtons intent="signup" />
+                <SocialButtons intent="signup" onSocialLogin={handleSocialLogin} />
+                {SHOW_TEMP_ONBOARDING_SIGNUP ? (
+                  <TouchableOpacity
+                    style={styles.temporarySignupButton}
+                    onPress={handleTemporarySignup}
+                  >
+                    <Text style={styles.temporarySignupButtonText}>
+                      온보딩 확인용 임시 회원가입
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </>
             )}
           </Animated.View>
@@ -398,18 +439,18 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: '#F6F8FA',
   },
   carousel: {
     flex: 1,
   },
   carouselItem: {
     width: SCREEN_WIDTH,
-    flex: 1,
+    height: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 30,
-    paddingTop: 68,
+    paddingTop: 173,
     paddingBottom: 12,
   },
   categoryPill: {
@@ -417,15 +458,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8EBEF',
     paddingHorizontal: 9,
     paddingVertical: 5,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   illustrationContainer: {
-    width: SCREEN_WIDTH * 0.62,
-    height: SCREEN_WIDTH * 0.48,
+    width: ILLUSTRATION_SIZE,
+    height: ILLUSTRATION_SIZE,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: 16,
   },
   illustration: {
     width: '100%',
@@ -443,7 +484,7 @@ const styles = StyleSheet.create({
     color: '#171C24',
     textAlign: 'center',
     lineHeight: 31,
-    marginBottom: 10,
+    marginBottom: 16,
     letterSpacing: 0,
   },
   carouselDescription: {
@@ -458,7 +499,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 5,
-    marginBottom: 28,
+    marginBottom: 64,
   },
   dot: {
     width: 5,
@@ -475,7 +516,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingHorizontal: 14,
-    marginBottom: __DEV__ ? 10 : 34,
+    marginBottom: 52,
     height: 50,
   },
   loginButton: {
@@ -506,20 +547,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#FFFFFF',
   },
-  previewButton: {
-    alignSelf: 'center',
-    minHeight: 28,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  previewButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#8A94A1',
-    textDecorationLine: 'underline',
-  },
   findAccountRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -537,7 +564,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     zIndex: 10,
   },
   bottomSheet: {
@@ -545,12 +572,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingHorizontal: 24,
-    paddingBottom: 38,
-    paddingTop: 13,
+    backgroundColor: '#F6F7F9',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 52,
+    paddingTop: 8,
     zIndex: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -559,19 +586,19 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   sheetHandle: {
-    width: 38,
+    width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: '#D9DEE5',
     alignSelf: 'center',
-    marginBottom: 18,
+    marginBottom: 26,
   },
   sheetTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: '#161C25',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   sheetSubtitle: {
     fontSize: 13,
@@ -587,38 +614,38 @@ const styles = StyleSheet.create({
     gap: 16,
     marginBottom: 26,
   },
-  socialCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  socialButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  socialImage: {
-    width: 44,
-    height: 44,
+  lightSocialButton: {
+    backgroundColor: '#FFFFFF',
+  },
+  socialIcon: {
+    width: 52,
+    height: 52,
     resizeMode: 'contain',
   },
-  appleImage: {
-    width: 44,
-    height: 44,
-    resizeMode: 'contain',
+  appleSocialIcon: {
+    transform: [{ translateX: -8 }, { translateY: -8 }],
   },
-  naverBg: {
-    backgroundColor: '#03C75A',
+  temporarySignupButton: {
+    height: 48,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: '#C9D1DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  appleBg: {
-    backgroundColor: '#000000',
-  },
-  naverText: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: '#FFFFFF',
-  },
-  appleText: {
-    fontSize: 28,
-    color: '#FFFFFF',
-    marginBottom: 4,
+  temporarySignupButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#252C37',
   },
   dividerRow: {
     flexDirection: 'row',
@@ -641,8 +668,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 50,
     borderWidth: 1,
-    borderColor: '#DDE2E8',
+    borderColor: '#DFE3E8',
     borderRadius: 7,
+    backgroundColor: '#FFFFFF',
     gap: 10,
   },
   idButtonIcon: {

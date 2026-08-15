@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 import {
   createTicket,
   getMyTickets,
@@ -751,7 +751,7 @@ export default function TicketWritePage() {
                 return;
               }
 
-              router.back();
+              goBackOrReplace('/market');
             }}
           />
           <Text style={styles.headerTitle}>
@@ -1735,7 +1735,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     textAlign: 'center',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
     color: '#111111',
   },

@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,12 +32,14 @@ import {
   getMyTickets,
   getScrappedTickets,
   TicketTransferResponse,
+  type TicketType,
 } from '../../../src/api/ticket';
 import {
   getMyUsedItems,
   getScrappedUsedItems,
   UsedItemSummaryResponse,
 } from '../../../src/api/usedItems';
+import LikedPostsEmptyInfoIcon from '@/assets/icon/profile/liked-posts-empty-info.svg';
 
 const NAVY = '#18202B';
 const BLUE = '#3568DA';
@@ -76,11 +79,13 @@ type SavedTicket = {
 type LikedMarketPost = {
   id?: number;
   title?: string;
+  country?: string;
   region?: string;
   semester?: string;
   price?: string;
   time?: string;
   imageUrl?: string;
+  status?: 'AVAILABLE' | 'COMPLETED';
 };
 
 type RecentPost = {
@@ -101,7 +106,32 @@ type ListCard = {
   category?: ProfileListCategory;
   icon: keyof typeof Ionicons.glyphMap;
   route?: unknown;
+  imageUrl?: string;
+  authorName?: string;
+  country?: string;
+  region?: string;
+  postStatus?: string;
+  commentCount?: number;
+  price?: number | string;
+  originalPrice?: number;
+  eventDate?: string;
+  eventTime?: string;
+  ticketType?: TicketType | string;
+  createdAt?: string;
+  status?: 'AVAILABLE' | 'COMPLETED';
 };
+
+type LikedCommunityTab = 'free' | 'companion';
+type LikedTicketTab = 'all' | TicketType;
+type LikedSortMode = 'latest' | 'oldest' | 'title';
+
+const likedTicketTabs: { key: LikedTicketTab; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'TOUR', label: '관광 티켓' },
+  { key: 'CONCERT', label: '콘서트·공연' },
+  { key: 'TRAIN', label: '기차표' },
+  { key: 'FLIGHT', label: '항공권' },
+];
 
 const screenConfig: Record<
   ProfileListType,
@@ -292,6 +322,12 @@ const toFreePostCard = (
   badge,
   category: 'free',
   icon: badge === '스크랩' ? 'bookmark-outline' : 'chatbubble-ellipses-outline',
+  imageUrl: post.thumbnailImageUrl,
+  authorName: post.authorName,
+  country: post.country,
+  postStatus: post.status,
+  commentCount: post.commentCount,
+  createdAt: post.createdAt,
   route: {
     pathname: '/community-detail',
     params: {
@@ -332,6 +368,19 @@ const toTicketCard = (
   badge,
   category: 'ticket',
   icon: 'bookmark-outline',
+  imageUrl:
+    'thumbnailImageUrl' in item
+      ? item.thumbnailImageUrl || item.imageUrls?.[0]
+      : undefined,
+  country: item.country,
+  region: 'location' in item ? item.location : item.region,
+  price: 'transferPrice' in item ? item.transferPrice : item.price,
+  originalPrice: 'originalPrice' in item ? item.originalPrice : undefined,
+  eventDate: 'eventDate' in item ? item.eventDate : item.date,
+  eventTime: 'eventTime' in item ? item.eventTime : item.time,
+  ticketType: 'ticketType' in item ? item.ticketType : item.category,
+  createdAt: 'createdAt' in item ? item.createdAt : undefined,
+  status: 'status' in item ? item.status : undefined,
   route: item.id
     ? {
         pathname: '/market/ticket-preview',
@@ -356,12 +405,57 @@ const toLikedMarketCard = (item: LikedMarketPost): ListCard => ({
   badge: '중고마켓',
   category: 'used',
   icon: 'heart-outline',
+  imageUrl: item.imageUrl,
+  country: item.country,
+  region: item.region,
+  price: item.price,
+  status: item.status,
   route: item.id
     ? {
         pathname: '/market/[id]',
         params: { id: String(item.id), fromProfileList: 'liked' },
       }
     : '/market',
+});
+
+const toLikedUsedItemCard = (item: UsedItemSummaryResponse): ListCard => ({
+  id: makeCardId('liked-used', item.id),
+  title: item.title,
+  subtitle: `${item.country || '거래'} · ${item.region}`,
+  meta: [formatPrice(item.price), formatRelativeTime(item.updatedAt || item.createdAt)]
+    .filter(Boolean)
+    .join(' · '),
+  badge: item.status === 'COMPLETED' ? '거래 완료' : '중고거래',
+  category: 'used',
+  icon: 'bookmark-outline',
+  imageUrl: item.thumbnailImageUrl,
+  country: item.country,
+  region: item.region,
+  price: item.price,
+  createdAt: item.updatedAt || item.createdAt,
+  status: item.status,
+  route: {
+    pathname: '/market/[id]',
+    params: { id: String(item.id), fromProfileList: 'liked' },
+  },
+});
+
+const toLikedCompanionCard = (post: CompanionPostResponse): ListCard => ({
+  id: makeCardId('liked-companion', post.id),
+  title: post.title,
+  subtitle: post.content,
+  meta: `${post.memberName} · ${post.country} ${post.region} · ${post.currentParticipants}/${post.capacity}명`,
+  badge: '동행 모집',
+  category: 'companion',
+  icon: 'people-outline',
+  authorName: post.memberName,
+  country: post.country,
+  region: post.region,
+  createdAt: post.createdAt,
+  route: {
+    pathname: '/community-detail',
+    params: { type: 'companion', id: String(post.id), fromProfileList: 'liked' },
+  },
 });
 
 const mergePostsById = (posts: FreePostSummaryResponse[]) => {
@@ -468,6 +562,10 @@ export default function ProfileListScreen() {
   const [selectedCategory, setSelectedCategory] = useState<ProfileListCategory>(
     routeCategory,
   );
+  const [likedCommunityTab, setLikedCommunityTab] = useState<LikedCommunityTab>('free');
+  const [likedTicketTab, setLikedTicketTab] = useState<LikedTicketTab>('all');
+  const [likedSortMode, setLikedSortMode] = useState<LikedSortMode>('latest');
+  const [likedSortOpen, setLikedSortOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
@@ -600,15 +698,31 @@ export default function ProfileListScreen() {
         const rawSavedTickets = await AsyncStorage.getItem(
           SAVED_TICKET_POSTS_STORAGE_KEY,
         );
-        const localLikedPosts = rawLocalLikedPosts
-          ? (JSON.parse(rawLocalLikedPosts) as FreePostSummaryResponse[])
-          : [];
+        const localLikedPosts = parseStoredList<FreePostSummaryResponse>(rawLocalLikedPosts);
         const likedMarketPosts =
           parseStoredList<LikedMarketPost>(rawLikedMarketPosts);
         const likedTickets = mergeTicketsById([
           ...parseStoredList<SavedTicket>(rawLikedTicketPosts),
           ...parseStoredList<SavedTicket>(rawSavedTickets),
         ]);
+
+        const [companionResult, usedResult, ticketResult] = await Promise.allSettled([
+          getScrappedCompanionPosts({ size: 30 }),
+          getScrappedUsedItems({ size: 30 }),
+          getScrappedTickets({ size: 30 }),
+        ]);
+        const companionPosts =
+          companionResult.status === 'fulfilled'
+            ? extractItems<CompanionPostResponse>(companionResult.value.data.data)
+            : [];
+        const usedItems =
+          usedResult.status === 'fulfilled'
+            ? extractItems<UsedItemSummaryResponse>(usedResult.value.data.data)
+            : [];
+        const ticketPosts =
+          ticketResult.status === 'fulfilled'
+            ? extractItems<TicketTransferResponse>(ticketResult.value.data.data)
+            : [];
 
         try {
           const response = await getLikedFreePosts({ size: 30 });
@@ -646,8 +760,13 @@ export default function ProfileListScreen() {
 
         setItems([
           ...posts.map((post) => toFreePostCard(post, 'liked', '자유게시판')),
-          ...likedMarketPosts.map(toLikedMarketCard),
-          ...likedTickets.map((item) => toTicketCard(item, 'liked-ticket')),
+          ...companionPosts.map(toLikedCompanionCard),
+          ...(usedItems.length > 0
+            ? usedItems.map(toLikedUsedItemCard)
+            : likedMarketPosts.map(toLikedMarketCard)),
+          ...(ticketPosts.length > 0
+            ? ticketPosts.map((item) => toTicketCard(item, 'liked-ticket'))
+            : likedTickets.map((item) => toTicketCard(item, 'liked-ticket'))),
         ]);
         return;
       }
@@ -818,8 +937,38 @@ export default function ProfileListScreen() {
   const visibleItems = useMemo(() => {
     if (!categoryTabs) return items;
 
+    if (listType === 'liked') {
+      const filteredItems =
+        selectedCategory === 'free'
+          ? items.filter((item) => item.category === likedCommunityTab)
+          : selectedCategory === 'ticket' && likedTicketTab !== 'all'
+            ? items.filter((item) => item.ticketType === likedTicketTab)
+            : items.filter((item) => item.category === selectedCategory);
+
+      return [...filteredItems].sort((first, second) => {
+        const firstTime = first.createdAt ? new Date(first.createdAt).getTime() : 0;
+        const secondTime = second.createdAt ? new Date(second.createdAt).getTime() : 0;
+
+        if (likedSortMode === 'title') {
+          return first.title.localeCompare(second.title, 'ko');
+        }
+
+        return likedSortMode === 'oldest'
+          ? firstTime - secondTime
+          : secondTime - firstTime;
+      });
+    }
+
     return items.filter((item) => item.category === selectedCategory);
-  }, [categoryTabs, items, selectedCategory]);
+  }, [
+    categoryTabs,
+    items,
+    likedCommunityTab,
+    likedSortMode,
+    likedTicketTab,
+    listType,
+    selectedCategory,
+  ]);
   const currentCategoryTabs = usesGroupedTabs
     ? subCategoryTabsByGroup[selectedGroup]
     : categoryTabs;
@@ -835,6 +984,7 @@ export default function ProfileListScreen() {
       <View
         style={[
           styles.header,
+          listType === 'liked' && styles.likedHeader,
           { paddingTop: Math.max(50, insets.top + 10) },
         ]}
       >
@@ -848,11 +998,31 @@ export default function ProfileListScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
-          styles.content,
+          listType === 'liked' ? styles.likedContent : styles.content,
           { paddingBottom: Math.max(130, insets.bottom + 110) },
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {listType === 'liked' ? (
+          <LikedPostsContent
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
+            communityTab={likedCommunityTab}
+            onSelectCommunityTab={setLikedCommunityTab}
+            ticketTab={likedTicketTab}
+            onSelectTicketTab={setLikedTicketTab}
+            sortMode={likedSortMode}
+            sortOpen={likedSortOpen}
+            onToggleSort={() => setLikedSortOpen((value) => !value)}
+            onSelectSort={(mode) => {
+              setLikedSortMode(mode);
+              setLikedSortOpen(false);
+            }}
+            items={visibleItems}
+            loading={loading}
+          />
+        ) : (
+          <>
         {compactSummary ? (
           <View style={styles.compactSummaryBox}>
             <View>
@@ -984,9 +1154,333 @@ export default function ProfileListScreen() {
             ))}
           </View>
         )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
+}
+
+function LikedPostsContent({
+  selectedCategory,
+  onSelectCategory,
+  communityTab,
+  onSelectCommunityTab,
+  ticketTab,
+  onSelectTicketTab,
+  sortMode,
+  sortOpen,
+  onToggleSort,
+  onSelectSort,
+  items,
+  loading,
+}: {
+  selectedCategory: ProfileListCategory;
+  onSelectCategory: (category: ProfileListCategory) => void;
+  communityTab: LikedCommunityTab;
+  onSelectCommunityTab: (tab: LikedCommunityTab) => void;
+  ticketTab: LikedTicketTab;
+  onSelectTicketTab: (tab: LikedTicketTab) => void;
+  sortMode: LikedSortMode;
+  sortOpen: boolean;
+  onToggleSort: () => void;
+  onSelectSort: (mode: LikedSortMode) => void;
+  items: ListCard[];
+  loading: boolean;
+}) {
+  const categoryTabs: { key: ProfileListCategory; label: string }[] = [
+    { key: 'free', label: '커뮤니티' },
+    { key: 'used', label: '중고거래' },
+    { key: 'ticket', label: '티켓양도' },
+  ];
+
+  return (
+    <>
+      <View style={styles.likedPrimaryTabs}>
+        {categoryTabs.map((tab) => {
+          const active = selectedCategory === tab.key;
+
+          return (
+            <Pressable
+              key={tab.key}
+              style={[styles.likedPrimaryTab, active && styles.likedPrimaryTabActive]}
+              onPress={() => onSelectCategory(tab.key)}
+            >
+              <Text style={[styles.likedPrimaryTabText, active && styles.likedPrimaryTabTextActive]}>
+                {tab.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.likedToolbar}>
+        <Text style={styles.likedCountText}>
+          전체 <Text style={styles.likedCountNumber}>{items.length}개</Text>
+        </Text>
+        <View style={styles.likedSortAnchor}>
+          <Pressable style={styles.likedSortButton} onPress={onToggleSort}>
+            <Text style={styles.likedSortText}>{likedSortLabel(sortMode)}</Text>
+            <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={16} color="#7A8491" />
+          </Pressable>
+          {sortOpen ? (
+            <View style={styles.likedSortMenu}>
+              {(
+                [
+                  { key: 'latest', label: '최신순' },
+                  { key: 'oldest', label: '오래된순' },
+                  { key: 'title', label: '가나다순' },
+                ] as { key: LikedSortMode; label: string }[]
+              ).map((option) => {
+                const selected = sortMode === option.key;
+
+                return (
+                  <Pressable
+                    key={option.key}
+                    style={styles.likedSortOption}
+                    onPress={() => onSelectSort(option.key)}
+                  >
+                    <Text style={[styles.likedSortOptionText, selected && styles.likedSortOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                    {selected ? <Ionicons name="checkmark" size={16} color="#1677FF" /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      {selectedCategory === 'free' ? (
+        <View style={styles.likedFilterRow}>
+          {[
+            { key: 'free' as const, label: '자유게시판' },
+            { key: 'companion' as const, label: '동행 모집' },
+          ].map((tab) => {
+            const active = communityTab === tab.key;
+
+            return (
+              <Pressable
+                key={tab.key}
+                style={[styles.likedFilterChip, active && styles.likedFilterChipActive]}
+                onPress={() => onSelectCommunityTab(tab.key)}
+              >
+                <Text style={[styles.likedFilterChipText, active && styles.likedFilterChipTextActive]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
+
+      {selectedCategory === 'ticket' ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.likedTicketFilters}
+        >
+          {likedTicketTabs.map((tab) => {
+            const active = ticketTab === tab.key;
+
+            return (
+              <Pressable
+                key={tab.key}
+                style={[styles.likedFilterChip, active && styles.likedFilterChipActive]}
+                onPress={() => onSelectTicketTab(tab.key)}
+              >
+                <Text style={[styles.likedFilterChipText, active && styles.likedFilterChipTextActive]}>
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
+
+      {loading ? (
+        <View style={styles.likedLoadingBox}>
+          <ActivityIndicator color={NAVY} />
+        </View>
+      ) : items.length === 0 ? (
+        <LikedPostsEmpty />
+      ) : (
+        <View style={styles.likedList}>
+          {items.map((item) => (
+            <Pressable
+              key={item.id}
+              style={
+                selectedCategory === 'free'
+                  ? styles.likedCommunityRow
+                  : selectedCategory === 'used'
+                    ? styles.likedUsedRow
+                    : styles.likedTicketRow
+              }
+              onPress={() => item.route && router.push(item.route as any)}
+            >
+              {selectedCategory === 'free' ? (
+                <LikedCommunityPostCard item={item} />
+              ) : selectedCategory === 'used' ? (
+                <LikedUsedPostCard item={item} />
+              ) : (
+                <LikedTicketPostCard item={item} />
+              )}
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
+
+function LikedCommunityPostCard({ item }: { item: ListCard }) {
+  const metadata = [
+    item.authorName,
+    [item.country, item.postStatus].filter(Boolean).join(' '),
+    typeof item.commentCount === 'number' ? `댓글 ${item.commentCount}` : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <>
+      <View style={styles.likedCommunityCopy}>
+        <Text style={styles.likedCommunityTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={styles.likedCommunityPreview} numberOfLines={2}>
+          {item.subtitle || '게시글 본문입니다.'}
+        </Text>
+        <Text style={styles.likedCommunityMeta} numberOfLines={1}>
+          {metadata || item.meta}
+        </Text>
+      </View>
+      <LikedPostThumbnail uri={item.imageUrl} style={styles.likedCommunityThumbnail} />
+    </>
+  );
+}
+
+function LikedUsedPostCard({ item }: { item: ListCard }) {
+  const price =
+    typeof item.price === 'number'
+      ? formatPrice(item.price)
+      : item.price || item.meta.split(' · ')[0] || '가격 미정';
+
+  return (
+    <>
+      <View style={styles.likedUsedThumbnailWrap}>
+        <LikedPostThumbnail uri={item.imageUrl} style={styles.likedUsedThumbnail} />
+        {item.status === 'COMPLETED' ? (
+          <View style={styles.likedCompletedBadge}>
+            <Text style={styles.likedCompletedBadgeText}>거래 완료</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.likedUsedCopy}>
+        <Text style={styles.likedUsedTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={styles.likedUsedMeta} numberOfLines={1}>
+          거래 {item.country || '정보 없음'}
+        </Text>
+        <Text style={styles.likedUsedMeta} numberOfLines={1}>
+          장소 {item.region || item.subtitle || '정보 없음'}
+        </Text>
+        <Text style={styles.likedUsedPrice}>{price}</Text>
+      </View>
+    </>
+  );
+}
+
+function LikedTicketPostCard({ item }: { item: ListCard }) {
+  const transferPrice =
+    typeof item.price === 'number'
+      ? formatPrice(item.price)
+      : item.price || item.meta.split(' · ')[1] || '가격 미정';
+  const ticketType = ticketTypeLabel(item.ticketType);
+
+  return (
+    <>
+      <View style={styles.likedFlagBox}>
+        <Text style={styles.likedFlag}>{countryFlag(item.country)}</Text>
+        <Text style={styles.likedCountryName} numberOfLines={1}>
+          {item.country || '국가'}
+        </Text>
+      </View>
+      <View style={styles.likedTicketCopy}>
+        <Text style={styles.likedTicketTitle} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text style={styles.likedTicketMeta} numberOfLines={1}>
+          일시 {[formatDate(item.eventDate), item.eventTime].filter(Boolean).join(' ')}
+        </Text>
+        <Text style={styles.likedTicketMeta} numberOfLines={1}>
+          유형 {ticketType}
+        </Text>
+        <View style={styles.likedTicketPriceRow}>
+          <Text style={styles.likedTicketPrice}>{transferPrice}</Text>
+          {item.originalPrice ? (
+            <Text style={styles.likedTicketOriginalPrice}>{formatPrice(item.originalPrice)}</Text>
+          ) : null}
+        </View>
+      </View>
+    </>
+  );
+}
+
+function LikedPostThumbnail({ uri, style }: { uri?: string; style: object }) {
+  return uri ? (
+    <Image source={{ uri }} style={style} resizeMode="cover" />
+  ) : (
+    <View style={[style, styles.likedThumbnailPlaceholder]} />
+  );
+}
+
+function LikedPostsEmpty() {
+  return (
+    <View style={styles.likedEmptyBox}>
+      <LikedPostsEmptyInfoIcon width={24} height={24} />
+      <Text style={styles.likedEmptyTitle}>좋아요 누른 글이 없습니다</Text>
+      <Text style={styles.likedEmptyText}>좋아요를 눌러 관심있는 글을{`\n`}저장하고 표현해보세요</Text>
+    </View>
+  );
+}
+
+function likedSortLabel(mode: LikedSortMode) {
+  if (mode === 'oldest') return '오래된순';
+  if (mode === 'title') return '가나다순';
+
+  return '최신순';
+}
+
+function ticketTypeLabel(type?: string) {
+  const labels: Record<string, string> = {
+    TOUR: '관광 티켓',
+    CONCERT: '콘서트·공연',
+    TRAIN: '기차표',
+    FLIGHT: '항공권',
+    ACCOMMODATION: '숙박',
+  };
+
+  return (type && labels[type]) || type || '티켓 양도';
+}
+
+function countryFlag(country?: string) {
+  const flags: Record<string, string> = {
+    대한민국: '🇰🇷',
+    한국: '🇰🇷',
+    일본: '🇯🇵',
+    터키: '🇹🇷',
+    독일: '🇩🇪',
+    프랑스: '🇫🇷',
+    스페인: '🇪🇸',
+    이탈리아: '🇮🇹',
+    미국: '🇺🇸',
+    영국: '🇬🇧',
+  };
+
+  return flags[country || ''] || '🌐';
 }
 
 const styles = StyleSheet.create({
@@ -1003,6 +1497,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+  },
+  likedHeader: {
+    backgroundColor: '#F6F7F9',
+    borderBottomWidth: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
   iconBtn: {
     backgroundColor: 'transparent',
@@ -1022,6 +1522,294 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 14,
+  },
+  likedContent: {
+    paddingHorizontal: 16,
+    paddingTop: 2,
+  },
+  likedPrimaryTabs: {
+    height: 48,
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E4E8ED',
+  },
+  likedPrimaryTab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  likedPrimaryTabActive: {
+    borderBottomColor: '#18202B',
+  },
+  likedPrimaryTabText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#9AA4B1',
+  },
+  likedPrimaryTabTextActive: {
+    fontWeight: '900',
+    color: '#18202B',
+  },
+  likedToolbar: {
+    height: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 20,
+  },
+  likedCountText: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#18202B',
+  },
+  likedCountNumber: {
+    color: '#1677FF',
+  },
+  likedSortButton: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingLeft: 8,
+  },
+  likedSortAnchor: {
+    position: 'relative',
+    zIndex: 10,
+  },
+  likedSortText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#7A8491',
+  },
+  likedSortMenu: {
+    position: 'absolute',
+    top: 38,
+    right: 0,
+    width: 112,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E1E5EA',
+    paddingVertical: 4,
+    shadowColor: '#18202B',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 5,
+  },
+  likedSortOption: {
+    height: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+  },
+  likedSortOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#556171',
+  },
+  likedSortOptionTextSelected: {
+    fontWeight: '900',
+    color: '#1677FF',
+  },
+  likedFilterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  likedTicketFilters: {
+    gap: 8,
+    paddingBottom: 12,
+    paddingRight: 16,
+  },
+  likedFilterChip: {
+    minHeight: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likedFilterChipActive: {
+    backgroundColor: '#18202B',
+  },
+  likedFilterChipText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#7A8491',
+  },
+  likedFilterChipTextActive: {
+    color: '#FFFFFF',
+  },
+  likedLoadingBox: {
+    minHeight: 250,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likedEmptyBox: {
+    minHeight: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 58,
+  },
+  likedEmptyTitle: {
+    marginTop: 12,
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#18202B',
+  },
+  likedEmptyText: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#8B95A1',
+    textAlign: 'center',
+  },
+  likedList: {
+    gap: 10,
+  },
+  likedCommunityRow: {
+    minHeight: 92,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  likedCommunityCopy: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 5,
+  },
+  likedCommunityTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#252C37',
+  },
+  likedCommunityPreview: {
+    marginTop: 5,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+    color: '#8B95A1',
+  },
+  likedCommunityMeta: {
+    marginTop: 7,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#556171',
+  },
+  likedCommunityThumbnail: {
+    width: 76,
+    height: 76,
+    borderRadius: 6,
+  },
+  likedThumbnailPlaceholder: {
+    backgroundColor: '#E3E7ED',
+  },
+  likedUsedRow: {
+    minHeight: 100,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  likedUsedThumbnailWrap: {
+    width: 96,
+    height: 96,
+  },
+  likedUsedThumbnail: {
+    width: 96,
+    height: 96,
+    borderRadius: 6,
+  },
+  likedCompletedBadge: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    borderRadius: 4,
+    backgroundColor: '#18202B',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  likedCompletedBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#FFFFFF',
+  },
+  likedUsedCopy: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  likedUsedTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#252C37',
+  },
+  likedUsedMeta: {
+    marginTop: 5,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7A8491',
+  },
+  likedUsedPrice: {
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#18202B',
+  },
+  likedTicketRow: {
+    minHeight: 94,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  likedFlagBox: {
+    width: 46,
+    alignItems: 'center',
+  },
+  likedFlag: {
+    fontSize: 26,
+  },
+  likedCountryName: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#556171',
+  },
+  likedTicketCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  likedTicketTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#252C37',
+  },
+  likedTicketMeta: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7A8491',
+  },
+  likedTicketPriceRow: {
+    marginTop: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  likedTicketPrice: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#18202B',
+  },
+  likedTicketOriginalPrice: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#A1A9B4',
+    textDecorationLine: 'line-through',
   },
   heroCard: {
     minHeight: 82,
