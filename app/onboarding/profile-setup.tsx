@@ -498,7 +498,9 @@ export default function ProfileSetupPage() {
         ['dispatchStartDate', selectedDateKey === 'dispatchStartDate' ? statusDate : ''],
       ]);
 
-      console.log('[Onboarding] 저장 요청:', request);
+if (__DEV__) {
+  console.log('[Onboarding] 저장 요청:', request);
+}
       await onboarding(request);
       await AsyncStorage.setItem('nickname', nickname.trim());
       await clearOnboardingDraft();
