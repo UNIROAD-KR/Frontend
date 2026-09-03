@@ -699,7 +699,9 @@ export default function TicketWritePage() {
     try {
       submittingRef.current = true;
       setSubmitting(true);
-      console.log('[Ticket] 요청 payload:', JSON.stringify(payload, null, 2));
+if (__DEV__) {
+  console.log('[Ticket] 요청 payload:', payload);
+}
       const ticketId = isEditMode ? editId : null;
 
       if (isEditMode) {
