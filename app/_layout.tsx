@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import {
   registerDeviceForPushNotifications,
+  requestNotificationPermission,
   subscribeToFcmTokenRefresh,
   subscribeToForegroundPushNotifications,
 } from '@/src/notifications/push';
@@ -20,6 +21,10 @@ export default function RootLayout() {
   useEffect(() => {
     if (Platform.OS !== 'web') {
       void SplashScreen.hideAsync().catch(() => undefined);
+
+      requestNotificationPermission().catch((error) => {
+        console.log('알림 권한 요청 실패:', error.message);
+      });
     }
 
     const unsubscribeForeground = subscribeToForegroundPushNotifications();

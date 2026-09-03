@@ -1,12 +1,12 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-import { mockApiAdapter } from './mockAdapter';
+import { mockApiAdapter } from "./mockAdapter";
 
-const API_BASE_URL = 'https://api.uniroad-kr.store';
+const API_BASE_URL = "https://api.uniroad.kr";
 const REQUEST_TIMEOUT_MS = 6000;
 // 백엔드가 복구되면 false로 바꾸면 실제 서버를 다시 사용합니다.
-export const USE_MOCK_API = __DEV__;
+export const USE_MOCK_API = false;
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -22,12 +22,12 @@ export const api = axios.create({
   timeout: REQUEST_TIMEOUT_MS,
   adapter: USE_MOCK_API ? mockApiAdapter : undefined,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 api.interceptors.request.use(async (config) => {
-  const accessToken = await AsyncStorage.getItem('accessToken');
+  const accessToken = await AsyncStorage.getItem("accessToken");
 
   if (accessToken) {
     config.headers.Authorization = `Bearer ${accessToken}`;
@@ -55,7 +55,11 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest._retry
+    ) {
       return Promise.reject(error);
     }
 
@@ -74,10 +78,10 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      const refreshToken = await AsyncStorage.getItem("refreshToken");
 
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        throw new Error("No refresh token available");
       }
 
       const { data } = await axios.post(
@@ -93,8 +97,8 @@ api.interceptors.response.use(
       const newAccessToken = data.data.accessToken;
       const newRefreshToken = data.data.refreshToken;
 
-      await AsyncStorage.setItem('accessToken', newAccessToken);
-      await AsyncStorage.setItem('refreshToken', newRefreshToken);
+      await AsyncStorage.setItem("accessToken", newAccessToken);
+      await AsyncStorage.setItem("refreshToken", newRefreshToken);
 
       api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
       originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -104,7 +108,11 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+      await AsyncStorage.multiRemove([
+        "accessToken",
+        "refreshToken",
+        "nickname",
+      ]);
 
       return Promise.reject(refreshError);
     } finally {

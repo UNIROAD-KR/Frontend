@@ -1,7 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,10 +13,13 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { getMemberMe } from '../src/api/auth';
-import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
+import { getMemberMe } from "../src/api/auth";
+import {
+  AppBackButton,
+  goBackOrReplace,
+} from "@/components/ui/app-back-button";
 import {
   CompanionPostResponse,
   deleteCompanionPost,
@@ -24,7 +27,7 @@ import {
   getScrappedCompanionPosts,
   toggleCompanionPostScrap,
   updateCompanionPost,
-} from '../src/api/companion';
+} from "../src/api/companion";
 import {
   FreePostCommentResponse,
   FreePostDetailResponse,
@@ -35,15 +38,12 @@ import {
   getScrappedFreePosts,
   toggleFreePostLike,
   toggleFreePostScrap,
-} from '../src/api/freePosts';
-import {
-  BLUE,
-  GREEN,
-} from '../src/data/community';
+} from "../src/api/freePosts";
+import { BLUE, GREEN } from "../src/data/community";
 
-const LIKED_FREE_POSTS_STORAGE_KEY = 'univ:profile:liked-free-posts';
+const LIKED_FREE_POSTS_STORAGE_KEY = "univ:profile:liked-free-posts";
 
-type DetailType = 'free' | 'companion';
+type DetailType = "free" | "companion";
 type DetailPost = FreePostDetailResponse | CompanionPostResponse;
 type StoredLikedFreePost = FreePostDetailResponse & {
   preview?: string;
@@ -58,34 +58,34 @@ type FreeComment = {
 };
 
 const isCompanionApiPost = (post: DetailPost): post is CompanionPostResponse =>
-  'memberName' in post;
+  "memberName" in post;
 
 const formatDate = (value?: string) => {
   if (!value) {
-    return '';
+    return "";
   }
 
-  return value.replaceAll('-', '.');
+  return value.replaceAll("-", ".");
 };
 
-const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
-  status === 'RECRUITING' ? '모집중' : '모집완료';
+const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
+  status === "RECRUITING" ? "모집중" : "모집완료";
 
 const getBoardStatusColors = (status: string) => {
-  if (status === '파견 중') {
-    return { backgroundColor: '#DDF4E4', color: '#238451' };
+  if (status === "파견 중") {
+    return { backgroundColor: "#DDF4E4", color: "#238451" };
   }
 
-  if (status === '파견 전') {
-    return { backgroundColor: '#EAF1FF', color: '#2F66D0' };
+  if (status === "파견 전") {
+    return { backgroundColor: "#EAF1FF", color: "#2F66D0" };
   }
 
-  return { backgroundColor: '#FFF1DF', color: '#F28A2E' };
+  return { backgroundColor: "#FFF1DF", color: "#F28A2E" };
 };
 
 const mapFreeComment = (comment: FreePostCommentResponse): FreeComment => ({
   id: comment.id,
-  author: comment.authorName || '익명',
+  author: comment.authorName || "익명",
   content: comment.content,
   time: formatDate(comment.createdAt?.slice(0, 10)),
   mine: comment.mine,
@@ -96,7 +96,9 @@ const syncLikedFreePostStorage = async (
   liked: boolean,
 ) => {
   const rawPosts = await AsyncStorage.getItem(LIKED_FREE_POSTS_STORAGE_KEY);
-  const savedPosts = rawPosts ? JSON.parse(rawPosts) as StoredLikedFreePost[] : [];
+  const savedPosts = rawPosts
+    ? (JSON.parse(rawPosts) as StoredLikedFreePost[])
+    : [];
   const nextPosts = savedPosts.filter((item) => item.id !== post.id);
 
   if (liked) {
@@ -104,7 +106,7 @@ const syncLikedFreePostStorage = async (
       id: post.id,
       title: post.title,
       content: post.content,
-      preview: post.content?.slice(0, 80) ?? '',
+      preview: post.content?.slice(0, 80) ?? "",
       country: post.country,
       status: post.status,
       authorName: post.authorName,
@@ -126,20 +128,24 @@ const syncLikedFreePostStorage = async (
 
 export default function CommunityDetailScreen() {
   const router = useRouter();
-  const { type = 'free', id, fromProfileList } = useLocalSearchParams<{
+  const {
+    type = "free",
+    id,
+    fromProfileList,
+  } = useLocalSearchParams<{
     type?: DetailType;
     id?: string;
     fromProfileList?: string;
   }>();
   const postId = Number(id);
-  const detailType: DetailType = type === 'companion' ? 'companion' : 'free';
+  const detailType: DetailType = type === "companion" ? "companion" : "free";
   const [post, setPost] = useState<DetailPost | null>(null);
-  const [currentMemberName, setCurrentMemberName] = useState('');
+  const [currentMemberName, setCurrentMemberName] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [commentInputVisible, setCommentInputVisible] = useState(false);
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
   const [scrapped, setScrapped] = useState(false);
   const [scrapCount, setScrapCount] = useState(0);
 
@@ -151,7 +157,7 @@ export default function CommunityDetailScreen() {
     }
 
     try {
-      if (detailType === 'companion') {
+      if (detailType === "companion") {
         const response = await getCompanionPostDetail(postId);
         const nextPost = response.data.data;
 
@@ -161,11 +167,13 @@ export default function CommunityDetailScreen() {
         try {
           const scrapResponse = await getScrappedCompanionPosts({ size: 100 });
           setScrapped(
-            (scrapResponse.data.data.items ?? []).some((item) => item.id === postId),
+            (scrapResponse.data.data.items ?? []).some(
+              (item) => item.id === postId,
+            ),
           );
         } catch (scrapError: any) {
           console.log(
-            '스크랩한 동행 글 확인 실패:',
+            "스크랩한 동행 글 확인 실패:",
             scrapError.response?.data || scrapError.message,
           );
         }
@@ -180,11 +188,13 @@ export default function CommunityDetailScreen() {
       try {
         const scrapResponse = await getScrappedFreePosts({ size: 100 });
         setScrapped(
-          (scrapResponse.data.data.items ?? []).some((item) => item.id === postId),
+          (scrapResponse.data.data.items ?? []).some(
+            (item) => item.id === postId,
+          ),
         );
       } catch (scrapError: any) {
         console.log(
-          '스크랩한 자유게시판 글 확인 실패:',
+          "스크랩한 자유게시판 글 확인 실패:",
           scrapError.response?.data || scrapError.message,
         );
       }
@@ -193,7 +203,10 @@ export default function CommunityDetailScreen() {
         await syncLikedFreePostStorage(nextPost, true);
       }
     } catch (error: any) {
-      console.log('게시글 상세 조회 실패:', error.response?.data || error.message);
+      console.log(
+        "게시글 상세 조회 실패:",
+        error.response?.data || error.message,
+      );
       setPost(null);
     } finally {
       setLoading(false);
@@ -206,14 +219,17 @@ export default function CommunityDetailScreen() {
 
   useEffect(() => {
     const loadMember = async () => {
-      const savedNickname = await AsyncStorage.getItem('nickname');
+      const savedNickname = await AsyncStorage.getItem("nickname");
 
       try {
         const response = await getMemberMe();
-        setCurrentMemberName(response.data?.data?.name || savedNickname || '');
+        setCurrentMemberName(response.data?.data?.name || savedNickname || "");
       } catch (error: any) {
-        console.log('내 정보 조회 실패:', error.response?.data || error.message);
-        setCurrentMemberName(savedNickname || '');
+        console.log(
+          "내 정보 조회 실패:",
+          error.response?.data || error.message,
+        );
+        setCurrentMemberName(savedNickname || "");
       }
     };
 
@@ -225,7 +241,7 @@ export default function CommunityDetailScreen() {
       return null;
     }
 
-    if (detailType === 'companion') {
+    if (detailType === "companion") {
       if (isCompanionApiPost(post)) {
         return {
           author: post.memberName,
@@ -234,25 +250,24 @@ export default function CommunityDetailScreen() {
           country: post.country,
           region: post.region,
           status: getCompanionStatusText(post.status),
-          statusColor: post.status === 'RECRUITING' ? '#DDF4E4' : '#EEEEEE',
-          statusTextColor: post.status === 'RECRUITING' ? '#238451' : '#777777',
+          statusColor: post.status === "RECRUITING" ? "#DDF4E4" : "#EEEEEE",
+          statusTextColor: post.status === "RECRUITING" ? "#238451" : "#777777",
           period: `${formatDate(post.startDate)} - ${formatDate(post.endDate)}`,
           current: post.currentParticipants,
           total: post.capacity,
           chatLink: post.chatLink,
-          genderRatio: post.genderRatio || '무관',
+          genderRatio: post.genderRatio || "무관",
           createdAt: formatDate(post.createdAt?.slice(0, 10)),
           isMine: false,
         };
       }
-
     }
 
     const boardPost = post as FreePostDetailResponse;
     const statusColors = getBoardStatusColors(boardPost.status);
 
     return {
-      author: boardPost.authorName || '익명',
+      author: boardPost.authorName || "익명",
       title: boardPost.title,
       content: boardPost.content,
       country: boardPost.country,
@@ -279,7 +294,7 @@ export default function CommunityDetailScreen() {
     await loadPost();
     setRefreshing(false);
     setMenuVisible(false);
-    Alert.alert('새로고침 완료', '게시글 내용을 다시 불러왔어요.');
+    Alert.alert("새로고침 완료", "게시글 내용을 다시 불러왔어요.");
   };
 
   const handleEdit = () => {
@@ -289,11 +304,11 @@ export default function CommunityDetailScreen() {
 
     setMenuVisible(false);
 
-    if (detailType === 'companion') {
+    if (detailType === "companion") {
       const params = isCompanionApiPost(post)
         ? {
-            type: 'companion',
-            mode: 'edit',
+            type: "companion",
+            mode: "edit",
             id: String(post.id),
             title: post.title,
             body: post.content,
@@ -304,7 +319,7 @@ export default function CommunityDetailScreen() {
             chatLink: post.chatLink,
             capacity: String(post.capacity),
             currentParticipants: String(post.currentParticipants),
-            genderRatio: post.genderRatio || '',
+            genderRatio: post.genderRatio || "",
             status: post.status,
           }
         : null;
@@ -313,15 +328,15 @@ export default function CommunityDetailScreen() {
         return;
       }
 
-      router.push({ pathname: '/community-write', params } as never);
+      router.push({ pathname: "/community-write", params } as never);
       return;
     }
 
     router.push({
-      pathname: '/community-write',
+      pathname: "/community-write",
       params: {
-        type: 'free',
-        mode: 'edit',
+        type: "free",
+        mode: "edit",
         id: String(postId),
         title: viewModel.title,
         body: viewModel.content,
@@ -333,7 +348,7 @@ export default function CommunityDetailScreen() {
   };
 
   const handleLikePress = async () => {
-    if (detailType !== 'free' || !postId || !post) {
+    if (detailType !== "free" || !postId || !post) {
       return;
     }
 
@@ -348,8 +363,11 @@ export default function CommunityDetailScreen() {
       setPost(nextPost);
       await syncLikedFreePostStorage(nextPost, response.data.data.liked);
     } catch (error: any) {
-      console.log('자유게시판 좋아요 실패:', error.response?.data || error.message);
-      Alert.alert('처리 실패', '좋아요 상태를 변경하지 못했어요.');
+      console.log(
+        "자유게시판 좋아요 실패:",
+        error.response?.data || error.message,
+      );
+      Alert.alert("처리 실패", "좋아요 상태를 변경하지 못했어요.");
     }
   };
 
@@ -364,26 +382,29 @@ export default function CommunityDetailScreen() {
 
     try {
       const response =
-        detailType === 'companion'
+        detailType === "companion"
           ? await toggleCompanionPostScrap(postId)
           : await toggleFreePostScrap(postId);
       const nextScrapped = response.data.data;
 
       setScrapped(nextScrapped);
       setScrapCount((prev) =>
-        Math.max(0, prev + (nextScrapped === wasScrapped ? 0 : nextScrapped ? 1 : -1)),
+        Math.max(
+          0,
+          prev + (nextScrapped === wasScrapped ? 0 : nextScrapped ? 1 : -1),
+        ),
       );
     } catch (error: any) {
-      console.log('게시글 스크랩 실패:', error.response?.data || error.message);
+      console.log("게시글 스크랩 실패:", error.response?.data || error.message);
       setScrapped(wasScrapped);
-      Alert.alert('저장 실패', '게시글 저장 상태를 변경하지 못했어요.');
+      Alert.alert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
     }
   };
 
   const handleSubmitComment = async () => {
     const trimmedComment = commentText.trim();
 
-    if (!trimmedComment || detailType !== 'free' || !postId || !post) {
+    if (!trimmedComment || detailType !== "free" || !postId || !post) {
       return;
     }
 
@@ -396,16 +417,19 @@ export default function CommunityDetailScreen() {
         commentCount: boardPost.commentCount + 1,
         comments: [...(boardPost.comments ?? []), response.data.data],
       });
-      setCommentText('');
+      setCommentText("");
       setCommentInputVisible(false);
     } catch (error: any) {
-      console.log('자유게시판 댓글 작성 실패:', error.response?.data || error.message);
-      Alert.alert('등록 실패', '댓글을 등록하지 못했어요.');
+      console.log(
+        "자유게시판 댓글 작성 실패:",
+        error.response?.data || error.message,
+      );
+      Alert.alert("등록 실패", "댓글을 등록하지 못했어요.");
     }
   };
 
   const handleDeleteComment = async (commentId: number) => {
-    if (detailType !== 'free' || !postId || !post) {
+    if (detailType !== "free" || !postId || !post) {
       return;
     }
 
@@ -421,8 +445,11 @@ export default function CommunityDetailScreen() {
         ),
       });
     } catch (error: any) {
-      console.log('자유게시판 댓글 삭제 실패:', error.response?.data || error.message);
-      Alert.alert('삭제 실패', '댓글을 삭제하지 못했어요.');
+      console.log(
+        "자유게시판 댓글 삭제 실패:",
+        error.response?.data || error.message,
+      );
+      Alert.alert("삭제 실패", "댓글을 삭제하지 못했어요.");
     }
   };
 
@@ -432,23 +459,26 @@ export default function CommunityDetailScreen() {
     }
 
     setMenuVisible(false);
-    Alert.alert('게시글 삭제', '게시글을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert("게시글 삭제", "게시글을 삭제할까요?", [
+      { text: "취소", style: "cancel" },
       {
-        text: '삭제',
-        style: 'destructive',
+        text: "삭제",
+        style: "destructive",
         onPress: async () => {
           try {
-            if (detailType === 'companion') {
+            if (detailType === "companion") {
               await deleteCompanionPost(postId);
             } else {
               await deleteFreePost(postId);
             }
 
-            goBackOrReplace('/community');
+            goBackOrReplace("/community");
           } catch (error: any) {
-            console.log('게시글 삭제 실패:', error.response?.data || error.message);
-            Alert.alert('삭제 실패', '게시글을 삭제하지 못했어요.');
+            console.log(
+              "게시글 삭제 실패:",
+              error.response?.data || error.message,
+            );
+            Alert.alert("삭제 실패", "게시글을 삭제하지 못했어요.");
           }
         },
       },
@@ -456,7 +486,7 @@ export default function CommunityDetailScreen() {
   };
 
   const handleParticipantsChange = async (delta: 1 | -1) => {
-    if (!post || !viewModel || detailType !== 'companion') {
+    if (!post || !viewModel || detailType !== "companion") {
       return;
     }
 
@@ -465,12 +495,12 @@ export default function CommunityDetailScreen() {
     const nextParticipants = currentParticipants + delta;
 
     if (nextParticipants < 1) {
-      Alert.alert('변경 불가', '모집 인원은 1명보다 작아질 수 없어요.');
+      Alert.alert("변경 불가", "모집 인원은 1명보다 작아질 수 없어요.");
       return;
     }
 
     if (nextParticipants > capacity) {
-      Alert.alert('변경 불가', '모집 인원은 전체 정원을 넘을 수 없어요.');
+      Alert.alert("변경 불가", "모집 인원은 전체 정원을 넘을 수 없어요.");
       return;
     }
 
@@ -478,7 +508,7 @@ export default function CommunityDetailScreen() {
 
     if (isCompanionApiPost(post)) {
       const nextStatus =
-        nextParticipants >= post.capacity ? 'COMPLETED' : 'RECRUITING';
+        nextParticipants >= post.capacity ? "COMPLETED" : "RECRUITING";
 
       try {
         await updateCompanionPost(post.id, {
@@ -501,13 +531,15 @@ export default function CommunityDetailScreen() {
           currentParticipants: nextParticipants,
         });
       } catch (error: any) {
-        console.log('동행 모집 인원 변경 실패:', error.response?.data || error.message);
-        Alert.alert('변경 실패', '모집 인원을 변경하지 못했어요.');
+        console.log(
+          "동행 모집 인원 변경 실패:",
+          error.response?.data || error.message,
+        );
+        Alert.alert("변경 실패", "모집 인원을 변경하지 못했어요.");
       }
 
       return;
     }
-
   };
 
   if (loading) {
@@ -522,7 +554,10 @@ export default function CommunityDetailScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.emptyTitle}>게시글을 찾을 수 없어요.</Text>
-        <Pressable style={styles.emptyButton} onPress={() => goBackOrReplace('/community')}>
+        <Pressable
+          style={styles.emptyButton}
+          onPress={() => goBackOrReplace("/community")}
+        >
           <Text style={styles.emptyButtonText}>돌아가기</Text>
         </Pressable>
       </View>
@@ -530,7 +565,7 @@ export default function CommunityDetailScreen() {
   }
 
   const freeCommentItems =
-    detailType === 'free' ? (viewModel.commentItems ?? []) : [];
+    detailType === "free" ? (viewModel.commentItems ?? []) : [];
 
   return (
     <View style={styles.container}>
@@ -538,25 +573,25 @@ export default function CommunityDetailScreen() {
         <AppBackButton
           onPress={() => {
             if (
-              fromProfileList === 'liked' ||
-              fromProfileList === 'free' ||
-              fromProfileList === 'companion' ||
-              fromProfileList === 'saved' ||
-              fromProfileList === 'written'
+              fromProfileList === "liked" ||
+              fromProfileList === "free" ||
+              fromProfileList === "companion" ||
+              fromProfileList === "saved" ||
+              fromProfileList === "written"
             ) {
               router.replace({
-                pathname: '/home/profile-list',
+                pathname: "/home/profile-list",
                 params: { type: fromProfileList },
               } as never);
               return;
             }
 
-            goBackOrReplace('/community');
+            goBackOrReplace("/community");
           }}
           style={styles.headerIconButton}
         />
         <Text style={styles.headerTitle}>
-          {detailType === 'companion' ? '동행 구하기' : '자유 게시판'}
+          {detailType === "companion" ? "동행 구하기" : "자유 게시판"}
         </Text>
         <Pressable
           style={styles.headerIconButton}
@@ -592,7 +627,7 @@ export default function CommunityDetailScreen() {
 
           <View style={styles.metaRow}>
             <Text style={styles.authorText}>
-              {detailType === 'free' ? '익명' : viewModel.author}
+              {detailType === "free" ? "익명" : viewModel.author}
             </Text>
             <View style={styles.dot} />
             <Text style={styles.metaText}>{viewModel.country}</Text>
@@ -601,7 +636,7 @@ export default function CommunityDetailScreen() {
           </View>
         </View>
 
-        {detailType === 'companion' && (
+        {detailType === "companion" && (
           <View style={styles.infoPanel}>
             <InfoItem
               icon="location-outline"
@@ -611,7 +646,7 @@ export default function CommunityDetailScreen() {
             <InfoItem
               icon="calendar-outline"
               label="일정"
-              value={viewModel.period || '-'}
+              value={viewModel.period || "-"}
             />
             <InfoItem
               icon="people-outline"
@@ -627,15 +662,17 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
-        {detailType === 'free' && (viewModel.imageUrls ?? []).length > 0 && (
+        {detailType === "free" && (viewModel.imageUrls ?? []).length > 0 && (
           <View style={styles.imageSection}>
-            {(viewModel.imageUrls ?? []).map((imageUrl: string, index: number) => (
-              <Image
-                key={`${imageUrl}-${index}`}
-                source={{ uri: imageUrl }}
-                style={styles.postImage}
-              />
-            ))}
+            {(viewModel.imageUrls ?? []).map(
+              (imageUrl: string, index: number) => (
+                <Image
+                  key={`${imageUrl}-${index}`}
+                  source={{ uri: imageUrl }}
+                  style={styles.postImage}
+                />
+              ),
+            )}
           </View>
         )}
 
@@ -643,7 +680,7 @@ export default function CommunityDetailScreen() {
           <Text style={styles.bodyText}>{viewModel.content}</Text>
         </View>
 
-        {detailType === 'companion' && !!viewModel.chatLink && (
+        {detailType === "companion" && !!viewModel.chatLink && (
           <View style={styles.chatPanel}>
             <View style={styles.chatIcon}>
               <Ionicons name="chatbubbles-outline" size={20} color={BLUE} />
@@ -657,13 +694,13 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
-        {detailType === 'companion' && (
+        {detailType === "companion" && (
           <View style={styles.reactionBar}>
             <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
               <Ionicons
-                name={scrapped ? 'bookmark' : 'bookmark-outline'}
+                name={scrapped ? "bookmark" : "bookmark-outline"}
                 size={17}
-                color={scrapped ? BLUE : '#777777'}
+                color={scrapped ? BLUE : "#777777"}
               />
               <Text
                 style={[
@@ -677,14 +714,17 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
-        {detailType === 'free' && (
+        {detailType === "free" && (
           <View style={styles.freeSection}>
             <View style={styles.reactionBar}>
-              <Pressable style={styles.reactionButton} onPress={handleLikePress}>
+              <Pressable
+                style={styles.reactionButton}
+                onPress={handleLikePress}
+              >
                 <Ionicons
-                  name={viewModel.liked ? 'thumbs-up' : 'thumbs-up-outline'}
+                  name={viewModel.liked ? "thumbs-up" : "thumbs-up-outline"}
                   size={17}
-                  color={viewModel.liked ? BLUE : '#777777'}
+                  color={viewModel.liked ? BLUE : "#777777"}
                 />
                 <Text
                   style={[
@@ -702,11 +742,14 @@ export default function CommunityDetailScreen() {
                 <Ionicons name="chatbubble-outline" size={17} color="#777777" />
                 <Text style={styles.reactionText}>{viewModel.comments}</Text>
               </Pressable>
-              <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
+              <Pressable
+                style={styles.reactionButton}
+                onPress={handleScrapPress}
+              >
                 <Ionicons
-                  name={scrapped ? 'bookmark' : 'bookmark-outline'}
+                  name={scrapped ? "bookmark" : "bookmark-outline"}
                   size={17}
-                  color={scrapped ? BLUE : '#777777'}
+                  color={scrapped ? BLUE : "#777777"}
                 />
                 <Text
                   style={[
@@ -720,7 +763,9 @@ export default function CommunityDetailScreen() {
             </View>
 
             <View style={styles.commentSection}>
-              <Text style={styles.commentTitle}>댓글 {viewModel.comments}개</Text>
+              <Text style={styles.commentTitle}>
+                댓글 {viewModel.comments}개
+              </Text>
 
               {freeCommentItems.map((comment) => (
                 <View key={comment.id} style={styles.commentItem}>
@@ -729,7 +774,9 @@ export default function CommunityDetailScreen() {
                     <View style={styles.commentMetaRight}>
                       <Text style={styles.commentTime}>{comment.time}</Text>
                       {comment.mine && (
-                        <Pressable onPress={() => handleDeleteComment(comment.id)}>
+                        <Pressable
+                          onPress={() => handleDeleteComment(comment.id)}
+                        >
                           <Text style={styles.commentDeleteText}>삭제</Text>
                         </Pressable>
                       )}
@@ -787,23 +834,33 @@ export default function CommunityDetailScreen() {
             {isAuthor && (
               <Pressable style={styles.menuItem} onPress={handleDeletePost}>
                 <Ionicons name="trash-outline" size={19} color="#D94343" />
-                <Text style={[styles.menuText, styles.menuDangerText]}>삭제</Text>
+                <Text style={[styles.menuText, styles.menuDangerText]}>
+                  삭제
+                </Text>
               </Pressable>
             )}
-            {isAuthor && detailType === 'companion' && (
+            {isAuthor && detailType === "companion" && (
               <>
                 <Pressable
                   style={styles.menuItem}
                   onPress={() => handleParticipantsChange(1)}
                 >
-                  <Ionicons name="person-add-outline" size={19} color="#111111" />
+                  <Ionicons
+                    name="person-add-outline"
+                    size={19}
+                    color="#111111"
+                  />
                   <Text style={styles.menuText}>모집 인원 추가</Text>
                 </Pressable>
                 <Pressable
                   style={styles.menuItem}
                   onPress={() => handleParticipantsChange(-1)}
                 >
-                  <Ionicons name="person-remove-outline" size={19} color="#111111" />
+                  <Ionicons
+                    name="person-remove-outline"
+                    size={19}
+                    color="#111111"
+                  />
                   <Text style={styles.menuText}>모집 인원 감소</Text>
                 </Pressable>
               </>
@@ -812,9 +869,11 @@ export default function CommunityDetailScreen() {
               <Ionicons
                 name="refresh"
                 size={19}
-                color={refreshing ? '#A0A0A0' : '#111111'}
+                color={refreshing ? "#A0A0A0" : "#111111"}
               />
-              <Text style={[styles.menuText, refreshing && styles.menuTextMuted]}>
+              <Text
+                style={[styles.menuText, refreshing && styles.menuTextMuted]}
+              >
                 새로고침
               </Text>
             </Pressable>
@@ -852,62 +911,62 @@ function InfoItem({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   centerContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
   },
   emptyTitle: {
     fontSize: 17,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   emptyButton: {
     height: 44,
     borderRadius: 12,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 20,
   },
   emptyButtonText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   header: {
     height: 108,
     paddingTop: 58,
     paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F1F1',
+    borderBottomColor: "#F1F1F1",
   },
   headerIconButton: {
     width: 42,
     height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   scroll: {
     flex: 1,
   },
   content: {
-    width: '100%',
+    width: "100%",
     maxWidth: 760,
-    alignSelf: 'center',
+    alignSelf: "center",
     paddingHorizontal: 23,
     paddingTop: 24,
     paddingBottom: 54,
@@ -915,10 +974,10 @@ const styles = StyleSheet.create({
   titleBlock: {
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: "#F0F0F0",
   },
   statusBadge: {
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderRadius: 6,
     paddingHorizontal: 9,
     paddingVertical: 5,
@@ -926,77 +985,77 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   title: {
     fontSize: 23,
     lineHeight: 31,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     letterSpacing: 0,
   },
   metaRow: {
     marginTop: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 7,
   },
   authorText: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#333333',
+    fontWeight: "900",
+    color: "#333333",
   },
   metaText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#888888',
+    fontWeight: "700",
+    color: "#888888",
   },
   dot: {
     width: 3,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#C8C8C8',
+    backgroundColor: "#C8C8C8",
   },
   infoPanel: {
     marginTop: 18,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E8ECF3',
-    backgroundColor: '#F8FAFD',
+    borderColor: "#E8ECF3",
+    backgroundColor: "#F8FAFD",
     padding: 14,
     gap: 12,
   },
   infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 11,
   },
   infoIcon: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#EAF1FF',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF1FF",
   },
   infoIconAccent: {
-    backgroundColor: '#EAF7EF',
+    backgroundColor: "#EAF7EF",
   },
   infoTextBlock: {
     flex: 1,
   },
   infoLabel: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#8A8A8A',
+    fontWeight: "800",
+    color: "#8A8A8A",
     marginBottom: 3,
   },
   infoValue: {
     fontSize: 14,
     lineHeight: 19,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   bodyBlock: {
     paddingTop: 24,
@@ -1006,70 +1065,70 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   postImage: {
-    width: '100%',
+    width: "100%",
     height: 260,
     borderRadius: 14,
-    backgroundColor: '#F2F2F2',
+    backgroundColor: "#F2F2F2",
   },
   bodyText: {
     fontSize: 16,
     lineHeight: 26,
-    fontWeight: '600',
-    color: '#222222',
+    fontWeight: "600",
+    color: "#222222",
   },
   chatPanel: {
     marginTop: 28,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E8ECF3',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E8ECF3",
+    backgroundColor: "#FFFFFF",
     padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
   chatIcon: {
     width: 42,
     height: 42,
     borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F3FF',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0F3FF",
   },
   chatTextBlock: {
     flex: 1,
   },
   chatTitle: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 4,
   },
   chatLink: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#777777',
+    fontWeight: "700",
+    color: "#777777",
   },
   reactionBar: {
     marginTop: 28,
     height: 48,
     borderRadius: 14,
-    backgroundColor: '#F6F7F9',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#F6F7F9",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     gap: 18,
   },
   reactionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     height: 48,
   },
   reactionText: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#777777',
+    fontWeight: "900",
+    color: "#777777",
   },
   reactionTextActive: {
     color: BLUE,
@@ -1080,59 +1139,59 @@ const styles = StyleSheet.create({
   commentSection: {
     marginTop: 24,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: "#F0F0F0",
     paddingTop: 20,
     gap: 14,
   },
   commentTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   commentItem: {
     borderRadius: 14,
-    backgroundColor: '#F8F9FB',
+    backgroundColor: "#F8F9FB",
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8,
   },
   commentMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 10,
   },
   commentAuthor: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#333333',
+    fontWeight: "900",
+    color: "#333333",
   },
   commentTime: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#999999',
+    fontWeight: "700",
+    color: "#999999",
   },
   commentMetaRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 9,
   },
   commentDeleteText: {
     fontSize: 12,
-    fontWeight: '900',
-    color: '#D94343',
+    fontWeight: "900",
+    color: "#D94343",
   },
   commentContent: {
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '600',
-    color: '#333333',
+    fontWeight: "600",
+    color: "#333333",
   },
   commentInputBox: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E6EE',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E2E6EE",
+    backgroundColor: "#FFFFFF",
     padding: 12,
     gap: 10,
   },
@@ -1140,45 +1199,45 @@ const styles = StyleSheet.create({
     minHeight: 74,
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '600',
-    color: '#111111',
-    textAlignVertical: 'top',
+    fontWeight: "600",
+    color: "#111111",
+    textAlignVertical: "top",
   },
   commentSubmitButton: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     height: 38,
     borderRadius: 10,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 18,
   },
   commentSubmitButtonDisabled: {
-    backgroundColor: '#C7CBD6',
+    backgroundColor: "#C7CBD6",
   },
   commentSubmitText: {
     fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   menuOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.18)',
+    backgroundColor: "rgba(0, 0, 0, 0.18)",
   },
   menuBackdrop: {
     flex: 1,
   },
   menuSheet: {
-    position: 'absolute',
+    position: "absolute",
     top: 86,
     right: 18,
     width: 198,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#ECECEC',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#ECECEC",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 7,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 20,
@@ -1186,20 +1245,20 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     height: 47,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 10,
     paddingHorizontal: 15,
   },
   menuText: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   menuTextMuted: {
-    color: '#A0A0A0',
+    color: "#A0A0A0",
   },
   menuDangerText: {
-    color: '#D94343',
+    color: "#D94343",
   },
 });

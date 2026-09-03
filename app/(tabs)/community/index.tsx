@@ -1,8 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useFocusEffect } from "@react-navigation/native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Image,
@@ -14,35 +20,35 @@ import {
   TextInput,
   useWindowDimensions,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton } from "@/components/ui/app-back-button";
 import {
   CompanionPostResponse,
   getCompanionPosts,
-} from '../../src/api/companion';
+} from "../../../src/api/companion";
 import {
   FreePostStatusFilter,
   FreePostSummaryResponse,
   getFreePosts,
-} from '../../src/api/freePosts';
-import { BLUE, GREEN } from '../../src/data/community';
+} from "../../../src/api/freePosts";
+import { BLUE, GREEN } from "../../../src/data/community";
 
-const communityTabs = ['자유 게시판', '동행 구하기'] as const;
-const countryFilters = ['전체 국가', '프랑스', '독일', '스페인', '네덜란드'];
-const boardStatusFilters = ['전체', '파견 전', '파견 중'] as const;
-const companionStatusFilters = ['전체', '모집중', '모집완료'];
-const sortFilters = ['최신순', '마감임박순'];
+const communityTabs = ["자유 게시판", "동행 구하기"] as const;
+const countryFilters = ["전체 국가", "프랑스", "독일", "스페인", "네덜란드"];
+const boardStatusFilters = ["전체", "파견 전", "파견 중"] as const;
+const companionStatusFilters = ["전체", "모집중", "모집완료"];
+const sortFilters = ["최신순", "마감임박순"];
 const COMMUNITY_PAGE_SIZE = 10;
 
 type CommunityTab = (typeof communityTabs)[number];
-type DropdownKey = 'status' | 'country' | 'sort' | null;
-type DatePickerTarget = 'start' | 'end' | null;
+type DropdownKey = "status" | "country" | "sort" | null;
+type DatePickerTarget = "start" | "end" | null;
 
 const formatDate = (date: Date) => {
   const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 };
@@ -73,37 +79,37 @@ const parseDate = (dateText: string) => {
 
 const formatDateText = (value?: string) => {
   if (!value) {
-    return '';
+    return "";
   }
 
-  return value.slice(0, 10).replaceAll('-', '.');
+  return value.slice(0, 10).replaceAll("-", ".");
 };
 
 const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
-  const start = startDate?.slice(5).replace('-', '/') || '';
-  const end = endDate?.slice(5).replace('-', '/') || '';
+  const start = startDate?.slice(5).replace("-", "/") || "";
+  const end = endDate?.slice(5).replace("-", "/") || "";
 
   if (!start) {
-    return '';
+    return "";
   }
 
   return start === end || !end ? start : `${start} - ${end}`;
 };
 
 const getBoardStatusColors = (status: string) => {
-  if (status === '파견 중') {
-    return { backgroundColor: '#DDF4E4', color: '#238451' };
+  if (status === "파견 중") {
+    return { backgroundColor: "#DDF4E4", color: "#238451" };
   }
 
-  if (status === '파견 전') {
-    return { backgroundColor: '#EAF1FF', color: '#2F66D0' };
+  if (status === "파견 전") {
+    return { backgroundColor: "#EAF1FF", color: "#2F66D0" };
   }
 
-  return { backgroundColor: '#FFF1DF', color: '#F28A2E' };
+  return { backgroundColor: "#FFF1DF", color: "#F28A2E" };
 };
 
-const getCompanionStatusText = (status: CompanionPostResponse['status']) =>
-  status === 'RECRUITING' ? '모집중' : '모집완료';
+const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
+  status === "RECRUITING" ? "모집중" : "모집완료";
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -112,85 +118,109 @@ export default function CommunityScreen() {
     fromTab?: string | string[];
   }>();
   const { width } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState<CommunityTab>('자유 게시판');
-  const [boardKeyword, setBoardKeyword] = useState('');
+  const [activeTab, setActiveTab] = useState<CommunityTab>("자유 게시판");
+  const [boardKeyword, setBoardKeyword] = useState("");
   const [selectedBoardStatus, setSelectedBoardStatus] =
-    useState<FreePostStatusFilter>('전체');
-  const [selectedCompanionStatus, setSelectedCompanionStatus] = useState('전체');
-  const [selectedCompanionCountry, setSelectedCompanionCountry] = useState('전체 국가');
-  const [companionStartDate, setCompanionStartDate] = useState('');
-  const [companionEndDate, setCompanionEndDate] = useState('');
-  const [selectedCompanionSort, setSelectedCompanionSort] = useState('최신순');
-  const [draftCompanionStatus, setDraftCompanionStatus] = useState('전체');
-  const [draftCompanionCountry, setDraftCompanionCountry] = useState('전체 국가');
-  const [draftCompanionStartDate, setDraftCompanionStartDate] = useState('');
-  const [draftCompanionEndDate, setDraftCompanionEndDate] = useState('');
-  const [draftCompanionSort, setDraftCompanionSort] = useState('최신순');
+    useState<FreePostStatusFilter>("전체");
+  const [selectedCompanionStatus, setSelectedCompanionStatus] =
+    useState("전체");
+  const [selectedCompanionCountry, setSelectedCompanionCountry] =
+    useState("전체 국가");
+  const [companionStartDate, setCompanionStartDate] = useState("");
+  const [companionEndDate, setCompanionEndDate] = useState("");
+  const [selectedCompanionSort, setSelectedCompanionSort] = useState("최신순");
+  const [draftCompanionStatus, setDraftCompanionStatus] = useState("전체");
+  const [draftCompanionCountry, setDraftCompanionCountry] =
+    useState("전체 국가");
+  const [draftCompanionStartDate, setDraftCompanionStartDate] = useState("");
+  const [draftCompanionEndDate, setDraftCompanionEndDate] = useState("");
+  const [draftCompanionSort, setDraftCompanionSort] = useState("최신순");
   const [openDropdown, setOpenDropdown] = useState<DropdownKey>(null);
-  const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget>(null);
+  const [datePickerTarget, setDatePickerTarget] =
+    useState<DatePickerTarget>(null);
   const [draftDate, setDraftDate] = useState(new Date());
   const [boardPosts, setBoardPosts] = useState<FreePostSummaryResponse[]>([]);
-  const [companionPosts, setCompanionPosts] = useState<CompanionPostResponse[]>([]);
-  const [boardNextCursorId, setBoardNextCursorId] = useState<number | null>(null);
-  const [companionNextCursorId, setCompanionNextCursorId] = useState<number | null>(null);
+  const [companionPosts, setCompanionPosts] = useState<CompanionPostResponse[]>(
+    [],
+  );
+  const [boardNextCursorId, setBoardNextCursorId] = useState<number | null>(
+    null,
+  );
+  const [companionNextCursorId, setCompanionNextCursorId] = useState<
+    number | null
+  >(null);
   const [boardHasNext, setBoardHasNext] = useState(false);
   const [companionHasNext, setCompanionHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
   const didMountRef = useRef(false);
-  const boardKeywordRef = useRef('');
+  const boardKeywordRef = useRef("");
   const isWide = width >= 768;
 
-  const loadFreePosts = useCallback(async (
-    cursorId?: number,
-    append = false,
-    keywordText = boardKeywordRef.current,
-    statusFilter = selectedBoardStatus,
-  ) => {
-    const keyword = keywordText.trim();
-    try {
-      const freeResponse = await getFreePosts({
-        cursorId,
-        keyword: keyword.length > 0 ? keyword : undefined,
-        size: COMMUNITY_PAGE_SIZE,
-      }, statusFilter);
-      const cursorData = freeResponse.data.data;
-      const nextItems = cursorData?.items ?? [];
+  const loadFreePosts = useCallback(
+    async (
+      cursorId?: number,
+      append = false,
+      keywordText = boardKeywordRef.current,
+      statusFilter = selectedBoardStatus,
+    ) => {
+      const keyword = keywordText.trim();
+      try {
+        const freeResponse = await getFreePosts(
+          {
+            cursorId,
+            keyword: keyword.length > 0 ? keyword : undefined,
+            size: COMMUNITY_PAGE_SIZE,
+          },
+          statusFilter,
+        );
+        const cursorData = freeResponse.data.data;
+        const nextItems = cursorData?.items ?? [];
 
-      setBoardPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
-      setBoardNextCursorId(cursorData?.nextCursorId ?? null);
-      setBoardHasNext(cursorData?.hasNext ?? false);
-    } catch (error: any) {
-      console.log('자유게시판 목록 조회 실패:', error.response?.data || error.message);
-    }
-  }, [selectedBoardStatus]);
+        setBoardPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
+        setBoardNextCursorId(cursorData?.nextCursorId ?? null);
+        setBoardHasNext(cursorData?.hasNext ?? false);
+      } catch (error: any) {
+        console.log(
+          "자유게시판 목록 조회 실패:",
+          error.response?.data || error.message,
+        );
+      }
+    },
+    [selectedBoardStatus],
+  );
 
-  const loadCompanionPosts = useCallback(async (cursorId?: number, append = false) => {
-    try {
-      const companionResponse = await getCompanionPosts({
-        cursorId,
-        size: COMMUNITY_PAGE_SIZE,
-      });
-      const cursorData = companionResponse.data.data;
-      const nextItems = cursorData?.items ?? [];
+  const loadCompanionPosts = useCallback(
+    async (cursorId?: number, append = false) => {
+      try {
+        const companionResponse = await getCompanionPosts({
+          cursorId,
+          size: COMMUNITY_PAGE_SIZE,
+        });
+        const cursorData = companionResponse.data.data;
+        const nextItems = cursorData?.items ?? [];
 
-      setCompanionPosts((prev) => (append ? [...prev, ...nextItems] : nextItems));
-      setCompanionNextCursorId(cursorData?.nextCursorId ?? null);
-      setCompanionHasNext(cursorData?.hasNext ?? false);
-    } catch (error: any) {
-      console.log('동행 구하기 목록 조회 실패:', error.response?.data || error.message);
-    }
-  }, []);
+        setCompanionPosts((prev) =>
+          append ? [...prev, ...nextItems] : nextItems,
+        );
+        setCompanionNextCursorId(cursorData?.nextCursorId ?? null);
+        setCompanionHasNext(cursorData?.hasNext ?? false);
+      } catch (error: any) {
+        console.log(
+          "동행 구하기 목록 조회 실패:",
+          error.response?.data || error.message,
+        );
+      }
+    },
+    [],
+  );
 
   const loadCommunityPosts = useCallback(async () => {
     setLoading(true);
 
     try {
-      await Promise.all([
-        loadFreePosts(),
-        loadCompanionPosts(),
-      ]);
+      await Promise.all([loadFreePosts(), loadCompanionPosts()]);
     } finally {
       setLoading(false);
     }
@@ -203,14 +233,23 @@ export default function CommunityScreen() {
 
     setLoadingMoreBoard(true);
     try {
-      await loadFreePosts(boardNextCursorId, true, boardKeywordRef.current, selectedBoardStatus);
+      await loadFreePosts(
+        boardNextCursorId,
+        true,
+        boardKeywordRef.current,
+        selectedBoardStatus,
+      );
     } finally {
       setLoadingMoreBoard(false);
     }
   };
 
   const handleLoadMoreCompanion = async () => {
-    if (!companionHasNext || companionNextCursorId == null || loadingMoreCompanion) {
+    if (
+      !companionHasNext ||
+      companionNextCursorId == null ||
+      loadingMoreCompanion
+    ) {
       return;
     }
 
@@ -245,72 +284,70 @@ export default function CommunityScreen() {
 
   const companionCountryFilterItems = useMemo(
     () => [
-      '전체 국가',
-      ...Array.from(new Set(companionPosts.map((post) => post.country).filter(Boolean))),
+      "전체 국가",
+      ...Array.from(
+        new Set(companionPosts.map((post) => post.country).filter(Boolean)),
+      ),
     ],
     [companionPosts],
   );
 
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
-  const openedFromTab = (Array.isArray(fromTab) ? fromTab[0] : fromTab) === 'true';
+  const openedFromTab =
+    (Array.isArray(fromTab) ? fromTab[0] : fromTab) === "true";
 
   useEffect(() => {
-    if (initialTab === 'companion') {
-      setActiveTab('동행 구하기');
+    if (initialTab === "companion") {
+      setActiveTab("동행 구하기");
     }
   }, [initialTab]);
 
-  const filteredBoardPosts = useMemo(
-    () => {
-      const keyword = boardKeyword.trim().toLowerCase();
+  const filteredBoardPosts = useMemo(() => {
+    const keyword = boardKeyword.trim().toLowerCase();
 
-      return boardPosts.filter((post) => {
-        const matchesKeyword =
-          keyword.length === 0 ||
-          `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
-        const matchesStatus =
-          selectedBoardStatus === '전체' || post.status === selectedBoardStatus;
+    return boardPosts.filter((post) => {
+      const matchesKeyword =
+        keyword.length === 0 ||
+        `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
+      const matchesStatus =
+        selectedBoardStatus === "전체" || post.status === selectedBoardStatus;
 
-        return matchesKeyword && matchesStatus;
-      });
-    },
-    [boardKeyword, boardPosts, selectedBoardStatus],
-  );
+      return matchesKeyword && matchesStatus;
+    });
+  }, [boardKeyword, boardPosts, selectedBoardStatus]);
 
-  const filteredCompanions = useMemo(
-    () => {
-      const filtered = companionPosts.filter((post) => {
-        const matchesStatus =
-          selectedCompanionStatus === '전체' ||
-          getCompanionStatusText(post.status) === selectedCompanionStatus;
-        const matchesCountry =
-          selectedCompanionCountry === '전체 국가' ||
-          post.country === selectedCompanionCountry;
-        const matchesDate =
-          (!companionStartDate || post.startDate >= companionStartDate) &&
-          (!companionEndDate || post.startDate <= companionEndDate);
+  const filteredCompanions = useMemo(() => {
+    const filtered = companionPosts.filter((post) => {
+      const matchesStatus =
+        selectedCompanionStatus === "전체" ||
+        getCompanionStatusText(post.status) === selectedCompanionStatus;
+      const matchesCountry =
+        selectedCompanionCountry === "전체 국가" ||
+        post.country === selectedCompanionCountry;
+      const matchesDate =
+        (!companionStartDate || post.startDate >= companionStartDate) &&
+        (!companionEndDate || post.startDate <= companionEndDate);
 
-        return matchesStatus && matchesCountry && matchesDate;
-      });
+      return matchesStatus && matchesCountry && matchesDate;
+    });
 
-      return [...filtered].sort((a, b) =>
-          selectedCompanionSort === '마감임박순'
-          ? a.startDate.localeCompare(b.startDate)
-          : b.createdAt.localeCompare(a.createdAt),
-      );
-    },
-    [
-      companionEndDate,
-      companionStartDate,
-      selectedCompanionCountry,
-      selectedCompanionSort,
-      selectedCompanionStatus,
-      companionPosts,
-    ],
-  );
+    return [...filtered].sort((a, b) =>
+      selectedCompanionSort === "마감임박순"
+        ? a.startDate.localeCompare(b.startDate)
+        : b.createdAt.localeCompare(a.createdAt),
+    );
+  }, [
+    companionEndDate,
+    companionStartDate,
+    selectedCompanionCountry,
+    selectedCompanionSort,
+    selectedCompanionStatus,
+    companionPosts,
+  ]);
 
   const openCompanionDatePicker = (target: Exclude<DatePickerTarget, null>) => {
-    const currentValue = target === 'start' ? draftCompanionStartDate : draftCompanionEndDate;
+    const currentValue =
+      target === "start" ? draftCompanionStartDate : draftCompanionEndDate;
     setDraftDate(parseDate(currentValue) || new Date());
     setDatePickerTarget(target);
   };
@@ -318,17 +355,17 @@ export default function CommunityScreen() {
   const handleConfirmDate = () => {
     const nextDate = formatDate(draftDate);
 
-    if (datePickerTarget === 'start') {
+    if (datePickerTarget === "start") {
       setDraftCompanionStartDate(nextDate);
       if (draftCompanionEndDate && draftCompanionEndDate < nextDate) {
-        setDraftCompanionEndDate('');
+        setDraftCompanionEndDate("");
       }
     }
 
-    if (datePickerTarget === 'end') {
+    if (datePickerTarget === "end") {
       setDraftCompanionEndDate(nextDate);
       if (draftCompanionStartDate && draftCompanionStartDate > nextDate) {
-        setDraftCompanionStartDate('');
+        setDraftCompanionStartDate("");
       }
     }
 
@@ -346,8 +383,8 @@ export default function CommunityScreen() {
 
   const handleFabPress = () => {
     router.push({
-      pathname: '/community-write',
-      params: { type: activeTab === '자유 게시판' ? 'free' : 'companion' },
+      pathname: "/community-write",
+      params: { type: activeTab === "자유 게시판" ? "free" : "companion" },
     } as never);
   };
 
@@ -370,21 +407,19 @@ export default function CommunityScreen() {
         <View style={styles.headerRight}>
           <Pressable
             style={styles.iconBtn}
-            onPress={() =>
-              router.push('/notifications' as any)
-            }
+            onPress={() => router.push("/notifications" as any)}
           >
             <Image
-              source={require('../../assets/images/alarm.png')}
+              source={require("../../../assets/images/alarm.png")}
               style={styles.icon}
             />
           </Pressable>
           <Pressable
             style={styles.iconBtn}
-            onPress={() => router.push('/more-menu' as any)}
+            onPress={() => router.push("/more-menu" as any)}
           >
             <Image
-              source={require('../../assets/images/menu.png')}
+              source={require("../../../assets/images/menu.png")}
               style={styles.icon}
             />
           </Pressable>
@@ -393,10 +428,7 @@ export default function CommunityScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          isWide && styles.contentWide,
-        ]}
+        contentContainerStyle={[styles.content, isWide && styles.contentWide]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.tradeTypeBox}>
@@ -406,7 +438,10 @@ export default function CommunityScreen() {
             return (
               <Pressable
                 key={tab}
-                style={[styles.tradeTypeButton, active && styles.tradeTypeActive]}
+                style={[
+                  styles.tradeTypeButton,
+                  active && styles.tradeTypeActive,
+                ]}
                 onPress={() => setActiveTab(tab)}
               >
                 <Text
@@ -422,7 +457,7 @@ export default function CommunityScreen() {
           })}
         </View>
 
-        {activeTab === '자유 게시판' ? (
+        {activeTab === "자유 게시판" ? (
           <View>
             <View style={styles.searchBox}>
               <Ionicons name="search" size={19} color="#9A9A9A" />
@@ -472,8 +507,8 @@ export default function CommunityScreen() {
                   style={[styles.boardCard, isWide && styles.gridCard]}
                   onPress={() =>
                     router.push({
-                      pathname: '/community-detail',
-                      params: { type: 'free', id: String(post.id) },
+                      pathname: "/community-detail",
+                      params: { type: "free", id: String(post.id) },
                     } as never)
                   }
                 >
@@ -481,7 +516,10 @@ export default function CommunityScreen() {
                     <View
                       style={[
                         styles.statusBadge,
-                        { backgroundColor: getBoardStatusColors(post.status).backgroundColor },
+                        {
+                          backgroundColor: getBoardStatusColors(post.status)
+                            .backgroundColor,
+                        },
                       ]}
                     >
                       <Text
@@ -511,14 +549,24 @@ export default function CommunityScreen() {
 
                     <View style={styles.statsRow}>
                       <View style={styles.statItem}>
-                        <Ionicons name="thumbs-up-outline" size={13} color="#A5A5A5" />
+                        <Ionicons
+                          name="thumbs-up-outline"
+                          size={13}
+                          color="#A5A5A5"
+                        />
                         <Text style={styles.statText}>{post.likeCount}</Text>
                       </View>
                       <View style={styles.statItem}>
-                        <Ionicons name="chatbubble-outline" size={13} color="#A5A5A5" />
+                        <Ionicons
+                          name="chatbubble-outline"
+                          size={13}
+                          color="#A5A5A5"
+                        />
                         <Text style={styles.statText}>{post.commentCount}</Text>
                       </View>
-                      <Text style={styles.timeText}>{formatDateText(post.createdAt)}</Text>
+                      <Text style={styles.timeText}>
+                        {formatDateText(post.createdAt)}
+                      </Text>
                     </View>
                   </View>
                 </Pressable>
@@ -552,8 +600,8 @@ export default function CommunityScreen() {
                   <Pressable
                     style={styles.clearDateButton}
                     onPress={() => {
-                      setDraftCompanionStartDate('');
-                      setDraftCompanionEndDate('');
+                      setDraftCompanionStartDate("");
+                      setDraftCompanionEndDate("");
                     }}
                   >
                     <Ionicons name="refresh" size={13} color="#666666" />
@@ -568,8 +616,10 @@ export default function CommunityScreen() {
                   label={draftCompanionStatus}
                   items={companionStatusFilters}
                   selected={draftCompanionStatus}
-                  open={openDropdown === 'status'}
-                  onToggle={() => setOpenDropdown(openDropdown === 'status' ? null : 'status')}
+                  open={openDropdown === "status"}
+                  onToggle={() =>
+                    setOpenDropdown(openDropdown === "status" ? null : "status")
+                  }
                   onSelect={(item) => {
                     setDraftCompanionStatus(item);
                     setOpenDropdown(null);
@@ -584,9 +634,11 @@ export default function CommunityScreen() {
                       : countryFilters
                   }
                   selected={draftCompanionCountry}
-                  open={openDropdown === 'country'}
+                  open={openDropdown === "country"}
                   onToggle={() =>
-                    setOpenDropdown(openDropdown === 'country' ? null : 'country')
+                    setOpenDropdown(
+                      openDropdown === "country" ? null : "country",
+                    )
                   }
                   onSelect={(item) => {
                     setDraftCompanionCountry(item);
@@ -598,8 +650,10 @@ export default function CommunityScreen() {
                   label={draftCompanionSort}
                   items={sortFilters}
                   selected={draftCompanionSort}
-                  open={openDropdown === 'sort'}
-                  onToggle={() => setOpenDropdown(openDropdown === 'sort' ? null : 'sort')}
+                  open={openDropdown === "sort"}
+                  onToggle={() =>
+                    setOpenDropdown(openDropdown === "sort" ? null : "sort")
+                  }
                   onSelect={(item) => {
                     setDraftCompanionSort(item);
                     setOpenDropdown(null);
@@ -611,13 +665,13 @@ export default function CommunityScreen() {
                 <DateRangeButton
                   label="시작일"
                   value={draftCompanionStartDate}
-                  onPress={() => openCompanionDatePicker('start')}
+                  onPress={() => openCompanionDatePicker("start")}
                 />
                 <View style={styles.dateRangeDivider} />
                 <DateRangeButton
                   label="종료일"
                   value={draftCompanionEndDate}
-                  onPress={() => openCompanionDatePicker('end')}
+                  onPress={() => openCompanionDatePicker("end")}
                 />
               </View>
 
@@ -640,12 +694,17 @@ export default function CommunityScreen() {
                   style={[styles.companionCard, isWide && styles.gridCard]}
                   onPress={() =>
                     router.push({
-                      pathname: '/community-detail',
-                      params: { type: 'companion', id: String(post.id) },
+                      pathname: "/community-detail",
+                      params: { type: "companion", id: String(post.id) },
                     } as never)
                   }
                 >
-                  <View style={[styles.companionThumb, { backgroundColor: '#EAF1FF' }]}>
+                  <View
+                    style={[
+                      styles.companionThumb,
+                      { backgroundColor: "#EAF1FF" },
+                    ]}
+                  >
                     <Ionicons name="map-outline" size={23} color="#2F66D0" />
                   </View>
 
@@ -657,13 +716,14 @@ export default function CommunityScreen() {
                       <View
                         style={[
                           styles.smallStatus,
-                          post.status === 'COMPLETED' && styles.smallStatusDone,
+                          post.status === "COMPLETED" && styles.smallStatusDone,
                         ]}
                       >
                         <Text
                           style={[
                             styles.smallStatusText,
-                            post.status === 'COMPLETED' && styles.smallStatusDoneText,
+                            post.status === "COMPLETED" &&
+                              styles.smallStatusDoneText,
                           ]}
                         >
                           {getCompanionStatusText(post.status)}
@@ -672,13 +732,17 @@ export default function CommunityScreen() {
                     </View>
 
                     <Text style={styles.companionMeta}>
-                      {post.country} · {post.region} ·{' '}
+                      {post.country} · {post.region} ·{" "}
                       {formatCompanionPeriod(post.startDate, post.endDate)}
                     </Text>
 
                     <View style={styles.companionFooter}>
                       <View style={styles.peopleRow}>
-                        <Ionicons name="people-outline" size={14} color="#777777" />
+                        <Ionicons
+                          name="people-outline"
+                          size={14}
+                          color="#777777"
+                        />
                         <Text style={styles.peopleText}>
                           {post.currentParticipants}/{post.capacity}명
                         </Text>
@@ -689,9 +753,7 @@ export default function CommunityScreen() {
                           size={14}
                           color={GREEN}
                         />
-                        <Text style={styles.verifyText}>
-                          학교인증
-                        </Text>
+                        <Text style={styles.verifyText}>학교인증</Text>
                       </View>
                     </View>
                   </View>
@@ -735,7 +797,7 @@ export default function CommunityScreen() {
               </Pressable>
 
               <Text style={styles.pickerTitle}>
-                {datePickerTarget === 'start' ? '시작일 선택' : '종료일 선택'}
+                {datePickerTarget === "start" ? "시작일 선택" : "종료일 선택"}
               </Text>
 
               <Pressable onPress={handleConfirmDate}>
@@ -764,7 +826,7 @@ export default function CommunityScreen() {
       <Pressable style={styles.fab} onPress={handleFabPress}>
         <Ionicons name="create-outline" size={20} color="#FFFFFF" />
         <Text style={styles.fabText}>
-          {activeTab === '자유 게시판' ? '글쓰기' : '동행 모집'}
+          {activeTab === "자유 게시판" ? "글쓰기" : "동행 모집"}
         </Text>
       </Pressable>
     </View>
@@ -798,7 +860,7 @@ function DropdownFilter({
           {label}
         </Text>
         <Ionicons
-          name={open ? 'chevron-up' : 'chevron-down'}
+          name={open ? "chevron-up" : "chevron-down"}
           size={15}
           color="#555555"
         />
@@ -811,7 +873,10 @@ function DropdownFilter({
             return (
               <Pressable
                 key={item}
-                style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                style={[
+                  styles.dropdownItem,
+                  active && styles.dropdownItemActive,
+                ]}
                 onPress={() => onSelect(item)}
               >
                 <Text
@@ -851,9 +916,11 @@ function DateRangeButton({
         <Ionicons
           name="calendar-outline"
           size={14}
-          color={active ? BLUE : '#8A8A8A'}
+          color={active ? BLUE : "#8A8A8A"}
         />
-        <Text style={[styles.dateRangeLabel, active && styles.dateRangeLabelActive]}>
+        <Text
+          style={[styles.dateRangeLabel, active && styles.dateRangeLabelActive]}
+        >
           {label}
         </Text>
       </View>
@@ -861,7 +928,7 @@ function DateRangeButton({
         style={[styles.dateRangeValue, active && styles.dateRangeValueActive]}
         numberOfLines={1}
       >
-        {active ? value : '날짜 선택'}
+        {active ? value : "날짜 선택"}
       </Text>
     </Pressable>
   );
@@ -870,33 +937,33 @@ function DateRangeButton({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   centerContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 23,
     paddingTop: 84,
     paddingBottom: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   headerTitle: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     letterSpacing: 0,
   },
   headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 17,
   },
   headerBackButton: {
@@ -907,14 +974,14 @@ const styles = StyleSheet.create({
   iconBtn: {
     width: 22,
     height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
   },
   icon: {
     width: 22,
     height: 22,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   scroll: {
     flex: 1,
@@ -924,51 +991,51 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   contentWide: {
-    width: '100%',
+    width: "100%",
     maxWidth: 980,
-    alignSelf: 'center',
+    alignSelf: "center",
   },
   tradeTypeBox: {
     height: 55,
-    backgroundColor: '#F0F3F7',
+    backgroundColor: "#F0F3F7",
     borderRadius: 10,
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 5,
     marginBottom: 16,
   },
   tradeTypeButton: {
     flex: 1,
     borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   tradeTypeActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   tradeTypeText: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#8F8F8F',
+    fontWeight: "800",
+    color: "#8F8F8F",
   },
   tradeTypeTextActive: {
-    color: '#111111',
-    fontWeight: '900',
+    color: "#111111",
+    fontWeight: "900",
   },
   searchBox: {
     height: 45,
     borderRadius: 13,
-    backgroundColor: '#F2F2F2',
+    backgroundColor: "#F2F2F2",
     paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginBottom: 13,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111111',
+    fontWeight: "600",
+    color: "#111111",
     paddingVertical: 0,
   },
   boardStatusFilterRow: {
@@ -980,29 +1047,29 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 13,
   },
   boardStatusFilterActive: {
-    borderColor: '#DCE7FF',
-    backgroundColor: '#EAF1FF',
+    borderColor: "#DCE7FF",
+    backgroundColor: "#EAF1FF",
   },
   boardStatusFilterText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#64748B',
+    fontWeight: "800",
+    color: "#64748B",
   },
   boardStatusFilterTextActive: {
     color: BLUE,
   },
   dropdownWrap: {
-    position: 'relative',
+    position: "relative",
     zIndex: 20,
     marginBottom: 12,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   dropdownWrapCompact: {
     marginBottom: 0,
@@ -1013,11 +1080,11 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 19,
     borderWidth: 1,
-    borderColor: '#DDDDDD',
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderColor: "#DDDDDD",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
     paddingHorizontal: 14,
   },
@@ -1026,27 +1093,27 @@ const styles = StyleSheet.create({
     maxWidth: 150,
     height: 40,
     borderRadius: 12,
-    borderColor: '#E6EAF2',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E6EAF2",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 13,
   },
   dropdownText: {
     flex: 1,
     fontSize: 13,
-    fontWeight: '800',
-    color: '#333333',
+    fontWeight: "800",
+    color: "#333333",
   },
   dropdownMenu: {
-    position: 'absolute',
+    position: "absolute",
     top: 45,
     left: 0,
     minWidth: 132,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E7EAF0',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E7EAF0",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 6,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 18,
@@ -1058,16 +1125,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   dropdownItemActive: {
-    backgroundColor: '#F0F3F7',
+    backgroundColor: "#F0F3F7",
   },
   dropdownItemText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#555555',
+    fontWeight: "700",
+    color: "#555555",
   },
   dropdownItemTextActive: {
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   boardList: {
     gap: 12,
@@ -1076,36 +1143,36 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DDE4F0',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#DDE4F0",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   loadMoreText: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: "900",
     color: BLUE,
   },
   gridList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'stretch',
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "stretch",
   },
   boardCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: "#E8E8E8",
     padding: 13,
   },
   gridCard: {
-    width: '48.7%',
+    width: "48.7%",
   },
   boardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   statusBadge: {
@@ -1115,77 +1182,77 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   timeText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: '#B4B4B4',
+    fontWeight: "600",
+    color: "#B4B4B4",
   },
   boardTitle: {
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   boardPreview: {
     marginTop: 4,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '500',
-    color: '#777777',
+    fontWeight: "500",
+    color: "#777777",
   },
   boardFooter: {
     marginTop: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 10,
   },
   authorRow: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   metaText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#888888',
+    fontWeight: "600",
+    color: "#888888",
   },
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   statText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#A5A5A5',
+    fontWeight: "700",
+    color: "#A5A5A5",
   },
   compactFilterBar: {
-    position: 'relative',
+    position: "relative",
     zIndex: 30,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 8,
     marginBottom: 12,
   },
   companionFilterPanel: {
-    position: 'relative',
+    position: "relative",
     zIndex: 30,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#E8ECF3',
-    backgroundColor: '#F8FAFD',
+    borderColor: "#E8ECF3",
+    backgroundColor: "#F8FAFD",
     padding: 13,
     marginBottom: 18,
-    shadowColor: '#1B2A4A',
+    shadowColor: "#1B2A4A",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.06,
     shadowRadius: 18,
@@ -1193,39 +1260,39 @@ const styles = StyleSheet.create({
   },
   filterTopRow: {
     minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 10,
     marginBottom: 11,
   },
   filterTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   filterPanelTitle: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   clearDateButton: {
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#EEF1F6',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#EEF1F6",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
     paddingHorizontal: 10,
   },
   clearDateText: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#666666',
+    fontWeight: "800",
+    color: "#666666",
   },
   dateRangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 9,
   },
   dateRangeButton: {
@@ -1233,25 +1300,25 @@ const styles = StyleSheet.create({
     minHeight: 64,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E5EAF2',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E5EAF2",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    justifyContent: 'space-between',
+    justifyContent: "space-between",
   },
   dateRangeButtonActive: {
-    borderColor: '#C9D4FF',
-    backgroundColor: '#F4F7FF',
+    borderColor: "#C9D4FF",
+    backgroundColor: "#F4F7FF",
   },
   dateRangeLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
   dateRangeLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    color: '#8A8A8A',
+    fontWeight: "800",
+    color: "#8A8A8A",
   },
   dateRangeLabelActive: {
     color: BLUE,
@@ -1259,35 +1326,35 @@ const styles = StyleSheet.create({
   dateRangeValue: {
     marginTop: 8,
     fontSize: 14,
-    fontWeight: '900',
-    color: '#A0A0A0',
+    fontWeight: "900",
+    color: "#A0A0A0",
   },
   dateRangeValueActive: {
-    color: '#111111',
+    color: "#111111",
   },
   dateRangeDivider: {
     width: 10,
     height: 1,
     borderRadius: 1,
-    backgroundColor: '#B9C0CC',
+    backgroundColor: "#B9C0CC",
   },
   applyFilterButton: {
     height: 43,
     borderRadius: 13,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 12,
   },
   applyFilterText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   nowHeader: {
     marginTop: 0,
@@ -1297,109 +1364,109 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   companionCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E9E9E9',
+    borderColor: "#E9E9E9",
     padding: 12,
   },
   companionThumb: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 11,
   },
   companionBody: {
     flex: 1,
   },
   companionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   companionTitle: {
     flex: 1,
     fontSize: 15,
     lineHeight: 20,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   smallStatus: {
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 5,
-    backgroundColor: '#EEF3FF',
+    backgroundColor: "#EEF3FF",
   },
   smallStatusDone: {
-    backgroundColor: '#F2F2F2',
+    backgroundColor: "#F2F2F2",
   },
   smallStatusText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: "900",
     color: BLUE,
   },
   smallStatusDoneText: {
-    color: '#777777',
+    color: "#777777",
   },
   companionMeta: {
     marginTop: 5,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#777777',
+    fontWeight: "600",
+    color: "#777777",
   },
   tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 6,
     marginTop: 9,
   },
   tagChip: {
     borderRadius: 6,
-    backgroundColor: '#F4F4F4',
+    backgroundColor: "#F4F4F4",
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   tagText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#777777',
+    fontWeight: "700",
+    color: "#777777",
   },
   companionFooter: {
     marginTop: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   peopleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
   peopleText: {
     fontSize: 12,
-    fontWeight: '800',
-    color: '#555555',
+    fontWeight: "800",
+    color: "#555555",
   },
   verifyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   verifyText: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: "900",
     color: GREEN,
   },
   verifyTextInactive: {
-    color: '#A5A5A5',
+    color: "#A5A5A5",
   },
   pickerOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(17, 17, 17, 0.32)',
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(17, 17, 17, 0.32)",
   },
   pickerBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -1407,51 +1474,51 @@ const styles = StyleSheet.create({
   pickerSheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingBottom: 28,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   pickerHeader: {
     height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEF0F4',
+    borderBottomColor: "#EEF0F4",
   },
   pickerCancel: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#777777',
+    fontWeight: "800",
+    color: "#777777",
   },
   pickerTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
   pickerDone: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: "900",
     color: BLUE,
   },
   iosPicker: {
     height: 210,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   fab: {
-    position: 'absolute',
+    position: "absolute",
     right: 23,
     bottom: 30,
     height: 52,
     borderRadius: 26,
     backgroundColor: BLUE,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 7,
     paddingHorizontal: 18,
-    shadowColor: '#000000',
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.16,
     shadowRadius: 14,
@@ -1459,7 +1526,7 @@ const styles = StyleSheet.create({
   },
   fabText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
 });

@@ -1797,7 +1797,7 @@ const styles = StyleSheet.create({
   fabButton: {
     position: 'absolute',
     right: 24,
-    bottom: 42,
+    bottom: 100,
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -1825,7 +1825,7 @@ const styles = StyleSheet.create({
   fabMenu: {
     position: 'absolute',
     right: 24,
-    bottom: 104,
+    bottom: 162,
     width: 270,
     backgroundColor: '#4A4A4A',
     borderRadius: 8,

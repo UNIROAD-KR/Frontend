@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,39 +9,39 @@ import {
   StyleSheet,
   Text,
   View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ChatRoomResponse, getChatRooms } from '../../src/api/chat';
+import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
 
-const BLUE = '#102BE0';
+const BLUE = "#102BE0";
 
 const getRoomTitle = (room: ChatRoomResponse) =>
-  room.referenceType === 'TRADE' ? '중고거래 채팅' : '멘토링 채팅';
+  room.referenceType === "TRADE" ? "중고거래 채팅" : "멘토링 채팅";
 
 const getRoomSubtitle = (room: ChatRoomResponse) =>
-  room.referenceType === 'TRADE'
+  room.referenceType === "TRADE"
     ? `거래글 #${room.referenceId}`
     : `멘토링 #${room.referenceId}`;
 
 const formatRoomTime = (value?: string) => {
-  if (!value) return '';
+  if (!value) return "";
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return value.slice(0, 10).replaceAll('-', '.');
+    return value.slice(0, 10).replaceAll("-", ".");
   }
 
   const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
 
-  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 1) return "방금 전";
   if (diffMinutes < 60) return `${diffMinutes}분 전`;
 
   const diffHours = Math.floor(diffMinutes / 60);
   if (diffHours < 24) return `${diffHours}시간 전`;
 
-  return value.slice(0, 10).replaceAll('-', '.');
+  return value.slice(0, 10).replaceAll("-", ".");
 };
 
 export default function ChatListPage() {
@@ -57,7 +57,10 @@ export default function ChatListPage() {
       const response = await getChatRooms();
       setRooms(Array.isArray(response.data) ? response.data : []);
     } catch (error: any) {
-      console.log('채팅방 목록 조회 실패:', error.response?.data || error.message);
+      console.log(
+        "채팅방 목록 조회 실패:",
+        error.response?.data || error.message,
+      );
       setRooms([]);
     } finally {
       if (showSpinner) {
@@ -106,9 +109,9 @@ export default function ChatListPage() {
                 room.opponentNickname || room.opponentName || title;
               const previewMessage =
                 room.lastMessage ||
-                (room.lastMessageType === 'ENTER'
-                  ? '채팅방에 입장했어요'
-                  : '아직 메시지가 없어요');
+                (room.lastMessageType === "ENTER"
+                  ? "채팅방에 입장했어요"
+                  : "아직 메시지가 없어요");
 
               return (
                 <Pressable
@@ -116,18 +119,18 @@ export default function ChatListPage() {
                   style={styles.roomCard}
                   onPress={() =>
                     router.push({
-                      pathname: '/chat/[roomId]',
+                      pathname: "/chat/[roomId]",
                       params: {
                         roomId: String(room.roomId),
                         title,
                         sellerName: opponentName,
-                        price: '',
-                        thumbnail: '',
+                        price: "",
+                        thumbnail: "",
                         referenceType: room.referenceType,
                         referenceId: String(room.referenceId),
                         opponentMemberId: room.opponentMemberId
                           ? String(room.opponentMemberId)
-                          : '',
+                          : "",
                       },
                     } as any)
                   }
@@ -135,9 +138,9 @@ export default function ChatListPage() {
                   <View style={styles.roomIcon}>
                     <Ionicons
                       name={
-                        room.referenceType === 'TRADE'
-                          ? 'cart-outline'
-                          : 'school-outline'
+                        room.referenceType === "TRADE"
+                          ? "cart-outline"
+                          : "school-outline"
                       }
                       size={22}
                       color={BLUE}
@@ -166,11 +169,17 @@ export default function ChatListPage() {
                   {Number(room.unreadCount) > 0 ? (
                     <View style={styles.unreadBadge}>
                       <Text style={styles.unreadText}>
-                        {Number(room.unreadCount) > 99 ? '99+' : room.unreadCount}
+                        {Number(room.unreadCount) > 99
+                          ? "99+"
+                          : room.unreadCount}
                       </Text>
                     </View>
                   ) : (
-                    <Ionicons name="chevron-forward" size={20} color="#999999" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#999999"
+                    />
                   )}
                 </Pressable>
               );
@@ -193,7 +202,7 @@ export default function ChatListPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
 
   content: {
@@ -202,30 +211,30 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 24,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 22,
   },
 
   centerState: {
     minHeight: 360,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     gap: 10,
   },
 
   centerText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#777777',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#777777",
+    textAlign: "center",
   },
 
   emptyTitle: {
     marginTop: 4,
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
 
   roomList: {
@@ -235,9 +244,9 @@ const styles = StyleSheet.create({
   roomCard: {
     minHeight: 78,
     borderRadius: 8,
-    backgroundColor: '#FAFAFA',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#FAFAFA",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
@@ -246,9 +255,9 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#EAF0FF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#EAF0FF",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
 
@@ -258,36 +267,36 @@ const styles = StyleSheet.create({
   },
 
   roomTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
 
   roomTitle: {
     flex: 1,
     fontSize: 15,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 5,
   },
 
   roomTime: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#999999',
+    fontWeight: "700",
+    color: "#999999",
   },
 
   roomSubtitle: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#777777',
+    fontWeight: "700",
+    color: "#777777",
   },
 
   roomPreview: {
     marginTop: 5,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#555555',
+    fontWeight: "600",
+    color: "#555555",
   },
 
   unreadBadge: {
@@ -296,14 +305,14 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     paddingHorizontal: 6,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 8,
   },
 
   unreadText: {
     fontSize: 11,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
 });

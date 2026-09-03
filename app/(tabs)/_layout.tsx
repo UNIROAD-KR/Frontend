@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Tabs, router } from 'expo-router';
 import type { ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -18,6 +19,15 @@ import ShopFilledIcon from '@/assets/icon/Property 1=shop, Property 2=fill.svg';
 
 type SvgIcon = ComponentType<SvgProps>;
 type TabIcon = SvgIcon | keyof typeof Ionicons.glyphMap;
+
+const MARKET_CREATION_ROUTES = new Set([
+  'write',
+  'category',
+  'preview',
+  'ticket-write',
+  'ticket-preview',
+  'verify',
+]);
 
 const tabMeta = {
   home: {
@@ -68,6 +78,19 @@ function TabBarIcon({ icon, active }: { icon: TabIcon; active: boolean }) {
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
+  const activeRoute = state.routes[state.index];
+  const activeNestedRoute = activeRoute
+    ? getFocusedRouteNameFromRoute(activeRoute)
+    : undefined;
+
+  if (
+    activeRoute?.name === 'market' &&
+    activeNestedRoute &&
+    MARKET_CREATION_ROUTES.has(activeNestedRoute)
+  ) {
+    return null;
+  }
+
   const tabBarWidth = Math.max(screenWidth - 32, 280);
   const tabContentWidth = tabBarWidth - 10;
   // Keep the selected pill compact on wider phones while leaving enough room for every label.
