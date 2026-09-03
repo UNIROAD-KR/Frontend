@@ -1,4 +1,7 @@
-import { router } from 'expo-router';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,9 +10,48 @@ import {
   Image,
   TextInput,
   ScrollView,
-} from 'react-native';
+} from "react-native";
+
+import { getMemberMe } from "../../../src/api/auth";
 
 export default function ExploreScreen() {
+  const [nickname, setNickname] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      const loadNickname = async () => {
+        const savedNickname = await AsyncStorage.getItem("nickname");
+
+        if (active && savedNickname?.trim()) {
+          setNickname(savedNickname.trim());
+        }
+
+        try {
+          const response = await getMemberMe();
+          const memberNickname = response.data.data.nickname?.trim();
+
+          if (active && memberNickname) {
+            setNickname(memberNickname);
+            await AsyncStorage.setItem("nickname", memberNickname);
+          }
+        } catch (error: any) {
+          console.log(
+            "탐색 화면 닉네임 조회 실패:",
+            error.response?.data || error.message,
+          );
+        }
+      };
+
+      void loadNickname();
+
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 🔝 헤더 */}
@@ -19,21 +61,19 @@ export default function ExploreScreen() {
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() =>
-              router.push('/notifications' as any)
-            }
+            onPress={() => router.push("/notifications" as any)}
           >
             <Image
-              source={require('../../../assets/images/alarm.png')}
+              source={require("../../../assets/images/alarm.png")}
               style={styles.icon}
             />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() => router.push('/more-menu' as any)}
+            onPress={() => router.push("/more-menu" as any)}
           >
             <Image
-              source={require('../../../assets/images/menu.png')}
+              source={require("../../../assets/images/menu.png")}
               style={styles.icon}
             />
           </TouchableOpacity>
@@ -43,7 +83,7 @@ export default function ExploreScreen() {
       {/* 🔍 검색창 */}
       <View style={styles.searchBox}>
         <Image
-          source={require('../../../assets/images/info_search.png')}
+          source={require("../../../assets/images/info_search.png")}
           style={styles.searchIconImg}
         />
         <TextInput
@@ -55,7 +95,9 @@ export default function ExploreScreen() {
       {/* ⭐ 추천 카드 */}
       <View style={styles.recommendCard}>
         <View>
-          <Text style={styles.recommendTitle}>서현 님에게</Text>
+          <Text style={styles.recommendTitle}>
+            {nickname ? `${nickname}님에게` : "회원님에게"}
+          </Text>
           <Text style={styles.recommendSub}>
             딱 맞는 파견 대학을 찾아보세요
           </Text>
@@ -73,7 +115,7 @@ export default function ExploreScreen() {
       <View style={styles.row}>
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push('/home/school-info')}
+          onPress={() => router.push("/home/school-info")}
         >
           <View style={styles.cardImg} />
           <Text style={styles.cardTitle}>파견교 정보</Text>
@@ -83,7 +125,7 @@ export default function ExploreScreen() {
 
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push('/home/guide')}
+          onPress={() => router.push("/home/guide")}
         >
           <View style={styles.cardImg} />
           <Text style={styles.cardTitle}>교환학생 가이드</Text>
@@ -95,7 +137,7 @@ export default function ExploreScreen() {
       {/* 하단 카드 */}
       <TouchableOpacity
         style={styles.bigCard}
-        onPress={() => router.push('/home/mentoring')}
+        onPress={() => router.push("/home/mentoring")}
       >
         <View style={styles.cardImg} />
         <View style={{ flex: 1 }}>
@@ -110,110 +152,110 @@ export default function ExploreScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F8F8' },
+  container: { flex: 1, backgroundColor: "#F8F8F8" },
   content: { padding: 20, paddingBottom: 120 },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 20,
   },
   title: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   icon: {
     width: 22,
     height: 22,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   searchIconImg: {
     width: 18,
     height: 18,
     marginRight: 8,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
-  headerRight: { flexDirection: 'row', gap: 10 },
+  headerRight: { flexDirection: "row", gap: 10 },
   iconBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fafafa',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fafafa",
   },
 
   searchBox: {
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   searchIcon: { marginRight: 8 },
   searchInput: { flex: 1 },
 
   recommendCard: {
     marginTop: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  recommendTitle: { fontSize: 16, fontWeight: '700' },
-  recommendSub: { marginTop: 4, color: '#666' },
+  recommendTitle: { fontSize: 16, fontWeight: "700" },
+  recommendSub: { marginTop: 4, color: "#666" },
 
   primaryBtn: {
-    backgroundColor: '#1E4ED8',
+    backgroundColor: "#1E4ED8",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  primaryText: { color: '#fff', fontWeight: '600' },
+  primaryText: { color: "#fff", fontWeight: "600" },
 
   sectionTitle: {
     marginTop: 28,
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: "700",
   },
 
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     marginTop: 16,
   },
 
   card: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
   },
   cardImg: {
     width: 50,
     height: 50,
-    backgroundColor: '#DDE3EA',
+    backgroundColor: "#DDE3EA",
     borderRadius: 10,
     marginBottom: 10,
   },
-  cardTitle: { fontSize: 12, fontWeight: '700' },
-  cardDesc: { fontSize: 11, color: '#666', marginTop: 4 },
-  link: { marginTop: 10, color: '#1E4ED8', fontSize: 12 },
+  cardTitle: { fontSize: 12, fontWeight: "700" },
+  cardDesc: { fontSize: 11, color: "#666", marginTop: 4 },
+  link: { marginTop: 10, color: "#1E4ED8", fontSize: 12 },
 
   bigCard: {
     marginTop: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
   },
 });

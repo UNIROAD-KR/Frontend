@@ -1,9 +1,15 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
-import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { router, useLocalSearchParams } from "expo-router";
+import {
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
   Image,
@@ -16,15 +22,18 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
-import { AppBackButton } from '@/components/ui/app-back-button';
+} from "react-native";
+import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
+import { AppBackButton } from "@/components/ui/app-back-button";
 import {
   CUSTOM_COUNTRY_OPTION,
   countryOptions,
-} from '@/src/constants/onboarding';
-import { getMarketDraft, saveMarketDraft } from '../../../src/storage/marketDraft';
-import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
+} from "@/src/constants/onboarding";
+import {
+  getMarketDraft,
+  saveMarketDraft,
+} from "../../../src/storage/marketDraft";
+import { canUseMarketWithoutVerification } from "../../../src/utils/verification";
 
 const MAX_MARKET_PHOTOS = 10;
 
@@ -47,28 +56,28 @@ const parseDate = (value?: string) => {
   return Number.isNaN(date.getTime()) ? new Date() : date;
 };
 
-const onlyDigits = (value: string) => value.replace(/[^0-9]/g, '');
+const onlyDigits = (value: string) => value.replace(/[^0-9]/g, "");
 
 const formatWonInput = (value: string) => {
   const digits = onlyDigits(value);
 
-  if (!digits) return '';
+  if (!digits) return "";
 
-  return Number(digits).toLocaleString('ko-KR');
+  return Number(digits).toLocaleString("ko-KR");
 };
 
 const resolveCountrySelection = (value?: string) => {
   if (!value) {
     return {
-      selectedCountry: '',
-      customCountry: '',
+      selectedCountry: "",
+      customCountry: "",
     };
   }
 
   if (countryOptions.includes(value)) {
     return {
       selectedCountry: value,
-      customCountry: '',
+      customCountry: "",
     };
   }
 
@@ -81,19 +90,22 @@ const resolveCountrySelection = (value?: string) => {
 export default function MarketWritePage() {
   const handlePickImages = async () => {
     if (photos.length >= MAX_MARKET_PHOTOS) {
-      Alert.alert('사진 제한', `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`);
+      Alert.alert(
+        "사진 제한",
+        `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`,
+      );
       return;
     }
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert('권한 필요', '앨범 접근 권한이 필요합니다.');
+      Alert.alert("권한 필요", "앨범 접근 권한이 필요합니다.");
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsMultipleSelection: true,
       quality: 0.8,
       selectionLimit: MAX_MARKET_PHOTOS - photos.length,
@@ -107,19 +119,22 @@ export default function MarketWritePage() {
   };
   const handleTakePhoto = async () => {
     if (photos.length >= MAX_MARKET_PHOTOS) {
-      Alert.alert('사진 제한', `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`);
+      Alert.alert(
+        "사진 제한",
+        `사진은 최대 ${MAX_MARKET_PHOTOS}장까지 업로드할 수 있어요.`,
+      );
       return;
     }
 
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert('권한 필요', '카메라 권한이 필요합니다.');
+      Alert.alert("권한 필요", "카메라 권한이 필요합니다.");
       return;
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       quality: 0.8,
     });
 
@@ -178,16 +193,16 @@ export default function MarketWritePage() {
   );
   const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
-  const [region, setRegion] = useState(params.region || '');
-  const [returnDate, setReturnDate] = useState(params.returnDate || '');
+  const [region, setRegion] = useState(params.region || "");
+  const [returnDate, setReturnDate] = useState(params.returnDate || "");
   const [selectedDate, setSelectedDate] = useState(() =>
     parseDate(params.returnDate),
   );
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const [title, setTitle] = useState(params.title || '');
-  const [content, setContent] = useState(params.content || '');
-  const [price, setPrice] = useState(() => formatWonInput(params.price || ''));
+  const [title, setTitle] = useState(params.title || "");
+  const [content, setContent] = useState(params.content || "");
+  const [price, setPrice] = useState(() => formatWonInput(params.price || ""));
   const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const countryValue = isCustomCountry ? customCountry.trim() : selectedCountry;
   const canGoNext =
@@ -204,7 +219,7 @@ export default function MarketWritePage() {
   }, []);
 
   useEffect(() => {
-    if (params.resumeCategory !== 'true' || resumedCategoryRef.current) {
+    if (params.resumeCategory !== "true" || resumedCategoryRef.current) {
       return;
     }
 
@@ -212,21 +227,21 @@ export default function MarketWritePage() {
 
     const timer = setTimeout(() => {
       router.push({
-        pathname: '/market/category',
+        pathname: "/market/category",
         params: {
-          title: params.title ?? '',
-          content: params.content ?? '',
-          price: onlyDigits(params.price ?? ''),
-          country: params.country ?? '',
-          region: params.region ?? '',
-          returnDate: params.returnDate ?? '',
-          type: params.type ?? 'all',
-          photos: params.photos ?? '[]',
-          resumePreview: params.resumePreview ?? '',
-          selectedItems: params.selectedItems ?? '',
-          draftSelectedCategories: params.draftSelectedCategories ?? '[]',
-          draftItemsByCategory: params.draftItemsByCategory ?? '',
-          draftCategoryDetails: params.draftCategoryDetails ?? '{}',
+          title: params.title ?? "",
+          content: params.content ?? "",
+          price: onlyDigits(params.price ?? ""),
+          country: params.country ?? "",
+          region: params.region ?? "",
+          returnDate: params.returnDate ?? "",
+          type: params.type ?? "all",
+          photos: params.photos ?? "[]",
+          resumePreview: params.resumePreview ?? "",
+          selectedItems: params.selectedItems ?? "",
+          draftSelectedCategories: params.draftSelectedCategories ?? "[]",
+          draftItemsByCategory: params.draftItemsByCategory ?? "",
+          draftCategoryDetails: params.draftCategoryDetails ?? "{}",
         },
       } as any);
     }, 120);
@@ -257,7 +272,7 @@ export default function MarketWritePage() {
         setVerificationModalVisible(true);
       }
     } catch (error: any) {
-      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+      console.log("내 정보 조회 실패:", error.response?.data || error.message);
       setVerificationModalVisible(true);
     }
   };
@@ -274,8 +289,8 @@ export default function MarketWritePage() {
 
   const handleConfirmDate = () => {
     const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
 
     setReturnDate(`${year}-${month}-${day}`);
     setShowDatePicker(false);
@@ -284,7 +299,7 @@ export default function MarketWritePage() {
 
   const handleTempSave = async () => {
     await saveMarketDraft({
-      step: 'write',
+      step: "write",
       write: {
         type,
         title,
@@ -297,7 +312,7 @@ export default function MarketWritePage() {
       },
     });
 
-    Alert.alert('임시저장 완료', '작성 중인 거래글을 저장했어요.');
+    Alert.alert("임시저장 완료", "작성 중인 거래글을 저장했어요.");
   };
 
   const handleSelectCountry = (countryName: string) => {
@@ -305,7 +320,7 @@ export default function MarketWritePage() {
     setCountryModalVisible(false);
 
     if (countryName !== CUSTOM_COUNTRY_OPTION) {
-      setCustomCountry('');
+      setCustomCountry("");
       focusNextField(regionInputRef);
       return;
     }
@@ -324,7 +339,7 @@ export default function MarketWritePage() {
       !content.trim() ||
       !cleanPrice
     ) {
-      Alert.alert('입력 오류', '필수 항목을 모두 입력해주세요.');
+      Alert.alert("입력 오류", "필수 항목을 모두 입력해주세요.");
       return;
     }
 
@@ -346,7 +361,7 @@ export default function MarketWritePage() {
         : null;
 
     router.push({
-      pathname: '/market/category',
+      pathname: "/market/category",
       params: {
         title,
         content,
@@ -366,7 +381,9 @@ export default function MarketWritePage() {
               ),
               ...(reusableCategoryDetails
                 ? {
-                    draftCategoryDetails: JSON.stringify(reusableCategoryDetails),
+                    draftCategoryDetails: JSON.stringify(
+                      reusableCategoryDetails,
+                    ),
                   }
                 : {}),
             }
@@ -378,7 +395,7 @@ export default function MarketWritePage() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
         ref={scrollRef}
@@ -391,7 +408,7 @@ export default function MarketWritePage() {
           <AppBackButton style={styles.backButton} />
 
           <Text style={styles.headerTitle}>
-            {type === 'all' ? '일괄 판매하기' : '개별 판매하기'}
+            {type === "all" ? "일괄 판매하기" : "개별 판매하기"}
           </Text>
 
           <Pressable onPress={handleTempSave}>
@@ -485,7 +502,7 @@ export default function MarketWritePage() {
                   selectedCountry && styles.selectTextActive,
                 ]}
               >
-                {selectedCountry || '선택'}
+                {selectedCountry || "선택"}
               </Text>
 
               <Ionicons
@@ -529,25 +546,25 @@ export default function MarketWritePage() {
         )}
 
         <View style={styles.tradeDateGroup}>
-            <Text style={styles.label}>귀국일</Text>
+          <Text style={styles.label}>귀국일</Text>
 
-            <Pressable
-              style={styles.dateInput}
-              onPress={() => setShowDatePicker(true)}
+          <Pressable
+            style={styles.dateInput}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text
+              style={[styles.dateText, returnDate && styles.dateTextActive]}
             >
-              <Text
-                style={[styles.dateText, returnDate && styles.dateTextActive]}
-              >
-                {returnDate || '연도-월-일'}
-              </Text>
+              {returnDate || "연도-월-일"}
+            </Text>
 
-              <Ionicons
-                name="chevron-down"
-                size={16}
-                color="#B8BECC"
-                style={styles.chevronIcon}
-              />
-            </Pressable>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color="#B8BECC"
+              style={styles.chevronIcon}
+            />
+          </Pressable>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -572,7 +589,7 @@ export default function MarketWritePage() {
           style={styles.textArea}
           ref={contentInputRef}
           placeholder={
-            '다음 학기 교환학생에게 전달할 내용을 작성해 주세요.\n물품 상태, 구매 시기, 거래 조건 등 자유롭게\n적어주세요.'
+            "다음 학기 교환학생에게 전달할 내용을 작성해 주세요.\n물품 상태, 구매 시기, 거래 조건 등 자유롭게\n적어주세요."
           }
           placeholderTextColor="#A6A6A6"
           value={content}
@@ -668,7 +685,7 @@ export default function MarketWritePage() {
             <Text style={styles.verifyTitle}>교환학생 인증</Text>
 
             <Text style={styles.verifyDesc}>
-              글을 작성하려면 교환학생 신원{'\n'}인증이 필요해요.
+              글을 작성하려면 교환학생 신원{"\n"}인증이 필요해요.
             </Text>
 
             <View style={styles.verifyButtonRow}>
@@ -686,7 +703,7 @@ export default function MarketWritePage() {
                 style={styles.verifyButton}
                 onPress={() => {
                   setVerificationModalVisible(false);
-                  router.push('/verification-consent' as any);
+                  router.push("/verification-consent" as any);
                 }}
               >
                 <Text style={styles.verifyButtonText}>신원 인증하기</Text>
@@ -728,12 +745,12 @@ export default function MarketWritePage() {
   );
 }
 
-const BLUE = '#123F9F';
+const BLUE = "#123F9F";
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
 
   scroll: {
@@ -748,9 +765,9 @@ const styles = StyleSheet.create({
 
   header: {
     height: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
 
@@ -758,23 +775,23 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F6F8FC',
+    backgroundColor: "#F6F8FC",
   },
 
   headerTitle: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
 
   tempSave: {
     fontSize: 14,
-    color: '#C5C5C5',
-    fontWeight: '600',
+    color: "#C5C5C5",
+    fontWeight: "600",
   },
 
   progressRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 6,
     marginBottom: 38,
   },
@@ -783,33 +800,33 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 7,
     borderRadius: 10,
-    backgroundColor: '#666666',
+    backgroundColor: "#666666",
   },
 
   progress: {
     flex: 1,
     height: 7,
     borderRadius: 10,
-    backgroundColor: '#DDDDDD',
+    backgroundColor: "#DDDDDD",
   },
 
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#222222',
+    fontWeight: "900",
+    color: "#222222",
   },
 
   photoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 14,
   },
 
   photoCount: {
     fontSize: 16,
-    fontWeight: '900',
-    color: '#8A8A8A',
+    fontWeight: "900",
+    color: "#8A8A8A",
   },
 
   photoArea: {
@@ -817,7 +834,7 @@ const styles = StyleSheet.create({
   },
 
   photoActionRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
 
@@ -826,17 +843,17 @@ const styles = StyleSheet.create({
     height: 72,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#DCE5F3',
-    backgroundColor: '#F8FAFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#DCE5F3",
+    backgroundColor: "#F8FAFF",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 6,
   },
 
   photoText: {
     fontSize: 13,
     color: BLUE,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   photoPreviewList: {
@@ -848,25 +865,25 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     marginRight: 10,
-    position: 'relative',
+    position: "relative",
   },
 
   photoPreview: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
     borderRadius: 8,
   },
 
   photoPreviewButton: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
 
   fullImageOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.94)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.94)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   fullImageBackdrop: {
@@ -874,39 +891,39 @@ const styles = StyleSheet.create({
   },
 
   fullImage: {
-    width: '100%',
-    height: '78%',
-    resizeMode: 'contain',
+    width: "100%",
+    height: "78%",
+    resizeMode: "contain",
   },
 
   fullImageCloseButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 54,
     right: 22,
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   removePhotoButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 5,
     right: 5,
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   removePhotoText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   addMorePhoto: {
@@ -914,41 +931,41 @@ const styles = StyleSheet.create({
     height: 96,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DCE5F3',
-    backgroundColor: '#F8FAFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#DCE5F3",
+    backgroundColor: "#F8FAFF",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 5,
   },
 
   addMorePhotoText: {
     color: BLUE,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
 
   sectionLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E3E3E3',
+    backgroundColor: "#E3E3E3",
     marginLeft: 14,
   },
 
   twoColumnRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
     marginBottom: 18,
   },
 
   halfInputGroup: {
     flex: 1,
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
 
   fullInputGroup: {
@@ -963,8 +980,8 @@ const styles = StyleSheet.create({
     height: 19,
     fontSize: 15,
     lineHeight: 19,
-    fontWeight: '800',
-    color: '#222222',
+    fontWeight: "800",
+    color: "#222222",
     marginBottom: 10,
     includeFontPadding: false,
   },
@@ -972,55 +989,55 @@ const styles = StyleSheet.create({
   input: {
     height: 45,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 0,
     fontSize: 14,
-    color: '#111111',
+    color: "#111111",
     marginBottom: 18,
   },
 
   selectInput: {
     height: 45,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     borderRadius: 5,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 18,
   },
 
   selectText: {
     flex: 1,
     fontSize: 14,
-    color: '#A6A6A6',
-    fontWeight: '600',
+    color: "#A6A6A6",
+    fontWeight: "600",
   },
 
   selectTextActive: {
-    color: '#111111',
+    color: "#111111",
   },
 
   dateInput: {
     height: 45,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     borderRadius: 5,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   dateText: {
     flex: 1,
     fontSize: 14,
-    color: '#A6A6A6',
+    color: "#A6A6A6",
   },
 
   dateTextActive: {
-    color: '#111111',
+    color: "#111111",
   },
 
   chevronIcon: {
@@ -1030,31 +1047,31 @@ const styles = StyleSheet.create({
   textArea: {
     height: 132,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     borderRadius: 5,
     paddingHorizontal: 12,
     paddingTop: 14,
     fontSize: 14,
     lineHeight: 22,
-    color: '#111111',
+    color: "#111111",
     marginBottom: 18,
   },
 
   priceInputBox: {
     height: 45,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     borderRadius: 5,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 50,
   },
 
   pricePrefix: {
     fontSize: 15,
-    color: '#111111',
-    fontWeight: '900',
+    color: "#111111",
+    fontWeight: "900",
     marginRight: 6,
   },
 
@@ -1063,20 +1080,20 @@ const styles = StyleSheet.create({
     height: 43,
     paddingVertical: 0,
     fontSize: 14,
-    color: '#111111',
-    fontWeight: '700',
+    color: "#111111",
+    fontWeight: "700",
   },
 
   priceUnit: {
     fontSize: 13,
-    color: '#555555',
-    fontWeight: '800',
+    color: "#555555",
+    fontWeight: "800",
     marginLeft: 8,
   },
 
   checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: -4,
     marginBottom: 50,
   },
@@ -1086,10 +1103,10 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: "#D0D0D0",
     marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   checkboxActive: {
@@ -1098,122 +1115,122 @@ const styles = StyleSheet.create({
   },
 
   checkMark: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   checkText: {
     fontSize: 14,
-    color: '#222222',
+    color: "#222222",
   },
 
   nextButton: {
     height: 52,
     borderRadius: 5,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   nextButtonDisabled: {
-    backgroundColor: '#D5D5D5',
+    backgroundColor: "#D5D5D5",
   },
 
   nextButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   nextButtonTextDisabled: {
-    color: '#999999',
+    color: "#999999",
   },
 
   pickerOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
 
   pickerBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
 
   pickerSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingBottom: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   pickerHeader: {
     height: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+    borderBottomColor: "#EEEEEE",
   },
 
   pickerCancel: {
     fontSize: 16,
-    color: '#777777',
-    fontWeight: '700',
+    color: "#777777",
+    fontWeight: "700",
   },
 
   pickerTitle: {
     fontSize: 17,
-    color: '#111111',
-    fontWeight: '900',
+    color: "#111111",
+    fontWeight: "900",
   },
 
   pickerDone: {
     fontSize: 16,
     color: BLUE,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   iosPicker: {
     height: 216,
-    width: '100%',
-    backgroundColor: '#FFFFFF',
+    width: "100%",
+    backgroundColor: "#FFFFFF",
   },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   verifyModal: {
     width: 270,
     borderRadius: 10,
-    backgroundColor: '#4A4A4A',
+    backgroundColor: "#4A4A4A",
     paddingHorizontal: 22,
     paddingVertical: 24,
   },
 
   verifyTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
     marginBottom: 16,
   },
 
   verifyDesc: {
     fontSize: 14,
     lineHeight: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 22,
   },
 
   verifyButtonRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 10,
   },
 
@@ -1221,29 +1238,29 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#9A9A9A',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#9A9A9A",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   cancelButtonText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 
   verifyButton: {
     flex: 1,
     height: 38,
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   verifyButtonText: {
     fontSize: 15,
-    fontWeight: '800',
-    color: '#111111',
+    fontWeight: "800",
+    color: "#111111",
   },
 });

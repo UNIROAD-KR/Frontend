@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -13,10 +13,10 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
+} from "react-native";
 
-import { AppBackButton } from '@/components/ui/app-back-button';
-import { getMemberMe } from '../../src/api/auth';
+import { AppBackButton } from "@/components/ui/app-back-button";
+import { getMemberMe } from "../../src/api/auth";
 import {
   ChatRoomResponse,
   ChatMessageResponse,
@@ -24,16 +24,16 @@ import {
   getChatMessages,
   readChatRoom,
   sendChatMessage,
-} from '../../src/api/chat';
-import { getUsedItemDetail } from '../../src/api/usedItems';
-import { getTicketDetail } from '../../src/api/ticket';
-import { createReport, ReportReason } from '../../src/api/reports';
-import { getTicketCurrency } from '../../src/storage/ticketMetadata';
+} from "../../src/api/chat";
+import { getUsedItemDetail } from "../../src/api/usedItems";
+import { getTicketDetail } from "../../src/api/ticket";
+import { createReport, ReportReason } from "../../src/api/reports";
+import { getTicketCurrency } from "../../src/storage/ticketMetadata";
 
 type ChatMessage = {
   id: number;
   roomId: number;
-  senderId: number | 'me' | 'other';
+  senderId: number | "me" | "other";
   message: string;
   type?: string;
   createdAt: string;
@@ -51,21 +51,26 @@ type ProductInfo = {
   sellerName?: string;
 };
 
-const BLUE = '#123F9F';
-const GENERIC_TITLES = ['채팅', '중고거래 채팅', '멘토링 채팅', '티켓 양도 채팅'];
+const BLUE = "#123F9F";
+const GENERIC_TITLES = [
+  "채팅",
+  "중고거래 채팅",
+  "멘토링 채팅",
+  "티켓 양도 채팅",
+];
 const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
-  { label: '사기 의심', reason: 'FRAUD' },
-  { label: '부적절한 내용', reason: 'INAPPROPRIATE' },
-  { label: '욕설/비방', reason: 'ABUSE' },
-  { label: '스팸/광고', reason: 'SPAM' },
-  { label: '기타', reason: 'ETC' },
+  { label: "사기 의심", reason: "FRAUD" },
+  { label: "부적절한 내용", reason: "INAPPROPRIATE" },
+  { label: "욕설/비방", reason: "ABUSE" },
+  { label: "스팸/광고", reason: "SPAM" },
+  { label: "기타", reason: "ETC" },
 ];
 
 const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   id: item.id,
   roomId: item.roomId,
   senderId: item.senderId,
-  message: item.message ?? item.content ?? '',
+  message: item.message ?? item.content ?? "",
   type: item.type,
   createdAt: item.createdAt,
   unreadCount: item.unreadCount,
@@ -77,8 +82,7 @@ const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
 
 const sortMessagesByTime = (items: ChatMessage[]) => {
   return [...items].sort(
-    (a, b) =>
-      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
 };
 
@@ -95,12 +99,12 @@ const mergeMessagesById = (
   return sortMessagesByTime(Array.from(messageMap.values()));
 };
 
-const formatProductPrice = (value?: number, currencyUnit = '원') => {
-  if (!value) return '가격 미정';
+const formatProductPrice = (value?: number, currencyUnit = "원") => {
+  if (!value) return "가격 미정";
 
-  return currencyUnit === '원'
-    ? `${value.toLocaleString('ko-KR')}원`
-    : `${currencyUnit} ${value.toLocaleString('ko-KR')}`;
+  return currencyUnit === "원"
+    ? `${value.toLocaleString("ko-KR")}원`
+    : `${currencyUnit} ${value.toLocaleString("ko-KR")}`;
 };
 
 const isGenericTitle = (value?: string) => {
@@ -110,11 +114,11 @@ const isGenericTitle = (value?: string) => {
 const formatMessageTime = (value: string) => {
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) return "";
 
   const hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const meridiem = hours < 12 ? '오전' : '오후';
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const meridiem = hours < 12 ? "오전" : "오후";
   const displayHour = hours % 12 || 12;
 
   return `${meridiem} ${displayHour}:${minutes}`;
@@ -122,18 +126,18 @@ const formatMessageTime = (value: string) => {
 
 const getReadStatus = (item: ChatMessage) => {
   if (item.isRead) {
-    return '읽음';
+    return "읽음";
   }
 
   if (item.readByOpponent || item.read || item.unreadCount === 0) {
-    return '읽음';
+    return "읽음";
   }
 
-  if (typeof item.readCount === 'number' && item.readCount > 1) {
-    return '읽음';
+  if (typeof item.readCount === "number" && item.readCount > 1) {
+    return "읽음";
   }
 
-  return '1';
+  return "1";
 };
 
 export default function ChatRoomPage() {
@@ -161,7 +165,7 @@ export default function ChatRoomPage() {
   const numericRoomId = Number(roomId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
@@ -186,13 +190,13 @@ export default function ChatRoomPage() {
     roomInfo?.opponentNickname ||
     roomInfo?.opponentName ||
     productInfo?.sellerName ||
-    '채팅';
+    "채팅";
   const productTitle =
     productInfo?.title ||
     (!isGenericTitle(title) ? title : undefined) ||
-    (effectiveReferenceType === 'TICKET' ? '티켓 양도글' : '중고거래 게시글');
-  const productPrice = productInfo?.price || price || '가격 미정';
-  const productThumbnail = productInfo?.thumbnail || thumbnail || '';
+    (effectiveReferenceType === "TICKET" ? "티켓 양도글" : "중고거래 게시글");
+  const productPrice = productInfo?.price || price || "가격 미정";
+  const productThumbnail = productInfo?.thumbnail || thumbnail || "";
 
   useEffect(() => {
     if (messages.length > 0) {
@@ -207,7 +211,7 @@ export default function ChatRoomPage() {
       const response = await getMemberMe();
       setCurrentMemberId(response.data.data.id);
     } catch (error: any) {
-      console.log('내 정보 조회 실패:', error.response?.data || error.message);
+      console.log("내 정보 조회 실패:", error.response?.data || error.message);
     }
   }, []);
 
@@ -224,7 +228,10 @@ export default function ChatRoomPage() {
         setRoomInfo(currentRoom);
       }
     } catch (error: any) {
-      console.log('채팅방 정보 조회 실패:', error.response?.data || error.message);
+      console.log(
+        "채팅방 정보 조회 실패:",
+        error.response?.data || error.message,
+      );
     }
   }, [numericRoomId]);
 
@@ -236,33 +243,36 @@ export default function ChatRoomPage() {
     }
 
     try {
-      if (effectiveReferenceType === 'TRADE') {
+      if (effectiveReferenceType === "TRADE") {
         const response = await getUsedItemDetail(numericReferenceId);
         const item = response.data.data;
 
         setProductInfo({
           title: item.title,
           price: formatProductPrice(item.price),
-          thumbnail: item.thumbnailImageUrl ?? '',
+          thumbnail: item.thumbnailImageUrl ?? "",
           sellerName: item.authorNickname || item.authorName,
         });
         return;
       }
 
-      if (effectiveReferenceType === 'TICKET') {
+      if (effectiveReferenceType === "TICKET") {
         const response = await getTicketDetail(numericReferenceId);
         const item = response.data.data;
         const currencyUnit = await getTicketCurrency(item.id);
 
         setProductInfo({
           title: item.title,
-          price: formatProductPrice(item.transferPrice, currencyUnit || '€'),
-          thumbnail: '',
+          price: formatProductPrice(item.transferPrice, currencyUnit || "€"),
+          thumbnail: "",
           sellerName: item.authorNickname || item.authorName,
         });
       }
     } catch (error: any) {
-      console.log('채팅 게시글 조회 실패:', error.response?.data || error.message);
+      console.log(
+        "채팅 게시글 조회 실패:",
+        error.response?.data || error.message,
+      );
     }
   }, [effectiveReferenceId, effectiveReferenceType]);
 
@@ -278,10 +288,13 @@ export default function ChatRoomPage() {
 
       setMessages(sortMessagesByTime(rawMessages.map(normalizeMessage)));
       readChatRoom(numericRoomId).catch((error: any) => {
-        console.log('채팅방 읽음 처리 실패:', error.response?.data || error.message);
+        console.log(
+          "채팅방 읽음 처리 실패:",
+          error.response?.data || error.message,
+        );
       });
     } catch (error: any) {
-      console.log('메시지 조회 실패:', error.response?.data || error.message);
+      console.log("메시지 조회 실패:", error.response?.data || error.message);
     }
   }, [numericRoomId]);
 
@@ -317,13 +330,13 @@ export default function ChatRoomPage() {
       setMessages((prev) =>
         mergeMessagesById(prev, [normalizeMessage(response.data)]),
       );
-      setMessage('');
+      setMessage("");
       setTimeout(fetchMessages, 250);
     } catch (error: any) {
-      console.log('메시지 전송 실패:', error.response?.data || error.message);
+      console.log("메시지 전송 실패:", error.response?.data || error.message);
       Alert.alert(
-        '메시지 전송 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+        "메시지 전송 실패",
+        error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     } finally {
       setSending(false);
@@ -334,27 +347,29 @@ export default function ChatRoomPage() {
     if (reporting) return;
 
     const numericReferenceId = Number(effectiveReferenceId);
-    const target = effectiveReferenceType === 'TICKET' && Number.isFinite(numericReferenceId)
-      ? {
-          targetType: 'TICKET_TRANSFER' as const,
-          targetId: numericReferenceId,
-        }
-      : effectiveReferenceType === 'TRADE' && Number.isFinite(numericReferenceId)
+    const target =
+      effectiveReferenceType === "TICKET" && Number.isFinite(numericReferenceId)
         ? {
-            targetType: 'USED_ITEM' as const,
+            targetType: "TICKET_TRANSFER" as const,
             targetId: numericReferenceId,
           }
-        : effectiveOpponentMemberId
+        : effectiveReferenceType === "TRADE" &&
+            Number.isFinite(numericReferenceId)
           ? {
-              targetType: 'MEMBER' as const,
-              targetId: effectiveOpponentMemberId,
+              targetType: "USED_ITEM" as const,
+              targetId: numericReferenceId,
             }
-        : null;
+          : effectiveOpponentMemberId
+            ? {
+                targetType: "MEMBER" as const,
+                targetId: effectiveOpponentMemberId,
+              }
+            : null;
 
     if (!target) {
       Alert.alert(
-        '신고할 수 없어요',
-        '신고 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+        "신고할 수 없어요",
+        "신고 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
       );
       return;
     }
@@ -366,12 +381,12 @@ export default function ChatRoomPage() {
         reason,
         detail: `채팅방 #${roomId}에서 신고된 대화입니다.`,
       });
-      Alert.alert('신고 접수', '운영팀이 대화 내용을 확인할게요.');
+      Alert.alert("신고 접수", "운영팀이 대화 내용을 확인할게요.");
     } catch (error: any) {
-      console.log('신고 접수 실패:', error.response?.data || error.message);
+      console.log("신고 접수 실패:", error.response?.data || error.message);
       Alert.alert(
-        '신고 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+        "신고 실패",
+        error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     } finally {
       setReporting(false);
@@ -381,26 +396,22 @@ export default function ChatRoomPage() {
   const handleReport = () => {
     setMenuVisible(false);
 
-    Alert.alert(
-      '신고하기',
-      '신고 사유를 선택해주세요.',
-      [
-        ...REPORT_OPTIONS.map((option) => ({
-          text: option.label,
-          onPress: () => submitReport(option.reason),
-        })),
-        { text: '취소', style: 'cancel' as const },
-      ],
-    );
+    Alert.alert("신고하기", "신고 사유를 선택해주세요.", [
+      ...REPORT_OPTIONS.map((option) => ({
+        text: option.label,
+        onPress: () => submitReport(option.reason),
+      })),
+      { text: "취소", style: "cancel" as const },
+    ]);
   };
 
   const handleLeaveRoom = () => {
     setMenuVisible(false);
-    Alert.alert('채팅방 나가기', '이 채팅방을 나가시겠습니까?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert("채팅방 나가기", "이 채팅방을 나가시겠습니까?", [
+      { text: "취소", style: "cancel" },
       {
-        text: '나가기',
-        style: 'destructive',
+        text: "나가기",
+        style: "destructive",
         onPress: () => router.back(),
       },
     ]);
@@ -418,7 +429,7 @@ export default function ChatRoomPage() {
             {displaySellerName}
           </Text>
           <Image
-            source={require('../../assets/images/shield.png')}
+            source={require("../../assets/images/shield.png")}
             style={styles.badgeIcon}
           />
         </View>
@@ -428,7 +439,7 @@ export default function ChatRoomPage() {
           onPress={() => setMenuVisible((prev) => !prev)}
         >
           <Image
-            source={require('../../assets/images/chat_menu.png')}
+            source={require("../../assets/images/chat_menu.png")}
             style={styles.menuIcon}
           />
         </Pressable>
@@ -447,12 +458,12 @@ export default function ChatRoomPage() {
               title="채팅 알림 끄기"
               onPress={() => {
                 setMenuVisible(false);
-                Alert.alert('알림 설정', '이 채팅방 알림을 껐어요.');
+                Alert.alert("알림 설정", "이 채팅방 알림을 껐어요.");
               }}
             />
             <ChatMenuRow
               icon="flag-outline"
-              title={reporting ? '신고 접수 중...' : '신고하기'}
+              title={reporting ? "신고 접수 중..." : "신고하기"}
               onPress={handleReport}
             />
             <ChatMenuRow
@@ -468,12 +479,12 @@ export default function ChatRoomPage() {
       <Pressable
         style={styles.productCard}
         onPress={() => {
-          if (effectiveReferenceType === 'TRADE' && effectiveReferenceId) {
+          if (effectiveReferenceType === "TRADE" && effectiveReferenceId) {
             router.push({
-              pathname: '/market/[id]',
+              pathname: "/market/[id]",
               params: {
                 id: effectiveReferenceId,
-                fromChatRoom: 'true',
+                fromChatRoom: "true",
                 chatRoomId: roomId,
                 chatTitle: productTitle,
                 chatPrice: productPrice,
@@ -486,12 +497,12 @@ export default function ChatRoomPage() {
             return;
           }
 
-          if (effectiveReferenceType === 'TICKET' && effectiveReferenceId) {
+          if (effectiveReferenceType === "TICKET" && effectiveReferenceId) {
             router.push({
-              pathname: '/market/ticket-preview',
+              pathname: "/market/ticket-preview",
               params: {
                 id: effectiveReferenceId,
-                fromChatRoom: 'true',
+                fromChatRoom: "true",
                 chatRoomId: roomId,
                 chatTitle: productTitle,
                 chatPrice: productPrice,
@@ -531,11 +542,11 @@ export default function ChatRoomPage() {
         {messages.length === 0 ? (
           <View style={styles.emptyBox}>
             <Image
-              source={require('../../assets/images/school_icon.png')}
+              source={require("../../assets/images/school_icon.png")}
               style={styles.logo}
             />
             <Text style={styles.emptyText}>
-              대화는 유니로드 채팅방에서 하는 것이 안전해요.{'\n'}
+              대화는 유니로드 채팅방에서 하는 것이 안전해요.{"\n"}
               교환학생 선배에게 인사로 대화를 시작해보세요.
             </Text>
           </View>
@@ -543,7 +554,7 @@ export default function ChatRoomPage() {
           <View style={styles.messageList}>
             {messages.map((item) => {
               const isMine =
-                item.senderId === 'me' || item.senderId === currentMemberId;
+                item.senderId === "me" || item.senderId === currentMemberId;
 
               return (
                 <View
@@ -555,7 +566,9 @@ export default function ChatRoomPage() {
                 >
                   {isMine && (
                     <View style={styles.messageMetaBox}>
-                      <Text style={styles.readStatus}>{getReadStatus(item)}</Text>
+                      <Text style={styles.readStatus}>
+                        {getReadStatus(item)}
+                      </Text>
                       <Text style={styles.messageTime}>
                         {formatMessageTime(item.createdAt)}
                       </Text>
@@ -591,7 +604,7 @@ export default function ChatRoomPage() {
       </ScrollView>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
         <View style={styles.bottomArea}>
@@ -605,7 +618,7 @@ export default function ChatRoomPage() {
               <Text style={styles.quickBackText}>‹</Text>
             </Pressable>
 
-            {['안녕하세요', '관심 있어서 문의 드려요.', '구매 가능할까요?'].map(
+            {["안녕하세요", "관심 있어서 문의 드려요.", "구매 가능할까요?"].map(
               (text) => (
                 <Pressable
                   key={text}
@@ -621,7 +634,7 @@ export default function ChatRoomPage() {
           <View style={styles.inputRow}>
             <Pressable style={styles.plusButton}>
               <Image
-                source={require('../../assets/images/plus.png')}
+                source={require("../../assets/images/plus.png")}
                 style={styles.plusIcon}
               />
             </Pressable>
@@ -639,7 +652,7 @@ export default function ChatRoomPage() {
 
               <Pressable style={styles.emojiButton}>
                 <Image
-                  source={require('../../assets/images/imogi.png')}
+                  source={require("../../assets/images/imogi.png")}
                   style={styles.emojiIcon}
                 />
               </Pressable>
@@ -647,7 +660,7 @@ export default function ChatRoomPage() {
 
             <Pressable style={styles.sendButton} onPress={handleSend}>
               <Image
-                source={require('../../assets/images/send.png')}
+                source={require("../../assets/images/send.png")}
                 style={[styles.sendIcon, sending && styles.sendingIcon]}
               />
             </Pressable>
@@ -671,7 +684,7 @@ function ChatMenuRow({
 }) {
   return (
     <Pressable style={styles.chatMenuRow} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={danger ? '#E5484D' : '#111111'} />
+      <Ionicons name={icon} size={18} color={danger ? "#E5484D" : "#111111"} />
       <Text style={[styles.chatMenuText, danger && styles.chatMenuDangerText]}>
         {title}
       </Text>
@@ -682,49 +695,49 @@ function ChatMenuRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingTop: 62,
   },
 
   header: {
     height: 58,
     paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
   headerSide: {
     width: 44,
     height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   backButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F6F8FC',
+    backgroundColor: "#F6F8FC",
   },
 
   nameRow: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   name: {
     fontSize: 21,
-    fontWeight: '800',
-    color: '#111111',
+    fontWeight: "800",
+    color: "#111111",
   },
 
   badgeIcon: {
     width: 18,
     height: 18,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginLeft: 6,
     marginTop: 2,
   },
@@ -732,7 +745,7 @@ const styles = StyleSheet.create({
   menuIcon: {
     width: 28,
     height: 28,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   menuBackdrop: {
@@ -741,16 +754,16 @@ const styles = StyleSheet.create({
   },
 
   chatMenuPopover: {
-    position: 'absolute',
+    position: "absolute",
     top: 108,
     right: 18,
     width: 178,
     borderRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E7ECF3',
-    shadowColor: '#0F2042',
+    borderColor: "#E7ECF3",
+    shadowColor: "#0F2042",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 22,
@@ -759,43 +772,43 @@ const styles = StyleSheet.create({
   },
 
   popoverArrow: {
-    position: 'absolute',
+    position: "absolute",
     top: -7,
     right: 18,
     width: 14,
     height: 14,
     borderLeftWidth: 1,
     borderTopWidth: 1,
-    borderColor: '#E7ECF3',
-    backgroundColor: '#FFFFFF',
-    transform: [{ rotate: '45deg' }],
+    borderColor: "#E7ECF3",
+    backgroundColor: "#FFFFFF",
+    transform: [{ rotate: "45deg" }],
   },
 
   chatMenuRow: {
     minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 15,
     gap: 10,
   },
 
   chatMenuText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#111111',
+    fontWeight: "800",
+    color: "#111111",
   },
 
   chatMenuDangerText: {
-    color: '#E5484D',
+    color: "#E5484D",
   },
 
   productCard: {
     height: 102,
     marginHorizontal: 15,
     marginTop: 20,
-    backgroundColor: '#FAFAFA',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#FAFAFA",
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 18,
   },
 
@@ -803,15 +816,15 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 10,
-    backgroundColor: '#9B9B9B',
+    backgroundColor: "#9B9B9B",
     marginRight: 22,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 
   thumbnailImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
 
   productInfo: {
@@ -821,15 +834,15 @@ const styles = StyleSheet.create({
   productTitle: {
     fontSize: 18,
     lineHeight: 27,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 5,
   },
 
   productPrice: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
   },
 
   chatScroll: {
@@ -838,31 +851,31 @@ const styles = StyleSheet.create({
 
   chatContent: {
     flexGrow: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
     paddingTop: 18,
     paddingBottom: 18,
   },
 
   emptyBox: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingBottom: 70,
   },
 
   logo: {
     width: 42,
     height: 42,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginBottom: 36,
   },
 
   emptyText: {
     fontSize: 18,
     lineHeight: 34,
-    color: '#666666',
-    fontWeight: '700',
-    textAlign: 'center',
+    color: "#666666",
+    fontWeight: "700",
+    textAlign: "center",
   },
 
   messageList: {
@@ -872,34 +885,34 @@ const styles = StyleSheet.create({
   },
 
   messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    flexDirection: "row",
+    alignItems: "flex-end",
     gap: 6,
   },
 
   myMessageRow: {
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
 
   otherMessageRow: {
-    justifyContent: 'flex-start',
+    justifyContent: "flex-start",
   },
 
   messageBubble: {
-    maxWidth: '75%',
+    maxWidth: "75%",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
 
   myBubble: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     backgroundColor: BLUE,
   },
 
   otherBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F1F1F1',
+    alignSelf: "flex-start",
+    backgroundColor: "#F1F1F1",
   },
 
   messageText: {
@@ -908,35 +921,35 @@ const styles = StyleSheet.create({
   },
 
   myMessageText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
 
   otherMessageText: {
-    color: '#111111',
+    color: "#111111",
   },
 
   messageMetaBox: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
     marginBottom: 2,
   },
 
   readStatus: {
     fontSize: 10,
     lineHeight: 13,
-    fontWeight: '800',
-    color: '#E1A800',
+    fontWeight: "800",
+    color: "#E1A800",
   },
 
   messageTime: {
     fontSize: 10,
     lineHeight: 13,
-    fontWeight: '700',
-    color: '#8C8C8C',
+    fontWeight: "700",
+    color: "#8C8C8C",
     marginBottom: 2,
   },
 
   bottomArea: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingBottom: 24,
   },
 
@@ -944,7 +957,7 @@ const styles = StyleSheet.create({
     paddingLeft: 18,
     paddingRight: 18,
     gap: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 12,
   },
 
@@ -952,15 +965,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#F6F6F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F6F6F6",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   quickBackText: {
     fontSize: 26,
     lineHeight: 28,
-    color: '#555555',
+    color: "#555555",
   },
 
   quickChip: {
@@ -968,46 +981,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 19,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#E0E0E0",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   quickText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#555555',
+    fontWeight: "700",
+    color: "#555555",
   },
 
   inputRow: {
     height: 56,
     paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   plusButton: {
     width: 30,
     height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 3,
   },
 
   plusIcon: {
     width: 25,
     height: 25,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   inputBox: {
     flex: 1,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#E2E2E2',
-    flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: "#E2E2E2",
+    flexDirection: "row",
+    alignItems: "center",
     paddingLeft: 15,
     paddingRight: 4,
   },
@@ -1015,15 +1028,15 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#111111',
+    color: "#111111",
     paddingVertical: 0,
   },
 
   emojiButton: {
     width: 30,
     height: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 2,
     marginRight: 3,
   },
@@ -1031,21 +1044,21 @@ const styles = StyleSheet.create({
   emojiIcon: {
     width: 22,
     height: 22,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   sendButton: {
     width: 42,
     height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginLeft: 6,
   },
 
   sendIcon: {
     width: 30,
     height: 30,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
 
   sendingIcon: {

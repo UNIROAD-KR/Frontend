@@ -644,35 +644,64 @@ export default function TicketWritePage() {
   const handleSubmit = async () => {
     if (!ticketType || !canSubmit || !canGoNext) return;
 
-    if (ticketType === 'OTHER') {
-      Alert.alert(
-        'API 추가 필요',
-        '기타 티켓을 등록하려면 백엔드 TicketType enum에 OTHER와 직접 입력 종류 필드가 필요해요.',
-      );
-      return;
-    }
-
-    const submitEventDate = isAccommodation
-      ? `${eventDate}~${checkoutDate}`
-      : eventDate;
     const currencyLabel = selectedCurrencyLabel || '€';
 
     const payload: TicketTransferRequest = {
       ticketType,
+      ...(ticketType === 'OTHER'
+        ? { customTicketType: customTicketType.trim() }
+        : {}),
       title: title.trim(),
       content: content.trim(),
-      eventDate: submitEventDate,
-      eventTime: isAccommodation ? '00:00' : normalizedEventTime ?? eventTime.trim(),
       country: requiresCountry ? country : '이동',
-      location: resolvedLocation,
       quantity,
       transferPrice: Number(onlyDigits(transferPrice)),
       originalPrice: Number(onlyDigits(originalPrice)),
+      ...(ticketType === 'TOUR' || ticketType === 'OTHER'
+        ? {
+            useDate: eventDate,
+            useTime: normalizedEventTime ?? eventTime.trim(),
+            placeName: location.trim(),
+          }
+        : {}),
+      ...(ticketType === 'CONCERT'
+        ? {
+            performanceDate: eventDate,
+            performanceTime: normalizedEventTime ?? eventTime.trim(),
+            performancePlace: location.trim(),
+          }
+        : {}),
+      ...(ticketType === 'TRAIN'
+        ? {
+            departureDate: eventDate,
+            departureTime: normalizedEventTime ?? eventTime.trim(),
+            departureStation: departureLocation.trim(),
+            arrivalStation: arrivalLocation.trim(),
+          }
+        : {}),
+      ...(ticketType === 'FLIGHT'
+        ? {
+            departureDate: eventDate,
+            departureTime: normalizedEventTime ?? eventTime.trim(),
+            departureAirport: departureLocation.trim(),
+            arrivalAirport: arrivalLocation.trim(),
+          }
+        : {}),
+      ...(ticketType === 'ACCOMMODATION'
+        ? {
+            checkInDate: eventDate,
+            checkOutDate: checkoutDate,
+            accommodationName: location.trim(),
+          }
+        : {}),
     };
 
     try {
       submittingRef.current = true;
       setSubmitting(true);
+if (__DEV__) {
+  console.log('[Ticket] 요청 payload:', payload);
+}
       const ticketId = isEditMode ? editId : null;
 
       if (isEditMode) {
@@ -698,7 +727,11 @@ export default function TicketWritePage() {
       submittingRef.current = false;
       showUploadComplete(ticketId);
     } catch (error: any) {
-      console.log('티켓 양도 글 작성 실패:', error.response?.data || error.message);
+      console.log('[Ticket] 작성 실패:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
       Alert.alert(
         isEditMode ? '수정 실패' : '업로드 실패',
         error.response?.data?.message ??

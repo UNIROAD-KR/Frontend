@@ -215,6 +215,8 @@ function InlineDropdown({
 export default function ProfileSetupPage() {
   const scrollRef = useResetScrollOnFocus();
   const [nickname, setNickname] = useState('');
+  const [gender, setGender] = useState<'female' | 'male' | ''>('');
+  const [birthYear, setBirthYear] = useState('');
   const [university, setUniversity] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('');
   const [customCountry, setCustomCountry] = useState('');
@@ -227,6 +229,7 @@ export default function ProfileSetupPage() {
     useState<Record<ExchangeStatus, string>>(emptyStatusDates);
   const [universityPickerVisible, setUniversityPickerVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [birthYearPickerVisible, setBirthYearPickerVisible] = useState(false);
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
   const [openDatePart, setOpenDatePart] = useState<'year' | 'month' | 'day' | null>(null);
   const [dateDraftParts, setDateDraftParts] = useState({ year: '', month: '', day: '' });
@@ -243,6 +246,8 @@ export default function ProfileSetupPage() {
   const isValid = Boolean(
     nickname.trim() &&
       !nicknameError &&
+      gender &&
+      birthYear &&
       university &&
       finalCountry &&
       region.trim() &&
@@ -251,6 +256,15 @@ export default function ProfileSetupPage() {
       semesterTerm &&
       status &&
       statusDate,
+  );
+
+  const birthYearOptions = useMemo(
+    () =>
+      Array.from({ length: 63 }, (_, index) => {
+        const year = String(new Date().getFullYear() - 18 - index);
+        return { value: year, label: `${year}년` };
+      }),
+    [],
   );
 
   const semesterYears = useMemo(
@@ -288,6 +302,8 @@ export default function ProfileSetupPage() {
     const loadDraft = async () => {
       const entries = await AsyncStorage.multiGet([
         ONBOARDING_NICKNAME_KEY,
+        'gender',
+        'birthYear',
         'university',
         'dispatchedCountry',
         'dispatchedRegion',
@@ -305,6 +321,12 @@ export default function ProfileSetupPage() {
       const parsedSemester = parseDispatchSemester(saved.dispatchSemester);
 
       setNickname(saved[ONBOARDING_NICKNAME_KEY] ?? '');
+      setGender(
+        saved.gender === 'female' || saved.gender === 'male'
+          ? saved.gender
+          : '',
+      );
+      setBirthYear(saved.birthYear ?? '');
       setUniversity(saved.university ?? '');
       setSelectedCountry(country.selectedCountry);
       setCustomCountry(country.customCountry);
@@ -430,14 +452,18 @@ export default function ProfileSetupPage() {
     );
 
     try {
-      const [[, savedGender], [, savedBirthYear]] = await AsyncStorage.multiGet([
-        'gender',
-        'birthYear',
-      ]);
+      const requestGender = mapGender(gender);
+      const requestAge = calculateAge(birthYear);
+
+      if (!requestGender || !requestAge) {
+        Alert.alert('입력 정보 확인', '성별과 출생연도를 다시 확인해주세요.');
+        return;
+      }
+
       const request: OnboardingRequest = {
         nickname: nickname.trim(),
-        ...(mapGender(savedGender) ? { gender: mapGender(savedGender) } : {}),
-        ...(calculateAge(savedBirthYear) ? { age: calculateAge(savedBirthYear) } : {}),
+        gender: requestGender,
+        age: requestAge,
         currentSituation: mapCurrentSituation(status),
         domesticUniversity: university,
         dispatchedUniversity: dispatchedUniversity.trim(),
@@ -455,6 +481,8 @@ export default function ProfileSetupPage() {
 
       await AsyncStorage.multiSet([
         [ONBOARDING_NICKNAME_KEY, nickname.trim()],
+        ['gender', gender],
+        ['birthYear', birthYear],
         ['university', university],
         ['dispatchedCountry', finalCountry],
         ['dispatchedRegion', region.trim()],
@@ -470,11 +498,19 @@ export default function ProfileSetupPage() {
         ['dispatchStartDate', selectedDateKey === 'dispatchStartDate' ? statusDate : ''],
       ]);
 
+if (__DEV__) {
+  console.log('[Onboarding] 저장 요청:', request);
+}
       await onboarding(request);
       await AsyncStorage.setItem('nickname', nickname.trim());
       await clearOnboardingDraft();
       router.replace('/home');
     } catch (error: any) {
+      console.log(
+        '[Onboarding] 저장 실패:',
+        error.response?.status,
+        error.response?.data || error.message,
+      );
       Alert.alert(
         '온보딩 저장 실패',
         error.response?.data?.message ?? '입력한 정보를 저장하지 못했습니다. 잠시 후 다시 시도해주세요.',
@@ -527,6 +563,60 @@ export default function ProfileSetupPage() {
             <Text style={styles.counter}>{nickname.length}/12</Text>
           </View>
           {nicknameError ? <Text style={styles.errorText}>{nicknameError}</Text> : null}
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>성별</Text>
+          <View style={styles.genderRow}>
+            {([
+              { value: 'female', label: '여성' },
+              { value: 'male', label: '남성' },
+            ] as const).map((option) => {
+              const selected = gender === option.value;
+
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.genderButton,
+                    selected && styles.genderButtonSelected,
+                  ]}
+                  onPress={() => {
+                    setGender(option.value);
+                    void AsyncStorage.setItem('gender', option.value);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.genderText,
+                      selected && styles.genderTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>출생연도</Text>
+          <InlineDropdown
+            value={birthYear}
+            displayValue={birthYear ? `${birthYear}년` : ''}
+            placeholder="출생연도를 선택해주세요"
+            open={birthYearPickerVisible}
+            options={birthYearOptions}
+            onPress={() =>
+              setBirthYearPickerVisible((visible) => !visible)
+            }
+            onSelect={(value) => {
+              setBirthYear(value);
+              setBirthYearPickerVisible(false);
+              void AsyncStorage.setItem('birthYear', value);
+            }}
+          />
         </View>
 
         <View style={styles.fieldGroup}>
@@ -740,6 +830,11 @@ const styles = StyleSheet.create({
   inlineDropdownOptionText: { color: '#18202B', fontSize: 15, fontWeight: '700' },
   inlineDropdownOptionTextSelected: { color: '#1473FF', fontWeight: '900' },
   followingField: { marginTop: 6 },
+  genderRow: { flexDirection: 'row', gap: 8 },
+  genderButton: { flex: 1, height: 52, borderWidth: 1, borderColor: '#E0E5EB', borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  genderButtonSelected: { borderColor: '#18202B', backgroundColor: '#18202B' },
+  genderText: { color: '#7A8491', fontSize: 15, fontWeight: '800' },
+  genderTextSelected: { color: '#FFFFFF' },
   termRow: { flexDirection: 'row', gap: 5, marginTop: 6 },
   termButton: { flex: 1, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   termButtonSelected: { backgroundColor: '#18202B' },
