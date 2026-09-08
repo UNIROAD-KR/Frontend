@@ -126,6 +126,7 @@ export default function ProfileNotificationsScreen() {
       );
     } catch (error) {
       console.log("알림 설정 저장 실패:", error);
+      throw error;
     }
   };
 
@@ -135,11 +136,18 @@ export default function ProfileNotificationsScreen() {
     }
 
     if (allEnabled) {
-      setAllEnabled(false);
-      await saveSettings(settings, false);
-      disableDevicePushNotifications().catch((error) => {
+      setCheckingPermission(true);
+      try {
+        await saveSettings(settings, false);
+        await disableDevicePushNotifications();
+        setAllEnabled(false);
+      } catch (error) {
+        await saveSettings(settings, true).catch(() => undefined);
         console.log("FCM 토큰 비활성화 실패:", error);
-      });
+        Alert.alert("알림 설정 실패", "전체 알림을 끄지 못했어요. 다시 시도해주세요.");
+      } finally {
+        setCheckingPermission(false);
+      }
       return;
     }
 
@@ -180,7 +188,9 @@ export default function ProfileNotificationsScreen() {
 
     setSettings((prev) => {
       const next = { ...prev, [key]: !prev[key] };
-      saveSettings(next, allEnabled);
+      void saveSettings(next, allEnabled).catch(() => {
+        Alert.alert("알림 설정 실패", "설정을 저장하지 못했어요.");
+      });
       return next;
     });
   };

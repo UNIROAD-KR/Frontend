@@ -1,3 +1,4 @@
+import { SessionExpiredError } from "@/src/api/client";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -116,7 +117,7 @@ const extraItems: SettingItem[] = [
 ];
 
 export default function ProfileSettingsScreen() {
-  const [nickname, setNickname] = useState('서현');
+  const [nickname, setNickname] = useState('닉네임');
   const [email, setEmail] = useState('로그인 계정');
   const [school, setSchool] = useState('파견교 정보 미등록');
 
@@ -131,7 +132,7 @@ export default function ProfileSettingsScreen() {
         try {
           const response = await getMemberMe();
           const member = response.data.data;
-          setNickname(member.nickname || member.name || savedNickname || '서현');
+          setNickname(member.nickname || member.name || savedNickname || '닉네임');
           setEmail(member.email || member.username || '로그인 계정');
           setSchool(
             member.dispatchedUniversity ||
@@ -140,8 +141,9 @@ export default function ProfileSettingsScreen() {
               '파견교 정보 미등록',
           );
         } catch (error: any) {
+          if (error instanceof SessionExpiredError) return;
           console.log('설정 회원 정보 조회 실패:', error.response?.data || error.message);
-          setNickname(savedNickname || '서현');
+          setNickname(savedNickname || '닉네임');
           setSchool(savedSchool || '파견교 정보 미등록');
         }
       };
@@ -151,11 +153,17 @@ export default function ProfileSettingsScreen() {
   );
 
   const performLogout = async () => {
-    void logout().catch((error: any) => {
+    try {
+      await logout();
+    } catch (error: any) {
       console.log('로그아웃 API 실패:', error.response?.data || error.message);
-    });
+      Alert.alert('로그아웃 실패', '잠시 후 다시 시도해주세요.');
+      return;
+    }
 
+    console.log('[Auth] 로그아웃: 저장된 액세스·리프레시 토큰 삭제 시작');
     await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+    console.log('[Auth] 로그인 토큰 삭제 완료 → 로그인 화면 이동');
     router.replace('/login' as any);
   };
 

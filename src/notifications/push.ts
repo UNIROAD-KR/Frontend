@@ -4,10 +4,9 @@ import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-import { registerFcmToken } from "@/src/api/notifications";
+import { deleteFcmToken, registerFcmToken } from "@/src/api/notifications";
 
-const LAST_REGISTERED_TOKEN_KEY =
-  "univ:notifications:last-registered-fcm-token";
+import { LAST_REGISTERED_TOKEN_KEY } from "./tokenStorage";
 export const NOTIFICATION_SETTINGS_STORAGE_KEY =
   "univ:profile:notification-settings";
 const isNativePushRuntime = Platform.OS !== "web";
@@ -145,7 +144,14 @@ export const disableDevicePushNotifications = async () => {
   }
 
   const cachedToken = await AsyncStorage.getItem(LAST_REGISTERED_TOKEN_KEY);
-  logFcmToken("토큰 삭제 요청:", cachedToken);
+  console.log("[FCM] 전체 알림 OFF: 토큰 삭제 시작");
+  const accessToken = await AsyncStorage.getItem("accessToken");
+  if (cachedToken && accessToken) {
+    console.log("[FCM] 백엔드 토큰 삭제 요청");
+    await deleteFcmToken({ token: cachedToken });
+    console.log("[FCM] 백엔드 토큰 삭제 완료");
+  }
+  console.log("[FCM] 기기 토큰 삭제 요청");
   await messaging().deleteToken();
   await AsyncStorage.removeItem(LAST_REGISTERED_TOKEN_KEY);
   console.log("[FCM] 기기 토큰 삭제 성공");
@@ -166,6 +172,9 @@ export const subscribeToFcmTokenRefresh = () => {
     }
 
     try {
+      if (!(await areNotificationsEnabled())) {
+        return;
+      }
       await registerFcmToken({ token });
       await AsyncStorage.setItem(LAST_REGISTERED_TOKEN_KEY, token);
       console.log("[FCM] 갱신 토큰 백엔드 등록 성공");
