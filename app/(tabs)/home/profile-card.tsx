@@ -1,3 +1,4 @@
+import { SessionExpiredError } from "@/src/api/client";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
@@ -156,11 +157,11 @@ export default function ProfileCardScreen() {
   const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [profile, setProfile] = useState({
     nickname: '닉네임',
-    country: '독일',
-    region: '베를린',
-    university: '베를린 자유대학교',
-    homeUniversity: '서울대학교',
-    status: '출국 준비 중',
+    country: '국가 미등록',
+    region: '지역 미등록',
+    university: '파견교 미등록',
+    homeUniversity: '소속 대학 미등록',
+    status: '상태 미등록',
     avatarUri: null as string | null,
   });
 
@@ -231,6 +232,7 @@ export default function ProfileCardScreen() {
           setIsVerificationPending(hasPendingVerification);
           await AsyncStorage.setItem('isVerified', hasApprovedVerification ? 'true' : 'false');
         } catch (error: any) {
+          if (error instanceof SessionExpiredError) return;
           console.log('인증 내역 조회 실패:', error.response?.data || error.message);
         }
 
@@ -252,6 +254,7 @@ export default function ProfileCardScreen() {
             }
           }
         } catch (error: any) {
+          if (error instanceof SessionExpiredError) return;
           console.log('회원 정보 조회 실패:', error.response?.data || error.message);
         }
 
@@ -277,11 +280,17 @@ export default function ProfileCardScreen() {
   };
 
   const performLogout = async () => {
-    void logout().catch((error: any) => {
+    try {
+      await logout();
+    } catch (error: any) {
       console.log('로그아웃 API 실패:', error.response?.data || error.message);
-    });
+      Alert.alert('로그아웃 실패', '잠시 후 다시 시도해주세요.');
+      return;
+    }
 
+    console.log('[Auth] 로그아웃: 저장된 액세스·리프레시 토큰 삭제 시작');
     await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'nickname']);
+    console.log('[Auth] 로그인 토큰 삭제 완료 → 로그인 화면 이동');
     router.replace('/login' as any);
   };
 

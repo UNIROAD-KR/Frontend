@@ -5,6 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  AppState,
+  DeviceEventEmitter,
   Image,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,7 @@ import {
 } from 'react-native';
 
 import { getMemberMe, type CurrentSituation } from '../../../src/api/auth';
+import { getUnreadNotificationCount, NOTIFICATION_READ_EVENT } from '../../../src/api/notifications';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -312,6 +315,62 @@ export default function HomeScreen() {
     returnDate: createDate(2027, 1, 15),
   });
   const { nickname } = useLocalSearchParams<{ nickname?: string }>();
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    if (__DEV__) console.log('[Notifications][Home] 화면 배지 상태:', unreadCount);
+  }, [unreadCount]);
+
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      let fetching = false;
+      let pendingRefresh = false;
+      const refreshUnreadCount = async () => {
+        if (fetching || AppState.currentState !== 'active') return;
+        fetching = true;
+        try {
+          if (!(await AsyncStorage.getItem('accessToken'))) {
+            if (__DEV__) console.log('[Notifications] 비로그인: 개수 조회 생략, 배지 0');
+            if (active) setUnreadCount(0);
+            return;
+          }
+          if (__DEV__) console.log('[Notifications] 읽지 않은 알림 개수 조회 요청');
+          const response = await getUnreadNotificationCount();
+          if (__DEV__) console.log('[Notifications] 개수 조회 응답:', response.status, response.data);
+          const count = response.data.data.count;
+          if (active) {
+            setUnreadCount(count);
+          }
+
+        } catch (error: any) {
+          console.log('미확인 알림 개수 조회 실패:', error.response?.data || error.message);
+        } finally {
+          fetching = false;
+          if (active && pendingRefresh) {
+            pendingRefresh = false;
+            void refreshUnreadCount();
+          }
+        }
+      };
+      void refreshUnreadCount();
+      const readSubscription = DeviceEventEmitter.addListener(NOTIFICATION_READ_EVENT, () => {
+        if (fetching) pendingRefresh = true;
+        else void refreshUnreadCount();
+      });
+      const timer = setInterval(() => void refreshUnreadCount(), 10000);
+      const subscription = AppState.addEventListener('change', (state) => {
+        if (state === 'active') void refreshUnreadCount();
+      });
+      return () => {
+        active = false;
+        clearInterval(timer);
+        subscription.remove();
+        readSubscription.remove();
+      };
+    }, []),
+  );
+
 
   useEffect(() => {
     if (nickname) {
@@ -525,8 +584,19 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            accessibilityLabel={`알림, 읽지 않은 알림 ${unreadCount}개`}
+            onPress={() => router.push('/notifications')}
+          >
             <Ionicons name="notifications-outline" size={22} color={NAVY} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge} pointerEvents="none">
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -918,6 +988,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#64748B',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   headerIcons: {
     flexDirection: 'row',
