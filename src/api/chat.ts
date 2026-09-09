@@ -1,3 +1,4 @@
+import { markChatNotificationsAsRead } from './notifications';
 import { api } from './client';
 import { PageResponse } from './types';
 
@@ -62,8 +63,10 @@ export const getChatMessages = (roomId: number) => {
   );
 };
 
-export const readChatRoom = (roomId: number) => {
-  return api.post<ChatReadResponse>(`/api/v1/chat/rooms/${roomId}/read`);
+export const readChatRoom = async (roomId: number) => {
+  const response = await api.post<ChatReadResponse>(`/api/v1/chat/rooms/${roomId}/read`);
+  await markChatNotificationsAsRead(roomId);
+  return response;
 };
 
 export const sendChatMessage = (roomId: number, message: string) => {

@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getRegisteredFcmToken, LAST_REGISTERED_TOKEN_KEY } from "../notifications/tokenStorage";
 import { api } from './client';
 import { BaseResponse } from './types';
 
@@ -132,8 +134,16 @@ export const socialLogin = (provider: string, accessToken: string) => {
   });
 };
 
-export const logout = () => {
-  return api.post('/api/auth/logout');
+export const logout = async () => {
+  const fcmToken = await getRegisteredFcmToken();
+  console.log(fcmToken
+    ? '[Auth] 로그아웃 요청: 백엔드 FCM 토큰 삭제 포함'
+    : '[Auth] 로그아웃 요청: 저장된 FCM 토큰 없음');
+  const response = await api.post('/api/auth/logout', fcmToken ? { fcmToken } : {});
+  console.log('[Auth] 로그아웃 서버 처리 완료');
+  await AsyncStorage.removeItem(LAST_REGISTERED_TOKEN_KEY);
+  console.log("[FCM] 저장된 토큰 캐시 삭제 완료");
+  return response;
 };
 
 export const deleteMyAccount = () => {

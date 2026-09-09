@@ -83,7 +83,17 @@ export default function NotificationsScreen() {
         getUnreadNotificationCount(),
       ]);
 
-      setNotifications(listResponse.data.data.content ?? []);
+      const items = listResponse.data.data.content ?? [];
+      if (__DEV__) {
+        console.log('[Notifications][List] 조회 결과:', {
+          unreadCount: countResponse.data.data.count,
+          totalElements: listResponse.data.data.totalElements,
+          items: items.map(({ notificationId, type, read, referenceId }) => ({
+            notificationId, type, read, referenceId,
+          })),
+        });
+      }
+      setNotifications(items);
       setUnreadCount(countResponse.data.data.count ?? 0);
     } catch (error: any) {
       console.log('알림 조회 실패:', error.response?.data || error.message);

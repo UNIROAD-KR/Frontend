@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { Tabs, router } from 'expo-router';
-import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useState, type ComponentType } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getUnreadChatNotificationCount, NOTIFICATION_READ_EVENT } from '@/src/api/notifications';
+import { AppState, DeviceEventEmitter, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SvgProps } from 'react-native-svg';
 
@@ -76,6 +78,48 @@ function TabBarIcon({ icon, active }: { icon: TabIcon; active: boolean }) {
 }
 
 function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  useEffect(() => {
+    let active = true;
+    let fetching = false;
+    let pendingRefresh = false;
+    const refresh = async () => {
+      if (fetching || AppState.currentState !== 'active') return;
+      fetching = true;
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const count = token ? await getUnreadChatNotificationCount() : 0;
+        if (active) {
+          setChatUnreadCount(count);
+          if (__DEV__) console.log('[Notifications][Chat] 안 읽은 CHAT 알림:', count);
+        }
+      } catch (error: any) {
+        console.log('[Notifications][Chat] 개수 조회 실패:', error.response?.data || error.message);
+      } finally {
+        fetching = false;
+        if (active && pendingRefresh) {
+          pendingRefresh = false;
+          void refresh();
+        }
+      }
+    };
+    void refresh();
+    const readSubscription = DeviceEventEmitter.addListener(NOTIFICATION_READ_EVENT, () => {
+      if (fetching) pendingRefresh = true;
+      else void refresh();
+    });
+    const timer = setInterval(() => void refresh(), 10000);
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void refresh();
+    });
+    return () => {
+      active = false;
+      clearInterval(timer);
+      subscription.remove();
+      readSubscription.remove();
+    };
+  }, [state.index]);
+
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = useWindowDimensions();
   const activeRoute = state.routes[state.index];
@@ -132,7 +176,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             accessibilityRole="button"
-            accessibilityLabel={meta.label}
+            accessibilityLabel={route.name === 'chat' ? `${meta.label}, 읽지 않은 알림 ${chatUnreadCount}개` : meta.label}
             accessibilityState={active ? { selected: true } : {}}
             onPress={onPress}
             style={[
@@ -141,7 +185,16 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               { width: active ? activeTabWidth : inactiveTabWidth },
             ]}
           >
-            <TabBarIcon icon={active ? meta.activeIcon : meta.icon} active={active} />
+            <View>
+              <TabBarIcon icon={active ? meta.activeIcon : meta.icon} active={active} />
+              {route.name === 'chat' && chatUnreadCount > 0 && (
+                <View style={styles.chatBadge} pointerEvents="none">
+                  <Text style={styles.chatBadgeText}>
+                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             {active ? (
               <Text numberOfLines={1} style={styles.activeLabel}>
                 {meta.label}
@@ -239,6 +292,12 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  chatBadge: {
+    position: 'absolute', top: -7, right: -9,
+    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
+    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+  },
+  chatBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
   tabBar: {
     position: 'absolute',
     left: 16,
