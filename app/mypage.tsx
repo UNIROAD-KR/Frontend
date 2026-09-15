@@ -367,9 +367,8 @@ export default function MyPageScreen() {
   // 캘린더 날짜 격자 생성 로직
   const renderCalendar = () => {
     const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
-    // 1일의 요일 알아내기 (Mon-Sun으로 배치하기 위해 월요일(1) 시작으로 계산)
-    const firstDayIndex =
-      (new Date(currentYear, currentMonth, 1).getDay() + 6) % 7;
+    // 1일의 요일 알아내기 (일요일(0) 시작으로 계산)
+    const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
 
     const days = [];
 
