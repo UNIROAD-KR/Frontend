@@ -1,59 +1,72 @@
-import { Ionicons } from '@expo/vector-icons';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
-import { Tabs, router } from 'expo-router';
-import { useEffect, useState, type ComponentType } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getUnreadChatNotificationCount, NOTIFICATION_READ_EVENT } from '@/src/api/notifications';
-import { AppState, DeviceEventEmitter, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { SvgProps } from 'react-native-svg';
+import {
+  getUnreadChatNotificationCount,
+  NOTIFICATION_READ_EVENT,
+} from "@/src/api/notifications";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
+import { router, Tabs } from "expo-router";
+import { useEffect, useState, type ComponentType } from "react";
+import {
+  AppState,
+  DeviceEventEmitter,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { SvgProps } from "react-native-svg";
 
-import ChatFilledIcon from '@/assets/icon/Property 1=chat, Property 2=fill.svg';
-import ChatLineIcon from '@/assets/icon/Property 1=chat, Property 2=line.svg';
-import CommunityFilledIcon from '@/assets/icon/Property 1=community, Property 2=fill.svg';
-import CommunityLineIcon from '@/assets/icon/Property 1=community, Property 2=line.svg';
-import HomeFilledIcon from '@/assets/icon/Property 1=home, Property 2=fill.svg';
-import HomeLineIcon from '@/assets/icon/Property 1=home, Property 2=line.svg';
-import SearchFilledIcon from '@/assets/icon/Property 1=search, Property 2=fill.svg';
-import SearchLineIcon from '@/assets/icon/Property 1=search, Property 2=line.svg';
-import ShopFilledIcon from '@/assets/icon/Property 1=shop, Property 2=fill.svg';
+import ChatFilledIcon from "@/assets/icon/Property 1=chat, Property 2=fill.svg";
+import ChatLineIcon from "@/assets/icon/Property 1=chat, Property 2=line.svg";
+import CommunityFilledIcon from "@/assets/icon/Property 1=community, Property 2=fill.svg";
+import CommunityLineIcon from "@/assets/icon/Property 1=community, Property 2=line.svg";
+import HomeFilledIcon from "@/assets/icon/Property 1=home, Property 2=fill.svg";
+import HomeLineIcon from "@/assets/icon/Property 1=home, Property 2=line.svg";
+import SearchFilledIcon from "@/assets/icon/Property 1=search, Property 2=fill.svg";
+import SearchLineIcon from "@/assets/icon/Property 1=search, Property 2=line.svg";
+import ShopFilledIcon from "@/assets/icon/Property 1=shop, Property 2=fill.svg";
 
 type SvgIcon = ComponentType<SvgProps>;
 type TabIcon = SvgIcon | keyof typeof Ionicons.glyphMap;
 
+const ACTIVE_COLOR = "#506AFF";
+const INACTIVE_COLOR = "#8B95A1";
+
 const MARKET_CREATION_ROUTES = new Set([
-  'write',
-  'category',
-  'preview',
-  'ticket-write',
-  'ticket-preview',
-  'verify',
+  "write",
+  "category",
+  "preview",
+  "ticket-write",
+  "ticket-preview",
+  "verify",
 ]);
 
 const tabMeta = {
   home: {
-    label: '홈 화면',
+    label: "홈 화면",
     icon: HomeLineIcon,
     activeIcon: HomeFilledIcon,
   },
   explore: {
-    label: '탐색하기',
+    label: "탐색하기",
     icon: SearchLineIcon,
     activeIcon: SearchFilledIcon,
   },
   community: {
-    label: '커뮤니티',
+    label: "커뮤니티",
     icon: CommunityLineIcon,
     activeIcon: CommunityFilledIcon,
   },
   market: {
-    label: '중고마켓',
-    icon: 'bag-handle-outline',
+    label: "중고마켓",
+    icon: "bag-handle-outline",
     activeIcon: ShopFilledIcon,
   },
   chat: {
-    label: '채팅관리',
+    label: "채팅",
     icon: ChatLineIcon,
     activeIcon: ChatFilledIcon,
   },
@@ -67,9 +80,9 @@ const tabMeta = {
 >;
 
 function TabBarIcon({ icon, active }: { icon: TabIcon; active: boolean }) {
-  const color = active ? '#FFFFFF' : '#75808F';
+  const color = active ? ACTIVE_COLOR : INACTIVE_COLOR;
 
-  if (typeof icon === 'string') {
+  if (typeof icon === "string") {
     return <Ionicons name={icon} size={24} color={color} />;
   }
 
@@ -84,17 +97,21 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     let fetching = false;
     let pendingRefresh = false;
     const refresh = async () => {
-      if (fetching || AppState.currentState !== 'active') return;
+      if (fetching || AppState.currentState !== "active") return;
       fetching = true;
       try {
-        const token = await AsyncStorage.getItem('accessToken');
+        const token = await AsyncStorage.getItem("accessToken");
         const count = token ? await getUnreadChatNotificationCount() : 0;
         if (active) {
           setChatUnreadCount(count);
-          if (__DEV__) console.log('[Notifications][Chat] 안 읽은 CHAT 알림:', count);
+          if (__DEV__)
+            console.log("[Notifications][Chat] 안 읽은 CHAT 알림:", count);
         }
       } catch (error: any) {
-        console.log('[Notifications][Chat] 개수 조회 실패:', error.response?.data || error.message);
+        console.log(
+          "[Notifications][Chat] 개수 조회 실패:",
+          error.response?.data || error.message,
+        );
       } finally {
         fetching = false;
         if (active && pendingRefresh) {
@@ -104,13 +121,16 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       }
     };
     void refresh();
-    const readSubscription = DeviceEventEmitter.addListener(NOTIFICATION_READ_EVENT, () => {
-      if (fetching) pendingRefresh = true;
-      else void refresh();
-    });
+    const readSubscription = DeviceEventEmitter.addListener(
+      NOTIFICATION_READ_EVENT,
+      () => {
+        if (fetching) pendingRefresh = true;
+        else void refresh();
+      },
+    );
     const timer = setInterval(() => void refresh(), 10000);
-    const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'active') void refresh();
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") void refresh();
     });
     return () => {
       active = false;
@@ -121,35 +141,22 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   }, [state.index]);
 
   const insets = useSafeAreaInsets();
-  const { width: screenWidth } = useWindowDimensions();
   const activeRoute = state.routes[state.index];
   const activeNestedRoute = activeRoute
     ? getFocusedRouteNameFromRoute(activeRoute)
     : undefined;
 
   if (
-    activeRoute?.name === 'market' &&
+    activeRoute?.name === "market" &&
     activeNestedRoute &&
     MARKET_CREATION_ROUTES.has(activeNestedRoute)
   ) {
     return null;
   }
 
-  const tabBarWidth = Math.max(screenWidth - 32, 280);
-  const tabContentWidth = tabBarWidth - 10;
-  // Keep the selected pill compact on wider phones while leaving enough room for every label.
-  const activeTabWidth = Math.min(Math.max(tabContentWidth * 0.32, 112), 124);
-  const inactiveTabWidth = (tabContentWidth - activeTabWidth) / 4;
-
   return (
     <View
-      style={[
-        styles.tabBar,
-        {
-          width: tabBarWidth,
-          bottom: Math.max(insets.bottom, 12),
-        },
-      ]}
+      style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
     >
       {state.routes.map((route, routeIndex) => {
         const meta = tabMeta[route.name as keyof typeof tabMeta];
@@ -162,7 +169,7 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 
         const onPress = () => {
           const event = navigation.emit({
-            type: 'tabPress',
+            type: "tabPress",
             target: route.key,
             canPreventDefault: true,
           });
@@ -176,30 +183,34 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           <Pressable
             key={route.key}
             accessibilityRole="button"
-            accessibilityLabel={route.name === 'chat' ? `${meta.label}, 읽지 않은 알림 ${chatUnreadCount}개` : meta.label}
+            accessibilityLabel={
+              route.name === "chat"
+                ? `${meta.label}, 읽지 않은 알림 ${chatUnreadCount}개`
+                : meta.label
+            }
             accessibilityState={active ? { selected: true } : {}}
             onPress={onPress}
-            style={[
-              styles.tabSlot,
-              active ? styles.tabSlotActive : styles.tabSlotInactive,
-              { width: active ? activeTabWidth : inactiveTabWidth },
-            ]}
+            style={styles.tabSlot}
           >
             <View>
-              <TabBarIcon icon={active ? meta.activeIcon : meta.icon} active={active} />
-              {route.name === 'chat' && chatUnreadCount > 0 && (
+              <TabBarIcon
+                icon={active ? meta.activeIcon : meta.icon}
+                active={active}
+              />
+              {route.name === "chat" && chatUnreadCount > 0 && (
                 <View style={styles.chatBadge} pointerEvents="none">
                   <Text style={styles.chatBadgeText}>
-                    {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                    {chatUnreadCount > 99 ? "99+" : chatUnreadCount}
                   </Text>
                 </View>
               )}
             </View>
-            {active ? (
-              <Text numberOfLines={1} style={styles.activeLabel}>
-                {meta.label}
-              </Text>
-            ) : null}
+            <Text
+              numberOfLines={1}
+              style={[styles.tabLabel, active && styles.tabLabelActive]}
+            >
+              {meta.label}
+            </Text>
           </Pressable>
         );
       })}
@@ -220,11 +231,11 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            router.replace('/home' as any);
+            router.replace("/home" as any);
           },
         }}
         options={{
-          title: '홈',
+          title: "홈",
         }}
       />
       <Tabs.Screen
@@ -232,11 +243,11 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            router.replace('/explore' as any);
+            router.replace("/explore" as any);
           },
         }}
         options={{
-          title: '탐색하기',
+          title: "탐색하기",
         }}
       />
 
@@ -246,13 +257,13 @@ export default function TabLayout() {
           tabPress: (e) => {
             e.preventDefault();
             router.replace({
-              pathname: '/community',
-              params: { fromTab: 'true' },
+              pathname: "/community",
+              params: { fromTab: "true" },
             } as any);
           },
         }}
         options={{
-          title: '커뮤니티',
+          title: "커뮤니티",
         }}
       />
 
@@ -263,13 +274,13 @@ export default function TabLayout() {
             e.preventDefault();
 
             router.replace({
-              pathname: '/market',
-              params: { fromTab: 'true' },
+              pathname: "/market",
+              params: { fromTab: "true" },
             } as any);
           },
         }}
         options={{
-          title: '중고마켓',
+          title: "중고마켓",
         }}
       />
 
@@ -278,11 +289,11 @@ export default function TabLayout() {
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            router.replace('/chat' as any);
+            router.replace("/chat" as any);
           },
         }}
         options={{
-          title: '채팅관리',
+          title: "채팅관리",
         }}
       />
 
@@ -293,47 +304,39 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   chatBadge: {
-    position: 'absolute', top: -7, right: -9,
-    minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4,
-    backgroundColor: '#EF4444', alignItems: 'center', justifyContent: 'center',
+    position: "absolute",
+    top: -7,
+    right: -9,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  chatBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  chatBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
   tabBar: {
-    position: 'absolute',
-    left: 16,
-    height: 64,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 5,
-    borderRadius: 34,
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#111820',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
+    flexDirection: "row",
+    width: "100%",
+    paddingTop: 10,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#EEF0F3",
   },
   tabSlot: {
-    height: '100%',
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 0,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
-  tabSlotInactive: {
-    flexShrink: 0,
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: INACTIVE_COLOR,
   },
-  tabSlotActive: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#19212C',
-  },
-  activeLabel: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#FFFFFF',
+  tabLabelActive: {
+    color: ACTIVE_COLOR,
+    fontWeight: "700",
   },
 });

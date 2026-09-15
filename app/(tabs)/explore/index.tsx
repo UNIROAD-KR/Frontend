@@ -3,13 +3,13 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Image,
-  TextInput,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 import { getMemberMe } from "../../../src/api/auth";
@@ -56,7 +56,7 @@ export default function ExploreScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* 🔝 헤더 */}
       <View style={styles.header}>
-        <Text style={styles.title}>교환학생 정보 탐색</Text>
+        <Text style={styles.title}>정보 탐색</Text>
 
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -158,11 +158,12 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
+    justifyContent: "space-between",
+    marginTop: 60,
+    paddingHorizontal: 20,
   },
   title: {
     flex: 1,
-    textAlign: "center",
     fontSize: 18,
     fontWeight: "700",
   },

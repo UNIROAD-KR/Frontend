@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,16 +19,18 @@ import {
 import { AppBackButton } from "@/components/ui/app-back-button";
 import { getMemberMe } from "../../src/api/auth";
 import {
-  ChatRoomResponse,
   ChatMessageResponse,
-  getChatRooms,
+  ChatRoomResponse,
+  createChatSocket,
   getChatMessages,
+  getChatRooms,
   readChatRoom,
   sendChatMessage,
+  subscribeChatRoom,
 } from "../../src/api/chat";
-import { getUsedItemDetail } from "../../src/api/usedItems";
-import { getTicketDetail } from "../../src/api/ticket";
 import { createReport, ReportReason } from "../../src/api/reports";
+import { getTicketDetail } from "../../src/api/ticket";
+import { getUsedItemDetail } from "../../src/api/usedItems";
 import { getTicketCurrency } from "../../src/storage/ticketMetadata";
 
 type ChatMessage = {
@@ -65,6 +68,17 @@ const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
   { label: "스팸/광고", reason: "SPAM" },
   { label: "기타", reason: "ETC" },
 ];
+
+const getValidAccessToken = async () => {
+  const accessToken = await AsyncStorage.getItem("accessToken");
+  console.log("[Chat][WebSocket] accessToken 확인:", Boolean(accessToken));
+
+  if (!accessToken) {
+    throw new Error("채팅 WebSocket 연결에 필요한 accessToken이 없습니다.");
+  }
+
+  return accessToken;
+};
 
 const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   id: item.id,
@@ -304,14 +318,82 @@ export default function ChatRoomPage() {
       fetchRoomInfo();
       fetchMessages();
 
-      const messageTimer = setInterval(fetchMessages, 2500);
-      const roomTimer = setInterval(fetchRoomInfo, 7000);
+      // const messageTimer = setInterval(fetchMessages, 2500);
+      // 웹소켓으로 교체
+      let client: ReturnType<typeof createChatSocket> | null = null;
+
+      const connectChatSocket = async () => {
+        try {
+          console.log("[Chat][WebSocket] 연결 시작:", numericRoomId);
+          await getValidAccessToken();
+          client = createChatSocket(getValidAccessToken);
+          client.onConnect = () => {
+            console.log("[Chat][WebSocket] STOMP 연결 성공:", numericRoomId);
+            const subscription = subscribeChatRoom(
+              client!,
+              numericRoomId,
+              (message) => {
+                console.log("[Chat][WebSocket] 메시지 수신:", {
+                  roomId: numericRoomId,
+                  messageId: message.id,
+                });
+                setMessages((prev) =>
+                  mergeMessagesById(prev, [normalizeMessage(message)]),
+                );
+                void readChatRoom(numericRoomId).catch((error: any) => {
+                  console.log(
+                    "채팅방 읽음 처리 실패:",
+                    error.response?.data || error.message,
+                  );
+                });
+              },
+            );
+            console.log("[Chat][WebSocket] 채팅방 구독 완료:", numericRoomId);
+
+            client!.onDisconnect = () => subscription.unsubscribe();
+          };
+          client.onStompError = (frame) => {
+            console.log("[Chat][WebSocket] STOMP 오류:", {
+              roomId: numericRoomId,
+              message: frame.headers.message,
+              body: frame.body,
+            });
+          };
+          client.onWebSocketError = (event) => {
+            console.log("[Chat][WebSocket] 소켓 오류:", {
+              roomId: numericRoomId,
+              event,
+            });
+          };
+          client.onWebSocketClose = (event) => {
+            console.log("[Chat] 소켓 종료:", {
+              code: event.code,
+              reason: event.reason,
+              wasClean: event.wasClean,
+            });
+          };
+          client.activate();
+          console.log("[Chat][WebSocket] activate 호출 완료:", numericRoomId);
+        } catch (error: any) {
+          console.log("[Chat][WebSocket] 연결 실패:", {
+            roomId: numericRoomId,
+            message: error.message,
+          });
+        }
+      };
+
+      void connectChatSocket();
+      // const roomTimer = setInterval(fetchRoomInfo, 7000);
 
       return () => {
-        clearInterval(messageTimer);
-        clearInterval(roomTimer);
+        if (client) {
+          console.log("[Chat][WebSocket] 연결 종료:", numericRoomId);
+          void client.deactivate();
+        }
+        // clearInterval(messageTimer);
+        // clearInterval(roomTimer);
       };
-    }, [fetchCurrentMember, fetchMessages, fetchRoomInfo]),
+    }, [fetchCurrentMember, fetchMessages, fetchRoomInfo, numericRoomId]),
   );
 
   useEffect(() => {
