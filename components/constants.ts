@@ -1,14 +1,14 @@
 import type { LifecycleStatus } from "@/components/types";
 import { CurrentSituation } from "@/src/api/auth";
-import AirplaneIcon from "../../Frontend/assets/icon/actions/airplane.svg";
-import BuildingIcon from "../../Frontend/assets/icon/actions/building.svg";
-import CartIcon from "../../Frontend/assets/icon/actions/cart.svg";
-import DocumentIcon from "../../Frontend/assets/icon/actions/document.svg";
-import HandshakeIcon from "../../Frontend/assets/icon/actions/handshake.svg";
-import SchoolIcon from "../../Frontend/assets/icon/actions/school.svg";
-import TicketIcon from "../../Frontend/assets/icon/actions/ticket.svg";
-import TrophyIcon from "../../Frontend/assets/icon/actions/trophy.svg";
-import WalletIcon from "../../Frontend/assets/icon/actions/wallet.svg";
+import AirplaneIcon from "../assets/icon/actions/airplane.svg";
+import BuildingIcon from "../assets/icon/actions/building.svg";
+import CartIcon from "../assets/icon/actions/cart.svg";
+import DocumentIcon from "../assets/icon/actions/document.svg";
+import HandshakeIcon from "../assets/icon/actions/handshake.svg";
+import SchoolIcon from "../assets/icon/actions/school.svg";
+import TicketIcon from "../assets/icon/actions/ticket.svg";
+import TrophyIcon from "../assets/icon/actions/trophy.svg";
+import WalletIcon from "../assets/icon/actions/wallet.svg"
 
 export const quickActionsByStatus = [
   {
