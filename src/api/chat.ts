@@ -1,5 +1,4 @@
 import { Client } from "@stomp/stompjs";
-import SockJS from "sockjs-client";
 import { api } from "./client";
 import { markChatNotificationsAsRead } from "./notifications";
 import { PageResponse } from "./types";
@@ -85,10 +84,7 @@ export const sendChatMessage = (roomId: number, message: string) => {
 
 export const createChatSocket = (getAccessToken: () => Promise<string>) => {
   const client = new Client({
-    webSocketFactory: () => {
-      console.log("[Chat][SockJS] 연결 생성: https://api.uniroad.kr/ws-stomp");
-      return new SockJS("https://api.uniroad.kr/ws-stomp");
-    },
+    brokerURL: "wss://api.uniroad.kr/ws-stomp",
     reconnectDelay: 5000,
     heartbeatIncoming: 15000,
     heartbeatOutgoing: 15000,
