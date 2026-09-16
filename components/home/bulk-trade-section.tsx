@@ -89,7 +89,7 @@ export function BulkTradeSection({ items, isReturned }: BulkTradeSectionProps) {
       <View>
         {filteredItems.map((item, index) => (
           <TouchableOpacity
-            key={item.title}
+            key={item.id}
             style={[
               styles.tradeItem,
               index === filteredItems.length - 1 && styles.lastItem,
