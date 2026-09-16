@@ -1,5 +1,5 @@
-import { router, useNavigation, type Href } from 'expo-router';
-import type { SvgProps } from 'react-native-svg';
+import BackArrowIcon from "@/assets/icon/back-arrow.svg";
+import { router, useNavigation, type Href } from "expo-router";
 import {
   Pressable,
   StyleSheet,
@@ -7,19 +7,19 @@ import {
   type PressableProps,
   type StyleProp,
   type ViewStyle,
-} from 'react-native';
-import BackArrowIcon from '@/assets/icon/back-arrow.svg';
+} from "react-native";
+import type { SvgProps } from "react-native-svg";
 
 type AppBackButtonProps = {
   fallbackHref?: Href;
-  onPress?: PressableProps['onPress'];
-  hitSlop?: PressableProps['hitSlop'];
+  onPress?: PressableProps["onPress"];
+  hitSlop?: PressableProps["hitSlop"];
   showOnlyWhenCanGoBack?: boolean;
   style?: StyleProp<ViewStyle>;
-  iconStyle?: SvgProps['style'];
+  iconStyle?: SvgProps["style"];
 };
 
-export function goBackOrReplace(fallbackHref: Href = '/home') {
+export function goBackOrReplace(fallbackHref: Href = "/home") {
   if (router.canGoBack()) {
     router.back();
     return;
@@ -58,7 +58,7 @@ export function AppBackButton({
     return null;
   }
 
-  const handlePress: PressableProps['onPress'] = (event) => {
+  const handlePress: PressableProps["onPress"] = (event) => {
     if (onPress) {
       onPress(event);
       return;
@@ -77,7 +77,7 @@ export function AppBackButton({
     }
 
     // A screen opened with replace() has no native history. Keep the button responsive.
-    router.replace(fallbackHref ?? '/home');
+    router.replace(fallbackHref ?? "/home");
   };
 
   return (
@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
     height: 34,
     zIndex: 2,
     borderRadius: 6,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
   iconWrap: {
     width: 9,
     height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

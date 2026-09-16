@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
 export default function MarketLayout() {
   return (
@@ -6,7 +6,7 @@ export default function MarketLayout() {
       screenOptions={{
         headerShown: false,
         headerBackButtonMenuEnabled: false,
-        animation: 'slide_from_right',
+        animation: "slide_from_right",
         gestureEnabled: true,
         fullScreenGestureEnabled: true,
       }}
@@ -14,6 +14,10 @@ export default function MarketLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="verify" />
       <Stack.Screen name="ticket-write" />
+      <Stack.Screen
+        name="ticket-preview"
+        options={{ animation: "slide_from_right" }}
+      />
     </Stack>
   );
 }

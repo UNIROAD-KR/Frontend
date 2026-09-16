@@ -1,8 +1,9 @@
-import { markChatNotificationsAsRead } from './notifications';
-import { api } from './client';
-import { PageResponse } from './types';
+import { Client } from "@stomp/stompjs";
+import { api } from "./client";
+import { markChatNotificationsAsRead } from "./notifications";
+import { PageResponse } from "./types";
 
-export type ChatReferenceType = 'TRADE' | 'MENTOR' | 'TICKET';
+export type ChatReferenceType = "TRADE" | "MENTOR" | "TICKET";
 
 export interface ChatRoomResponse {
   roomId: number;
@@ -12,7 +13,7 @@ export interface ChatRoomResponse {
   opponentName?: string;
   opponentNickname?: string;
   lastMessage?: string;
-  lastMessageType?: 'TALK' | 'ENTER' | 'QUIT';
+  lastMessageType?: "TALK" | "ENTER" | "QUIT";
   lastMessageCreatedAt?: string;
   unreadCount?: number;
   lastReadAt?: string;
@@ -39,7 +40,7 @@ export interface ChatReadResponse {
 }
 
 export const getChatRooms = () => {
-  return api.get<ChatRoomResponse[]>('/api/v1/chat/rooms');
+  return api.get<ChatRoomResponse[]>("/api/v1/chat/rooms");
 };
 
 export const createOrGetChatRoom = (data: {
@@ -47,7 +48,7 @@ export const createOrGetChatRoom = (data: {
   referenceId: number;
   targetMemberId: number;
 }) => {
-  return api.post<ChatRoomResponse>('/api/v1/chat/rooms', data);
+  return api.post<ChatRoomResponse>("/api/v1/chat/rooms", data);
 };
 
 export const getChatMessages = (roomId: number) => {
@@ -57,14 +58,16 @@ export const getChatMessages = (roomId: number) => {
       params: {
         page: 0,
         size: 30,
-        sort: ['createdAt,asc'],
+        sort: ["createdAt,asc"],
       },
     },
   );
 };
 
 export const readChatRoom = async (roomId: number) => {
-  const response = await api.post<ChatReadResponse>(`/api/v1/chat/rooms/${roomId}/read`);
+  const response = await api.post<ChatReadResponse>(
+    `/api/v1/chat/rooms/${roomId}/read`,
+  );
   await markChatNotificationsAsRead(roomId);
   return response;
 };
@@ -74,7 +77,35 @@ export const sendChatMessage = (roomId: number, message: string) => {
     `/api/v1/chat/rooms/${roomId}/messages`,
     {
       message,
-      type: 'TALK',
+      type: "TALK",
     },
   );
+};
+
+export const createChatSocket = (getAccessToken: () => Promise<string>) => {
+  const client = new Client({
+    brokerURL: "wss://api.uniroad.kr/ws-stomp",
+    reconnectDelay: 5000,
+    heartbeatIncoming: 15000,
+    heartbeatOutgoing: 15000,
+  });
+
+  client.beforeConnect = async () => {
+    const token = await getAccessToken();
+    client.connectHeaders = {
+      Authorization: `Bearer ${token}`,
+    };
+  };
+
+  return client;
+};
+
+export const subscribeChatRoom = (
+  client: Client,
+  roomId: number,
+  onMessage: (message: ChatMessageResponse) => void,
+) => {
+  return client.subscribe(`/sub/chat/room/${roomId}`, (frame) => {
+    onMessage(JSON.parse(frame.body) as ChatMessageResponse);
+  });
 };

@@ -1,5 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import {
@@ -13,6 +13,12 @@ import {
 } from "react-native";
 
 import { AppBackButton } from "@/components/ui/app-back-button";
+import {
+  getNotificationSettings,
+  NotificationCategory,
+  updateAllNotificationsEnabled,
+  updateNotificationCategoryEnabled,
+} from "@/src/api/notifications";
 import {
   disableDevicePushNotifications,
   NOTIFICATION_SETTINGS_STORAGE_KEY,
@@ -32,9 +38,19 @@ type NotificationKey =
   | "community"
   | "chat"
   | "schedule"
-  | "marketing";
+  | "marketing"
+  | "notice";
 
 type NotificationSettings = Record<NotificationKey, boolean>;
+
+const categoryByKey: Record<NotificationKey, NotificationCategory> = {
+  chat: "CHAT",
+  market: "MARKET",
+  community: "COMMUNITY",
+  schedule: "SCHEDULE",
+  marketing: "MARKETING",
+  notice: "NOTICE",
+};
 
 type NotificationItem = {
   key: NotificationKey;
@@ -49,6 +65,7 @@ const defaultSettings: NotificationSettings = {
   chat: true,
   schedule: true,
   marketing: false,
+  notice: true,
 };
 
 const notificationItems: NotificationItem[] = [
@@ -82,6 +99,12 @@ const notificationItems: NotificationItem[] = [
     description: "교환학생에게 맞는 혜택과 새 소식을 선택적으로 받아요.",
     icon: "sparkles-outline",
   },
+  {
+    key: "notice",
+    title: "공지 알림",
+    description: "서비스 공지와 운영 안내를 받아요.",
+    icon: "megaphone-outline",
+  },
 ];
 
 export default function ProfileNotificationsScreen() {
@@ -90,9 +113,27 @@ export default function ProfileNotificationsScreen() {
   const [allEnabled, setAllEnabled] = useState(true);
   const [checkingPermission, setCheckingPermission] = useState(false);
 
+  // 푸시 모듈(areNotificationsEnabled)이 참조하는 로컬 캐시를 최신 값으로 유지한다.
+  const cacheSettings = async (
+    nextSettings: NotificationSettings,
+    nextAllEnabled: boolean,
+  ) => {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({
+          ...nextSettings,
+          [MASTER_SETTING_KEY]: nextAllEnabled,
+        }),
+      );
+    } catch (error) {
+      console.log("알림 설정 캐시 저장 실패:", error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
-      const loadSettings = async () => {
+      const loadLocalSettings = async () => {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (!raw) {
@@ -108,27 +149,38 @@ export default function ProfileNotificationsScreen() {
         }
       };
 
+      const loadSettings = async () => {
+        try {
+          const response = await getNotificationSettings();
+          const serverSettings = response.data.data;
+
+          console.log(
+            "[Notifications][Settings] 서버 설정 조회 성공:",
+            serverSettings,
+          );
+
+          setAllEnabled(serverSettings.allEnabled);
+          setSettings({
+            market: serverSettings.market,
+            community: serverSettings.community,
+            chat: serverSettings.chat,
+            schedule: serverSettings.schedule,
+            marketing: serverSettings.marketing,
+            notice: serverSettings.notice,
+          });
+          await cacheSettings(serverSettings, serverSettings.allEnabled);
+        } catch (error: any) {
+          console.log(
+            "알림 설정 조회 실패:",
+            error.response?.data || error.message,
+          );
+          await loadLocalSettings();
+        }
+      };
+
       loadSettings();
     }, []),
   );
-
-  const saveSettings = async (
-    nextSettings: NotificationSettings,
-    nextAllEnabled: boolean,
-  ) => {
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          ...nextSettings,
-          [MASTER_SETTING_KEY]: nextAllEnabled,
-        }),
-      );
-    } catch (error) {
-      console.log("알림 설정 저장 실패:", error);
-      throw error;
-    }
-  };
 
   const toggleAllNotifications = async () => {
     if (checkingPermission) {
@@ -138,13 +190,24 @@ export default function ProfileNotificationsScreen() {
     if (allEnabled) {
       setCheckingPermission(true);
       try {
-        await saveSettings(settings, false);
+        console.log("[Notifications][Settings] 전체 알림 꺼기 요청");
+        const response = await updateAllNotificationsEnabled(false);
+        console.log("[Notifications][Settings] 전체 알림 꺼기 응답 성공:", {
+          status: response.status,
+          data: response.data,
+        });
+        await cacheSettings(settings, false);
         await disableDevicePushNotifications();
         setAllEnabled(false);
-      } catch (error) {
-        await saveSettings(settings, true).catch(() => undefined);
-        console.log("FCM 토큰 비활성화 실패:", error);
-        Alert.alert("알림 설정 실패", "전체 알림을 끄지 못했어요. 다시 시도해주세요.");
+      } catch (error: any) {
+        console.log(
+          "[Notifications][Settings] 전체 알림 꺼기 실패:",
+          error.response?.data || error.message,
+        );
+        Alert.alert(
+          "알림 설정 실패",
+          "전체 알림을 끄지 못했어요. 다시 시도해주세요.",
+        );
       } finally {
         setCheckingPermission(false);
       }
@@ -168,13 +231,18 @@ export default function ProfileNotificationsScreen() {
         return;
       }
 
+      await updateAllNotificationsEnabled(true);
+      console.log("[Notifications][Settings] 전체 알림 켜기 성공");
       setAllEnabled(true);
-      await saveSettings(settings, true);
+      await cacheSettings(settings, true);
       registerDeviceForPushNotifications({ force: true }).catch((error) => {
         console.log("FCM 토큰 재등록 실패:", error);
       });
-    } catch (error) {
-      console.log("알림 권한 확인 실패:", error);
+    } catch (error: any) {
+      console.log(
+        "알림 권한 확인 실패:",
+        error.response?.data || error.message,
+      );
       Alert.alert("알림 설정 실패", "알림 권한을 확인하지 못했어요.");
     } finally {
       setCheckingPermission(false);
@@ -186,13 +254,40 @@ export default function ProfileNotificationsScreen() {
       return;
     }
 
-    setSettings((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      void saveSettings(next, allEnabled).catch(() => {
+    const previousValue = settings[key];
+    const nextValue = !previousValue;
+    const category = categoryByKey[key];
+    const nextSettings = { ...settings, [key]: nextValue };
+
+    setSettings(nextSettings);
+    void cacheSettings(nextSettings, allEnabled);
+
+    console.log("[Notifications][Settings] 카테고리 토글 요청:", {
+      key,
+      category,
+      enabled: nextValue,
+    });
+
+    updateNotificationCategoryEnabled(category, nextValue)
+      .then((response) => {
+        console.log("[Notifications][Settings] 카테고리 토글 응답 성공:", {
+          category,
+          enabled: nextValue,
+          status: response.status,
+          data: response.data,
+        });
+      })
+      .catch((error: any) => {
+        console.log("[Notifications][Settings] 카테고리 토글 실패:", {
+          category,
+          enabled: nextValue,
+          status: error.response?.status,
+          data: error.response?.data || error.message,
+        });
+        setSettings(settings);
+        void cacheSettings(settings, allEnabled);
         Alert.alert("알림 설정 실패", "설정을 저장하지 못했어요.");
       });
-      return next;
-    });
   };
 
   return (

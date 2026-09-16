@@ -1,29 +1,29 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
-import 'react-native-reanimated';
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Platform } from "react-native";
+import "react-native-reanimated";
 
 import {
   registerDeviceForPushNotifications,
   requestNotificationPermission,
   subscribeToFcmTokenRefresh,
   subscribeToForegroundPushNotifications,
-} from '@/src/notifications/push';
+} from "@/src/notifications/push";
 
-if (Platform.OS !== 'web') {
+if (Platform.OS !== "web") {
   void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 }
 
 export default function RootLayout() {
   useEffect(() => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== "web") {
       void SplashScreen.hideAsync().catch(() => undefined);
 
       requestNotificationPermission().catch((error) => {
-        console.log('알림 권한 요청 실패:', error.message);
+        console.log("알림 권한 요청 실패:", error.message);
       });
     }
 
@@ -31,7 +31,7 @@ export default function RootLayout() {
     const unsubscribeTokenRefresh = subscribeToFcmTokenRefresh();
 
     registerDeviceForPushNotifications().catch((error) => {
-      console.log('FCM 토큰 등록 실패:', error.response?.data || error.message);
+      console.log("FCM 토큰 등록 실패:", error.response?.data || error.message);
     });
 
     return () => {
@@ -45,7 +45,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
+          animation: "slide_from_right",
           gestureEnabled: true,
           fullScreenGestureEnabled: true,
         }}
@@ -79,9 +79,12 @@ export default function RootLayout() {
             fullScreenGestureEnabled: false,
           }}
         />
-        <Stack.Screen name="notifications" options={{ animation: 'none' }} />
-        <Stack.Screen name="more-menu" options={{ animation: 'none' }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+        <Stack.Screen
+          name="notifications"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen name="more-menu" options={{ animation: "none" }} />
+        <Stack.Screen name="modal" options={{ presentation: "modal" }} />
         <Stack.Screen
           name="sns-signup"
           options={{

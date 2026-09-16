@@ -1,8 +1,14 @@
-import { DeviceEventEmitter } from 'react-native';
+import { DeviceEventEmitter } from "react-native";
 import { api } from "./client";
 import { BaseResponse, PageResponse, Pageable } from "./types";
 
-export type NotificationType = "CHAT" | "MATCH" | "LIKE" | "NOTICE" | "SYSTEM";
+export type NotificationType =
+  | "CHAT"
+  | "MATCH"
+  | "LIKE"
+  | "COMMENT"
+  | "NOTICE"
+  | "SYSTEM";
 
 export interface NotificationResponse {
   notificationId: number;
@@ -36,6 +42,26 @@ export interface FcmPushResponse {
   firebaseAvailable: boolean;
 }
 
+export type NotificationCategory =
+  | "CHAT"
+  | "MARKET"
+  | "COMMUNITY"
+  | "SCHEDULE"
+  | "MARKETING"
+  | "NOTICE";
+
+export interface NotificationSettingsResponse {
+  allEnabled: boolean;
+  chat: boolean;
+  market: boolean;
+  community: boolean;
+  schedule: boolean;
+  marketing: boolean;
+  notice: boolean;
+}
+
+export type NotificationSettingsRequest = Partial<NotificationSettingsResponse>;
+
 const unwrapNotificationResponse = <T>(payload: T | BaseResponse<T>): T =>
   payload && typeof payload === "object" && "data" in payload
     ? (payload as BaseResponse<T>).data
@@ -66,6 +92,39 @@ export const getUnreadNotificationCount = async () => {
     throw new Error("알림 개수 응답의 count가 올바르지 않습니다.");
   }
   return { ...response, data: { data: { count } } };
+};
+
+export const getNotificationSettings = async () => {
+  const response = await api.get<
+    NotificationSettingsResponse | BaseResponse<NotificationSettingsResponse>
+  >("/api/v1/notifications/settings");
+  const settings = unwrapNotificationResponse(response.data);
+  return { ...response, data: { data: settings } };
+};
+
+export const updateNotificationSettings = (
+  data: NotificationSettingsRequest,
+) => {
+  return api.put<BaseResponse<NotificationSettingsResponse>>(
+    "/api/v1/notifications/settings",
+    data,
+  );
+};
+
+export const updateAllNotificationsEnabled = (enabled: boolean) => {
+  return api.patch<BaseResponse<void>>("/api/v1/notifications/settings/all", {
+    enabled,
+  });
+};
+
+export const updateNotificationCategoryEnabled = (
+  category: NotificationCategory,
+  enabled: boolean,
+) => {
+  return api.patch<BaseResponse<void>>(
+    `/api/v1/notifications/settings/categories/${category}`,
+    { enabled },
+  );
 };
 
 export const markNotificationAsRead = (id: number) => {
@@ -106,33 +165,55 @@ export const getUnreadChatNotificationCount = async () => {
   const ids = new Set<number>();
   let page = 0;
   while (true) {
-    const response = await getNotifications({ page, size: 100, sort: ['createdAt,desc'] });
+    const response = await getNotifications({
+      page,
+      size: 100,
+      sort: ["createdAt,desc"],
+    });
     const result = response.data.data;
     for (const item of result.content) {
-      if (item.type === 'CHAT' && item.read !== true) ids.add(item.notificationId);
+      if (item.type === "CHAT" && item.read !== true)
+        ids.add(item.notificationId);
     }
-    if (result.last || page + 1 >= result.totalPages || result.content.length === 0) break;
+    if (
+      result.last ||
+      page + 1 >= result.totalPages ||
+      result.content.length === 0
+    )
+      break;
     page += 1;
   }
   return ids.size;
 };
 
-export const NOTIFICATION_READ_EVENT = 'uniroad:notification-read';
+export const NOTIFICATION_READ_EVENT = "uniroad:notification-read";
 
 export const markChatNotificationsAsRead = async (roomId: number) => {
   const ids = new Set<number>();
   let page = 0;
   // 읽음 처리하면 unread 페이지가 당겨지므로 먼저 모든 대상 ID를 수집한다.
   while (true) {
-    const response = await getNotifications({ page, size: 100, sort: ['createdAt,desc'] });
+    const response = await getNotifications({
+      page,
+      size: 100,
+      sort: ["createdAt,desc"],
+    });
     const result = response.data.data;
     for (const item of result.content) {
-      if (item.type === 'CHAT' && item.read !== true &&
-          (item.roomId ?? item.referenceId) === roomId) {
+      if (
+        item.type === "CHAT" &&
+        item.read !== true &&
+        (item.roomId ?? item.referenceId) === roomId
+      ) {
         ids.add(item.notificationId);
       }
     }
-    if (result.last || page + 1 >= result.totalPages || result.content.length === 0) break;
+    if (
+      result.last ||
+      page + 1 >= result.totalPages ||
+      result.content.length === 0
+    )
+      break;
     page += 1;
   }
   if (!ids.size) return;
@@ -144,6 +225,11 @@ export const markChatNotificationsAsRead = async (roomId: number) => {
     }
   } finally {
     if (completed > 0) DeviceEventEmitter.emit(NOTIFICATION_READ_EVENT);
-    if (__DEV__) console.log('[Notifications][Chat] 알림 읽음 처리:', { roomId, completed, total: ids.size });
+    if (__DEV__)
+      console.log("[Notifications][Chat] 알림 읽음 처리:", {
+        roomId,
+        completed,
+        total: ids.size,
+      });
   }
 };
