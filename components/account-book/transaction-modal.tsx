@@ -182,6 +182,18 @@ export function TransactionModal({
               value={title}
               onChangeText={onChangeTitle}
             />
+            {!isIncome && (
+              <>
+                <Text style={styles.label}>메모 (선택)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="메모를 입력해주세요"
+                  placeholderTextColor="#A8B0BB"
+                  value={description}
+                  onChangeText={onChangeDescription}
+                />
+              </>
+            )}
 
             <Pressable style={styles.submitButton} onPress={onSubmit}>
               <Text style={styles.submitButtonText}>등록하기</Text>
