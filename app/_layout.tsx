@@ -1,4 +1,5 @@
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { useAppFonts } from "@/hooks/use-app-fonts";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -18,10 +19,17 @@ if (Platform.OS !== "web") {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useAppFonts();
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      if (fontError) console.error("Pretendard 폰트 로딩 실패:", fontError);
+      if (Platform.OS !== "web") void SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [fontsLoaded, fontError]);
+
   useEffect(() => {
     if (Platform.OS !== "web") {
-      void SplashScreen.hideAsync().catch(() => undefined);
-
       requestNotificationPermission().catch((error) => {
         console.log("알림 권한 요청 실패:", error.message);
       });
@@ -39,6 +47,8 @@ export default function RootLayout() {
       unsubscribeTokenRefresh();
     };
   }, []);
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <ThemeProvider value={DefaultTheme}>

@@ -217,6 +217,7 @@ const freePosts: MockRecord[] = [
 const companionPosts: MockRecord[] = [
   {
     id: 401,
+    memberId: 2,
     memberName: '하니',
     title: '베를린 박물관 같이 가실 분 구해요',
     content: '주말 오후에 함께 관람할 분을 구합니다.',
@@ -235,6 +236,7 @@ const companionPosts: MockRecord[] = [
   },
   {
     id: 402,
+    memberId: 3,
     memberName: '민지',
     title: '파리 근교 당일치기 동행 구합니다',
     content: '기차 타고 베르사유에 다녀올 예정이에요.',
@@ -741,6 +743,7 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       companionPosts.unshift({
         id,
         ...body,
+        memberId: mockMember.id,
         memberName: mockMember.nickname,
         statusDescription: body.status === 'COMPLETED' ? '모집 완료' : '모집 중',
         scrapCount: 0,

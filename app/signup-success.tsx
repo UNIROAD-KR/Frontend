@@ -1,10 +1,12 @@
-import { router } from 'expo-router';
-import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import type { SvgProps } from 'react-native-svg';
+import { Text } from '@/components/ui/app-text';
+import { router } from "expo-router";
+import type { ComponentType } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import type { SvgProps } from "react-native-svg";
 
-import ConsentIcon from '@/assets/icon/onboarding-consent.svg';
-import ProfileIcon from '@/assets/icon/onboarding-profile.svg';
+import ConsentIcon from "@/assets/icon/onboarding-consent.svg";
+import ProfileIcon from "@/assets/icon/onboarding-profile.svg";
+import { Colors, fonts } from "@/constants/theme";
 
 type OnboardingStepProps = {
   Icon: ComponentType<SvgProps>;
@@ -22,9 +24,13 @@ function OnboardingStep({
   return (
     <View style={styles.stepCard}>
       <Icon width={iconSize} height={iconSize} style={styles.stepIcon} />
-      <View style={styles.stepTextWrap}>
-        <Text style={styles.stepTitle}>{title}</Text>
-        <Text style={styles.stepDescription}>{description}</Text>
+      <View style={{ flex: 1, gap: 4 }}>
+        <Text style={[fonts.sub3_sb_16, { color: Colors.gray[10] }]}>
+          {title}
+        </Text>
+        <Text style={[fonts.body4_r_14, { color: Colors.gray[7] }]}>
+          {description}
+        </Text>
       </View>
     </View>
   );
@@ -34,12 +40,16 @@ export default function SignupSuccessPage() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>온보딩 진행</Text>
-        <Text style={styles.title}>
-          회원가입 성공!{`\n`}시작 전 간단한 절차가 필요해요
-        </Text>
+        <View style={{ gap: 12 }}>
+          <Text style={[fonts.caption1_sb_13, { color: Colors.gray[7] }]}>
+            온보딩 진행
+          </Text>
+          <Text style={[fonts.title1_b_28, { color: Colors.common.black }]}>
+            회원가입 성공!{`\n`}시작 전 간단한 절차가 필요해요
+          </Text>
+        </View>
 
-        <View style={styles.steps}>
+        <View style={{ gap: 8 }}>
           <OnboardingStep
             Icon={ConsentIcon}
             iconSize={18}
@@ -60,9 +70,11 @@ export default function SignupSuccessPage() {
           styles.startButton,
           pressed && styles.startButtonPressed,
         ]}
-        onPress={() => router.replace('/onboarding/consent')}
+        onPress={() => router.replace("/onboarding/consent")}
       >
-        <Text style={styles.startButtonText}>온보딩 시작하기</Text>
+        <Text style={[fonts.sub3_sb_16, { color: Colors.common.white }]}>
+          온보딩 시작하기
+        </Text>
       </Pressable>
     </View>
   );
@@ -71,77 +83,40 @@ export default function SignupSuccessPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F8FA',
+    backgroundColor: "#FFFFFF",
   },
   content: {
     paddingHorizontal: 16,
     paddingTop: 150,
-  },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    lineHeight: 18,
-    color: '#6B7684',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '900',
-    lineHeight: 36,
-    color: '#0B0D10',
-    marginBottom: 32,
-  },
-  steps: {
-    gap: 8,
+    gap: 32,
   },
   stepCard: {
     height: 87,
     borderWidth: 1,
-    borderColor: '#E1E4E9',
+    borderColor: Colors.gray[3],
     borderRadius: 10,
-    backgroundColor: '#F9FAFB',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    backgroundColor: Colors.gray[1],
+    flexDirection: "row",
+    alignItems: "flex-start",
     paddingHorizontal: 18,
     paddingTop: 20,
-    gap: 14,
+    gap: 10,
   },
   stepIcon: {
     marginTop: 3,
   },
-  stepTextWrap: {
-    flex: 1,
-  },
-  stepTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 21,
-    color: '#252C37',
-    marginBottom: 4,
-  },
-  stepDescription: {
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-    color: '#6B7684',
-  },
   startButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 16,
     bottom: 52,
     left: 16,
     height: 52,
     borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#191F28',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary.default,
   },
   startButtonPressed: {
-    backgroundColor: '#10151C',
-  },
-  startButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    backgroundColor: Colors.primary.heavy,
   },
 });

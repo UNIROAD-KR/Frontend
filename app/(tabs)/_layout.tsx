@@ -1,3 +1,4 @@
+import { Text } from '@/components/ui/app-text';
 import {
   getUnreadChatNotificationCount,
   NOTIFICATION_READ_EVENT,
@@ -8,14 +9,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { router, Tabs } from "expo-router";
 import { useEffect, useState, type ComponentType } from "react";
-import {
-  AppState,
-  DeviceEventEmitter,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppState, DeviceEventEmitter, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SvgProps } from "react-native-svg";
 

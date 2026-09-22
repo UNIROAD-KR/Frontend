@@ -1,13 +1,6 @@
+import { Text } from '@/components/ui/app-text';
 import React from 'react';
-import {
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -534,7 +527,6 @@ const styles = StyleSheet.create({
   },
   text: {
     position: 'absolute',
-    fontFamily: 'System',
     color: 'black',
   },
   button: {

@@ -2,9 +2,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import messaging from "@react-native-firebase/messaging";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import { DeviceEventEmitter, Platform } from "react-native";
 
-import { deleteFcmToken, registerFcmToken } from "@/src/api/notifications";
+import { deleteFcmToken, registerFcmToken, NOTIFICATION_RECEIVED_EVENT } from "@/src/api/notifications";
 
 import { LAST_REGISTERED_TOKEN_KEY } from "./tokenStorage";
 export const NOTIFICATION_SETTINGS_STORAGE_KEY =
@@ -190,6 +190,9 @@ export const subscribeToForegroundPushNotifications = () => {
   }
 
   return messaging().onMessage(async (remoteMessage) => {
+    // 배너 표시 설정이나 표시 실패와 무관하게 서버의 알림 개수를 동기화한다.
+    DeviceEventEmitter.emit(NOTIFICATION_RECEIVED_EVENT);
+
     if (!(await areNotificationsEnabled())) {
       return;
     }

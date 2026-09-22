@@ -1,21 +1,11 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   CompanionPostRequest,
@@ -647,16 +637,14 @@ export default function CommunityWriteScreen() {
         </Pressable>
       </View>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={dateTarget !== null}
-        animationType="slide"
         onRequestClose={() => setDateTarget(null)}
       >
-        <View style={styles.pickerOverlay}>
-          <Pressable style={styles.pickerBackdrop} onPress={() => setDateTarget(null)} />
+        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
+          <Pressable style={[styles.pickerBackdrop, bottomSheetStyles.transparent]} onPress={() => setDateTarget(null)} />
 
-          <View style={styles.pickerSheet}>
+          <BottomSheetView style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setDateTarget(null)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -685,9 +673,9 @@ export default function CommunityWriteScreen() {
                 }
               }}
             />
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <Modal transparent visible={verificationModalVisible} animationType="fade">
         <View style={styles.modalOverlay}>

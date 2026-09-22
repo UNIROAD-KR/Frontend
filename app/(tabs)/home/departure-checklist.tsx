@@ -1,23 +1,12 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Keyboard,
-  LayoutAnimation,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  type KeyboardEvent,
-} from 'react-native';
+import { KeyboardAvoidingView, Keyboard, LayoutAnimation, Platform, ScrollView, StyleSheet, TouchableOpacity, View, type KeyboardEvent } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';
@@ -556,20 +545,19 @@ export default function DepartureChecklistScreen() {
         </TouchableOpacity>
       )}
 
-      <Modal
+      <BottomSheetModal
         visible={sheetMode !== null}
-        transparent
-        animationType="slide"
+        
         onRequestClose={closeSheet}
       >
         <KeyboardAvoidingView
-          style={styles.sheetOverlay}
+          style={[styles.sheetOverlay, bottomSheetStyles.transparent]}
           behavior={Platform.OS === 'ios' ? 'position' : 'height'}
           contentContainerStyle={styles.sheetKeyboardContainer}
           keyboardVerticalOffset={0}
         >
-          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeSheet} />
-          <View style={styles.sheet}>
+          <TouchableOpacity style={[styles.sheetBackdrop, bottomSheetStyles.transparent]} activeOpacity={1} onPress={closeSheet} />
+          <BottomSheetView style={styles.sheet}>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -652,23 +640,22 @@ export default function DepartureChecklistScreen() {
                 </>
               )}
             </ScrollView>
-          </View>
+          </BottomSheetView>
         </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
+      <BottomSheetModal
         visible={datePickerItemId !== null}
-        transparent
-        animationType="fade"
+        
         onRequestClose={closeDatePicker}
       >
-        <View style={styles.datePickerOverlay}>
+        <View style={[styles.datePickerOverlay, bottomSheetStyles.transparent]}>
           <TouchableOpacity
-            style={styles.datePickerBackdrop}
+            style={[styles.datePickerBackdrop, bottomSheetStyles.transparent]}
             activeOpacity={1}
             onPress={closeDatePicker}
           />
-          <View style={styles.datePickerSheet}>
+          <BottomSheetView style={styles.datePickerSheet}>
             <View style={styles.datePickerHeader}>
               <Text style={styles.datePickerTitle}>날짜 설정</Text>
               <TouchableOpacity onPress={closeDatePicker} activeOpacity={0.78}>
@@ -712,9 +699,9 @@ export default function DepartureChecklistScreen() {
                 <Text style={styles.datePickerConfirmText}>확인</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
     </View>
   );
 }

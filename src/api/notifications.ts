@@ -186,6 +186,8 @@ export const getUnreadChatNotificationCount = async () => {
   return ids.size;
 };
 
+export const NOTIFICATION_RECEIVED_EVENT = "uniroad:notification-received";
+
 export const NOTIFICATION_READ_EVENT = "uniroad:notification-read";
 
 export const markChatNotificationsAsRead = async (roomId: number) => {

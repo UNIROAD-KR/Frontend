@@ -1,11 +1,5 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-} from 'react-native';
+import { Text } from '@/components/ui/app-text';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { router, Stack } from 'expo-router'; // ⭐ Stack 추가
 
 import { AppBackButton } from '@/components/ui/app-back-button';

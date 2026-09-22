@@ -1,18 +1,11 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
@@ -485,19 +478,17 @@ export default function UniversityPage() {
         onSelect={handleSelectUniversity}
       />
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={showDatePicker}
-        animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.datePickerOverlay}>
+        <View style={[styles.datePickerOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.datePickerBackdrop}
+            style={[styles.datePickerBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setShowDatePicker(false)}
           />
 
-          <View style={styles.datePickerSheet}>
+          <BottomSheetView style={styles.datePickerSheet}>
             <View style={styles.sheetHandle} />
 
             <View style={styles.datePickerHeader}>
@@ -546,23 +537,21 @@ export default function UniversityPage() {
                 }}
               />
             </View>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={showSemesterYearPicker}
-        animationType="slide"
         onRequestClose={() => setShowSemesterYearPicker(false)}
       >
-        <View style={styles.datePickerOverlay}>
+        <View style={[styles.datePickerOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.datePickerBackdrop}
+            style={[styles.datePickerBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setShowSemesterYearPicker(false)}
           />
 
-          <View style={styles.datePickerSheet}>
+          <BottomSheetView style={styles.datePickerSheet}>
             <View style={styles.sheetHandle} />
 
             <View style={styles.datePickerHeader}>
@@ -593,9 +582,9 @@ export default function UniversityPage() {
                 );
               })}
             </ScrollView>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
     </KeyboardAvoidingView>
   );
 }

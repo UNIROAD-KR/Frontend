@@ -1,20 +1,12 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import { createOrGetChatRoom } from "../src/api/chat";
 import { getMemberMe } from "../src/api/auth";
 import {
   AppBackButton,
@@ -128,6 +120,7 @@ const syncLikedFreePostStorage = async (
 
 export default function CommunityDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const {
     type = "free",
     id,
@@ -140,6 +133,9 @@ export default function CommunityDetailScreen() {
   const postId = Number(id);
   const detailType: DetailType = type === "companion" ? "companion" : "free";
   const [post, setPost] = useState<DetailPost | null>(null);
+  const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatPending = useRef(false);
   const [currentMemberName, setCurrentMemberName] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -223,6 +219,7 @@ export default function CommunityDetailScreen() {
 
       try {
         const response = await getMemberMe();
+        setCurrentMemberId(response.data.data.id);
         setCurrentMemberName(response.data?.data?.name || savedNickname || "");
       } catch (error: any) {
         console.log(
@@ -284,10 +281,47 @@ export default function CommunityDetailScreen() {
     };
   }, [detailType, post]);
 
-  const isAuthor =
-    !!viewModel &&
+  const isAuthor = post && isCompanionApiPost(post)
+    ? currentMemberId !== null && currentMemberId === post.memberId
+    : !!viewModel &&
     (viewModel.isMine ||
       (!!currentMemberName && currentMemberName === viewModel.author));
+
+  const handleStartCompanionChat = async () => {
+    if (!post || !isCompanionApiPost(post) || chatPending.current || isAuthor) return;
+    if (!Number.isInteger(post.memberId) || post.memberId <= 0) {
+      Alert.alert("채팅을 시작할 수 없어요", "작성자 정보를 확인할 수 없어요. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
+    chatPending.current = true;
+    setChatLoading(true);
+    try {
+      const response = await createOrGetChatRoom({
+        referenceType: "COMPANION",
+        referenceId: post.id,
+        targetMemberId: post.memberId,
+      });
+      const roomId = response.data.roomId;
+      if (!roomId) throw new Error("채팅방 ID가 응답에 없습니다.");
+      router.push({
+        pathname: "/chat/[roomId]",
+        params: {
+          roomId: String(roomId),
+          title: post.title,
+          sellerName: post.memberName,
+          referenceType: "COMPANION",
+          referenceId: String(post.id),
+          opponentMemberId: String(post.memberId),
+        },
+      });
+    } catch (error: any) {
+      Alert.alert("채팅방 생성 실패", error.response?.data?.message || "잠시 후 다시 시도해주세요.");
+    } finally {
+      chatPending.current = false;
+      setChatLoading(false);
+    }
+  };
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -813,6 +847,29 @@ export default function CommunityDetailScreen() {
         )}
       </ScrollView>
 
+      {detailType === "companion" && (
+        <View style={[styles.chatActionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {isAuthor ? (
+            <Text style={styles.ownPostHint}>내가 작성한 동행 글이에요</Text>
+          ) : (
+            <Pressable
+              style={[styles.startChatButton, chatLoading && styles.startChatButtonDisabled]}
+              onPress={handleStartCompanionChat}
+              disabled={chatLoading}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: chatLoading, busy: chatLoading }}
+            >
+              {chatLoading ? <ActivityIndicator color="#FFFFFF" /> : (
+                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
+              )}
+              <Text style={styles.startChatText}>
+                {chatLoading ? "채팅방 연결 중..." : "채팅 시작하기"}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       <Modal
         transparent
         visible={menuVisible}
@@ -909,6 +966,30 @@ function InfoItem({
 }
 
 const styles = StyleSheet.create({
+  chatActionBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#EEEEEE",
+    backgroundColor: "#FFFFFF",
+  },
+  ownPostHint: {
+    paddingVertical: 15,
+    textAlign: "center",
+    color: "#777777",
+    fontSize: 14,
+  },
+  startChatButtonDisabled: { opacity: 0.6 },
+  startChatButton: {
+    paddingVertical: 15,
+    borderRadius: 10,
+    backgroundColor: BLUE,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  startChatText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
