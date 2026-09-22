@@ -17,6 +17,7 @@ export interface CompanionPostRequest {
 
 export interface CompanionPostResponse {
   id: number;
+  memberId: number;
   memberName: string;
   title: string;
   content: string;

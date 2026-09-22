@@ -1,14 +1,8 @@
+import { Text } from '@/components/ui/app-text';
 import { SoftServiceIcon } from '@/components/soft-service-icon';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { router } from 'expo-router';
-import {
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 const NAVY = '#18202B';
 const SCREEN_WIDTH = Dimensions.get('window').width;

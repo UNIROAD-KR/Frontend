@@ -1,15 +1,8 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  TextInput,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 
 import { canUseMarketWithoutVerification } from '../../../src/utils/verification';
 import { AppBackButton } from '@/components/ui/app-back-button';

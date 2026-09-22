@@ -1,17 +1,8 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetTouchable } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  TextInput,
-  ScrollView,
-  Modal,
-  Dimensions,
-  SafeAreaView,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Dimensions, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -965,18 +956,17 @@ export default function ExploreScreen() {
       </ScrollView>
 
       {SHOW_EXPLORE_BLOG_REVIEWS && (
-        <Modal
+        <BottomSheetModal
         visible={activeBlogFilter !== null}
-        transparent
-        animationType="slide"
+        
         onRequestClose={() => setActiveBlogFilter(null)}
       >
         <TouchableOpacity
-          style={styles.filterSheetBackdrop}
+          style={[styles.filterSheetBackdrop, bottomSheetStyles.transparent]}
           activeOpacity={1}
           onPress={() => setActiveBlogFilter(null)}
         >
-          <TouchableOpacity
+          <BottomSheetTouchable
             style={styles.filterSheet}
             activeOpacity={1}
             onPress={(event) => event.stopPropagation()}
@@ -1159,9 +1149,9 @@ export default function ExploreScreen() {
             >
               <Text style={styles.filterApplyButtonText}>필터 적용하기</Text>
             </TouchableOpacity>
-          </TouchableOpacity>
+          </BottomSheetTouchable>
         </TouchableOpacity>
-        </Modal>
+        </BottomSheetModal>
       )}
 
       {/* 📚 블로그 후기 상세 독서 모달 */}
@@ -1432,7 +1422,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    fontFamily: 'Noto Sans KR',
     fontSize: 18,
     fontWeight: '700',
     color: '#FFFFFF',
@@ -1446,7 +1435,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   cardDesc: {
-    fontFamily: 'Noto Sans KR',
     fontSize: 13,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.85)',

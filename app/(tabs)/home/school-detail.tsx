@@ -1,16 +1,7 @@
+import { Text } from '@/components/ui/app-text';
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Dimensions,
-  Animated,
-  Linking,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image, Dimensions, Animated, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import {

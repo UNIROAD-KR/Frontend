@@ -1,15 +1,9 @@
+import { Text } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import NoticeReadDotIcon from '@/assets/icon/profile/notice-read-dot.svg';

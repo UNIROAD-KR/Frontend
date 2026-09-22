@@ -1,22 +1,13 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { AppBackButton } from "@/components/ui/app-back-button";
+import { getCompanionPostDetail } from "../../src/api/companion";
 import { getMemberMe } from "../../src/api/auth";
 import {
   ChatMessageResponse,
@@ -57,6 +48,7 @@ type ProductInfo = {
 const BLUE = "#123F9F";
 const GENERIC_TITLES = [
   "채팅",
+  "동행 채팅",
   "중고거래 채팅",
   "멘토링 채팅",
   "티켓 양도 채팅",
@@ -208,7 +200,7 @@ export default function ChatRoomPage() {
   const productTitle =
     productInfo?.title ||
     (!isGenericTitle(title) ? title : undefined) ||
-    (effectiveReferenceType === "TICKET" ? "티켓 양도글" : "중고거래 게시글");
+    (effectiveReferenceType === "COMPANION" ? "동행 모집글" : effectiveReferenceType === "TICKET" ? "티켓 양도글" : "중고거래 게시글");
   const productPrice = productInfo?.price || price || "가격 미정";
   const productThumbnail = productInfo?.thumbnail || thumbnail || "";
 
@@ -257,6 +249,16 @@ export default function ChatRoomPage() {
     }
 
     try {
+      if (effectiveReferenceType === "COMPANION") {
+        const response = await getCompanionPostDetail(numericReferenceId);
+        const item = response.data.data;
+        setProductInfo({
+          title: item.title,
+          price: `${item.country} · ${item.region}`,
+          thumbnail: "",
+        });
+        return;
+      }
       if (effectiveReferenceType === "TRADE") {
         const response = await getUsedItemDetail(numericReferenceId);
         const item = response.data.data;
@@ -561,6 +563,10 @@ export default function ChatRoomPage() {
       <Pressable
         style={styles.productCard}
         onPress={() => {
+          if (effectiveReferenceType === "COMPANION" && effectiveReferenceId) {
+            router.push({ pathname: "/community-detail", params: { type: "companion", id: effectiveReferenceId } });
+            return;
+          }
           if (effectiveReferenceType === "TRADE" && effectiveReferenceId) {
             router.push({
               pathname: "/market/[id]",
@@ -598,6 +604,7 @@ export default function ChatRoomPage() {
         }}
       >
         <View style={styles.thumbnail}>
+          {effectiveReferenceType === "COMPANION" && <Ionicons name="people-outline" size={28} color={BLUE} />}
           {!!productThumbnail && (
             <Image
               source={{ uri: productThumbnail }}
@@ -610,7 +617,7 @@ export default function ChatRoomPage() {
           <Text style={styles.productTitle} numberOfLines={2}>
             {productTitle}
           </Text>
-          <Text style={styles.productPrice}>{productPrice}</Text>
+          <Text style={styles.productPrice}>{effectiveReferenceType === "COMPANION" ? productInfo?.price || "동행 모집글 보기" : productPrice}</Text>
         </View>
       </Pressable>
 
@@ -629,7 +636,7 @@ export default function ChatRoomPage() {
             />
             <Text style={styles.emptyText}>
               대화는 유니로드 채팅방에서 하는 것이 안전해요.{"\n"}
-              교환학생 선배에게 인사로 대화를 시작해보세요.
+              {effectiveReferenceType === "COMPANION" ? "동행할 분에게 인사로 대화를 시작해보세요." : "교환학생 선배에게 인사로 대화를 시작해보세요."}
             </Text>
           </View>
         ) : (

@@ -1,6 +1,7 @@
+import { Text } from '@/components/ui/app-text';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 

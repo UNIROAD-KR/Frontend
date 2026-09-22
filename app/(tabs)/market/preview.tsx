@@ -1,3 +1,5 @@
+import { BottomSheetModal, useBottomSheetMotion, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,25 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Dimensions,
-  Easing,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  PanResponder,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, Keyboard, KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
@@ -227,39 +211,18 @@ const parseDraftPreviewItems = (
 };
 
 function DraggableSheet({ children, onClose, style }: DraggableSheetProps) {
-  const dragY = useRef(new Animated.Value(0)).current;
+  const { dragOffset: dragY, visible } = useBottomSheetMotion();
   const isClosing = useRef(false);
-  const translateY = dragY.interpolate({
-    inputRange: [-1, 0, SCREEN_HEIGHT],
-    outputRange: [0, 0, SCREEN_HEIGHT],
-    extrapolate: 'clamp',
-  });
 
-  const backdropOpacity = dragY.interpolate({
-    inputRange: [0, SCREEN_HEIGHT * 0.55],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  });
+  useEffect(() => {
+    if (visible) isClosing.current = false;
+  }, [visible]);
 
   const closeSheet = () => {
     if (isClosing.current) return;
-
     isClosing.current = true;
     Keyboard.dismiss();
-
-    Animated.timing(dragY, {
-      toValue: SCREEN_HEIGHT,
-      duration: 240,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => {
-      onClose();
-
-      setTimeout(() => {
-        dragY.setValue(0);
-        isClosing.current = false;
-      }, 80);
-    });
+    onClose();
   };
 
   const panResponder = useRef(
@@ -304,28 +267,15 @@ function DraggableSheet({ children, onClose, style }: DraggableSheetProps) {
 
   return (
     <View style={styles.sheetOverlay}>
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.sheetBackdrop, { opacity: backdropOpacity }]}
-      />
-
       <Pressable style={styles.sheetBackdropPressable} onPress={closeSheet} />
 
-      <Animated.View
-        style={[
-          styles.sheetBox,
-          style,
-          {
-            transform: [{ translateY }],
-          },
-        ]}
-      >
+      <BottomSheetView style={[styles.sheetBox, style]}>
         <View style={styles.sheetHandleTouchArea} {...panResponder.panHandlers}>
           <View style={styles.sheetHandle} />
         </View>
 
         {children}
-      </Animated.View>
+      </BottomSheetView>
     </View>
   );
 }
@@ -1467,7 +1417,7 @@ export default function MarketPreviewPage() {
         </View>
       </ScrollView>
 
-      <Modal transparent visible={photoModalVisible} animationType="none">
+      <BottomSheetModal  visible={photoModalVisible} >
           <DraggableSheet onClose={() => setPhotoModalVisible(false)}>
             <Text style={styles.sheetTitle}>{activeCategory ?? '물품'} 사진</Text>
 
@@ -1547,7 +1497,7 @@ export default function MarketPreviewPage() {
               </Text>
             </Pressable>
           </DraggableSheet>
-      </Modal>
+      </BottomSheetModal>
 
       <Modal transparent visible={Boolean(expandedPhoto)} animationType="fade">
         <View style={styles.fullImageOverlay}>
@@ -1572,7 +1522,7 @@ export default function MarketPreviewPage() {
         </View>
       </Modal>
 
-      <Modal transparent visible={editListModalVisible} animationType="none">
+      <BottomSheetModal  visible={editListModalVisible} >
         <KeyboardAvoidingView
           style={styles.modalKeyboardAvoiding}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -1700,12 +1650,10 @@ export default function MarketPreviewPage() {
               </Pressable>
             </DraggableSheet>
         </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={descriptionModalVisible}
-        animationType="none"
       >
         <KeyboardAvoidingView
           style={styles.modalKeyboardAvoiding}
@@ -1753,21 +1701,19 @@ export default function MarketPreviewPage() {
               </Pressable>
             </DraggableSheet>
         </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={showDatePicker}
-        animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.pickerOverlay}>
+        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.pickerBackdrop}
+            style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setShowDatePicker(false)}
           />
 
-          <View style={styles.pickerSheet}>
+          <BottomSheetView style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setShowDatePicker(false)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -1794,9 +1740,9 @@ export default function MarketPreviewPage() {
                 }
               }}
             />
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <OnboardingSelectModal
         visible={countryModalVisible}

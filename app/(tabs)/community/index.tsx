@@ -1,3 +1,5 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "@react-navigation/native";
@@ -9,18 +11,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 
 import { AppBackButton } from "@/components/ui/app-back-button";
 import {
@@ -778,19 +769,17 @@ export default function CommunityScreen() {
         )}
       </ScrollView>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={datePickerTarget !== null}
-        animationType="slide"
         onRequestClose={() => setDatePickerTarget(null)}
       >
-        <View style={styles.pickerOverlay}>
+        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.pickerBackdrop}
+            style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setDatePickerTarget(null)}
           />
 
-          <View style={styles.pickerSheet}>
+          <BottomSheetView style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setDatePickerTarget(null)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -819,9 +808,9 @@ export default function CommunityScreen() {
                 }
               }}
             />
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <Pressable style={styles.fab} onPress={handleFabPress}>
         <Ionicons name="create-outline" size={20} color="#FFFFFF" />

@@ -9,6 +9,51 @@ const tintColorLight = "#0a7ea4";
 const tintColorDark = "#fff";
 
 export const Colors = {
+  primary: {
+    default: "#506AFF",
+    light: "#D3D9FF",
+    heavy: "#1326D0",
+  },
+  secondary: {
+    default: "#00B1BB",
+    light: "#94F9FF",
+    heavy: "#005A60",
+  },
+  common: {
+    white: "#FFFFFF",
+    black: "#070A0D",
+  },
+  normal: {
+    default: "#F6F8FA",
+  },
+  gray: {
+    1: "#F9FAFB",
+    2: "#F0F2F6",
+    3: "#E1E4E9",
+    4: "#D1D6DC",
+    5: "#B1B8C1",
+    6: "#8B95A1",
+    7: "#6B7684",
+    8: "#4E5968",
+    9: "#333D4B",
+    10: "#191F28",
+    11: "#191F28",
+  },
+  neutral: {
+    99: "#F5F5F5",
+    95: "#E5E5E5",
+    90: "#C4C4C4",
+    80: "#B0B0B0",
+    70: "#9B9B9B",
+    60: "#8A8A8A",
+    50: "#7A7A7A",
+    40: "#5C5C5C",
+    30: "#474747",
+    20: "#2A2A2A",
+    15: "#1C1C1C",
+    10: "#171717",
+    5: "#0F0F0F",
+  },
   light: {
     text: "#11181C",
     background: "#fff",
@@ -81,7 +126,7 @@ export const fonts = StyleSheet.create({
   title1_b_28: {
     fontSize: 28,
     fontWeight: "700",
-    lineHeight: 39.2,
+    lineHeight: 36.4,
     letterSpacing: -1.12,
   },
   title2_sb_28: {
@@ -92,7 +137,7 @@ export const fonts = StyleSheet.create({
   },
   title3_b_24: {
     fontSize: 24,
-    fontWeight: "700",
+    fontWeight: "600",
     lineHeight: 33.6,
     letterSpacing: -0.96,
   },
@@ -197,5 +242,13 @@ export const fonts = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 15.6,
     letterSpacing: -0.48,
+  },
+});
+
+export const commonStyles = StyleSheet.create({
+  dimmed: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    zIndex: 10,
   },
 });

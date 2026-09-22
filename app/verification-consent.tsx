@@ -1,24 +1,24 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { AppBackButton } from '@/components/ui/app-back-button';
-import { VERIFICATION_CONSENT } from '../constants/legal';
+import { AppBackButton } from "@/components/ui/app-back-button";
+import { VERIFICATION_CONSENT } from "../constants/legal";
 import {
   canUseMarketWithoutVerification,
   VERIFICATION_CONSENT_AGREED_KEY,
-} from '../src/utils/verification';
+} from "../src/utils/verification";
 
-const BLUE = '#3568DA';
-const NAVY = '#18202B';
-const MUTED = '#7A8491';
-const LINE = '#E3E7EC';
+const BLUE = "#3568DA";
+const NAVY = "#18202B";
+const MUTED = "#7A8491";
+const LINE = "#E3E7EC";
 
 function renderConsentText(content: string) {
   return content
     .trim()
-    .split('\n')
+    .split("\n")
     .map((line, index) => {
       const trimmedLine = line.trim();
 
@@ -26,7 +26,7 @@ function renderConsentText(content: string) {
         return <View key={`space-${index}`} style={styles.textGap} />;
       }
 
-      const isSectionHeading = trimmedLine.startsWith('■');
+      const isSectionHeading = trimmedLine.startsWith("■");
 
       return (
         <Text
@@ -51,7 +51,7 @@ export default function VerificationConsentScreen() {
         const canUseMarket = await canUseMarketWithoutVerification();
 
         if (canUseMarket) {
-          router.replace('/verification' as any);
+          router.replace("/verification" as any);
         }
       } catch {
         // If verification status cannot be confirmed, keep the consent step.
@@ -66,11 +66,11 @@ export default function VerificationConsentScreen() {
       return;
     }
 
-    await AsyncStorage.setItem(VERIFICATION_CONSENT_AGREED_KEY, 'true');
+    await AsyncStorage.setItem(VERIFICATION_CONSENT_AGREED_KEY, "true");
 
     router.replace({
-      pathname: '/verification',
-      params: { consent: 'true' },
+      pathname: "/verification",
+      params: { consent: "true" },
     } as any);
   };
 
@@ -92,7 +92,9 @@ export default function VerificationConsentScreen() {
           서류 업로드 전 개인정보 수집·이용 내용을 확인해주세요.
         </Text>
 
-        <View style={styles.card}>{renderConsentText(VERIFICATION_CONSENT)}</View>
+        <View style={styles.card}>
+          {renderConsentText(VERIFICATION_CONSENT)}
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -100,7 +102,9 @@ export default function VerificationConsentScreen() {
           style={styles.agreeRow}
           onPress={() => setAgreed((prev) => !prev)}
         >
-          <View style={[styles.checkbox, agreed ? styles.checkboxActive : null]}>
+          <View
+            style={[styles.checkbox, agreed ? styles.checkboxActive : null]}
+          >
             {agreed && <Text style={styles.checkMark}>✓</Text>}
           </View>
           <Text style={styles.agreeText}>
@@ -126,25 +130,25 @@ export default function VerificationConsentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: "#F6F7F9",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 44,
     paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EBEF',
+    borderBottomColor: "#E8EBEF",
   },
   iconBtn: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: "900",
     color: NAVY,
   },
   headerSpacer: {
@@ -162,7 +166,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: "900",
     color: NAVY,
   },
   subtitle: {
@@ -170,7 +174,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
   },
   card: {
@@ -178,25 +182,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: LINE,
     padding: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   bodyText: {
     fontSize: 12,
     lineHeight: 20,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
   },
   sectionHeading: {
     marginTop: 8,
     marginBottom: 4,
-    fontWeight: '900',
+    fontWeight: "900",
     color: NAVY,
   },
   textGap: {
     height: 10,
   },
   footer: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
@@ -204,12 +208,12 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 22,
     borderTopWidth: 1,
-    borderTopColor: '#EEF1F5',
-    backgroundColor: '#FFFFFF',
+    borderTopColor: "#EEF1F5",
+    backgroundColor: "#FFFFFF",
   },
   agreeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   checkbox: {
@@ -217,9 +221,9 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#CBD3DF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: "#CBD3DF",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 10,
   },
   checkboxActive: {
@@ -229,29 +233,29 @@ const styles = StyleSheet.create({
   checkMark: {
     fontSize: 15,
     lineHeight: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   agreeText: {
     flex: 1,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '700',
-    color: '#344054',
+    fontWeight: "700",
+    color: "#344054",
   },
   continueButton: {
     height: 50,
     borderRadius: 7,
-    backgroundColor: '#D9DCE4',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#D9DCE4",
+    alignItems: "center",
+    justifyContent: "center",
   },
   continueButtonActive: {
-    backgroundColor: '#18202B',
+    backgroundColor: "#18202B",
   },
   continueButtonText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
 });

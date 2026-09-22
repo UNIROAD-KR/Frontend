@@ -1,19 +1,10 @@
+import { Text } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  Dimensions,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { createOrGetChatRoom } from '../../../src/api/chat';
 import {

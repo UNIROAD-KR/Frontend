@@ -1,10 +1,5 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { Text } from '@/components/ui/app-text';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 

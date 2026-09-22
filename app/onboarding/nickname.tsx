@@ -1,18 +1,8 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';

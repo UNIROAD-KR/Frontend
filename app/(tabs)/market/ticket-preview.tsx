@@ -1,20 +1,11 @@
+import { Text } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 import {

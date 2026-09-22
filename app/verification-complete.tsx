@@ -1,6 +1,7 @@
+import { Text } from '@/components/ui/app-text';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 

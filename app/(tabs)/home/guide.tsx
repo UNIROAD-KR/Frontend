@@ -1,13 +1,6 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import { router } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  TextInput,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 

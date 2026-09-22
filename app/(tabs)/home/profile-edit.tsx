@@ -1,23 +1,12 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   getMemberMe,
   updateMemberProfile,
@@ -179,8 +168,17 @@ export default function ProfileEditScreen() {
     !dispatchSemester || Boolean(parsedDispatchSemester.year && parsedDispatchSemester.term);
   const canSave = hasChanges && Boolean(nickname.trim()) && !nicknameError && isDispatchSemesterValid;
 
-  const chooseAvatar = async (source: 'camera' | 'library') => {
+  const pendingAvatarSource = useRef<'camera' | 'library' | null>(null);
+
+  const chooseAvatar = (source: 'camera' | 'library') => {
+    pendingAvatarSource.current = source;
     setAvatarPickerVisible(false);
+  };
+
+  const openAvatarPicker = async () => {
+    const source = pendingAvatarSource.current;
+    pendingAvatarSource.current = null;
+    if (!source) return;
     const permission =
       source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()
@@ -665,15 +663,15 @@ export default function ProfileEditScreen() {
         </TouchableOpacity>
       </View>
 
-      <Modal
+      <BottomSheetModal
         visible={avatarPickerVisible}
-        transparent
-        animationType="fade"
+        onAfterClose={openAvatarPicker}
+        
         onRequestClose={() => setAvatarPickerVisible(false)}
       >
-        <View style={styles.avatarPickerOverlay}>
-          <Pressable style={styles.avatarPickerBackdrop} onPress={() => setAvatarPickerVisible(false)} />
-          <View style={[styles.avatarPickerSheet, { paddingBottom: Math.max(insets.bottom, 12) + 14 }]}>
+        <View style={[styles.avatarPickerOverlay, bottomSheetStyles.transparent]}>
+          <Pressable style={[styles.avatarPickerBackdrop, bottomSheetStyles.transparent]} onPress={() => setAvatarPickerVisible(false)} />
+          <BottomSheetView style={[styles.avatarPickerSheet, { paddingBottom: Math.max(insets.bottom, 12) + 14 }]}>
             <View style={styles.avatarPickerHandle} />
             <TouchableOpacity
               style={styles.avatarPickerOption}
@@ -691,9 +689,9 @@ export default function ProfileEditScreen() {
               <AvatarLibraryIcon width={20} height={20} />
               <Text style={styles.avatarPickerOptionText}>앨범에서 이미지 선택</Text>
             </TouchableOpacity>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <OnboardingSelectModal
         visible={universityPickerVisible}

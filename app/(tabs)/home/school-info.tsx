@@ -1,17 +1,7 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import React, { useState, useMemo, useEffect } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  TextInput,
-  LayoutAnimation,
-  Platform,
-  UIManager,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { getPartnerSchools } from '../../../src/api/partnerSchools';

@@ -1,18 +1,11 @@
+import { Text } from '@/components/ui/app-text';
 import { SessionExpiredError } from "@/src/api/client";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState, type ComponentType } from 'react';
-import {
-  Alert,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import type { SvgProps } from 'react-native-svg';
 
 import ArrowRightIcon from '@/assets/icon/Property 1=arrow2, Property 2=right.svg';

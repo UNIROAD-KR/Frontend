@@ -1,22 +1,10 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
 import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
@@ -1268,15 +1256,13 @@ if (__DEV__) {
         )}
       </ScrollView>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={pickerMode !== null}
-        animationType="slide"
         onRequestClose={closePicker}
       >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={closePicker} />
-          <View style={styles.pickerSheet}>
+        <View style={[styles.modalOverlay, bottomSheetStyles.transparent]}>
+          <Pressable style={[styles.modalBackdrop, bottomSheetStyles.transparent]} onPress={closePicker} />
+          <BottomSheetView style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={closePicker}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -1613,22 +1599,20 @@ if (__DEV__) {
                 </View>
               </View>
             )}
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={countryPickerVisible}
-        animationType="slide"
         onRequestClose={() => setCountryPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.modalBackdrop}
+            style={[styles.modalBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setCountryPickerVisible(false)}
           />
-          <View style={styles.countrySheet}>
+          <BottomSheetView style={styles.countrySheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setCountryPickerVisible(false)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -1668,22 +1652,20 @@ if (__DEV__) {
                 );
               })}
             </View>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={currencyPickerVisible}
-        animationType="slide"
         onRequestClose={() => setCurrencyPickerVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.modalBackdrop}
+            style={[styles.modalBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setCurrencyPickerVisible(false)}
           />
-          <View style={styles.countrySheet}>
+          <BottomSheetView style={styles.countrySheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setCurrencyPickerVisible(false)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -1725,9 +1707,9 @@ if (__DEV__) {
                 );
               })}
             </View>
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <Modal transparent visible={submitting} animationType="fade">
         <View style={styles.uploadingOverlay}>

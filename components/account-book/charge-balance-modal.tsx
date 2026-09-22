@@ -1,14 +1,7 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from "@expo/vector-icons";
-import {
-  Keyboard,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  View,
-} from "react-native";
+import { Keyboard, Pressable, StyleSheet, TouchableWithoutFeedback, View } from "react-native";
 
 type ChargeBalanceModalProps = {
   visible: boolean;
@@ -35,15 +28,14 @@ export function ChargeBalanceModal({
   };
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
+    <BottomSheetModal
+      
       visible={visible}
       onRequestClose={handleClose}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.overlay}>
-          <View style={styles.content}>
+        <View style={[styles.overlay, bottomSheetStyles.transparent]}>
+          <BottomSheetView style={styles.content}>
             <View style={styles.header}>
               <Text style={styles.headerTitle}>잔액 충전</Text>
               <Pressable onPress={handleClose}>
@@ -73,10 +65,10 @@ export function ChargeBalanceModal({
             <Pressable style={styles.submitButton} onPress={onSubmit}>
               <Text style={styles.submitButtonText}>충전하기</Text>
             </Pressable>
-          </View>
+          </BottomSheetView>
         </View>
       </TouchableWithoutFeedback>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 

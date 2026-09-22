@@ -1,13 +1,6 @@
+import { Text } from '@/components/ui/app-text';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, View } from 'react-native';
 
 import { signupStyles as styles } from '../src/styles/signupStyles';
 

@@ -1,16 +1,9 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetPressable } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
-import {
-  Alert,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Image, Pressable, ScrollView, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import {
@@ -76,6 +69,7 @@ export default function SnsSignupPage() {
   const [agreeAge, setAgreeAge] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
   const [termsVisible, setTermsVisible] = useState(false);
+  const [termsClosing, setTermsClosing] = useState(false);
   const [legalModal, setLegalModal] = useState<{
     title: string;
     content: string;
@@ -206,6 +200,7 @@ export default function SnsSignupPage() {
     content: string,
     onAgree: () => void,
   ) => {
+    setTermsClosing(true);
     setTermsVisible(false);
     setLegalModal({ title, content, onAgree });
   };
@@ -421,17 +416,16 @@ export default function SnsSignupPage() {
         </Text>
       </Pressable>
       </ScrollView>
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={termsVisible}
-        animationType="slide"
+        onAfterClose={() => setTermsClosing(false)}
         onRequestClose={() => setTermsVisible(false)}
       >
         <Pressable
-          style={styles.sheetOverlay}
+          style={[styles.sheetOverlay, bottomSheetStyles.transparent]}
           onPress={() => setTermsVisible(false)}
         >
-          <Pressable style={styles.termsSheet}>
+          <BottomSheetPressable style={styles.termsSheet}>
             <View style={styles.sheetHandle} />
             <TermAgreementRow
               label="전체 동의"
@@ -504,11 +498,11 @@ export default function SnsSignupPage() {
                 가입하기
               </Text>
             </Pressable>
-          </Pressable>
+          </BottomSheetPressable>
         </Pressable>
-      </Modal>
+      </BottomSheetModal>
       <TermsModal
-        visible={legalModal !== null}
+        visible={legalModal !== null && !termsClosing}
         title={legalModal?.title ?? ''}
         content={legalModal?.content ?? ''}
         onClose={handleCloseLegalModal}

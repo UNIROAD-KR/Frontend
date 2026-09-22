@@ -1,15 +1,8 @@
+import { Text } from '@/components/ui/app-text';
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { fonts } from "../../constants/theme";
 import type { UsedItem } from "../../src/api/usedItems";

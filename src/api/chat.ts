@@ -3,7 +3,7 @@ import { api } from "./client";
 import { markChatNotificationsAsRead } from "./notifications";
 import { PageResponse } from "./types";
 
-export type ChatReferenceType = "TRADE" | "MENTOR" | "TICKET";
+export type ChatReferenceType = "TRADE" | "MENTOR" | "TICKET" | "COMPANION";
 
 export interface ChatRoomResponse {
   roomId: number;

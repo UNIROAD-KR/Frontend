@@ -1,28 +1,25 @@
+import { Text } from '@/components/ui/app-text';
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
 
 const BLUE = "#102BE0";
 
-const getRoomTitle = (room: ChatRoomResponse) =>
-  room.referenceType === "TRADE" ? "중고거래 채팅" : "멘토링 채팅";
+const roomLabels = {
+  TRADE: { title: "중고거래 채팅", reference: "거래글", icon: "cart-outline" },
+  MENTOR: { title: "멘토링 채팅", reference: "멘토링", icon: "school-outline" },
+  TICKET: { title: "티켓 양도 채팅", reference: "티켓 양도글", icon: "ticket-outline" },
+  COMPANION: { title: "동행 채팅", reference: "동행 모집글", icon: "people-outline" },
+} as const;
 
+const getRoomTitle = (room: ChatRoomResponse) => roomLabels[room.referenceType]?.title ?? "채팅";
 const getRoomSubtitle = (room: ChatRoomResponse) =>
-  room.referenceType === "TRADE"
-    ? `거래글 #${room.referenceId}`
-    : `멘토링 #${room.referenceId}`;
+  `${roomLabels[room.referenceType]?.reference ?? "게시글"} #${room.referenceId}`;
 
 const formatRoomTime = (value?: string) => {
   if (!value) return "";
@@ -138,9 +135,7 @@ export default function ChatListPage() {
                   <View style={styles.roomIcon}>
                     <Ionicons
                       name={
-                        room.referenceType === "TRADE"
-                          ? "cart-outline"
-                          : "school-outline"
+                        roomLabels[room.referenceType]?.icon ?? "chatbubble-outline"
                       }
                       size={22}
                       color={BLUE}
@@ -190,7 +185,7 @@ export default function ChatListPage() {
             <Ionicons name="chatbubbles-outline" size={38} color="#BBBBBB" />
             <Text style={styles.emptyTitle}>아직 열린 채팅방이 없어요</Text>
             <Text style={styles.centerText}>
-              거래글에서 채팅을 시작하면 여기에 모여요.
+              거래글이나 동행 모집글에서 시작한 채팅이 여기에 모여요.
             </Text>
           </View>
         )}

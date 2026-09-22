@@ -1,3 +1,4 @@
+import { Text } from '@/components/ui/app-text';
 import { SessionExpiredError } from "@/src/api/client";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -5,14 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { deleteMyAccount, getMemberMe, logout } from '../../../src/api/auth';

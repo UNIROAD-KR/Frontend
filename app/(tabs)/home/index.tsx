@@ -1,25 +1,18 @@
+import { Text } from '@/components/ui/app-text';
 import { SoftServiceIcon } from "@/components/soft-service-icon";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  AppState,
-  DeviceEventEmitter,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { AppState, DeviceEventEmitter, Image, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import LogoIcon from "../../../assets/icon/logo.svg";
 
 import { getMemberMe, type CurrentSituation } from "../../../src/api/auth";
 import {
   getUnreadNotificationCount,
   NOTIFICATION_READ_EVENT,
+  NOTIFICATION_RECEIVED_EVENT,
 } from "../../../src/api/notifications";
 import { getUsedItems, type UsedItem } from "../../../src/api/usedItems";
 
@@ -199,23 +192,30 @@ export default function HomeScreen() {
           }
         }
       };
-      void refreshUnreadCount();
+      const requestRefresh = () => {
+        if (fetching) pendingRefresh = true;
+        else void refreshUnreadCount();
+      };
+      requestRefresh();
       const readSubscription = DeviceEventEmitter.addListener(
         NOTIFICATION_READ_EVENT,
-        () => {
-          if (fetching) pendingRefresh = true;
-          else void refreshUnreadCount();
-        },
+        requestRefresh,
       );
-      const timer = setInterval(() => void refreshUnreadCount(), 10000);
+      const pushSubscription = DeviceEventEmitter.addListener(
+        NOTIFICATION_RECEIVED_EVENT,
+        requestRefresh,
+      );
+      // 푸시가 꺼져 있거나 누락된 알림을 보완한다. 즉시 갱신은 수신 이벤트가 담당한다.
+      const timer = setInterval(() => void refreshUnreadCount(), 60000);
       const subscription = AppState.addEventListener("change", (state) => {
-        if (state === "active") void refreshUnreadCount();
+        if (state === "active") requestRefresh();
       });
       return () => {
         active = false;
         clearInterval(timer);
         subscription.remove();
         readSubscription.remove();
+        pushSubscription.remove();
       };
     }, []),
   );

@@ -1,3 +1,5 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -10,19 +12,7 @@ import {
   useState,
 } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import {
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
 import { AppBackButton } from "@/components/ui/app-back-button";
 import {
@@ -632,19 +622,17 @@ export default function MarketWritePage() {
         </Pressable>
       </ScrollView>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={showDatePicker}
-        animationType="slide"
         onRequestClose={() => setShowDatePicker(false)}
       >
-        <View style={styles.pickerOverlay}>
+        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
           <Pressable
-            style={styles.pickerBackdrop}
+            style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
             onPress={() => setShowDatePicker(false)}
           />
 
-          <View style={styles.pickerSheet}>
+          <BottomSheetView style={styles.pickerSheet}>
             <View style={styles.pickerHeader}>
               <Pressable onPress={() => setShowDatePicker(false)}>
                 <Text style={styles.pickerCancel}>취소</Text>
@@ -671,9 +659,9 @@ export default function MarketWritePage() {
                 }
               }}
             />
-          </View>
+          </BottomSheetView>
         </View>
-      </Modal>
+      </BottomSheetModal>
 
       <Modal
         transparent

@@ -1,3 +1,4 @@
+import { Text, TextInput } from '@/components/ui/app-text';
 import { AppBackButton } from "@/components/ui/app-back-button";
 import { fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,22 +7,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  Keyboard,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableWithoutFeedback,
-  useWindowDimensions,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ArrowLeftIcon from "../assets/icon/arrow-left.svg";
 import ArrowRightIcon from "../assets/icon/arrow-right.svg";

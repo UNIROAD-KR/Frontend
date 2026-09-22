@@ -1,14 +1,8 @@
+import { Text } from '@/components/ui/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { AppBackButton } from '@/components/ui/app-back-button';
 
 const NAVY = '#0F2042';

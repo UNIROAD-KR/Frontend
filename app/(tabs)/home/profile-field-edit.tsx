@@ -1,20 +1,10 @@
+import { BottomSheetModal, bottomSheetStyles, BottomSheetTouchable } from '@/components/ui/bottom-sheet';
+import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import { AppBackButton } from '@/components/ui/app-back-button';
@@ -408,18 +398,16 @@ export default function ProfileFieldEditScreen() {
         onSelect={selectCountry}
       />
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={universitySheetVisible}
-        animationType="slide"
         onRequestClose={() => setUniversitySheetVisible(false)}
       >
         <TouchableOpacity
-          style={styles.sheetBackdrop}
+          style={[styles.sheetBackdrop, bottomSheetStyles.transparent]}
           activeOpacity={1}
           onPress={() => setUniversitySheetVisible(false)}
         >
-          <TouchableOpacity
+          <BottomSheetTouchable
             style={styles.sheet}
             activeOpacity={1}
             onPress={(event) => event.stopPropagation()}
@@ -457,22 +445,20 @@ export default function ProfileFieldEditScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </TouchableOpacity>
+          </BottomSheetTouchable>
         </TouchableOpacity>
-      </Modal>
+      </BottomSheetModal>
 
-      <Modal
-        transparent
+      <BottomSheetModal
         visible={semesterYearPickerVisible}
-        animationType="slide"
         onRequestClose={() => setSemesterYearPickerVisible(false)}
       >
         <TouchableOpacity
-          style={styles.sheetBackdrop}
+          style={[styles.sheetBackdrop, bottomSheetStyles.transparent]}
           activeOpacity={1}
           onPress={() => setSemesterYearPickerVisible(false)}
         >
-          <TouchableOpacity
+          <BottomSheetTouchable
             style={styles.sheet}
             activeOpacity={1}
             onPress={(event) => event.stopPropagation()}
@@ -513,9 +499,9 @@ export default function ProfileFieldEditScreen() {
                 );
               })}
             </ScrollView>
-          </TouchableOpacity>
+          </BottomSheetTouchable>
         </TouchableOpacity>
-      </Modal>
+      </BottomSheetModal>
     </KeyboardAvoidingView>
   );
 }

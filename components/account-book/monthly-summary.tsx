@@ -1,5 +1,6 @@
+import { Text } from '@/components/ui/app-text';
 import { fonts } from "@/constants/theme";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import MinusRedIcon from "../../assets/icon/minus-red.svg";
 import PlusBlueIcon from "../../assets/icon/plus-blue.svg";
 
