@@ -61,6 +61,9 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="login" />
+        <Stack.Screen name="market/ticket-preview" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="market/write" options={{ animation: "slide_from_right", gestureEnabled: false }} />
+        <Stack.Screen name="market/ticket-write" options={{ animation: "slide_from_right" }} />
         <Stack.Screen
           name="signup"
           options={{

@@ -1,13 +1,17 @@
 import { Text } from "@/components/ui/app-text";
+import { Colors, fonts } from "@/constants/theme";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
 import { MarketEmptyState } from "./MarketEmptyState";
+import { flags as countryFlags } from "./MarketCountrySheet";
 
 export type TicketListing = {
   id: number;
@@ -15,6 +19,7 @@ export type TicketListing = {
   time: string;
   region: string;
   category: string;
+  ticketType: string;
   title: string;
   date: string;
   count: string;
@@ -26,203 +31,208 @@ type Props = {
   items: TicketListing[];
   error: string;
   loadingMore: boolean;
+  hasMore: boolean;
+  onLoadMore: () => void;
   onRetry: () => void;
 };
-const BLUE = "#102BE0";
+const categories = [
+  { value: "all", label: "전체" },
+  { value: "TOUR", label: "관광 티켓" },
+  { value: "CONCERT", label: "콘서트·공연" },
+  { value: "TRAIN", label: "기차표" },
+  { value: "FLIGHT", label: "항공권" },
+  { value: "ACCOMMODATION", label: "숙박" },
+  { value: "OTHER", label: "기타" },
+];
+
 export function TicketTransferScreen({
   items,
   error,
   loadingMore,
+  hasMore,
+  onLoadMore,
   onRetry,
 }: Props) {
-  if (error) return <MarketEmptyState error={error} onRetry={onRetry} />;
-  if (!items.length)
-    return (
-      <MarketEmptyState
-        title="등록한 티켓이 아직 없어요"
-        description="첫 티켓 양도글을 기다리고 있어요."
-      />
-    );
+  const [category, setCategory] = useState("all");
+  const visibleItems =
+    category === "all"
+      ? items
+      : items.filter((item) => item.ticketType === category);
   return (
-    <View style={styles.ticketList}>
-      {items.map((item) => (
-        <Pressable
-          key={item.id}
-          style={styles.ticketCard}
-          onPress={() =>
-            router.push({
-              pathname: "/market/ticket-preview",
-              params: { id: String(item.id) },
-            } as any)
-          }
-        >
-          <View style={styles.ticketMetaRow}>
-            <Image
-              source={require("../../assets/images/ticket_profile.png")}
-              style={styles.ticketProfileIcon}
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categories}
+      >
+        {categories.map((option) => (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: category === option.value }}
+            style={[
+              styles.chip,
+              category === option.value && styles.activeChip,
+            ]}
+            onPress={() => setCategory(option.value)}
+          >
+            <Text
+              style={[
+                fonts.body2_m_14,
+                {
+                  color:
+                    category === option.value
+                      ? Colors.common.white
+                      : Colors.gray[7],
+                },
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      {error ? (
+        <MarketEmptyState error={error} onRetry={onRetry} />
+      ) : (
+        <>
+          {visibleItems.map((item) => (
+            <Pressable
+              key={item.id}
+              style={styles.card}
+              accessibilityRole="button"
+              onPress={() =>
+                router.push({
+                  pathname: "/market/ticket-preview",
+                  params: { id: String(item.id) },
+                })
+              }
+            >
+              <View style={styles.country}>
+                <View style={styles.flagBox}>
+                  {countryFlags[item.region] ? (
+                    <Text style={styles.flag}>{countryFlags[item.region]}</Text>
+                  ) : (
+                    <Ionicons
+                      name="globe-outline"
+                      size={30}
+                      color={Colors.gray[6]}
+                    />
+                  )}
+                </View>
+                <Text
+                  style={[fonts.caption4_m_12, styles.countryName]}
+                  numberOfLines={2}
+                >
+                  {item.region || "국가 미정"}
+                </Text>
+              </View>
+              <View style={styles.info}>
+                <Text
+                  style={[fonts.sub3_sb_16, styles.title]}
+                  numberOfLines={2}
+                >
+                  {item.title}
+                </Text>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>일정</Text>
+                  <Text style={styles.metaValue}>{item.date}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaLabel}>유형</Text>
+                  <Text style={styles.metaValue}>
+                    {categories.find(
+                      (option) => option.value === item.ticketType,
+                    )?.label || item.category}
+                  </Text>
+                </View>
+                <View style={styles.prices}>
+                  <Text style={[fonts.sub3_sb_16, { color: Colors.gray[11] }]}>
+                    {item.price}원
+                  </Text>
+                  {!!item.originalPrice && (
+                    <Text style={[fonts.caption3_m_13, styles.originalPrice]}>
+                      {item.originalPrice}원
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Pressable>
+          ))}
+          {!visibleItems.length && !loadingMore && (
+            <MarketEmptyState
+              title={
+                category === "all"
+                  ? "등록한 티켓이 아직 없어요"
+                  : "해당 유형의 티켓이 없어요"
+              }
+              description={
+                category === "all"
+                  ? "첫 티켓 양도글을 기다리고 있어요."
+                  : "다른 유형을 선택해보세요."
+              }
             />
-
-            <Text style={styles.ticketMeta}>
-              {item.country} 파견생 · {item.time}
-            </Text>
-
-            <View style={styles.ticketTag}>
-              <Text style={styles.ticketTagText}>{item.region}</Text>
-            </View>
-
-            <View style={styles.ticketTag}>
-              <Text style={styles.ticketTagText}>{item.category}</Text>
-            </View>
-          </View>
-
-          <View style={styles.ticketTitleRow}>
-            <Text style={styles.ticketTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-          </View>
-
-          <View style={styles.ticketInfoRow}>
-            <View style={styles.ticketInfoItem}>
-              <Image
-                source={require("../../assets/images/ticket_date.png")}
-                style={styles.ticketInfoIcon}
-              />
-              <Text style={styles.ticketInfo}>{item.date}</Text>
-            </View>
-
-            <View style={styles.ticketInfoItem}>
-              <Image
-                source={require("../../assets/images/count_ticket.png")}
-                style={styles.ticketInfoIcon}
-              />
-              <Text style={styles.ticketInfo}>{item.count}</Text>
-            </View>
-          </View>
-
-          <View style={styles.ticketPriceRow}>
-            <Text style={styles.ticketPrice}>{item.price}</Text>
-
-            {item.originalPrice.length > 0 && (
-              <Text style={styles.ticketOriginalPrice}>
-                원가 {item.originalPrice}
+          )}
+          {category !== "all" && hasMore && !loadingMore && (
+            <Pressable style={styles.loading} onPress={onLoadMore}>
+              <Text
+                style={[
+                  fonts.body2_m_14,
+                  { color: Colors.primary.default, textAlign: "center" },
+                ]}
+              >
+                티켓 더 불러오기
               </Text>
-            )}
-          </View>
-
-          <View style={styles.ticketLikeRow}>
-            <Text style={styles.ticketLike}>스크랩 {item.scraps}</Text>
-          </View>
-        </Pressable>
-      ))}
-      {loadingMore && (
-        <View style={styles.ticketLoadingMore}>
-          <ActivityIndicator color={BLUE} />
-        </View>
+            </Pressable>
+          )}
+          {loadingMore && (
+            <View style={styles.loading}>
+              <ActivityIndicator color={Colors.primary.default} />
+            </View>
+          )}
+        </>
       )}
     </View>
   );
 }
 const styles = StyleSheet.create({
-  ticketProfileIcon: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    resizeMode: "cover",
-    marginRight: 6,
+  categories: { gap: 8, paddingTop: 2, paddingBottom: 22 },
+  chip: {
+    paddingHorizontal: 14,
+    height: 42,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.gray[1],
   },
-  ticketInfoItem: {
+  activeChip: { backgroundColor: Colors.gray[10] },
+  card: {
     flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+    paddingBottom: 30,
+  },
+  country: { width: 48, alignItems: "center", paddingTop: 2, gap: 5 },
+  flagBox: {
+    width: 48,
+    height: 36,
     alignItems: "center",
+    justifyContent: "center",
   },
-  ticketInfoIcon: {
-    width: 13,
-    height: 13,
-    resizeMode: "contain",
-    marginRight: 4,
-  },
-  ticketList: {
-    marginTop: 0,
-  },
-  ticketLoadingMore: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  ticketCard: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E5E5",
-  },
-  ticketMetaRow: {
+  flag: { fontSize: 36, lineHeight: 40, includeFontPadding: false },
+  countryName: { color: Colors.gray[8], textAlign: "center" },
+  info: { flex: 1, minWidth: 0 },
+  title: { color: Colors.gray[10], marginBottom: 6 },
+  metaRow: { flexDirection: "row", gap: 10, marginBottom: 3 },
+  metaLabel: { ...fonts.caption4_m_12, color: Colors.gray[8] },
+  metaValue: { ...fonts.caption4_m_12, color: Colors.gray[6], flex: 1 },
+  prices: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    rowGap: 6,
-    marginBottom: 9,
+    gap: 8,
+    marginTop: 6,
   },
-  ticketMeta: {
-    flex: 1,
-    minWidth: 120,
-    fontSize: 10,
-    color: "#777777",
-  },
-  ticketTag: {
-    paddingHorizontal: 9,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 5,
-  },
-  ticketTagText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#555555",
-  },
-  ticketTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  ticketTitle: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "900",
-    color: "#111111",
-  },
-  ticketInfoRow: {
-    flexDirection: "row",
-    gap: 16,
-    marginTop: 9,
-  },
-  ticketInfo: {
-    fontSize: 12,
-    color: "#666666",
-    fontWeight: "600",
-  },
-  ticketPriceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 14,
-  },
-  ticketPrice: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: "#000000",
-    marginRight: 8,
-  },
-  ticketOriginalPrice: {
-    fontSize: 12,
-    color: "#B8B8B8",
-    textDecorationLine: "line-through",
-  },
-  ticketLikeRow: {
-    alignItems: "flex-end",
-    marginTop: -8,
-  },
-  ticketLike: {
-    fontSize: 12,
-    color: "#555555",
-  },
+  originalPrice: { color: Colors.gray[6], textDecorationLine: "line-through" },
+  loading: { paddingVertical: 16 },
 });

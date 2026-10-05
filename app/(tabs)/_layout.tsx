@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
-import { router, Tabs, usePathname } from "expo-router";
+import { router, Tabs } from "expo-router";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   AppState,
@@ -220,11 +220,9 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
-  const pathname = usePathname();
-  const isMarketRegistration = pathname === "/market/write";
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      {!isMarketRegistration && <HeaderProvider />}
+      <HeaderProvider />
       <View style={{ flex: 1 }}>
         <Tabs
           tabBar={(props) => <FloatingTabBar {...props} />}

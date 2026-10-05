@@ -1,3 +1,6 @@
+import { MarketSortSheet } from "@/components/market/MarketSortSheet";
+import { compareMarketDates, type MarketSortOrder } from "@/src/utils/marketSort";
+import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { MarketFilterBar } from "@/components/market/MarketFilterBar";
 import { UsedMarketScreen } from "@/components/market/UsedMarketScreen";
 import { TicketTransferScreen } from "@/components/market/TicketTransferScreen";
@@ -84,31 +87,6 @@ const ticketTypeLabelMap: Record<TicketType, string> = {
 const formatTicketPrice = (price: number, currencyUnit = "€") =>
   `${currencyUnit} ${price.toLocaleString("ko-KR")}`;
 
-const formatSingleTicketDate = (date: string) => {
-  const [, month, day] = date.trim().split("-");
-
-  if (!month || !day) return date;
-
-  const parsedMonth = Number(month);
-  const parsedDay = Number(day);
-
-  if (Number.isNaN(parsedMonth) || Number.isNaN(parsedDay)) {
-    return date;
-  }
-
-  return `${parsedMonth}월 ${parsedDay}일`;
-};
-
-const formatTicketDate = (date: string) => {
-  const [startDate, endDate] = date.split("~").map((value) => value.trim());
-
-  if (!endDate) {
-    return formatSingleTicketDate(startDate);
-  }
-
-  return `${formatSingleTicketDate(startDate)} ~ ${formatSingleTicketDate(endDate)}`;
-};
-
 const formatTicketCreatedTime = (createdAt?: string) => {
   if (!createdAt) return "";
 
@@ -176,7 +154,10 @@ export default function MarketPage() {
   const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
   const ticketLoadingMoreRef = useRef(false);
   const [selectedType, setSelectedType] = useState<"bulk" | "ticket">("bulk");
-  const selectedCountry = "전체";
+  const [selectedCountry, setSelectedCountry] = useState("전체");
+  const [countrySheetVisible, setCountrySheetVisible] = useState(false);
+  const [sortSheetVisible, setSortSheetVisible] = useState(false);
+  const [sortOrder, setSortOrder] = useState<MarketSortOrder>("newest");
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const openedEditDetailRef = useRef<string | null>(null);
@@ -694,6 +675,8 @@ export default function MarketPage() {
 
     return {
       id: item.id,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
       title: item.title,
       status,
       sellerCountry,
@@ -726,20 +709,20 @@ export default function MarketPage() {
         item.region.includes(selectedCountry)
       );
     })
-    .sort((a, b) => {
-      if (a.status === b.status) return 0;
-      return a.status === "COMPLETED" ? 1 : -1;
-    });
+    .sort((a, b) => compareMarketDates(a, b, sortOrder));
 
   const displayTickets = tickets.map((item) => ({
     id: item.id,
+    ticketType: item.ticketType,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
     country: item.authorDispatchedCountry ?? "",
     semester: ticketTypeLabelMap[item.ticketType],
     time: formatTicketCreatedTime(item.createdAt),
     region: item.country,
     category: ticketTypeLabelMap[item.ticketType],
     title: item.title,
-    date: formatTicketDate(item.eventDate),
+    date: item.eventDate.split("~").map((date) => date.trim().replace(/-/g, ". ")).join(" ~ "),
     count: `${item.quantity}매`,
     price: formatTicketPrice(
       item.transferPrice,
@@ -756,7 +739,7 @@ export default function MarketPage() {
 
   const filteredTickets = displayTickets.filter((item) => {
     return selectedCountry === "전체" || item.region.includes(selectedCountry);
-  });
+  }).sort((a, b) => compareMarketDates(a, b, sortOrder));
 
   return (
     <SafeAreaView
@@ -826,7 +809,7 @@ export default function MarketPage() {
           />
         </View>
 
-        <MarketFilterBar />
+        <MarketFilterBar selectedCountry={selectedCountry} onSelectCountry={() => setCountrySheetVisible(true)} onSelectSort={() => setSortSheetVisible(true)} />
 
         {selectedTab === "bulk" ? (
           <UsedMarketScreen
@@ -836,6 +819,8 @@ export default function MarketPage() {
           />
         ) : (
           <TicketTransferScreen
+            hasMore={ticketHasNext}
+            onLoadMore={fetchNextTickets}
             items={filteredTickets}
             error={ticketListError}
             loadingMore={ticketLoadingMore}
@@ -896,6 +881,24 @@ export default function MarketPage() {
           color="#FFFFFF"
         />
       </Pressable>
+      <MarketSortSheet
+        visible={sortSheetVisible}
+        value={sortOrder}
+        onClose={() => setSortSheetVisible(false)}
+        onSelect={(value) => {
+          setSortOrder(value);
+          setSortSheetVisible(false);
+        }}
+      />
+      <MarketCountrySheet
+        visible={countrySheetVisible}
+        selectedCountry={selectedCountry}
+        onClose={() => setCountrySheetVisible(false)}
+        onSelect={(country) => {
+          setSelectedCountry(country);
+          setCountrySheetVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

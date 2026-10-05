@@ -4,12 +4,9 @@ import {
   AppBackButton,
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
-import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
+import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { Colors, fonts } from "@/constants/theme";
-import {
-  CUSTOM_COUNTRY_OPTION,
-  countryOptions,
-} from "@/src/constants/onboarding";
+import { countryOptions } from "@/src/constants/onboarding";
 import {
   clearMarketDraft,
   saveMarketDraft,
@@ -43,6 +40,7 @@ import {
 } from "./model";
 import { submitRegistration } from "./submit";
 import { styles } from "./styles";
+import PenIcon from "@/assets/icon/pen.svg";
 
 type Params = {
   type?: string;
@@ -300,24 +298,6 @@ export default function MarketRegistration() {
       ...Array.from({ length: 12 }, (_, index) => String(year + index)),
     ]),
   ).sort();
-  const options =
-    selector === "country"
-      ? countryOptions
-      : selector === "year"
-        ? years
-        : Array.from(
-            {
-              length:
-                selector === "month"
-                  ? 12
-                  : new Date(
-                      Number(dateParts[0]) || year,
-                      Number(dateParts[1]) || 1,
-                      0,
-                    ).getDate(),
-            },
-            (_, index) => String(index + 1).padStart(2, "0"),
-          );
   const titles = [
     "기본 정보 등록하기",
     "게시글 정보 등록하기",
@@ -341,7 +321,7 @@ export default function MarketRegistration() {
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.content, selector && selector !== "country" && { paddingBottom: 200 }]}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -419,17 +399,41 @@ export default function MarketRegistration() {
               <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
                 귀국일
               </Text>
-              <View style={[styles.row, { alignItems: "flex-start", zIndex: 30 }]}>
+              <View
+                style={[styles.row, { alignItems: "flex-start", zIndex: 30 }]}
+              >
                 {(["year", "month", "day"] as const).map((part, index) => (
                   <InlineDropdown
                     key={part}
                     compact
                     value={dateParts[index] || ""}
-                    displayValue={dateParts[index] ? `${Number(dateParts[index])}${["년", "월", "일"][index]}` : ""}
+                    displayValue={
+                      dateParts[index]
+                        ? `${Number(dateParts[index])}${["년", "월", "일"][index]}`
+                        : ""
+                    }
                     placeholder={["연도", "월", "일"][index]}
                     open={selector === part}
                     onPress={() => setSelector(selector === part ? null : part)}
-                    options={(part === "year" ? years : Array.from({ length: part === "month" ? 12 : new Date(Number(dateParts[0]) || year, Number(dateParts[1]) || 1, 0).getDate() }, (_, i) => String(i + 1).padStart(2, "0"))).map((value) => ({ value, label: `${Number(value)}${["년", "월", "일"][index]}` }))}
+                    options={(part === "year"
+                      ? years
+                      : Array.from(
+                          {
+                            length:
+                              part === "month"
+                                ? 12
+                                : new Date(
+                                    Number(dateParts[0]) || year,
+                                    Number(dateParts[1]) || 1,
+                                    0,
+                                  ).getDate(),
+                          },
+                          (_, i) => String(i + 1).padStart(2, "0"),
+                        )
+                    ).map((value) => ({
+                      value,
+                      label: `${Number(value)}${["년", "월", "일"][index]}`,
+                    }))}
                     onSelect={chooseDate}
                   />
                 ))}
@@ -509,13 +513,14 @@ export default function MarketRegistration() {
           </View>
         )}
         {step === 3 && (
-          <>
+          <View style={{ paddingTop: 16, paddingBottom: 88 }}>
             {items.map((item) => (
               <View key={item.id} style={styles.card}>
                 <Pressable
                   style={[styles.row, { flex: 1 }]}
                   onPress={() => setEditor(item)}
-                  accessibilityLabel={`${item.name} 수정`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name} ${item.quantity}개 수정`}
                 >
                   {item.photos[0] ? (
                     <Image
@@ -536,83 +541,49 @@ export default function MarketRegistration() {
                       />
                     </View>
                   )}
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={fonts.sub4_sb_14}>
-                      {item.name} {item.quantity}개
-                    </Text>
-                    <Text
-                      style={[
-                        fonts.caption4_m_12,
-                        { color: Colors.primary.default },
-                      ]}
-                    >
-                      {categoryLabel(item.category)}
+                  <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
+                    <Text numberOfLines={1} style={fonts.sub3_sb_16}>
+                      {item.name}
                     </Text>
                     <Text
                       numberOfLines={1}
                       style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}
                     >
-                      {item.description}
+                      {item.description || "등록된 설명이 없어요"}
                     </Text>
+                    <View style={styles.itemTag}>
+                      <Text
+                        style={[
+                          fonts.caption4_m_12,
+                          { color: Colors.primary.default },
+                        ]}
+                      >
+                        {categoryLabel(item.category)}
+                      </Text>
+                    </View>
                   </View>
                 </Pressable>
                 <Pressable
-                  hitSlop={8}
-                  accessibilityLabel={`${item.name} 삭제`}
-                  onPress={() =>
-                    Alert.alert(
-                      "물품 삭제",
-                      `${item.name}을 목록에서 삭제할까요?`,
-                      [
-                        { text: "취소", style: "cancel" },
-                        {
-                          text: "삭제",
-                          style: "destructive",
-                          onPress: () =>
-                            setItems(
-                              items.filter((other) => other.id !== item.id),
-                            ),
-                        },
-                      ],
-                    )
-                  }
+                  style={styles.editItemButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name} 편집`}
+                  onPress={() => setEditor(item)}
                 >
-                  <Ionicons
-                    name="trash-outline"
-                    size={20}
-                    color={Colors.gray[6]}
-                  />
+                  <PenIcon />
                 </Pressable>
               </View>
             ))}
-            <Pressable
-              style={[styles.empty, !!items.length && { minHeight: 88 }]}
-              onPress={() =>
-                setEditor({
-                  id: `${Date.now()}`,
-                  category: "",
-                  name: "",
-                  quantity: 0,
-                  photos: [],
-                  description: "",
-                })
-              }
-            >
-              <Ionicons
-                name="add-circle"
-                size={25}
-                color={Colors.primary.default}
-              />
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
-                물품을 등록해주세요
-              </Text>
-              {!items.length && (
-                <Text style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}>
+            {!items.length && (
+              <View style={styles.empty}>
+                <Text style={[fonts.body2_m_14, { color: Colors.gray[6] }]}>
                   아직 등록된 세부 물품이 없습니다
                 </Text>
-              )}
-            </Pressable>
-          </>
+                <Text style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}>
+                  아래 + 버튼으로 물품을 추가해주세요.
+                </Text>
+              </View>
+            )}
+          </View>
         )}
       </ScrollView>
       <View
@@ -635,25 +606,37 @@ export default function MarketRegistration() {
           )}
         </Pressable>
       </View>
-      <OnboardingSelectModal
-        visible={selector === "country"}
-        title={selector === "country" ? "국가 및 지역 선택" : "귀국일 선택"}
-        options={options}
-        selectedValue={
-          selector === "country"
-            ? form.country
-            : dateParts[
-                selector === "year" ? 0 : selector === "month" ? 1 : 2
-              ] || ""
-        }
-        onClose={() => setSelector(null)}
-        onSelect={(value) => {
-          if (selector !== "country") {
-            chooseDate(value);
-            return;
+      {step === 3 && (
+        <Pressable
+          disabled={uploading || saving}
+          accessibilityRole="button"
+          accessibilityLabel="세부 물품 추가"
+          style={[
+            styles.addItemFab,
+            { bottom: Math.max(insets.bottom, 16) + 76 },
+          ]}
+          onPress={() =>
+            setEditor({
+              id: `${Date.now()}`,
+              category: "",
+              name: "",
+              quantity: 0,
+              photos: [],
+              description: "",
+            })
           }
-          setCustomCountry(value === CUSTOM_COUNTRY_OPTION);
-          patch({ country: value === CUSTOM_COUNTRY_OPTION ? "" : value });
+        >
+          <Ionicons name="add" size={32} color={Colors.common.white} />
+        </Pressable>
+      )}
+      <MarketCountrySheet
+        visible={selector === "country"}
+        allowAll={false}
+        selectedCountry={form.country}
+        onClose={() => setSelector(null)}
+        onSelect={(country) => {
+          patch({ country });
+          setCustomCountry(false);
           setSelector(null);
         }}
       />
@@ -663,6 +646,10 @@ export default function MarketRegistration() {
           initial={editor}
           items={items}
           onClose={() => setEditor(null)}
+          onDelete={(id) => {
+            setItems((prev) => prev.filter((item) => item.id !== id));
+            setEditor(null);
+          }}
           onSave={(item) => {
             setItems((prev) =>
               prev.some((other) => other.id === item.id)

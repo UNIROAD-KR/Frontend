@@ -15,7 +15,7 @@ import LogoIcon from "../../../assets/icon/logo.svg";
 import NotificationIcon from "../../../assets/icon/notification.svg";
 import SearchIcon from "../../../assets/icon/search.svg";
 import PersonIcon from "../../../assets/icon/person.svg";
-import { router, useFocusEffect, usePathname } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -96,7 +96,6 @@ export default function HeaderProvider() {
   );
 
   const insets = useSafeAreaInsets();
-  if (usePathname().endsWith("/market/write")) return null;
 
   return (
     <View style={{ paddingTop: insets.top, paddingHorizontal: 20 }}>

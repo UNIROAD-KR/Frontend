@@ -1,3 +1,4 @@
+import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -155,80 +156,6 @@ function SelectField({ value, placeholder, onPress }: SelectFieldProps) {
       </Text>
       <Ionicons name="chevron-down" size={18} color="#18202B" />
     </Pressable>
-  );
-}
-
-type DropdownOption = {
-  label: string;
-  value: string;
-};
-
-type InlineDropdownProps = SelectFieldProps & {
-  open: boolean;
-  options: DropdownOption[];
-  onSelect: (value: string) => void;
-  compact?: boolean;
-  displayValue?: string;
-};
-
-function InlineDropdown({
-  value,
-  placeholder,
-  onPress,
-  open,
-  options,
-  onSelect,
-  compact = false,
-  displayValue,
-}: InlineDropdownProps) {
-  return (
-    <View
-      style={[
-        styles.inlineDropdownAnchor,
-        compact && styles.compactDropdownAnchor,
-      ]}
-    >
-      <SelectField
-        value={displayValue ?? value}
-        placeholder={placeholder}
-        onPress={onPress}
-      />
-      {open ? (
-        <View
-          style={[
-            styles.inlineDropdownMenu,
-            compact && styles.compactDropdownMenu,
-          ]}
-        >
-          <ScrollView
-            style={styles.inlineDropdownScroll}
-            showsVerticalScrollIndicator
-            persistentScrollbar
-          >
-            {options.map((option) => {
-              const selected = value === option.value;
-
-              return (
-                <Pressable
-                  key={option.value}
-                  style={styles.inlineDropdownOption}
-                  onPress={() => onSelect(option.value)}
-                >
-                  <Text
-                    style={[
-                      styles.inlineDropdownOptionText,
-                      selected && styles.inlineDropdownOptionTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : null}
-    </View>
   );
 }
 
@@ -574,7 +501,6 @@ export default function ProfileSetupPage() {
         ref={scrollRef}
         contentContainerStyle={[
           styles.content,
-          openDatePart && styles.contentWithOpenDateDropdown,
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

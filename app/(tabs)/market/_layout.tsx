@@ -12,13 +12,7 @@ export default function MarketLayout() {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="write" options={{ gestureEnabled: false }} />
       <Stack.Screen name="verify" />
-      <Stack.Screen name="ticket-write" />
-      <Stack.Screen
-        name="ticket-preview"
-        options={{ animation: "slide_from_right" }}
-      />
     </Stack>
   );
 }
