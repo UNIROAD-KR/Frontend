@@ -19,6 +19,7 @@ export type DraftCategoryDetail = {
 export type MarketDraft = {
   step: 'write' | 'category' | 'preview';
   updatedAt: string;
+  wizard?: { step: number; items: { id: string; category: string; name: string; quantity: number; photos: string[]; description: string }[] };
   write: {
     type?: string;
     title: string;

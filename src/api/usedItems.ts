@@ -1,7 +1,13 @@
-import { api } from './client';
-import { BaseResponse } from './types';
+import { api } from "./client";
+import { BaseResponse } from "./types";
 
-export type TradeCategory = 'KITCHEN' | 'BATH' | 'LIFE' | 'BEDDING' | 'ELECTRONICS' | 'ETC';
+export type TradeCategory =
+  | "KITCHEN"
+  | "BATH"
+  | "LIFE"
+  | "BEDDING"
+  | "ELECTRONICS"
+  | "ETC";
 
 export interface TradeItemRequest {
   category: TradeCategory;
@@ -36,7 +42,7 @@ export interface UsedItemSummaryResponse {
   country?: string;
   region: string;
   semester: string;
-  status?: 'AVAILABLE' | 'COMPLETED';
+  status?: "SELLING" | "RESERVED" | "SOLD" | "AVAILABLE" | "COMPLETED";
   scrapCount?: number;
   thumbnailImageUrl: string;
   authorName: string;
@@ -101,7 +107,7 @@ export type UsedItemSearchParams = UsedItemCursorParams & {
 };
 
 export const getUsedItems = (params: UsedItemCursorParams = { size: 20 }) => {
-  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items', {
+  return api.get<BaseResponse<UsedItemListResponse>>("/api/used-items", {
     params,
   });
 };
@@ -109,7 +115,7 @@ export const getUsedItems = (params: UsedItemCursorParams = { size: 20 }) => {
 export const searchUsedItems = (
   params: UsedItemSearchParams = { size: 20 },
 ) => {
-  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/search', {
+  return api.get<BaseResponse<UsedItemListResponse>>("/api/used-items/search", {
     params,
   });
 };
@@ -117,7 +123,7 @@ export const searchUsedItems = (
 export const getMyUsedItems = (
   params: { cursorId?: number; size?: number } = { size: 20 },
 ) => {
-  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/my', {
+  return api.get<BaseResponse<UsedItemListResponse>>("/api/used-items/my", {
     params,
   });
 };
@@ -125,7 +131,7 @@ export const getMyUsedItems = (
 export const getScrappedUsedItems = (
   params: { cursorId?: number; size?: number } = { size: 20 },
 ) => {
-  return api.get<BaseResponse<UsedItemListResponse>>('/api/used-items/scraps', {
+  return api.get<BaseResponse<UsedItemListResponse>>("/api/used-items/scraps", {
     params,
   });
 };
@@ -135,7 +141,7 @@ export const getUsedItemDetail = (id: number) => {
 };
 
 export const createUsedItem = (data: UsedItemRequest) => {
-  return api.post<BaseResponse<number>>('/api/used-items', data);
+  return api.post<BaseResponse<number>>("/api/used-items", data);
 };
 
 export const updateUsedItem = (id: number, data: UsedItemRequest) => {

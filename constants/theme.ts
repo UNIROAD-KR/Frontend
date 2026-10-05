@@ -251,4 +251,32 @@ export const commonStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
     zIndex: 10,
   },
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  content: {
+    flex: 1,
+  },
+  button: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 10,
+    backgroundColor: Colors.primary.default,
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    ...fonts.sub3_sb_16,
+  },
+  headerSpacer: {
+    width: 38,
+    marginLeft: 0,
+  },
 });

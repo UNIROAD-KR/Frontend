@@ -1,13 +1,26 @@
-import { Text, TextInput } from '@/components/ui/app-text';
+import { Text, TextInput } from "@/components/ui/app-text";
 import { AppBackButton } from "@/components/ui/app-back-button";
-import { fonts } from "@/constants/theme";
+import { fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Dimensions, Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, TouchableWithoutFeedback, useWindowDimensions, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Keyboard,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ArrowLeftIcon from "../assets/icon/arrow-left.svg";
 import ArrowRightIcon from "../assets/icon/arrow-right.svg";
@@ -427,16 +440,16 @@ export default function MyPageScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonStyles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* 헤더 */}
-        <View style={styles.header}>
+        <View style={commonStyles.header}>
           {showBackButton ? <AppBackButton fallbackHref="/home" /> : null}
           <Text style={fonts.sub3_sb_16}>지출 관리</Text>
-          {showBackButton ? <View style={styles.headerSpacer} /> : null}
+          {showBackButton ? <View style={commonStyles.headerSpacer} /> : null}
         </View>
 
         <View style={styles.contentSections}>
@@ -804,11 +817,6 @@ export default function MyPageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-  },
   scrollContent: {
     paddingBottom: 40,
   },
@@ -828,32 +836,11 @@ const styles = StyleSheet.create({
   },
   contentSections: {
     gap: 24,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 15,
-    marginBottom: 20,
-  },
-  headerTextBox: {
-    flex: 1,
-    minWidth: 0,
+    paddingHorizontal: 16,
   },
   headerSpacer: {
     width: 38,
     marginLeft: 0,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: "#8A8A8F",
-    fontWeight: "500",
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#1C1C1E",
-    marginTop: 4,
   },
   progressContainer: {
     marginTop: 24,
@@ -1020,7 +1007,7 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     marginTop: 20,
-    paddingRight: 12,
+    paddingHorizontal: 12,
   },
   detailsHeader: {
     flexDirection: "row",

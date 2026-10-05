@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const STORAGE_KEY = 'univ:market:my-posts';
 
 export type LocalMarketItem = {
+  photos?: string[];
   name: string;
   quantity: number;
   description?: string;

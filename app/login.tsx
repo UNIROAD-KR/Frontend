@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
 import { login as kakaoLogin } from "@react-native-seoul/kakao-login";
@@ -6,7 +6,18 @@ import NaverLogin from "@react-native-seoul/naver-login";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { router } from "expo-router";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Animated, BackHandler, Dimensions, FlatList, Image, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Animated,
+  BackHandler,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import {
   CAROUSEL_ITEMS,
@@ -186,7 +197,7 @@ export default function LoginPage() {
     ]);
 
     router.replace({
-      pathname: "/home/profile-card",
+      pathname: "/profile-card",
       params: { preview: "true" },
     } as any);
   };

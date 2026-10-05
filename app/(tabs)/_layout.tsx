@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import {
   getUnreadChatNotificationCount,
   NOTIFICATION_READ_EVENT,
@@ -7,9 +7,15 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
-import { router, Tabs } from "expo-router";
+import { router, Tabs, usePathname } from "expo-router";
 import { useEffect, useState, type ComponentType } from "react";
-import { AppState, DeviceEventEmitter, Pressable, StyleSheet, View } from "react-native";
+import {
+  AppState,
+  DeviceEventEmitter,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SvgProps } from "react-native-svg";
 
@@ -22,6 +28,7 @@ import HomeLineIcon from "@/assets/icon/Property 1=home, Property 2=line.svg";
 import SearchFilledIcon from "@/assets/icon/Property 1=search, Property 2=fill.svg";
 import SearchLineIcon from "@/assets/icon/Property 1=search, Property 2=line.svg";
 import ShopFilledIcon from "@/assets/icon/Property 1=shop, Property 2=fill.svg";
+import HeaderProvider from "./components/HeaderProvider";
 
 type SvgIcon = ComponentType<SvgProps>;
 type TabIcon = SvgIcon | keyof typeof Ionicons.glyphMap;
@@ -213,86 +220,93 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
+  const pathname = usePathname();
+  const isMarketRegistration = pathname === "/market/write";
   return (
-    <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.replace("/home" as any);
-          },
-        }}
-        options={{
-          title: "홈",
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.replace("/explore" as any);
-          },
-        }}
-        options={{
-          title: "탐색하기",
-        }}
-      />
+    <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      {!isMarketRegistration && <HeaderProvider />}
+      <View style={{ flex: 1 }}>
+        <Tabs
+          tabBar={(props) => <FloatingTabBar {...props} />}
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Tabs.Screen
+            name="home"
+            listeners={{
+              tabPress: (e) => {
+                e.preventDefault();
+                router.replace("/home" as any);
+              },
+            }}
+            options={{
+              title: "홈",
+            }}
+          />
+          <Tabs.Screen
+            name="explore"
+            listeners={{
+              tabPress: (e) => {
+                e.preventDefault();
+                router.replace("/explore" as any);
+              },
+            }}
+            options={{
+              title: "탐색하기",
+            }}
+          />
 
-      <Tabs.Screen
-        name="community"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.replace({
-              pathname: "/community",
-              params: { fromTab: "true" },
-            } as any);
-          },
-        }}
-        options={{
-          title: "커뮤니티",
-        }}
-      />
+          <Tabs.Screen
+            name="community"
+            listeners={{
+              tabPress: (e) => {
+                e.preventDefault();
+                router.replace({
+                  pathname: "/community",
+                  params: { fromTab: "true" },
+                } as any);
+              },
+            }}
+            options={{
+              title: "커뮤니티",
+            }}
+          />
 
-      <Tabs.Screen
-        name="market"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
+          <Tabs.Screen
+            name="market"
+            listeners={{
+              tabPress: (e) => {
+                e.preventDefault();
 
-            router.replace({
-              pathname: "/market",
-              params: { fromTab: "true" },
-            } as any);
-          },
-        }}
-        options={{
-          title: "중고마켓",
-        }}
-      />
+                router.replace({
+                  pathname: "/market",
+                  params: { fromTab: "true" },
+                } as any);
+              },
+            }}
+            options={{
+              title: "중고마켓",
+            }}
+          />
 
-      <Tabs.Screen
-        name="chat"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            router.replace("/chat" as any);
-          },
-        }}
-        options={{
-          title: "채팅관리",
-        }}
-      />
+          <Tabs.Screen
+            name="chat"
+            listeners={{
+              tabPress: (e) => {
+                e.preventDefault();
+                router.replace("/chat" as any);
+              },
+            }}
+            options={{
+              title: "채팅관리",
+            }}
+          />
 
-      <Tabs.Screen name="mypage" options={{ href: null }} />
-    </Tabs>
+          <Tabs.Screen name="mypage" options={{ href: null }} />
+        </Tabs>
+      </View>
+    </View>
   );
 }
 

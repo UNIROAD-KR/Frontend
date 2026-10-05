@@ -1,31 +1,46 @@
-import { Text } from '@/components/ui/app-text';
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from "@/components/ui/app-text";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import PlusIcon from "@/assets/icon/plus-round.svg";
+import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useLocalSearchParams } from "expo-router";
+import BulletIcon from "@/assets/icon/bullet.svg";
+import { useCallback, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
-import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
-import ArrowDownIcon from '@/assets/icon/Property 1=arrow2, Property 2=down.svg';
-import VerificationApprovedCardIcon from '@/assets/icon/profile/verification-approved-card.svg';
-import VerificationAddImageIcon from '@/assets/icon/verification/add-image.svg';
-import ApprovedBadge from '@/assets/icon/verification/approved-badge.svg';
-import LatestReviewIcon from '@/assets/icon/verification/latest-review-icon.svg';
-import PendingBadge from '@/assets/icon/verification/pending-badge.svg';
-import { getMemberMe } from '../src/api/auth';
-import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
+import {
+  AppBackButton,
+  goBackOrReplace,
+} from "@/components/ui/app-back-button";
+import ArrowDownIcon from "@/assets/icon/Property 1=arrow2, Property 2=down.svg";
+import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-approved-card.svg";
+import VerificationAddImageIcon from "@/assets/icon/verification/add-image.svg";
+import ApprovedBadge from "@/assets/icon/verification/approved-badge.svg";
+import LatestReviewIcon from "@/assets/icon/verification/latest-review-icon.svg";
+import PendingBadge from "@/assets/icon/verification/pending-badge.svg";
+import { getMemberMe } from "../src/api/auth";
+import { getUploadUrl, uploadFileToStorage } from "../src/api/upload";
 import {
   getMyVerifications,
   submitVerification,
   VerificationResponse,
-} from '../src/api/verification';
+} from "../src/api/verification";
+import { Colors, commonStyles, fonts } from "@/constants/theme";
 
-type FormMode = 'history' | 'form';
-type VerificationSortOrder = 'latest' | 'oldest';
+type FormMode = "history" | "form";
+type VerificationSortOrder = "latest" | "oldest";
 
-type VerificationStatus = VerificationResponse['status'];
+type VerificationStatus = VerificationResponse["status"];
 
 type PickedImage = {
   uri: string;
@@ -33,30 +48,30 @@ type PickedImage = {
   contentType: string;
 };
 
-const BLUE = '#3568DA';
-const NAVY = '#18202B';
-const INK = '#1A2029';
-const MUTED = '#7A8491';
-const LINE = '#E3E7EC';
-const SOFT = '#F2F4F7';
+const BLUE = "#3568DA";
+const NAVY = "#18202B";
+const INK = "#1A2029";
+const MUTED = "#7A8491";
+const LINE = "#E3E7EC";
+const SOFT = "#F2F4F7";
 const statusMeta: Record<
   VerificationStatus,
   { label: string; color: string; backgroundColor: string }
 > = {
   PENDING: {
-    label: '검토 중',
-    color: '#006BFF',
-    backgroundColor: '#F1F8FF',
+    label: "검토 중",
+    color: "#006BFF",
+    backgroundColor: "#F1F8FF",
   },
   APPROVED: {
-    label: '승인 완료',
-    color: '#7A8491',
-    backgroundColor: '#F1F3F5',
+    label: "승인 완료",
+    color: "#7A8491",
+    backgroundColor: "#F1F3F5",
   },
   REJECTED: {
-    label: '반려',
-    color: '#D92D20',
-    backgroundColor: '#FFF1F0',
+    label: "반려",
+    color: "#D92D20",
+    backgroundColor: "#FFF1F0",
   },
 };
 
@@ -66,29 +81,29 @@ const getImageContentType = (asset: ImagePicker.ImagePickerAsset) => {
   }
 
   const lowerUri = asset.uri.toLowerCase();
-  if (lowerUri.endsWith('.png')) {
-    return 'image/png';
+  if (lowerUri.endsWith(".png")) {
+    return "image/png";
   }
-  if (lowerUri.endsWith('.webp')) {
-    return 'image/webp';
+  if (lowerUri.endsWith(".webp")) {
+    return "image/webp";
   }
 
-  return 'image/jpeg';
+  return "image/jpeg";
 };
 
 const getFileExtension = (contentType: string) => {
-  if (contentType === 'image/png') {
-    return 'png';
+  if (contentType === "image/png") {
+    return "png";
   }
-  if (contentType === 'image/webp') {
-    return 'webp';
+  if (contentType === "image/webp") {
+    return "webp";
   }
-  return 'jpg';
+  return "jpg";
 };
 
 const formatDate = (value?: string | null) => {
   if (!value) {
-    return '-';
+    return "-";
   }
 
   const date = new Date(value);
@@ -96,9 +111,9 @@ const formatDate = (value?: string | null) => {
     return value;
   }
 
-  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
     date.getDate(),
-  ).padStart(2, '0')}`;
+  ).padStart(2, "0")}`;
 };
 
 const getVerificationFileName = (imageUrl: string, fallbackId: number) => {
@@ -106,21 +121,23 @@ const getVerificationFileName = (imageUrl: string, fallbackId: number) => {
     return `image${fallbackId}`;
   }
 
-  const decodedUrl = decodeURIComponent(imageUrl.split('?')[0]);
-  const fileName = decodedUrl.split('/').pop() || '';
-  const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, '');
+  const decodedUrl = decodeURIComponent(imageUrl.split("?")[0]);
+  const fileName = decodedUrl.split("/").pop() || "";
+  const nameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
 
   return nameWithoutExtension || `image${fallbackId}`;
 };
 
 export default function VerificationPage() {
   const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
-  const [mode, setMode] = useState<FormMode>('history');
-  const [verifications, setVerifications] = useState<VerificationResponse[]>([]);
+  const [mode, setMode] = useState<FormMode>("history");
+  const [verifications, setVerifications] = useState<VerificationResponse[]>(
+    [],
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
-  const [sortOrder, setSortOrder] = useState<VerificationSortOrder>('latest');
+  const [sortOrder, setSortOrder] = useState<VerificationSortOrder>("latest");
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
 
   const hasHistory = verifications.length > 0;
@@ -128,15 +145,17 @@ export default function VerificationPage() {
   const sortedVerifications = useMemo(
     () =>
       [...verifications].sort((a, b) => {
-        const comparison = new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
-        return sortOrder === 'latest' ? comparison : -comparison;
+        const comparison =
+          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime();
+        return sortOrder === "latest" ? comparison : -comparison;
       }),
     [sortOrder, verifications],
   );
   const latestVerification = useMemo(
     () =>
       [...verifications].sort(
-        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+        (a, b) =>
+          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
       )[0],
     [verifications],
   );
@@ -147,20 +166,27 @@ export default function VerificationPage() {
     try {
       const response = await getMyVerifications();
       const nextVerifications = [...response.data.data].sort(
-        (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+        (a, b) =>
+          new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
       );
       const isApproved = nextVerifications.some(
-        (verification) => verification.status === 'APPROVED',
+        (verification) => verification.status === "APPROVED",
       );
 
       setVerifications(nextVerifications);
-      setMode(requestedMode === 'form' || nextVerifications.length === 0 ? 'form' : 'history');
-      await AsyncStorage.setItem('isVerified', isApproved ? 'true' : 'false');
-
+      setMode(
+        requestedMode === "form" || nextVerifications.length === 0
+          ? "form"
+          : "history",
+      );
+      await AsyncStorage.setItem("isVerified", isApproved ? "true" : "false");
     } catch (error: any) {
-      console.log('인증 내역 조회 실패:', error.response?.data || error.message);
-      Alert.alert('조회 실패', '인증 신청 내역을 불러오지 못했습니다.');
-      setMode('history');
+      console.log(
+        "인증 내역 조회 실패:",
+        error.response?.data || error.message,
+      );
+      Alert.alert("조회 실패", "인증 신청 내역을 불러오지 못했습니다.");
+      setMode("history");
     } finally {
       setIsLoading(false);
     }
@@ -174,29 +200,31 @@ export default function VerificationPage() {
 
   const openNewVerificationForm = () => {
     router.push({
-      pathname: '/verification',
-      params: { mode: 'form' },
+      pathname: "/verification",
+      params: { mode: "form" },
     } as any);
   };
 
   const handleHeaderBack = () => {
-    if (mode === 'form' && hasHistory) {
+    if (mode === "form" && hasHistory) {
       if (router.canGoBack()) {
         router.back();
         return;
       }
 
       router.replace({
-        pathname: '/verification',
-        params: { mode: 'history' },
+        pathname: "/verification",
+        params: { mode: "history" },
       } as any);
       return;
     }
 
-    goBackOrReplace('/home/profile-card');
+    goBackOrReplace("/profile-card");
   };
 
-  const buildPickedImage = (asset: ImagePicker.ImagePickerAsset): PickedImage => {
+  const buildPickedImage = (
+    asset: ImagePicker.ImagePickerAsset,
+  ): PickedImage => {
     const contentType = getImageContentType(asset);
     const extension = getFileExtension(contentType);
 
@@ -211,7 +239,7 @@ export default function VerificationPage() {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert('권한 필요', '카메라 접근 권한이 필요합니다.');
+      Alert.alert("권한 필요", "카메라 접근 권한이 필요합니다.");
       return;
     }
 
@@ -229,7 +257,7 @@ export default function VerificationPage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
-      Alert.alert('권한 필요', '사진첩 접근 권한이 필요합니다.');
+      Alert.alert("권한 필요", "사진첩 접근 권한이 필요합니다.");
       return;
     }
 
@@ -245,18 +273,18 @@ export default function VerificationPage() {
   };
 
   const openImagePicker = () => {
-    Alert.alert('인증 사진 추가', '인증에 사용할 사진을 선택해주세요.', [
-      { text: '촬영하기', onPress: () => void pickFromCamera() },
-      { text: '사진 선택', onPress: () => void pickFromLibrary() },
-      { text: '취소', style: 'cancel' },
+    Alert.alert("인증 사진 추가", "인증에 사용할 사진을 선택해주세요.", [
+      { text: "촬영하기", onPress: () => void pickFromCamera() },
+      { text: "사진 선택", onPress: () => void pickFromLibrary() },
+      { text: "취소", style: "cancel" },
     ]);
   };
 
   const getProfilePayload = async () => {
     const [savedUniversity, savedCountry, savedRegion] = await Promise.all([
-      AsyncStorage.getItem('dispatchedUniversity'),
-      AsyncStorage.getItem('dispatchedCountry'),
-      AsyncStorage.getItem('dispatchedRegion'),
+      AsyncStorage.getItem("dispatchedUniversity"),
+      AsyncStorage.getItem("dispatchedCountry"),
+      AsyncStorage.getItem("dispatchedRegion"),
     ]);
 
     try {
@@ -264,17 +292,20 @@ export default function VerificationPage() {
       const member = response.data.data;
 
       return {
-        university: member.dispatchedUniversity || savedUniversity || '',
-        country: member.dispatchedCountry || savedCountry || '',
-        region: member.dispatchedRegion || savedRegion || '',
+        university: member.dispatchedUniversity || savedUniversity || "",
+        country: member.dispatchedCountry || savedCountry || "",
+        region: member.dispatchedRegion || savedRegion || "",
       };
     } catch (error: any) {
-      console.log('회원 정보 조회 실패:', error.response?.data || error.message);
+      console.log(
+        "회원 정보 조회 실패:",
+        error.response?.data || error.message,
+      );
 
       return {
-        university: savedUniversity || '',
-        country: savedCountry || '',
-        region: savedRegion || '',
+        university: savedUniversity || "",
+        country: savedCountry || "",
+        region: savedRegion || "",
       };
     }
   };
@@ -283,7 +314,7 @@ export default function VerificationPage() {
     const response = await getUploadUrl({
       fileName: image.fileName,
       contentType: image.contentType,
-      fileType: 'IMAGE',
+      fileType: "IMAGE",
     });
     const { uploadUrl, fileUrl } = response.data.data;
 
@@ -294,7 +325,10 @@ export default function VerificationPage() {
 
   const handleSubmit = async () => {
     if (!pickedImage) {
-      Alert.alert('이미지 선택', '인증에 사용할 사진을 촬영하거나 선택해주세요.');
+      Alert.alert(
+        "이미지 선택",
+        "인증에 사용할 사진을 촬영하거나 선택해주세요.",
+      );
       return;
     }
 
@@ -311,124 +345,164 @@ export default function VerificationPage() {
         ...profilePayload,
       });
 
-      await AsyncStorage.setItem('isVerified', 'false');
+      await AsyncStorage.setItem("isVerified", "false");
       setPickedImage(null);
       await loadVerifications();
 
-      Alert.alert('제출 완료', '인증 요청이 제출되었습니다.', [
+      Alert.alert("제출 완료", "인증 요청이 제출되었습니다.", [
         {
-          text: '확인',
-          onPress: () => router.replace('/verification-complete' as any),
+          text: "확인",
+          onPress: () => router.replace("/verification-complete" as any),
         },
       ]);
     } catch (error: any) {
-      console.log('인증 요청 실패:', error.response?.data || error.message);
-      Alert.alert('제출 실패', '인증 요청을 제출하지 못했습니다. 다시 시도해주세요.');
+      console.log("인증 요청 실패:", error.response?.data || error.message);
+      Alert.alert(
+        "제출 실패",
+        "인증 요청을 제출하지 못했습니다. 다시 시도해주세요.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const renderHistory = () => {
-    const isLatestApproved = latestVerification?.status === 'APPROVED';
-    const SummaryIcon = isLatestApproved ? VerificationApprovedCardIcon : LatestReviewIcon;
-    const summaryTitle = isLatestApproved ? '최신 인증 승인 완료' : '최신 인증 검토 중';
+    const isLatestApproved = latestVerification?.status === "APPROVED";
+    const SummaryIcon = isLatestApproved
+      ? VerificationApprovedCardIcon
+      : LatestReviewIcon;
+    const summaryTitle = isLatestApproved
+      ? "최신 인증 승인 완료"
+      : "최신 인증 검토 중";
     const summaryReviewDate = latestVerification?.reviewedAt
       ? formatDate(latestVerification.reviewedAt)
-      : '-';
+      : "-";
 
     return (
       <>
-      <View style={styles.summaryCard}>
-        <SummaryIcon width={40} height={40} style={styles.summaryIcon} />
-        <View style={styles.summaryTextBox}>
-          <Text style={styles.summaryTitle}>{summaryTitle}</Text>
-          <Text style={styles.summaryDesc}>최신 검토일 {summaryReviewDate}</Text>
-        </View>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>인증 신청 내역</Text>
-        <View style={styles.sortControl}>
-          <Pressable
-            style={styles.sortLabel}
-            onPress={() => setIsSortMenuOpen((current) => !current)}
-          >
-            <Text style={styles.sortLabelText}>
-              {sortOrder === 'latest' ? '최신순' : '오래된순'}
+        <View style={styles.summaryCard}>
+          <SummaryIcon width={40} height={40} style={styles.summaryIcon} />
+          <View style={styles.summaryTextBox}>
+            <Text style={styles.summaryTitle}>{summaryTitle}</Text>
+            <Text style={styles.summaryDesc}>
+              최신 검토일 {summaryReviewDate}
             </Text>
-            <ArrowDownIcon width={16} height={16} color={MUTED} />
-          </Pressable>
-
-          {isSortMenuOpen ? (
-            <View style={styles.sortMenu}>
-              {([
-                ['latest', '최신순'],
-                ['oldest', '오래된순'],
-              ] as const).map(([value, label]) => (
-                <Pressable
-                  key={value}
-                  style={styles.sortMenuItem}
-                  onPress={() => {
-                    setSortOrder(value);
-                    setIsSortMenuOpen(false);
-                  }}
-                >
-                  <Text style={[styles.sortMenuText, sortOrder === value && styles.sortMenuTextActive]}>
-                    {label}
-                  </Text>
-                  {sortOrder === value ? <Ionicons name="checkmark" size={16} color={BLUE} /> : null}
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-        </View>
-      </View>
-
-      {sortedVerifications.map((verification) => {
-        const fileName = getVerificationFileName(verification.imageUrl, verification.id);
-
-        return (
-          <View key={verification.id} style={styles.historyCard}>
-            {verification.imageUrl ? (
-              <Image source={{ uri: verification.imageUrl }} style={styles.historyImage} />
-            ) : (
-              <View style={styles.historyImagePlaceholder} />
-            )}
-            <View style={styles.historyContent}>
-              <View style={styles.historyTopRow}>
-                <Text style={styles.historyTitle} numberOfLines={1}>{fileName}</Text>
-                <VerificationBadge status={verification.status} />
-              </View>
-              <Text style={styles.historyDate}>
-                신청일 {formatDate(verification.submittedAt)}
-              </Text>
-              <Text style={styles.historyDate}>
-                검토일 {formatDate(verification.reviewedAt)}
-              </Text>
-              {verification.status === 'REJECTED' && verification.rejectReason ? (
-                <Text style={styles.rejectReason} numberOfLines={2}>
-                  반려 사유: {verification.rejectReason}
-                </Text>
-              ) : null}
-            </View>
           </View>
-        );
-      })}
+        </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={fonts.title5_b_20}>인증 신청 내역</Text>
+          <View style={styles.sortControl}>
+            <Pressable
+              style={styles.sortLabel}
+              onPress={() => setIsSortMenuOpen((current) => !current)}
+            >
+              <Text style={[fonts.body2_m_14, { color: Colors.gray[8] }]}>
+                {sortOrder === "latest" ? "최신순" : "오래된순"}
+              </Text>
+              <ArrowDownIcon width={16} height={16} color={MUTED} />
+            </Pressable>
+
+            {isSortMenuOpen ? (
+              <View style={styles.sortMenu}>
+                {(
+                  [
+                    ["latest", "최신순"],
+                    ["oldest", "오래된순"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <Pressable
+                    key={value}
+                    style={styles.sortMenuItem}
+                    onPress={() => {
+                      setSortOrder(value);
+                      setIsSortMenuOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.sortMenuText,
+                        sortOrder === value && styles.sortMenuTextActive,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                    {sortOrder === value ? (
+                      <Ionicons name="checkmark" size={16} color={BLUE} />
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {sortedVerifications.map((verification) => {
+          const fileName = getVerificationFileName(
+            verification.imageUrl,
+            verification.id,
+          );
+
+          return (
+            <View key={verification.id} style={styles.historyCard}>
+              {verification.imageUrl ? (
+                <Image
+                  source={{ uri: verification.imageUrl }}
+                  style={styles.historyImage}
+                />
+              ) : (
+                <View style={styles.historyImagePlaceholder} />
+              )}
+              <View style={styles.historyContent}>
+                <View style={styles.historyTopRow}>
+                  <Text
+                    style={[
+                      fonts.sub3_sb_16,
+                      {
+                        textOverflow: "ellipsis",
+                        overflow: "hidden",
+                        maxWidth: 200,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {fileName}
+                  </Text>
+                  <VerificationBadge status={verification.status} />
+                </View>
+                <Text style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}>
+                  신청일 {formatDate(verification.submittedAt)}
+                </Text>
+                <Text style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}>
+                  검토일 {formatDate(verification.reviewedAt)}
+                </Text>
+                {verification.status === "REJECTED" &&
+                verification.rejectReason ? (
+                  <Text style={styles.rejectReason} numberOfLines={2}>
+                    반려 사유: {verification.rejectReason}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
       </>
     );
   };
 
   const renderForm = () => (
     <>
-      <Text style={styles.title}>교환학생 신원 인증</Text>
+      <Text style={fonts.title3_b_24}>교환학생 신원 인증</Text>
 
-      <Text style={styles.description}>
-        허위 매물 방지를 위해 공식 서류 사진을 제출해주세요.{'\n'}
+      <Text
+        style={[
+          fonts.body4_r_14,
+          { color: Colors.gray[7], paddingBottom: 28, paddingTop: 6 },
+        ]}
+      >
+        허위 매물 방지를 위해 공식 서류 사진을 제출해주세요.{"\n"}
         제출된 정보는 인증 목적으로만 사용됩니다.
       </Text>
-
-      <Text style={styles.formSectionTitle}>인증 사진 추가</Text>
 
       <Pressable
         accessibilityRole="button"
@@ -438,103 +512,181 @@ export default function VerificationPage() {
       >
         {pickedImage ? (
           <View style={styles.previewContent}>
-            <Image source={{ uri: pickedImage.uri }} style={styles.previewImage} />
+            <Image
+              source={{ uri: pickedImage.uri }}
+              style={styles.previewImage}
+            />
             <View style={styles.previewTextBox}>
               <Text style={styles.previewTitle} numberOfLines={1}>
                 {pickedImage.fileName}
               </Text>
-              <Text style={styles.previewSubtitle}>다시 누르면 사진을 변경할 수 있어요.</Text>
+              <Text style={styles.previewSubtitle}>
+                다시 누르면 사진을 변경할 수 있어요.
+              </Text>
             </View>
           </View>
         ) : (
-          <>
-            <VerificationAddImageIcon width={27} height={27} />
-            <Text style={styles.imagePickerTitle}>인증 가능한 이미지 추가</Text>
-            <Text style={styles.imagePickerDescription}>
+          <View
+            style={[{ gap: 8, justifyContent: "center", alignItems: "center" }]}
+          >
+            <PlusIcon />
+            <Text style={fonts.sub1_sb_18}>인증 가능한 이미지 추가</Text>
+            <Text
+              style={[
+                fonts.body4_r_14,
+                { color: Colors.gray[7], textAlign: "center" },
+              ]}
+            >
               카메라로 직접 촬영하거나{`\n`}앨범에서 이미지를 불러와주세요
             </Text>
-          </>
+          </View>
         )}
       </Pressable>
 
       <View style={styles.infoBox}>
-        <Text style={styles.infoTitle}>인증 가능 서류</Text>
-        <Text style={styles.infoText}>• 파견 대학 입학허가서 (Letter of Admission)</Text>
-        <Text style={styles.infoText}>• 재학 대학교 파견 승인서</Text>
+        <Text style={[fonts.sub4_sb_14, { color: Colors.gray[11] }]}>
+          인증 가능 서류
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          <BulletIcon />
+          <Text style={[fonts.caption3_m_13, { color: Colors.gray[8] }]}>
+            파견 대학 입학허가서 (Letter of Admission)
+          </Text>
+        </View>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+          <BulletIcon />
+          <Text style={[fonts.caption3_m_13, { color: Colors.gray[8] }]}>
+            재학 대학교 파견 승인서
+          </Text>
+        </View>
       </View>
     </>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={commonStyles.container}>
+      <View style={commonStyles.header}>
         <AppBackButton onPress={handleHeaderBack} style={styles.backButton} />
-        <Text style={styles.headerTitle}>교환학생 신원 인증</Text>
+        <Text style={fonts.sub3_sb_16}>교환학생 신원 인증</Text>
+        <View style={commonStyles.headerSpacer} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, mode === 'form' && styles.formContent]}
+        contentContainerStyle={[
+          styles.content,
+          mode === "form" && styles.formContent,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={BLUE} />
           </View>
-        ) : mode === 'history' ? (
+        ) : mode === "history" ? (
           renderHistory()
         ) : (
           renderForm()
         )}
       </ScrollView>
 
-      {!isLoading && mode === 'history' ? (
+      {!isLoading && mode === "history" ? (
         <View style={styles.historyFooter}>
-          <Pressable style={styles.primaryButton} onPress={openNewVerificationForm}>
-            <Text style={styles.primaryButtonText}>신규 인증 신청하기</Text>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={openNewVerificationForm}
+          >
+            <Text style={[fonts.sub3_sb_16, { color: "#FFFFFF" }]}>
+              신규 인증 신청하기
+            </Text>
           </Pressable>
-          <Text style={styles.bottomNotice}>
+          <Text
+            style={[
+              fonts.caption3_m_13,
+              { color: Colors.gray[6], textAlign: "center", marginTop: 12 },
+            ]}
+          >
             서류 검토는 영업일 기준 최대 24시간이 소요될 수 있습니다.
           </Text>
         </View>
       ) : null}
 
-      {!isLoading && mode === 'form' ? (
+      {!isLoading && mode === "form" ? (
         <View style={styles.formFooter}>
           <Pressable
-            style={[styles.primaryButton, !canSubmit && styles.primaryButtonDisabled]}
+            style={[
+              styles.primaryButton,
+              !canSubmit && styles.primaryButtonDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={!canSubmit}
           >
             {isSubmitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.primaryButtonText}>제출하기</Text>
+              <Text style={[fonts.sub3_sb_16, { color: "#FFFFFF" }]}>
+                제출하기
+              </Text>
             )}
           </Pressable>
-          <Text style={styles.bottomNotice}>
+          <Text
+            style={[
+              fonts.caption3_m_13,
+              { color: Colors.gray[6], textAlign: "center", marginTop: 12 },
+            ]}
+          >
             서류 검토는 영업일 기준 최대 24시간이 소요될 수 있습니다.
           </Text>
         </View>
       ) : null}
-    </View>
+    </SafeAreaView>
   );
 }
 
 function VerificationBadge({ status }: { status: VerificationStatus }) {
-  if (status === 'PENDING') {
-    return <PendingBadge width={41} height={20} />;
+  if (status === "PENDING") {
+    return (
+      <View
+        style={{
+          paddingVertical: 2,
+          paddingHorizontal: 4,
+          borderRadius: 3,
+          backgroundColor: "#F1F8FF",
+        }}
+      >
+        <Text style={[fonts.caption4_m_12, { color: Colors.primary.default }]}>
+          검토 중
+        </Text>
+      </View>
+    );
   }
 
-  if (status === 'APPROVED') {
-    return <ApprovedBadge width={51} height={20} />;
+  if (status === "APPROVED") {
+    return (
+      <View
+        style={{
+          paddingVertical: 2,
+          paddingHorizontal: 4,
+          borderRadius: 3,
+          backgroundColor: Colors.gray[2],
+        }}
+      >
+        <Text style={[fonts.caption4_m_12, { color: Colors.gray[7] }]}>
+          승인 완료
+        </Text>
+      </View>
+    );
   }
 
   const meta = statusMeta[status];
 
   return (
-    <View style={[styles.statusPill, { backgroundColor: meta.backgroundColor }]}>
-      <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
+    <View
+      style={[styles.statusPill, { backgroundColor: meta.backgroundColor }]}
+    >
+      <Text style={[styles.statusText, { color: meta.color }]}>
+        {meta.label}
+      </Text>
     </View>
   );
 }
@@ -542,32 +694,32 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F8FA',
+    backgroundColor: "#F6F8FA",
   },
   header: {
     height: 118,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 43,
     paddingBottom: 12,
-    backgroundColor: '#F6F8FA',
-    position: 'relative',
+    backgroundColor: "#F6F8FA",
+    position: "relative",
   },
   backButton: {
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   headerTitle: {
-    position: 'absolute',
+    position: "absolute",
     top: 57,
     left: 0,
     right: 0,
     height: 34,
     lineHeight: 34,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
     color: NAVY,
-    textAlign: 'center',
+    textAlign: "center",
   },
   scroll: {
     flex: 1,
@@ -582,13 +734,13 @@ const styles = StyleSheet.create({
   },
   loadingBox: {
     minHeight: 320,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   title: {
     fontSize: 24,
     lineHeight: 34,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
     marginBottom: 12,
   },
@@ -601,51 +753,51 @@ const styles = StyleSheet.create({
   formSectionTitle: {
     fontSize: 18,
     lineHeight: 26,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
     marginBottom: 16,
   },
   sectionHeader: {
     marginTop: 32,
     marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    position: 'relative',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    position: "relative",
     zIndex: 2,
   },
   sectionTitle: {
     fontSize: 20,
     lineHeight: 28,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
   },
   sortControl: {
-    position: 'relative',
+    position: "relative",
   },
   sortLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 2,
     paddingVertical: 6,
     paddingLeft: 8,
   },
   sortLabelText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
   },
   sortMenu: {
-    position: 'absolute',
+    position: "absolute",
     top: 32,
     right: 0,
     width: 104,
     borderWidth: 1,
-    borderColor: '#E1E6EC',
+    borderColor: "#E1E6EC",
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingVertical: 4,
-    shadowColor: '#18202B',
+    shadowColor: "#18202B",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 10,
@@ -653,27 +805,27 @@ const styles = StyleSheet.create({
   },
   sortMenuItem: {
     minHeight: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
   },
   sortMenuText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#576273',
+    fontWeight: "700",
+    color: "#576273",
   },
   sortMenuTextActive: {
     color: BLUE,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   summaryCard: {
     height: 76,
     borderRadius: 10,
-    backgroundColor: '#18202B',
+    backgroundColor: "#18202B",
     paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   summaryIcon: {
     marginRight: 12,
@@ -684,25 +836,25 @@ const styles = StyleSheet.create({
   },
   summaryTitle: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   summaryDesc: {
     marginTop: 3,
     fontSize: 11,
-    fontWeight: '700',
-    color: '#ABB4C0',
+    fontWeight: "700",
+    color: "#ABB4C0",
   },
   historyCard: {
     height: 92,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: LINE,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginBottom: 6,
+    flexDirection: "row",
+    alignItems: "center",
   },
   historyImage: {
     width: 68,
@@ -715,7 +867,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 7,
-    backgroundColor: '#EEF1F5',
+    backgroundColor: "#EEF1F5",
     marginRight: 12,
   },
   historyContent: {
@@ -723,9 +875,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   historyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8,
     marginBottom: 3,
   },
@@ -733,7 +885,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     lineHeight: 22,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
   },
   statusPill: {
@@ -743,11 +895,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: "900",
   },
   historyDate: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
     marginTop: 1,
   },
@@ -755,17 +907,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: '700',
-    color: '#D92D20',
+    fontWeight: "700",
+    color: "#D92D20",
   },
   imagePickerCard: {
     height: 187,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: LINE,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
     paddingHorizontal: 20,
   },
@@ -773,21 +925,21 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 18,
     lineHeight: 26,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
   },
   imagePickerDescription: {
     marginTop: 8,
     fontSize: 14,
     lineHeight: 21,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
-    textAlign: 'center',
+    textAlign: "center",
   },
   previewContent: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
   },
   previewImage: {
     width: 112,
@@ -801,77 +953,70 @@ const styles = StyleSheet.create({
   },
   previewTitle: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
   },
   previewSubtitle: {
     marginTop: 5,
     fontSize: 13,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: "700",
     color: MUTED,
   },
   infoBox: {
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: Colors.gray[3],
     borderRadius: 8,
-    backgroundColor: '#F2F5F8',
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 14,
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: INK,
-    marginBottom: 8,
+    backgroundColor: Colors.gray[1],
+    padding: 16,
+    gap: 8,
   },
   infoText: {
     fontSize: 13,
     lineHeight: 21,
-    fontWeight: '700',
-    color: '#536174',
+    fontWeight: "700",
+    color: "#536174",
   },
   primaryButton: {
     height: 52,
     borderRadius: 10,
-    backgroundColor: '#18202B',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: Colors.primary.default,
+    alignItems: "center",
+    justifyContent: "center",
   },
   primaryButtonDisabled: {
-    backgroundColor: '#B1B8C1',
+    backgroundColor: "#B1B8C1",
   },
   primaryButtonText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
   bottomNotice: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#A0A0A0',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#A0A0A0",
+    textAlign: "center",
     marginTop: 12,
   },
   historyFooter: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     bottom: 0,
     left: 0,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 30,
-    backgroundColor: '#F6F8FA',
+    backgroundColor: "#F6F8FA",
   },
   formFooter: {
-    position: 'absolute',
+    position: "absolute",
     right: 0,
     bottom: 0,
     left: 0,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 30,
-    backgroundColor: '#F6F8FA',
+    backgroundColor: "#F6F8FA",
   },
 });

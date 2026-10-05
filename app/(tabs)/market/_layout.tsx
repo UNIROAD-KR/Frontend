@@ -12,6 +12,7 @@ export default function MarketLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="write" options={{ gestureEnabled: false }} />
       <Stack.Screen name="verify" />
       <Stack.Screen name="ticket-write" />
       <Stack.Screen

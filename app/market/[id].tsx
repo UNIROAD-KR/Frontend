@@ -1,12 +1,23 @@
-import { Text } from '@/components/ui/app-text';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MarketItemList } from "@/components/market/MarketItemList";
+import { Text } from "@/components/ui/app-text";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Dimensions,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
-import { createOrGetChatRoom } from '../../../src/api/chat';
+import { createOrGetChatRoom } from "../../src/api/chat";
 import {
   completeUsedItem,
   deleteUsedItem,
@@ -16,45 +27,49 @@ import {
   TradeCategory,
   toggleUsedItemScrap,
   UsedItemResponse,
-} from '../../../src/api/usedItems';
+} from "../../src/api/usedItems";
 import {
   deleteLocalMarketPost,
   getLocalMarketPost,
   LocalMarketPost,
-} from '../../../src/storage/marketPosts';
-import { getMemberMe } from '../../../src/api/auth';
-import { createReport, ReportReason } from '../../../src/api/reports';
-import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
+} from "../../src/storage/marketPosts";
+import { getMemberMe } from "../../src/api/auth";
+import { createReport, ReportReason } from "../../src/api/reports";
+import {
+  AppBackButton,
+  goBackOrReplace,
+} from "@/components/ui/app-back-button";
 import {
   getUsedItemStatus,
   saveUsedItemStatus,
   UsedItemTradeStatus,
-} from '../../../src/storage/usedItemStatus';
+} from "../../src/storage/usedItemStatus";
+import { commonStyles, fonts, Colors } from "@/constants/theme";
 
-const BLUE = '#123F9F';
-const DETAIL_IMAGE_HEIGHT = 290;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const LIKED_MARKET_POSTS_STORAGE_KEY = 'univ:profile:liked-market-posts';
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const BLUE = "#123F9F";
+const CHAT_BAR_CLEARANCE = 120;
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const LIKED_MARKET_POSTS_STORAGE_KEY = "univ:profile:liked-market-posts";
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
-  { label: '사기 의심', reason: 'FRAUD' },
-  { label: '부적절한 내용', reason: 'INAPPROPRIATE' },
-  { label: '욕설/비방', reason: 'ABUSE' },
-  { label: '스팸/광고', reason: 'SPAM' },
-  { label: '기타', reason: 'ETC' },
+  { label: "사기 의심", reason: "FRAUD" },
+  { label: "부적절한 내용", reason: "INAPPROPRIATE" },
+  { label: "욕설/비방", reason: "ABUSE" },
+  { label: "스팸/광고", reason: "SPAM" },
+  { label: "기타", reason: "ETC" },
 ];
 const categoryNameMap: Record<TradeCategory, string> = {
-  KITCHEN: '주방 용품',
-  BATH: '욕실 / 청소 용품',
-  LIFE: '생활 용품',
-  BEDDING: '침구류',
-  ELECTRONICS: '전자기기',
-  ETC: '기타',
+  KITCHEN: "주방 용품",
+  BATH: "욕실 / 청소 용품",
+  LIFE: "생활 용품",
+  BEDDING: "침구류",
+  ELECTRONICS: "전자기기",
+  ETC: "기타",
 };
 
-type MarketDetailPost = Omit<LocalMarketPost, 'id'> & {
+type MarketDetailPost = Omit<LocalMarketPost, "id"> & {
   id: string | number;
-  source: 'api' | 'local';
+  source: "api" | "local";
   targetMemberId?: number;
   status?: UsedItemTradeStatus;
   scrapCount?: number;
@@ -81,11 +96,11 @@ const parseDate = (value: string) => {
 const formatReturnDate = (value: string) => {
   const date = parseDate(value);
 
-  if (!date) return '미정';
+  if (!date) return "미정";
 
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
   const weekday = WEEKDAYS[date.getDay()];
 
   return `${year}. ${month}. ${day} (${weekday})`;
@@ -93,13 +108,13 @@ const formatReturnDate = (value: string) => {
 
 const formatRelativeTime = (value?: string) => {
   if (!value) {
-    return '';
+    return "";
   }
 
   const createdAt = new Date(value);
 
   if (Number.isNaN(createdAt.getTime())) {
-    return value.slice(0, 10).replaceAll('-', '.');
+    return value.slice(0, 10).replaceAll("-", ".");
   }
 
   const diffMinutes = Math.max(
@@ -107,7 +122,7 @@ const formatRelativeTime = (value?: string) => {
     Math.floor((Date.now() - createdAt.getTime()) / 60000),
   );
 
-  if (diffMinutes < 1) return '방금 전';
+  if (diffMinutes < 1) return "방금 전";
   if (diffMinutes < 60) return `${diffMinutes}분 전`;
 
   const diffHours = Math.floor(diffMinutes / 60);
@@ -116,11 +131,11 @@ const formatRelativeTime = (value?: string) => {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays}일 전`;
 
-  return value.slice(0, 10).replaceAll('-', '.');
+  return value.slice(0, 10).replaceAll("-", ".");
 };
 
 const formatNumberPrice = (price: number) => {
-  if (!price) return '가격 미정';
+  if (!price) return "가격 미정";
   return `${price.toLocaleString()}원`;
 };
 
@@ -133,12 +148,22 @@ const formatPrice = (post: MarketDetailPost) => {
 const getCategoryName = (category: TradeCategory | string) =>
   categoryNameMap[category as TradeCategory] ?? category;
 
+const normalizeUsedItemStatus = (
+  status: UsedItemResponse["status"],
+): UsedItemTradeStatus | undefined => {
+  if (status === "SOLD" || status === "COMPLETED") return "COMPLETED";
+  if (status === "SELLING" || status === "RESERVED" || status === "AVAILABLE") {
+    return "AVAILABLE";
+  }
+  return undefined;
+};
+
 const mergeLocalMarketPost = (
   apiPost: MarketDetailPost,
   localPost: LocalMarketPost,
 ): MarketDetailPost => {
   const localGroupByCategory = localPost.itemGroups.reduce<
-    Record<string, LocalMarketPost['itemGroups'][number]>
+    Record<string, LocalMarketPost["itemGroups"][number]>
   >((acc, group) => {
     acc[group.category] = group;
     return acc;
@@ -165,7 +190,8 @@ const mergeLocalMarketPost = (
     authorHomeUniversity:
       apiPost.authorHomeUniversity || localPost.authorHomeUniversity,
     authorDispatchedUniversity:
-      apiPost.authorDispatchedUniversity || localPost.authorDispatchedUniversity,
+      apiPost.authorDispatchedUniversity ||
+      localPost.authorDispatchedUniversity,
     authorDispatchedCountry:
       apiPost.authorDispatchedCountry || localPost.authorDispatchedCountry,
     authorDispatchedRegion:
@@ -194,11 +220,14 @@ const mergeLocalMarketPost = (
           apiGroup.photos && apiGroup.photos.length > 0
             ? apiGroup.photos
             : localGroup?.photos,
-        description: apiGroup.description || localGroup?.description || '',
+        description: apiGroup.description || localGroup?.description || "",
         items:
           apiGroup.items.length > 0
             ? apiGroup.items.map((item, index) => ({
                 ...item,
+                photos: localGroup?.items.find(
+                  (localItem) => localItem.name === item.name,
+                )?.photos,
                 description:
                   item.description ||
                   localGroup?.items[index]?.description ||
@@ -235,53 +264,54 @@ const mapApiPost = (item: UsedItemResponse): MarketDetailPost => {
     return acc;
   }, {});
   const allCategories = Array.from(
-    new Set([...Object.keys(itemsByCategory), ...Object.keys(categoryImageByName)]),
+    new Set([
+      ...Object.keys(itemsByCategory),
+      ...Object.keys(categoryImageByName),
+    ]),
   );
-  const photos = Array.from(
-    new Set([item.thumbnailImageUrl].filter(Boolean)),
-  );
+  const photos = Array.from(new Set([item.thumbnailImageUrl].filter(Boolean)));
 
   return {
     id: item.id,
-    source: 'api',
+    source: "api",
     title: item.title,
     content: item.content,
     price: item.price,
     priceText: formatNumberPrice(item.price),
-    country: item.country || '',
-    sellerCountry: item.authorDispatchedCountry || '',
+    country: item.country || "",
+    sellerCountry: item.authorDispatchedCountry || "",
     region: item.region,
     semester: item.semester,
-    returnDate: item.returnDate ?? '',
+    returnDate: item.returnDate ?? "",
     photos,
     itemGroups: allCategories.map((category) => ({
       category,
       items: itemsByCategory[category] ?? [],
       photos: categoryImageByName[category] ?? [],
-      description: '',
+      description: "",
     })),
     authorName: item.authorNickname || item.authorName,
     authorDomesticUniversity:
-      item.authorDomesticUniversity || item.authorHomeUniversity || '',
-    authorHomeUniversity: item.authorHomeUniversity || '',
-    authorDispatchedUniversity: item.authorDispatchedUniversity || '',
-    authorDispatchedCountry: item.authorDispatchedCountry || '',
-    authorDispatchedRegion: item.authorDispatchedRegion || '',
+      item.authorDomesticUniversity || item.authorHomeUniversity || "",
+    authorHomeUniversity: item.authorHomeUniversity || "",
+    authorDispatchedUniversity: item.authorDispatchedUniversity || "",
+    authorDispatchedCountry: item.authorDispatchedCountry || "",
+    authorDispatchedRegion: item.authorDispatchedRegion || "",
     authorDispatchSemester:
       [item.authorDispatchYear, item.authorDispatchSemester]
         .filter(Boolean)
-        .join(' ') || '',
+        .join(" ") || "",
     authorVerified: item.authorVerified ?? true,
     createdAt: item.createdAt,
     targetMemberId: item.memberId,
-    status: item.status,
+    status: normalizeUsedItemStatus(item.status),
     scrapCount: item.scrapCount,
   };
 };
 
 const mapLocalPost = (post: LocalMarketPost): MarketDetailPost => ({
   ...post,
-  source: 'local',
+  source: "local",
 });
 
 const readLikedMarketPosts = async () => {
@@ -292,9 +322,7 @@ const readLikedMarketPosts = async () => {
   try {
     const parsedPosts = JSON.parse(rawPosts);
 
-    return Array.isArray(parsedPosts)
-      ? (parsedPosts as LikedMarketPost[])
-      : [];
+    return Array.isArray(parsedPosts) ? (parsedPosts as LikedMarketPost[]) : [];
   } catch {
     await AsyncStorage.removeItem(LIKED_MARKET_POSTS_STORAGE_KEY);
     return [];
@@ -307,7 +335,10 @@ const isSavedMarketPost = async (id: number) => {
 
     return response.data.data.items.some((item) => item.id === id);
   } catch (error: any) {
-    console.log('스크랩한 중고거래 조회 실패:', error.response?.data || error.message);
+    console.log(
+      "스크랩한 중고거래 조회 실패:",
+      error.response?.data || error.message,
+    );
     const likedPosts = await readLikedMarketPosts();
 
     return likedPosts.some((item) => item.id === id);
@@ -318,7 +349,7 @@ const syncLikedMarketPost = async (
   post: MarketDetailPost,
   nextLiked: boolean,
 ) => {
-  if (typeof post.id !== 'number') return;
+  if (typeof post.id !== "number") return;
 
   const likedPosts = await readLikedMarketPosts();
   const withoutCurrentPost = likedPosts.filter((item) => item.id !== post.id);
@@ -341,7 +372,7 @@ const syncLikedMarketPost = async (
         semester: post.semester,
         price: formatPrice(post),
         time: formatRelativeTime(post.createdAt),
-        imageUrl: post.photos[0] ?? '',
+        imageUrl: post.photos[0] ?? "",
       },
       ...withoutCurrentPost,
     ]),
@@ -374,7 +405,7 @@ export default function MarketDetailPage() {
     chatReferenceType?: string;
     chatReferenceId?: string;
   }>();
-  const [tab, setTab] = useState<'trade' | 'items' | 'seller'>('trade');
+  const [tab, setTab] = useState<"trade" | "items" | "seller">("items");
   const [liked, setLiked] = useState(false);
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
@@ -382,9 +413,6 @@ export default function MarketDetailPage() {
   const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
-  const bottomSafePadding = 4;
-  const bottomBarHeight = 56;
-
   const scrollRef = useRef<ScrollView>(null);
   const currentScrollY = useRef(0);
 
@@ -415,7 +443,7 @@ export default function MarketDetailPage() {
             }
           } catch (error: any) {
             console.log(
-              '중고거래 상세 조회 실패:',
+              "중고거래 상세 조회 실패:",
               error.response?.data || error.message,
             );
           }
@@ -427,11 +455,11 @@ export default function MarketDetailPage() {
         }
 
         const savedLiked =
-          nextPost && typeof nextPost.id === 'number'
+          nextPost && typeof nextPost.id === "number"
             ? await isSavedMarketPost(nextPost.id)
             : false;
         const storedStatus =
-          nextPost && typeof nextPost.id === 'number'
+          nextPost && typeof nextPost.id === "number"
             ? await getUsedItemStatus(nextPost.id)
             : undefined;
         let nextCurrentMemberId: number | null = null;
@@ -440,7 +468,10 @@ export default function MarketDetailPage() {
           const memberResponse = await getMemberMe();
           nextCurrentMemberId = memberResponse.data.data.id;
         } catch (error: any) {
-          console.log('내 정보 조회 실패:', error.response?.data || error.message);
+          console.log(
+            "내 정보 조회 실패:",
+            error.response?.data || error.message,
+          );
         }
 
         if (active) {
@@ -448,7 +479,7 @@ export default function MarketDetailPage() {
             nextPost
               ? {
                   ...nextPost,
-                  status: nextPost.status ?? storedStatus ?? 'AVAILABLE',
+                  status: nextPost.status ?? storedStatus ?? "AVAILABLE",
                 }
               : null,
           );
@@ -469,21 +500,18 @@ export default function MarketDetailPage() {
   const tags = useMemo(() => {
     if (!post) return [];
 
-    return [
-      post.country || '국가 미정',
-      post.region || '장소 미정',
-      post.semester || '학기 미정',
-      formatRelativeTime(post.createdAt) || '등록일 미정',
-    ].filter(Boolean);
+    return [post.country || "국가 미정", post.region || "장소 미정"].filter(
+      Boolean,
+    );
   }, [post]);
 
-  const handleChangeTab = (nextTab: 'trade' | 'items' | 'seller') => {
+  const handleChangeTab = (nextTab: "trade" | "items" | "seller") => {
     const currentY = currentScrollY.current;
 
     setTab(nextTab);
 
     requestAnimationFrame(() => {
-      const nextY = nextTab === 'seller' ? Math.min(currentY, 430) : currentY;
+      const nextY = nextTab === "seller" ? Math.min(currentY, 430) : currentY;
 
       scrollRef.current?.scrollTo({
         y: nextY,
@@ -495,18 +523,18 @@ export default function MarketDetailPage() {
   const handleStartChat = async () => {
     if (!post || chatLoading) return;
 
-    if (post.source !== 'api' || typeof post.id !== 'number') {
+    if (post.source !== "api" || typeof post.id !== "number") {
       Alert.alert(
-        '채팅을 시작할 수 없어요',
-        '서버에 등록된 거래글만 채팅을 시작할 수 있어요.',
+        "채팅을 시작할 수 없어요",
+        "서버에 등록된 거래글만 채팅을 시작할 수 있어요.",
       );
       return;
     }
 
     if (!post.targetMemberId) {
       Alert.alert(
-        '판매자 정보를 확인할 수 없어요',
-        '백엔드 상세 응답에 판매자 ID가 없어 채팅방을 만들 수 없습니다.',
+        "판매자 정보를 확인할 수 없어요",
+        "백엔드 상세 응답에 판매자 ID가 없어 채팅방을 만들 수 없습니다.",
       );
       return;
     }
@@ -514,34 +542,34 @@ export default function MarketDetailPage() {
     try {
       setChatLoading(true);
       const response = await createOrGetChatRoom({
-        referenceType: 'TRADE',
+        referenceType: "TRADE",
         referenceId: post.id,
         targetMemberId: post.targetMemberId,
       });
       const roomId = response.data.roomId;
 
       if (!roomId) {
-        throw new Error('채팅방 ID가 응답에 없습니다.');
+        throw new Error("채팅방 ID가 응답에 없습니다.");
       }
 
       router.push({
-        pathname: '/chat/[roomId]',
+        pathname: "/chat/[roomId]",
         params: {
           roomId: String(roomId),
           title: post.title,
           price: formatPrice(post),
-          thumbnail: post.photos[0] ?? '',
+          thumbnail: post.photos[0] ?? "",
           sellerName: post.authorName,
-          referenceType: 'TRADE',
+          referenceType: "TRADE",
           referenceId: String(post.id),
           opponentMemberId: String(post.targetMemberId),
         },
       } as any);
     } catch (error: any) {
-      console.log('채팅방 생성 실패:', error.response?.data || error.message);
+      console.log("채팅방 생성 실패:", error.response?.data || error.message);
       Alert.alert(
-        '채팅방 생성 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+        "채팅방 생성 실패",
+        error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     } finally {
       setChatLoading(false);
@@ -557,13 +585,13 @@ export default function MarketDetailPage() {
       const next = !prev;
 
       syncLikedMarketPost(post, next).catch((error) => {
-        console.log('좋아요한 중고거래 상세 저장 실패:', error);
+        console.log("좋아요한 중고거래 상세 저장 실패:", error);
       });
 
       return next;
     });
 
-    if (typeof post.id !== 'number') {
+    if (typeof post.id !== "number") {
       return;
     }
 
@@ -578,23 +606,27 @@ export default function MarketDetailPage() {
               ...prev,
               scrapCount: Math.max(
                 0,
-                (prev.scrapCount ?? 0) + (nextSaved === wasSaved ? 0 : nextSaved ? 1 : -1),
+                (prev.scrapCount ?? 0) +
+                  (nextSaved === wasSaved ? 0 : nextSaved ? 1 : -1),
               ),
             }
           : prev,
       );
     } catch (error: any) {
-      console.log('중고거래 스크랩 실패:', error.response?.data || error.message);
+      console.log(
+        "중고거래 스크랩 실패:",
+        error.response?.data || error.message,
+      );
       setLiked(wasSaved);
-      Alert.alert('저장 실패', '게시글 저장 상태를 변경하지 못했어요.');
+      Alert.alert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
     }
   };
 
   const handleChangeTradeStatus = async (nextStatus: UsedItemTradeStatus) => {
-    if (!post || typeof post.id !== 'number') return;
+    if (!post || typeof post.id !== "number") return;
 
     try {
-      if (nextStatus === 'COMPLETED') {
+      if (nextStatus === "COMPLETED") {
         await completeUsedItem(post.id);
       } else {
         await reopenUsedItem(post.id);
@@ -603,37 +635,40 @@ export default function MarketDetailPage() {
       await saveUsedItemStatus(post.id, nextStatus);
       setPost((prev) => (prev ? { ...prev, status: nextStatus } : prev));
       Alert.alert(
-        '상태 변경 완료',
-        nextStatus === 'COMPLETED'
-          ? '거래완료로 변경했어요.'
-          : '판매중으로 다시 변경했어요.',
+        "상태 변경 완료",
+        nextStatus === "COMPLETED"
+          ? "거래완료로 변경했어요."
+          : "판매중으로 다시 변경했어요.",
       );
     } catch (error: any) {
-      console.log('중고거래 상태 변경 실패:', error.response?.data || error.message);
+      console.log(
+        "중고거래 상태 변경 실패:",
+        error.response?.data || error.message,
+      );
       Alert.alert(
-        '상태 변경 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+        "상태 변경 실패",
+        error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     }
   };
 
   const submitReportPost = async (reason: ReportReason) => {
-    if (!post || typeof post.id !== 'number' || reporting) return;
+    if (!post || typeof post.id !== "number" || reporting) return;
 
     try {
       setReporting(true);
       await createReport({
-        targetType: 'USED_ITEM',
+        targetType: "USED_ITEM",
         targetId: post.id,
         reason,
         detail: `중고거래 게시글 #${post.id} 신고`,
       });
-      Alert.alert('신고 접수', '운영팀이 게시글을 확인할게요.');
+      Alert.alert("신고 접수", "운영팀이 게시글을 확인할게요.");
     } catch (error: any) {
-      console.log('중고거래 신고 실패:', error.response?.data || error.message);
+      console.log("중고거래 신고 실패:", error.response?.data || error.message);
       Alert.alert(
-        '신고 실패',
-        error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+        "신고 실패",
+        error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     } finally {
       setReporting(false);
@@ -641,17 +676,20 @@ export default function MarketDetailPage() {
   };
 
   const handleReportPost = () => {
-    if (!post || typeof post.id !== 'number') {
-      Alert.alert('신고할 수 없어요', '서버에 등록된 게시글만 신고할 수 있어요.');
+    if (!post || typeof post.id !== "number") {
+      Alert.alert(
+        "신고할 수 없어요",
+        "서버에 등록된 게시글만 신고할 수 있어요.",
+      );
       return;
     }
 
-    Alert.alert('신고하기', '신고 사유를 선택해주세요.', [
+    Alert.alert("신고하기", "신고 사유를 선택해주세요.", [
       ...REPORT_OPTIONS.map((option) => ({
         text: option.label,
         onPress: () => submitReportPost(option.reason),
       })),
-      { text: '취소', style: 'cancel' as const },
+      { text: "취소", style: "cancel" as const },
     ]);
   };
 
@@ -666,19 +704,24 @@ export default function MarketDetailPage() {
         description: item.description,
       })),
     }));
-    const categoryDetails = post.itemGroups.reduce<Record<string, {
-      photos: string[];
-      description: string;
-    }>>((acc, group) => {
+    const categoryDetails = post.itemGroups.reduce<
+      Record<
+        string,
+        {
+          photos: string[];
+          description: string;
+        }
+      >
+    >((acc, group) => {
       acc[group.category] = {
         photos: group.photos ?? [],
-        description: group.description ?? '',
+        description: group.description ?? "",
       };
       return acc;
     }, {});
 
     router.push({
-      pathname: '/market/preview',
+      pathname: "/market/preview",
       params: {
         editId: String(post.id),
         title: post.title,
@@ -698,26 +741,29 @@ export default function MarketDetailPage() {
   const handleDeletePost = () => {
     if (!post) return;
 
-    Alert.alert('판매글 삭제', '이 게시글을 삭제할까요?', [
-      { text: '취소', style: 'cancel' },
+    Alert.alert("판매글 삭제", "이 게시글을 삭제할까요?", [
+      { text: "취소", style: "cancel" },
       {
-        text: '삭제',
-        style: 'destructive',
+        text: "삭제",
+        style: "destructive",
         onPress: async () => {
           try {
-            if (post.source === 'api' && typeof post.id === 'number') {
+            if (post.source === "api" && typeof post.id === "number") {
               await deleteUsedItem(post.id);
             }
 
             await deleteLocalMarketPost(String(post.id));
 
-            Alert.alert('삭제 완료', '판매글이 삭제되었어요.');
-            router.replace('/market' as any);
+            Alert.alert("삭제 완료", "판매글이 삭제되었어요.");
+            router.replace("/market" as any);
           } catch (error: any) {
-            console.log('중고거래 삭제 실패:', error.response?.data || error.message);
+            console.log(
+              "중고거래 삭제 실패:",
+              error.response?.data || error.message,
+            );
             Alert.alert(
-              '삭제 실패',
-              error.response?.data?.message ?? '잠시 후 다시 시도해주세요.',
+              "삭제 실패",
+              error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
             );
           }
         },
@@ -768,7 +814,7 @@ export default function MarketDetailPage() {
           <Text style={styles.centerTitle}>게시글을 찾을 수 없어요</Text>
           <Pressable
             style={styles.centerButton}
-            onPress={() => router.replace('/market' as any)}
+            onPress={() => router.replace("/market" as any)}
           >
             <Text style={styles.centerButtonText}>목록으로 돌아가기</Text>
           </Pressable>
@@ -778,11 +824,30 @@ export default function MarketDetailPage() {
   }
 
   const canManagePost =
-    post.source === 'local' ||
+    post.source === "local" ||
     (currentMemberId !== null && post.targetMemberId === currentMemberId);
 
   return (
     <View style={styles.container}>
+      <HeaderBack
+        fromProfileList={fromProfileList}
+        fromEditComplete={fromEditComplete}
+        canManagePost={canManagePost}
+        onEdit={handleEditPost}
+        onDelete={handleDeletePost}
+        onChangeStatus={handleChangeTradeStatus}
+        tradeStatus={post.status ?? "AVAILABLE"}
+        onReport={handleReportPost}
+        reporting={reporting}
+        fromChatRoom={fromChatRoom}
+        chatRoomId={chatRoomId}
+        chatTitle={chatTitle}
+        chatPrice={chatPrice}
+        chatThumbnail={chatThumbnail}
+        chatSellerName={chatSellerName}
+        chatReferenceType={chatReferenceType}
+        chatReferenceId={chatReferenceId}
+      />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -791,34 +856,13 @@ export default function MarketDetailPage() {
         }}
         scrollEventThrottle={16}
       >
-        <HeaderBack
-          fromProfileList={fromProfileList}
-          fromEditComplete={fromEditComplete}
-          canManagePost={canManagePost}
-          onEdit={handleEditPost}
-          onDelete={handleDeletePost}
-          onChangeStatus={handleChangeTradeStatus}
-          tradeStatus={post.status ?? 'AVAILABLE'}
-          onReport={handleReportPost}
-          reporting={reporting}
-          fromChatRoom={fromChatRoom}
-          chatRoomId={chatRoomId}
-          chatTitle={chatTitle}
-          chatPrice={chatPrice}
-          chatThumbnail={chatThumbnail}
-          chatSellerName={chatSellerName}
-          chatReferenceType={chatReferenceType}
-          chatReferenceId={chatReferenceId}
+        <ImageCarousel
+          key={post.id}
+          photos={post.photos}
+          onOpenPhoto={setExpandedPhoto}
         />
 
-        <ImageCarousel photos={post.photos} onOpenPhoto={setExpandedPhoto} />
-
-        <View
-          style={[
-            styles.body,
-            { paddingBottom: bottomBarHeight + 14 },
-          ]}
-        >
+        <View style={[styles.body, { paddingBottom: CHAT_BAR_CLEARANCE }]}>
           <View style={styles.tagRow}>
             {tags.map((tag) => (
               <Text key={tag} style={styles.tag}>
@@ -828,49 +872,78 @@ export default function MarketDetailPage() {
           </View>
 
           <View style={styles.titleRow}>
-            <Text style={styles.title} numberOfLines={3}>
+            <Text style={fonts.title3_b_24} numberOfLines={3}>
               {post.title}
             </Text>
-            {post.status === 'COMPLETED' ? (
+            {post.status === "COMPLETED" ? (
               <View style={styles.completedBadge}>
                 <Text style={styles.completedBadgeText}>거래완료</Text>
               </View>
             ) : null}
           </View>
+          <Text
+            style={[
+              fonts.body4_r_14,
+              { color: Colors.gray[7], marginTop: 10, marginBottom: 16 },
+            ]}
+          >
+            {post.content}
+          </Text>
 
-          <Text style={styles.price}>{formatPrice(post)}</Text>
+          <Text style={fonts.title3_b_24}>{formatPrice(post)}</Text>
 
           <View style={styles.tabRow}>
             <Pressable
               style={styles.tabButton}
-              onPress={() => handleChangeTab('trade')}
+              onPress={() => handleChangeTab("items")}
             >
-              <Text style={styles.tabText}>거래 정보</Text>
-              {tab === 'trade' && <View style={styles.activeLine} />}
+              <Text
+                style={[
+                  styles.tabText,
+                  tab === "items" && styles.activeTabText,
+                ]}
+              >
+                물품 목록
+              </Text>
+              {tab === "items" && <View style={styles.activeLine} />}
             </Pressable>
 
             <Pressable
               style={styles.tabButton}
-              onPress={() => handleChangeTab('items')}
+              onPress={() => handleChangeTab("trade")}
             >
-              <Text style={styles.tabText}>물품 목록</Text>
-              {tab === 'items' && <View style={styles.activeLine} />}
+              <Text
+                style={[
+                  styles.tabText,
+                  tab === "trade" && styles.activeTabText,
+                ]}
+              >
+                거래 정보
+              </Text>
+              {tab === "trade" && <View style={styles.activeLine} />}
             </Pressable>
 
             <Pressable
               style={styles.tabButton}
-              onPress={() => handleChangeTab('seller')}
+              onPress={() => handleChangeTab("seller")}
             >
-              <Text style={styles.tabText}>판매자 정보</Text>
-              {tab === 'seller' && <View style={styles.activeLine} />}
+              <Text
+                style={[
+                  styles.tabText,
+                  tab === "seller" && styles.activeTabText,
+                ]}
+              >
+                판매자 정보
+              </Text>
+              {tab === "seller" && <View style={styles.activeLine} />}
             </Pressable>
           </View>
 
-          {tab === 'trade' && <TradeInfo post={post} />}
-          {tab === 'items' && (
-            <ItemList post={post} onOpenPhoto={setExpandedPhoto} />
+          {tab === "trade" && <TradeInfo post={post} />}
+          {tab === "items" && (
+            <MarketItemList key={post.id} groups={post.itemGroups} />
           )}
-          {tab === 'seller' && <SellerInfo post={post} />}
+          {tab === "seller" && <SellerInfo post={post} />}
         </View>
       </ScrollView>
 
@@ -878,25 +951,22 @@ export default function MarketDetailPage() {
         style={[
           styles.bottomBar,
           {
-            height: bottomBarHeight,
-            paddingBottom: bottomSafePadding,
+            paddingTop: 16,
+            paddingBottom: 32,
           },
         ]}
       >
-        <Pressable
-          style={styles.bottomHeartButton}
-          onPress={handleToggleLike}
-        >
+        <Pressable style={styles.bottomHeartButton} onPress={handleToggleLike}>
           <Ionicons
-            name={liked ? 'bookmark' : 'bookmark-outline'}
-            size={31}
-            color={liked ? BLUE : '#111111'}
+            name={liked ? "heart" : "heart-outline"}
+            size={28}
+            color={liked ? "#E5484D" : Colors.common.black}
           />
         </Pressable>
 
-        <Pressable style={styles.chatButton} onPress={handleStartChat}>
-          <Text style={styles.chatText}>
-            {chatLoading ? '채팅방 여는 중...' : '채팅 시작하기'}
+        <Pressable style={commonStyles.button} onPress={handleStartChat}>
+          <Text style={[fonts.sub3_sb_16, { color: "#FFFFFF" }]}>
+            {chatLoading ? "채팅방 여는 중..." : "채팅 시작하기"}
           </Text>
         </Pressable>
       </View>
@@ -916,7 +986,7 @@ function HeaderBack({
   onEdit,
   onDelete,
   onChangeStatus,
-  tradeStatus = 'AVAILABLE',
+  tradeStatus = "AVAILABLE",
   onReport,
   reporting = false,
   fromChatRoom,
@@ -947,42 +1017,50 @@ function HeaderBack({
   chatReferenceId?: string;
 }) {
   const [menuVisible, setMenuVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  const headerPaddingTop = insets.top + 8;
+  const headerHeight = headerPaddingTop + 56;
 
   return (
-    <View style={styles.top}>
+    <View
+      style={[
+        styles.top,
+        { height: headerHeight, paddingTop: headerPaddingTop },
+      ]}
+    >
       <AppBackButton
         onPress={() => {
-          if (fromEditComplete === 'true') {
-            router.replace('/market' as any);
+          if (fromEditComplete === "true") {
+            router.replace("/market" as any);
             return;
           }
 
-          if (fromChatRoom === 'true' && chatRoomId) {
+          if (fromChatRoom === "true" && chatRoomId) {
             if (router.canGoBack()) {
               router.back();
               return;
             }
 
             router.replace({
-              pathname: '/chat/[roomId]',
+              pathname: "/chat/[roomId]",
               params: {
                 roomId: chatRoomId,
-                title: chatTitle ?? '',
-                price: chatPrice ?? '',
-                thumbnail: chatThumbnail ?? '',
-                sellerName: chatSellerName ?? '',
-                referenceType: chatReferenceType ?? 'TRADE',
-                referenceId: chatReferenceId ?? '',
+                title: chatTitle ?? "",
+                price: chatPrice ?? "",
+                thumbnail: chatThumbnail ?? "",
+                sellerName: chatSellerName ?? "",
+                referenceType: chatReferenceType ?? "TRADE",
+                referenceId: chatReferenceId ?? "",
               },
             } as any);
             return;
           }
 
           if (
-            fromProfileList === 'market' ||
-            fromProfileList === 'liked' ||
-            fromProfileList === 'saved' ||
-            fromProfileList === 'written'
+            fromProfileList === "market" ||
+            fromProfileList === "liked" ||
+            fromProfileList === "saved" ||
+            fromProfileList === "written"
           ) {
             if (router.canGoBack()) {
               router.back();
@@ -990,13 +1068,13 @@ function HeaderBack({
             }
 
             router.replace({
-              pathname: '/home/profile-list',
+              pathname: "/home/profile-list",
               params: { type: fromProfileList },
             } as any);
             return;
           }
 
-          goBackOrReplace('/market');
+          goBackOrReplace("/market");
         }}
       />
 
@@ -1013,7 +1091,7 @@ function HeaderBack({
             style={styles.menuBackdrop}
             onPress={() => setMenuVisible(false)}
           />
-          <View style={styles.postMenuPopover}>
+          <View style={[styles.postMenuPopover, { top: headerHeight - 4 }]}>
             <View style={styles.postMenuArrow} />
             {canManagePost ? (
               <>
@@ -1033,23 +1111,23 @@ function HeaderBack({
                   onPress={() => {
                     setMenuVisible(false);
                     onChangeStatus?.(
-                      tradeStatus === 'COMPLETED' ? 'AVAILABLE' : 'COMPLETED',
+                      tradeStatus === "COMPLETED" ? "AVAILABLE" : "COMPLETED",
                     );
                   }}
                 >
                   <Ionicons
                     name={
-                      tradeStatus === 'COMPLETED'
-                        ? 'refresh-outline'
-                        : 'checkmark-circle-outline'
+                      tradeStatus === "COMPLETED"
+                        ? "refresh-outline"
+                        : "checkmark-circle-outline"
                     }
                     size={18}
                     color="#111111"
                   />
                   <Text style={styles.postMenuText}>
-                    {tradeStatus === 'COMPLETED'
-                      ? '판매중으로 변경'
-                      : '거래완료로 변경'}
+                    {tradeStatus === "COMPLETED"
+                      ? "판매중으로 변경"
+                      : "거래완료로 변경"}
                   </Text>
                 </Pressable>
 
@@ -1061,7 +1139,9 @@ function HeaderBack({
                   }}
                 >
                   <Ionicons name="trash-outline" size={18} color="#E5484D" />
-                  <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
+                  <Text
+                    style={[styles.postMenuText, styles.postMenuDangerText]}
+                  >
                     삭제
                   </Text>
                 </Pressable>
@@ -1076,7 +1156,7 @@ function HeaderBack({
               >
                 <Ionicons name="flag-outline" size={18} color="#E5484D" />
                 <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
-                  {reporting ? '신고 접수 중...' : '신고하기'}
+                  {reporting ? "신고 접수 중..." : "신고하기"}
                 </Text>
               </Pressable>
             )}
@@ -1094,6 +1174,17 @@ function ImageCarousel({
   photos: string[];
   onOpenPhoto: (photo: string) => void;
 }) {
+  const [width, setWidth] = useState(SCREEN_WIDTH);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const activeIndex = Math.min(currentIndex, Math.max(0, photos.length - 1));
+  const dotCount = Math.min(5, photos.length);
+  const dotStart = Math.max(
+    0,
+    Math.min(activeIndex - 2, photos.length - dotCount),
+  );
+  const hasPreviousDots = dotStart > 0;
+  const hasNextDots = dotStart + dotCount < photos.length;
+
   if (photos.length === 0) {
     return (
       <View style={[styles.imageArea, styles.emptyImageArea]}>
@@ -1103,12 +1194,38 @@ function ImageCarousel({
   }
 
   return (
-    <View style={styles.imageArea}>
-      <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+    <View
+      style={styles.imageArea}
+      onLayout={({ nativeEvent }) => {
+        const nextWidth = nativeEvent.layout.width;
+        if (nextWidth > 0 && nextWidth !== width) {
+          setWidth(nextWidth);
+          setCurrentIndex(0);
+        }
+      }}
+    >
+      <ScrollView
+        key={width}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={({ nativeEvent }) => {
+          setCurrentIndex(
+            Math.max(
+              0,
+              Math.min(
+                photos.length - 1,
+                Math.round(nativeEvent.contentOffset.x / width),
+              ),
+            ),
+          );
+        }}
+      >
         {photos.map((photo, index) => (
           <Pressable
             key={`${photo}-${index}`}
-            style={styles.heroImageButton}
+            style={[styles.heroImageButton, { width }]}
             onPress={() => onOpenPhoto(photo)}
           >
             <Image source={{ uri: photo }} style={styles.heroImage} />
@@ -1117,10 +1234,29 @@ function ImageCarousel({
       </ScrollView>
 
       {photos.length > 1 && (
-        <View style={styles.dots}>
-          {photos.map((_, index) => (
-            <View key={index} style={styles.dot} />
-          ))}
+        <View
+          style={styles.dots}
+          pointerEvents="none"
+          accessible
+          accessibilityLabel={`전체 ${photos.length}장 중 ${activeIndex + 1}번째 사진`}
+        >
+          {Array.from({ length: dotCount }, (_, index) => {
+            const photoIndex = dotStart + index;
+            const isOverflowEdge =
+              (index === 0 && hasPreviousDots) ||
+              (index === dotCount - 1 && hasNextDots);
+
+            return (
+              <View
+                key={photoIndex}
+                style={[
+                  styles.dot,
+                  isOverflowEdge && styles.overflowEdgeDot,
+                  photoIndex === activeIndex && styles.activeDot,
+                ]}
+              />
+            );
+          })}
         </View>
       )}
     </View>
@@ -1139,9 +1275,7 @@ function FullImageModal({
       <View style={styles.fullImageOverlay}>
         <Pressable style={styles.fullImageBackdrop} onPress={onClose} />
 
-        {photo && (
-          <Image source={{ uri: photo }} style={styles.fullImage} />
-        )}
+        {photo && <Image source={{ uri: photo }} style={styles.fullImage} />}
 
         <Pressable style={styles.fullImageCloseButton} onPress={onClose}>
           <Ionicons name="close" size={24} color="#FFFFFF" />
@@ -1151,225 +1285,172 @@ function FullImageModal({
   );
 }
 
+const countryFlagImages: Record<
+  string,
+  import("react-native").ImageSourcePropType
+> = {
+  독일: require("../../assets/images/flag_germany.png"),
+  프랑스: require("../../assets/images/flag_france.png"),
+  스페인: require("../../assets/images/flag_spain.png"),
+  영국: require("../../assets/images/flag_england.png"),
+  네덜란드: require("../../assets/images/flag_Neth.png"),
+  미국: require("../../assets/images/flag_USA.png"),
+};
+
 function TradeInfo({ post }: { post: MarketDetailPost }) {
   const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
+  const rows = [
+    {
+      label: "판매자 국가",
+      icon: "person-outline",
+      value: sellerCountry || "미정",
+      country: sellerCountry,
+    },
+    {
+      label: "거래 국가",
+      icon: "flag-outline",
+      value: post.country || "미정",
+      country: post.country,
+    },
+    {
+      label: "거래 장소",
+      icon: "location-outline",
+      value: post.region || "미정",
+    },
+    {
+      label: "판매자 귀국일",
+      icon: "calendar-outline",
+      value: formatReturnDate(post.returnDate),
+    },
+  ] as const;
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>거래 정보</Text>
-      <Text style={styles.sectionDesc}>
-        기본 거래 정보 및 판매자가 직접 작성한 내용이에요
-      </Text>
-
-      <Text style={styles.subTitle}>거래 조건</Text>
-
-      <View style={styles.conditionRow}>
-        <View style={styles.conditionCard}>
-          <View style={styles.conditionLabelRow}>
-            <Ionicons
-              name="person-circle-outline"
-              size={14}
-              color="#555555"
-              style={styles.conditionVectorIcon}
-            />
-            <Text style={styles.conditionLabel}>판매자 국가</Text>
-          </View>
-          <Text style={styles.conditionValue}>{sellerCountry || '미정'}</Text>
-        </View>
-
-        <View style={styles.conditionCard}>
-          <View style={styles.conditionLabelRow}>
-            <Ionicons
-              name="flag-outline"
-              size={14}
-              color="#555555"
-              style={styles.conditionVectorIcon}
-            />
-            <Text style={styles.conditionLabel}>거래 국가</Text>
-          </View>
-          <Text style={styles.conditionValue}>{post.country || '미정'}</Text>
-        </View>
-
-        <View style={styles.conditionCard}>
-          <View style={styles.conditionLabelRow}>
-            <Image
-              source={require('../../../assets/images/place.png')}
-              style={styles.conditionIcon}
-            />
-            <Text style={styles.conditionLabel}>거래 장소</Text>
-          </View>
-          <Text style={styles.conditionValue}>{post.region || '미정'}</Text>
-        </View>
-
-        <View style={styles.conditionCard}>
-          <View style={styles.conditionLabelRow}>
-            <Image
-              source={require('../../../assets/images/date.png')}
-              style={styles.conditionIcon}
-            />
-            <Text style={styles.conditionLabel}>귀국일</Text>
-          </View>
-          <Text style={styles.conditionValue}>
-            {formatReturnDate(post.returnDate)}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.subTitle}>판매자 글</Text>
-
-      <View style={styles.descriptionBox}>
-        <Text style={styles.descriptionText}>{post.content}</Text>
-      </View>
-    </View>
-  );
-}
-
-function ItemList({
-  post,
-  onOpenPhoto,
-}: {
-  post: MarketDetailPost;
-  onOpenPhoto: (photo: string) => void;
-}) {
-  return (
-    <View>
-      <Text style={styles.sectionTitle}>물품 목록</Text>
-      <Text style={styles.sectionDesc}>판매 물품 리스트예요</Text>
-
-      {post.itemGroups.length > 0 ? (
-        <>
-          <Text style={styles.subTitle}>보유 카테고리</Text>
-
-          <View style={styles.categoryPillRow}>
-            {post.itemGroups.map((group) => (
-              <Text key={group.category} style={styles.categoryPill}>
-                {group.category}
-              </Text>
-            ))}
-          </View>
-
-          {post.itemGroups.map((group) => {
-            const groupDescription =
-              group.description ||
-              group.items.find(
-                (item) => item.description && item.description.length > 0,
-              )?.description ||
-              '';
-
-            return (
-              <View key={group.category} style={styles.itemGroup}>
-                <Text style={styles.subTitle}>{group.category}</Text>
-
-                {group.photos && group.photos.length > 0 && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.itemPhotoRow}
-                  >
-                    {group.photos.map((photo, index) => (
-                      <Pressable
-                        key={`${group.category}-${photo}-${index}`}
-                        onPress={() => onOpenPhoto(photo)}
-                      >
-                        <Image source={{ uri: photo }} style={styles.itemPhoto} />
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                )}
-
-                {groupDescription.length > 0 && (
-                  <View style={styles.itemDescriptionBox}>
-                    <Text style={styles.itemDescriptionText}>
-                      {groupDescription}
-                    </Text>
-                  </View>
-                )}
-
-                <View style={styles.itemGrid}>
-                  {group.items.map((item, index) => (
-                    <View
-                      key={`${group.category}-${item.name}-${index}`}
-                      style={styles.itemLineBlock}
-                    >
-                      <Text style={styles.itemText}>
-                        • {item.name} {item.quantity}개
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+      <Text style={fonts.title5_b_20}>거래 정보</Text>
+      <View style={styles.conditionCard}>
+        {rows.map((row) => {
+          const flag =
+            "country" in row && row.country
+              ? countryFlagImages[row.country.trim()]
+              : undefined;
+          return (
+            <View key={row.label} style={styles.conditionRow}>
+              <View style={styles.conditionLabelRow}>
+                <Ionicons name={row.icon} size={18} color="#738092" />
+                <Text style={[fonts.body1_m_16, { color: Colors.gray[8] }]}>
+                  {row.label}
+                </Text>
               </View>
-            );
-          })}
-        </>
-      ) : (
-        <View style={styles.emptyListBox}>
-          <Text style={styles.emptyListText}>등록된 물품이 없어요</Text>
-        </View>
-      )}
+              <View style={styles.conditionValueRow}>
+                {flag && (
+                  <Image
+                    source={flag}
+                    style={styles.conditionFlag}
+                    accessibilityIgnoresInvertColors
+                  />
+                )}
+                <Text style={[fonts.body1_m_16, { color: Colors.gray[11] }]}>
+                  {row.value}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 function SellerInfo({ post }: { post: MarketDetailPost }) {
-  const authorName = post.authorName || '나';
-  const initial = authorName.trim().charAt(0) || '나';
+  const authorName = post.authorName || "나";
   const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
   const sellerRegion = post.authorDispatchedRegion || post.region;
   const domesticUniversity =
-    post.authorDomesticUniversity || post.authorHomeUniversity || '소속대학 미정';
-  const dispatchedUniversity = post.authorDispatchedUniversity || '파견교 미정';
-  const dispatchSemester = post.authorDispatchSemester || post.semester || '학기 미정';
+    post.authorDomesticUniversity ||
+    post.authorHomeUniversity ||
+    "소속대학 미정";
+  const dispatchedUniversity = post.authorDispatchedUniversity || "파견교 미정";
+  const dispatchSemester =
+    post.authorDispatchSemester || post.semester || "학기 미정";
   const verified = post.authorVerified ?? true;
+
+  const location =
+    [sellerCountry, sellerRegion].filter(Boolean).join(" ") || "미정";
+  const rows = [
+    { label: "소속 대학", icon: "school-outline", value: domesticUniversity },
+    {
+      label: "파견 국가 및 지역",
+      icon: "flag-outline",
+      value: location,
+      country: sellerCountry,
+    },
+    { label: "파견교", icon: "school-outline", value: dispatchedUniversity },
+    { label: "파견 학기", icon: "calendar-outline", value: dispatchSemester },
+  ] as const;
 
   return (
     <View>
-      <Text style={styles.sectionTitle}>판매자 정보</Text>
-      <Text style={styles.sectionDesc}>
-        교환학생 선배 판매자의 기본 정보예요
-      </Text>
-
-      <View style={styles.profileCard}>
-        <View style={styles.profileImage}>
-          <Text style={styles.profileInitial}>{initial}</Text>
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <View style={styles.profileNameRow}>
-            <Text style={styles.profileName}>{authorName}</Text>
-            {verified && (
-              <View style={styles.verifiedBadge}>
-                <Ionicons name="checkmark-circle" size={13} color="#123F9F" />
-                <Text style={styles.verifiedText}>인증완료</Text>
-              </View>
-            )}
+      <Text style={fonts.title5_b_20}>판매자 정보</Text>
+      <View style={styles.conditionCard}>
+        <View style={styles.profileCard}>
+          <View style={styles.profileImage} />
+          <View style={{ flex: 1 }}>
+            <View style={styles.profileNameRow}>
+              <Text
+                style={[
+                  fonts.sub3_sb_16,
+                  { color: Colors.common.black, flexShrink: 1 },
+                ]}
+              >
+                {authorName}
+              </Text>
+              {verified && (
+                <View style={styles.verifiedBadge}>
+                  <Text
+                    style={[
+                      fonts.body2_m_14,
+                      { color: Colors.primary.default },
+                    ]}
+                  >
+                    인증 완료
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={[fonts.body2_m_14, styles.profileMeta]}>
+              {domesticUniversity} · {location}
+            </Text>
           </View>
-          <Text style={styles.profileMeta}>
-            {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '지역 미정'} · {dispatchSemester} 파견생
-          </Text>
         </View>
-      </View>
-
-      <View style={styles.sellerInfoList}>
-        <View style={styles.sellerInfoRow}>
-          <Text style={styles.sellerInfoLabel}>소속대학</Text>
-          <Text style={styles.sellerInfoValue}>{domesticUniversity}</Text>
-        </View>
-
-        <View style={styles.sellerInfoRow}>
-          <Text style={styles.sellerInfoLabel}>파견국가 및 지역</Text>
-          <Text style={styles.sellerInfoValue}>
-            {[sellerCountry, sellerRegion].filter(Boolean).join(' ') || '미정'}
-          </Text>
-        </View>
-
-        <View style={styles.sellerInfoRow}>
-          <Text style={styles.sellerInfoLabel}>파견교</Text>
-          <Text style={styles.sellerInfoValue}>{dispatchedUniversity}</Text>
-        </View>
-
-        <View style={styles.sellerInfoRow}>
-          <Text style={styles.sellerInfoLabel}>파견학기</Text>
-          <Text style={styles.sellerInfoValue}>{dispatchSemester}</Text>
+        <View style={styles.sellerInfoList}>
+          {rows.map((row) => {
+            const flag =
+              "country" in row && row.country
+                ? countryFlagImages[row.country.trim()]
+                : undefined;
+            return (
+              <View key={row.label} style={styles.conditionRow}>
+                <View style={styles.conditionLabelRow}>
+                  <Ionicons name={row.icon} size={18} color={Colors.gray[7]} />
+                  <Text style={[fonts.body1_m_16, { color: Colors.gray[8] }]}>
+                    {row.label}
+                  </Text>
+                </View>
+                <View style={styles.conditionValueRow}>
+                  {flag && (
+                    <Image
+                      source={flag}
+                      style={styles.conditionFlag}
+                      accessibilityIgnoresInvertColors
+                    />
+                  )}
+                  <Text style={[fonts.body1_m_16, styles.sellerInfoValue]}>
+                    {row.value}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
         </View>
       </View>
     </View>
@@ -1377,14 +1458,15 @@ function SellerInfo({ post }: { post: MarketDetailPost }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
 
   top: {
-    height: 92,
-    paddingTop: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: Colors.common.white,
+    zIndex: 10,
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 22,
   },
 
@@ -1392,9 +1474,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F6F8FC',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F6F8FC",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   menuBackdrop: {
@@ -1403,16 +1485,15 @@ const styles = StyleSheet.create({
   },
 
   postMenuPopover: {
-    position: 'absolute',
-    top: 82,
+    position: "absolute",
     right: 20,
     width: 150,
     borderRadius: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E7ECF3',
-    shadowColor: '#0F2042',
+    borderColor: "#E7ECF3",
+    shadowColor: "#0F2042",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.14,
     shadowRadius: 22,
@@ -1421,104 +1502,105 @@ const styles = StyleSheet.create({
   },
 
   postMenuArrow: {
-    position: 'absolute',
+    position: "absolute",
     top: -7,
     right: 17,
     width: 14,
     height: 14,
     borderLeftWidth: 1,
     borderTopWidth: 1,
-    borderColor: '#E7ECF3',
-    backgroundColor: '#FFFFFF',
-    transform: [{ rotate: '45deg' }],
+    borderColor: "#E7ECF3",
+    backgroundColor: "#FFFFFF",
+    transform: [{ rotate: "45deg" }],
   },
 
   postMenuRow: {
     minHeight: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
     gap: 10,
   },
 
   postMenuText: {
     fontSize: 13,
-    fontWeight: '800',
-    color: '#111111',
+    fontWeight: "800",
+    color: "#111111",
   },
 
   postMenuDangerText: {
-    color: '#E5484D',
+    color: "#E5484D",
   },
 
   centerState: {
     flex: 1,
     minHeight: 360,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 24,
   },
 
   centerTitle: {
     fontSize: 18,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 18,
   },
 
   centerText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#777777',
+    fontWeight: "700",
+    color: "#777777",
   },
 
   centerButton: {
     height: 44,
     borderRadius: 5,
     backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 18,
   },
 
   centerButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   imageArea: {
-    height: DETAIL_IMAGE_HEIGHT,
-    backgroundColor: '#F2F2F2',
+    width: "100%",
+    aspectRatio: 3 / 2,
+    backgroundColor: Colors.gray[2],
+    overflow: "hidden",
   },
 
   emptyImageArea: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   emptyImageText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#888888',
+    fontWeight: "700",
+    color: "#888888",
   },
 
   heroImage: {
-    width: SCREEN_WIDTH,
-    height: DETAIL_IMAGE_HEIGHT,
-    resizeMode: 'cover',
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
 
   heroImageButton: {
-    width: SCREEN_WIDTH,
-    height: DETAIL_IMAGE_HEIGHT,
+    height: "100%",
   },
 
   fullImageOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.94)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(0,0,0,0.94)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   fullImageBackdrop: {
@@ -1527,37 +1609,45 @@ const styles = StyleSheet.create({
 
   fullImage: {
     width: SCREEN_WIDTH,
-    height: '78%',
-    resizeMode: 'contain',
+    height: "78%",
+    resizeMode: "contain",
   },
 
   fullImageCloseButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 54,
     right: 22,
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   dots: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 14,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 6,
   },
 
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.gray[4],
+  },
+
+  overflowEdgeDot: {
+    transform: [{ scale: 0.67 }],
+  },
+
+  activeDot: {
+    backgroundColor: Colors.primary.default,
   },
 
   body: {
@@ -1566,156 +1656,159 @@ const styles = StyleSheet.create({
   },
 
   tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginBottom: 8,
   },
 
   tag: {
-    backgroundColor: '#F5F5F5',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    fontSize: 11,
-    color: '#555555',
-    fontWeight: '700',
+    backgroundColor: "#EAF3FF",
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    ...fonts.caption4_m_12,
+    color: Colors.primary.default,
   },
 
   titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   title: {
     flex: 1,
     fontSize: 23,
     lineHeight: 30,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginRight: 10,
   },
   completedBadge: {
     flexShrink: 0,
     borderRadius: 999,
-    backgroundColor: '#EEEEEE',
+    backgroundColor: "#EEEEEE",
     paddingHorizontal: 9,
     paddingVertical: 5,
   },
   completedBadgeText: {
     fontSize: 11,
-    fontWeight: '900',
-    color: '#777777',
+    fontWeight: "900",
+    color: "#777777",
   },
 
   price: {
     marginTop: 8,
     fontSize: 20,
-    fontWeight: '900',
+    fontWeight: "900",
     color: BLUE,
   },
 
   tabRow: {
-    height: 48,
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-    marginTop: 22,
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 20,
     marginBottom: 18,
   },
 
   tabButton: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   tabText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#111111',
+    ...fonts.sub4_sb_14,
+    color: Colors.gray[6],
+  },
+  activeTabText: {
+    color: Colors.common.black,
   },
 
   activeLine: {
-    position: 'absolute',
+    position: "absolute",
     bottom: -1,
-    height: 4,
-    width: '100%',
+    height: 2,
+    width: "100%",
     borderRadius: 99,
-    backgroundColor: '#102BE0',
+    backgroundColor: Colors.common.black,
   },
 
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 7,
   },
 
   sectionDesc: {
     fontSize: 11,
-    color: '#777777',
+    color: "#777777",
     marginBottom: 24,
   },
 
   subTitle: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#111111',
+    fontWeight: "900",
+    color: "#111111",
     marginBottom: 12,
     marginTop: 8,
   },
 
-  conditionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 34,
-  },
-
   conditionCard: {
-    flexGrow: 1,
-    flexBasis: '47%',
-    minHeight: 92,
-    backgroundColor: '#FAFAFA',
-    borderRadius: 4,
-    paddingHorizontal: 11,
-    paddingVertical: 12,
+    marginTop: 16,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+    gap: 20,
+    backgroundColor: "#F8F9FB",
+    borderWidth: 1,
+    borderColor: "#DFE3E9",
+    borderRadius: 10,
   },
-
+  conditionRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
   conditionLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingTop: 1,
   },
-
-  conditionIcon: {
-    width: 13,
-    height: 13,
-    resizeMode: 'contain',
-    marginRight: 5,
-  },
-
-  conditionVectorIcon: {
-    marginRight: 5,
-  },
-
   conditionLabel: {
-    fontSize: 12,
-    color: '#555555',
-    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 22,
+    color: "#556173",
+    fontWeight: "500",
   },
-
+  conditionValueRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 9,
+  },
+  conditionFlag: {
+    width: 25,
+    height: 18,
+    borderRadius: 3,
+    resizeMode: "cover",
+  },
   conditionValue: {
+    flexShrink: 1,
     fontSize: 15,
-    color: '#111111',
-    fontWeight: '800',
-    lineHeight: 18,
-    flexWrap: 'wrap',
+    lineHeight: 24,
+    color: "#252B35",
+    fontWeight: "500",
+    textAlign: "right",
   },
 
   descriptionBox: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: "#FAFAFA",
     borderRadius: 4,
     paddingHorizontal: 22,
     paddingVertical: 24,
@@ -1724,219 +1817,70 @@ const styles = StyleSheet.create({
   descriptionText: {
     fontSize: 15,
     lineHeight: 22,
-    color: '#111111',
-    fontWeight: '600',
-  },
-
-  categoryPillRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 6,
-    marginBottom: 22,
-  },
-
-  categoryPill: {
-    backgroundColor: '#F2F2F2',
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    fontSize: 12,
-    color: '#111111',
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
-
-  itemGroup: {
-    marginBottom: 22,
-  },
-
-  itemPhotoRow: {
-    marginBottom: 12,
-  },
-
-  itemPhoto: {
-    width: 96,
-    height: 96,
-    borderRadius: 10,
-    resizeMode: 'cover',
-    marginRight: 9,
-  },
-
-  itemDescriptionBox: {
-    borderRadius: 8,
-    backgroundColor: '#F7F7F7',
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-
-  itemDescriptionText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#333333',
-    fontWeight: '600',
-  },
-
-  itemGrid: {
-    marginBottom: 28,
-  },
-
-  itemLineBlock: {
-    marginBottom: 9,
-  },
-
-  itemText: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#111111',
-  },
-
-  emptyListBox: {
-    minHeight: 120,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 4,
-    backgroundColor: '#FAFAFA',
-  },
-
-  emptyListText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#777777',
+    color: "#111111",
+    fontWeight: "600",
   },
 
   nickname: {
     fontSize: 16,
-    fontWeight: '900',
+    fontWeight: "900",
     marginBottom: 16,
   },
 
   profileCard: {
-    backgroundColor: '#FAFAFA',
-    borderRadius: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 4,
+    marginBottom: 6,
   },
-
   profileImage: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: '#D9E5FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    backgroundColor: Colors.gray[3],
   },
-
-  profileInitial: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: BLUE,
-  },
-
-  profileName: {
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#333333',
-  },
-
   profileNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 7,
   },
-
   verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    borderRadius: 999,
-    backgroundColor: '#EAF0FF',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: "#EAF2FF",
+    paddingHorizontal: 5,
+    paddingVertical: 2,
   },
-
-  verifiedText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#123F9F',
-  },
-
   profileMeta: {
     marginTop: 5,
-    fontSize: 10,
-    color: '#555555',
-    fontWeight: '600',
+    color: Colors.gray[8],
   },
-
   sellerInfoList: {
-    borderRadius: 4,
-    backgroundColor: '#FAFAFA',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    gap: 10,
+    gap: 22,
   },
-
-  sellerInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-
-  sellerInfoLabel: {
-    width: 96,
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#777777',
-  },
-
   sellerInfoValue: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '800',
-    color: '#111111',
+    flexShrink: 1,
+    textAlign: "right",
+    color: Colors.gray[11],
   },
 
   bottomBar: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 22,
-    paddingTop: 4,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
 
   bottomHeartButton: {
     width: 48,
     height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-
-  chatButton: {
-    height: 48,
-    borderRadius: 4,
-    backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-  },
-
-  chatText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
 });

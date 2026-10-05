@@ -1,11 +1,19 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { SoftServiceIcon } from "@/components/soft-service-icon";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, DeviceEventEmitter, Image, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  AppState,
+  DeviceEventEmitter,
+  Image,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import LogoIcon from "../../../assets/icon/logo.svg";
 
 import { getMemberMe, type CurrentSituation } from "../../../src/api/auth";
@@ -27,21 +35,11 @@ import NotificationIcon from "../../../assets/icon/notification.svg";
 import PersonIcon from "../../../assets/icon/person.svg";
 import SearchIcon from "../../../assets/icon/search.svg";
 import { BulkTradeSection } from "../../../components/home/bulk-trade-section";
-import { fonts } from "../../../constants/theme";
+import { fonts, commonStyles } from "../../../constants/theme";
 
 const NAVY = "#0F2042";
 const BLUE = "#2F66D0";
 const HERO_BLUE = "#1D4ED8";
-
-const popularPosts = [
-  {
-    title: "독일 비자 인터뷰 예약 가능한 날짜 공유합니다",
-    country: "독일",
-    likes: 34,
-    comments: 12,
-    time: "8분 전",
-  },
-];
 
 const companionPosts = [
   {
@@ -77,7 +75,6 @@ const getLifecycleStatusFromCurrentSituation = (
 
 const createDate = (year: number, month: number, day: number) =>
   new Date(year, month - 1, day);
-const oneDay = 1000 * 60 * 60 * 24;
 
 const normalizeStatus = (
   profileStatus: string | null,
@@ -100,26 +97,6 @@ const parseDate = (value: string | null, fallback: Date) => {
 
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? fallback : date;
-};
-
-const diffDays = (target: Date) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const normalizedTarget = new Date(target);
-  normalizedTarget.setHours(0, 0, 0, 0);
-
-  return Math.ceil((normalizedTarget.getTime() - today.getTime()) / oneDay);
-};
-
-const formatTimelineDate = (date: Date) =>
-  `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, "0")}.${String(
-    date.getDate(),
-  ).padStart(2, "0")}`;
-
-const getSemesterText = (date: Date) => {
-  const month = date.getMonth() + 1;
-  return `${date.getFullYear()} ${month <= 6 ? "봄학기" : "가을학기"}`;
 };
 
 export default function HomeScreen() {
@@ -366,117 +343,17 @@ export default function HomeScreen() {
   const isDispatched = lifecycleStatus === "파견 중";
   const isReturned = lifecycleStatus === "귀국";
   const showTradeBeforeCompanion = !isDispatched && !isReturned;
-  const applicationDday = diffDays(dashboardDates.applicationDeadline);
-  const departureDday = diffDays(dashboardDates.departureDate);
-  const dispatchedDay = Math.max(
-    0,
-    Math.abs(diffDays(dashboardDates.dispatchStartDate)),
-  );
-  const returnDday = diffDays(dashboardDates.returnDate);
-  const totalDispatchDays = Math.max(
-    1,
-    Math.ceil(
-      (dashboardDates.returnDate.getTime() -
-        dashboardDates.dispatchStartDate.getTime()) /
-        oneDay,
-    ),
-  );
-  const dispatchProgress = Math.min(
-    100,
-    Math.round((dispatchedDay / totalDispatchDays) * 100),
-  );
-  const remainingDispatchDays = Math.max(0, returnDday);
-  const isApplicationPreparing = lifecycleStatus === statusDisplayMap.preparing;
-  const isDeparturePreparing = lifecycleStatus === statusDisplayMap.accepted;
+
   const normalizedToday = new Date();
   normalizedToday.setHours(0, 0, 0, 0);
-  const applicationTimelineStartDate = createDate(
-    dashboardDates.applicationDeadline.getFullYear(),
-    1,
-    1,
-  );
-  const applicationTimelineTotal = Math.max(
-    oneDay,
-    dashboardDates.applicationDeadline.getTime() -
-      applicationTimelineStartDate.getTime(),
-  );
-  const applicationTimelineElapsed = Math.min(
-    Math.max(
-      normalizedToday.getTime() - applicationTimelineStartDate.getTime(),
-      0,
-    ),
-    applicationTimelineTotal,
-  );
-  const applicationTimelinePercent = Math.round(
-    (applicationTimelineElapsed / applicationTimelineTotal) * 100,
-  );
-  const departureTimelineTotal = Math.max(
-    oneDay,
-    dashboardDates.departureDate.getTime() -
-      dashboardDates.departurePrepStartDate.getTime(),
-  );
-  const departureTimelineElapsed = Math.min(
-    Math.max(
-      normalizedToday.getTime() -
-        dashboardDates.departurePrepStartDate.getTime(),
-      0,
-    ),
-    departureTimelineTotal,
-  );
-  const departureTimelinePercent = Math.round(
-    (departureTimelineElapsed / departureTimelineTotal) * 100,
-  );
-
-  const heroCopy = {
-    "지원 준비 중": {
-      tag: "정보 탐색 단계",
-      title: `${dispatchInfo.country} 파견 지원 준비 중`,
-      subtitle: `지원 마감까지 D-${Math.max(0, applicationDday)}`,
-      metric: `D-${Math.max(0, applicationDday)}`,
-      progressLabel: "지원 준비 진행률",
-      progressValue: "38%",
-      progressWidth: "38%",
-    },
-    "출국 준비 중": {
-      tag: "출국 준비 단계",
-      title: `${dispatchInfo.country} 출국 준비 중`,
-      subtitle: `출국까지 D-${Math.max(0, departureDday)}`,
-      metric: `D-${Math.max(0, departureDday)}`,
-      progressLabel: "출국 준비 진행률",
-      progressValue: "72%",
-      progressWidth: "72%",
-    },
-    "파견 중": {
-      tag: `${dispatchInfo.university} 파견 중`,
-      title: `${dispatchInfo.country} 교환학생 생활 중`,
-      subtitle:
-        returnDday >= 0
-          ? `귀국까지 ${remainingDispatchDays}일 남았어요`
-          : "파견 생활을 정리하고 있어요",
-      metric: `D+${dispatchedDay}`,
-      progressLabel: `파견 기간 ${dispatchProgress}% 경과`,
-      progressValue: `${dispatchedDay} / ${totalDispatchDays}일`,
-      progressWidth: `${dispatchProgress}%`,
-    },
-    귀국: {
-      tag: "파견 완료",
-      title: `${dispatchInfo.country} 교환학생 수료`,
-      subtitle: `${getSemesterText(dashboardDates.returnDate)} 파견 완료`,
-      metric: "완료",
-      progressLabel: "후기와 정리 단계",
-      progressValue: "100%",
-      progressWidth: "100%",
-    },
-  }[lifecycleStatus];
-  const heroTitle = `${dispatchInfo.country} ${currentSituationText}`;
 
   return (
     <ScrollView
-      style={styles.container}
+      style={commonStyles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <LogoIcon height="24" />
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -505,7 +382,7 @@ export default function HomeScreen() {
             <PersonIcon />
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
 
       <View style={styles.homeTabs}>
         {(["정보", "상태", "추천"] as const).map((tab) => {
@@ -695,7 +572,7 @@ export default function HomeScreen() {
         )}
       </View> */}
       <TouchableOpacity
-        onPress={() => router.push("/home/profile-card" as any)}
+        onPress={() => router.push("/profile-card" as any)}
         activeOpacity={0.82}
         style={{
           width: "100%",
@@ -924,10 +801,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
   banner: {
     width: "100%",
     height: 82,
@@ -937,7 +810,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 64,
     paddingBottom: 0,
   },
   header: {
@@ -1005,26 +877,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 1,
   },
-  profile: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  headerTextBox: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  greeting: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111111",
-  },
-  headerSub: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-  },
   notificationBadge: {
     position: "absolute",
     top: -2,
@@ -1060,51 +912,6 @@ const styles = StyleSheet.create({
     shadowRadius: 9,
     shadowOffset: { width: 0, height: 3 },
     elevation: 1,
-  },
-  heroCard: {
-    marginTop: 24,
-    borderRadius: 24,
-    backgroundColor: "#F2F7FF",
-    padding: 22,
-  },
-  heroTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  heroTag: {
-    borderRadius: 999,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.72)",
-  },
-  heroTagText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#123F9F",
-  },
-  heroDday: {
-    fontSize: 26,
-    fontWeight: "900",
-    color: "#123F9F",
-  },
-  heroSmallMeta: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: HERO_BLUE,
-  },
-  heroTitle: {
-    marginTop: 18,
-    fontSize: 23,
-    lineHeight: 31,
-    fontWeight: "900",
-    color: "#111111",
-  },
-  heroSubtitle: {
-    marginTop: 7,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#64748B",
   },
   progressInfoRow: {
     marginTop: 22,
