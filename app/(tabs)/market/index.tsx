@@ -2,6 +2,11 @@ import { MarketSortSheet } from "@/components/market/MarketSortSheet";
 import { compareMarketDates, type MarketSortOrder } from "@/src/utils/marketSort";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { MarketFilterBar } from "@/components/market/MarketFilterBar";
+import {
+  emptyMarketFilters,
+  MarketFilterSheet,
+  type MarketFilters,
+} from "@/components/market/MarketFilterSheet";
 import { UsedMarketScreen } from "@/components/market/UsedMarketScreen";
 import { TicketTransferScreen } from "@/components/market/TicketTransferScreen";
 import { Text, TextInput } from "@/components/ui/app-text";
@@ -87,6 +92,20 @@ const ticketTypeLabelMap: Record<TicketType, string> = {
 const formatTicketPrice = (price: number, currencyUnit = "€") =>
   `${currencyUnit} ${price.toLocaleString("ko-KR")}`;
 
+const hasActiveMarketFilters = (filters: MarketFilters) =>
+  filters.categories.length > 0 ||
+  filters.minPrice > 0 ||
+  filters.maxPrice !== null ||
+  filters.tradeMode !== "all" ||
+  filters.deadline !== "";
+
+const firstTicketDate = (value: string) => {
+  const match = value.match(/(\d{4})[.-](\d{1,2})[.-](\d{1,2})/);
+  return match
+    ? `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`
+    : "";
+};
+
 const formatTicketCreatedTime = (createdAt?: string) => {
   if (!createdAt) return "";
 
@@ -157,6 +176,11 @@ export default function MarketPage() {
   const [selectedCountry, setSelectedCountry] = useState("전체");
   const [countrySheetVisible, setCountrySheetVisible] = useState(false);
   const [sortSheetVisible, setSortSheetVisible] = useState(false);
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false);
+  const [bulkFilters, setBulkFilters] =
+    useState<MarketFilters>(emptyMarketFilters);
+  const [ticketFilters, setTicketFilters] =
+    useState<MarketFilters>(emptyMarketFilters);
   const [sortOrder, setSortOrder] = useState<MarketSortOrder>("newest");
   const [isFabOpen, setIsFabOpen] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -502,6 +526,7 @@ export default function MarketPage() {
   ]);
 
   const buildDraftWriteParams = (draft: MarketDraft) => ({
+    editId: draft.editId,
     wizard: draft.wizard ? JSON.stringify(draft.wizard) : "",
     type: draft.write.type ?? "all",
     title: draft.write.title,
@@ -679,6 +704,15 @@ export default function MarketPage() {
       updatedAt: item.updatedAt,
       title: item.title,
       status,
+      price: item.price,
+      categories: Array.from(
+        new Set([
+          ...(item.category ? [item.category] : []),
+          ...(item.items?.map(({ category }) => category) ?? []),
+          ...(item.categoryImages?.map(({ category }) => category) ?? []),
+        ]),
+      ),
+      returnDate: item.returnDate,
       sellerCountry,
       tradeCountry,
       region: item.region,
@@ -709,11 +743,29 @@ export default function MarketPage() {
         item.region.includes(selectedCountry)
       );
     })
+    .filter((item) => {
+      const categoriesMatch =
+        !bulkFilters.categories.length ||
+        item.categories.some((category) =>
+          bulkFilters.categories.includes(category),
+        );
+      const priceMatches =
+        item.price >= bulkFilters.minPrice &&
+        (bulkFilters.maxPrice === null || item.price <= bulkFilters.maxPrice);
+      const hasInPersonTrade = Boolean(item.returnDate);
+      const tradeModeMatches =
+        bulkFilters.tradeMode === "all" ||
+        (bulkFilters.tradeMode === "in-person" && hasInPersonTrade) ||
+        (bulkFilters.tradeMode === "not-in-person" && !hasInPersonTrade);
+      return categoriesMatch && priceMatches && tradeModeMatches;
+    })
     .sort((a, b) => compareMarketDates(a, b, sortOrder));
 
   const displayTickets = tickets.map((item) => ({
     id: item.id,
     ticketType: item.ticketType,
+    priceValue: item.transferPrice,
+    eventDateRaw: item.eventDate,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     country: item.authorDispatchedCountry ?? "",
@@ -737,9 +789,29 @@ export default function MarketPage() {
     scraps: item.scrapCount ?? 0,
   }));
 
-  const filteredTickets = displayTickets.filter((item) => {
-    return selectedCountry === "전체" || item.region.includes(selectedCountry);
-  }).sort((a, b) => compareMarketDates(a, b, sortOrder));
+  const filteredTickets = displayTickets
+    .filter((item) => {
+      return selectedCountry === "전체" || item.region.includes(selectedCountry);
+    })
+    .filter((item) => {
+      const categoriesMatch =
+        !ticketFilters.categories.length ||
+        ticketFilters.categories.includes(item.ticketType);
+      const priceMatches =
+        item.priceValue >= ticketFilters.minPrice &&
+        (ticketFilters.maxPrice === null ||
+          item.priceValue <= ticketFilters.maxPrice);
+      const eventDate = firstTicketDate(item.eventDateRaw);
+      const deadlineMatches =
+        !ticketFilters.deadline ||
+        (!!eventDate && eventDate <= ticketFilters.deadline);
+      return categoriesMatch && priceMatches && deadlineMatches;
+    })
+    .sort((a, b) => compareMarketDates(a, b, sortOrder));
+
+  const activeFilters =
+    selectedTab === "bulk" ? bulkFilters : ticketFilters;
+  const filtersAreActive = hasActiveMarketFilters(activeFilters);
 
   return (
     <SafeAreaView
@@ -809,12 +881,19 @@ export default function MarketPage() {
           />
         </View>
 
-        <MarketFilterBar selectedCountry={selectedCountry} onSelectCountry={() => setCountrySheetVisible(true)} onSelectSort={() => setSortSheetVisible(true)} />
+        <MarketFilterBar
+          selectedCountry={selectedCountry}
+          filterActive={filtersAreActive}
+          onSelectCountry={() => setCountrySheetVisible(true)}
+          onSelectFilter={() => setFilterSheetVisible(true)}
+          onSelectSort={() => setSortSheetVisible(true)}
+        />
 
         {selectedTab === "bulk" ? (
           <UsedMarketScreen
             items={filteredItems}
             error={marketListError}
+            hasActiveFilters={hasActiveMarketFilters(bulkFilters)}
             onRetry={() => fetchUsedItems(searchKeyword, selectedCountry)}
           />
         ) : (
@@ -824,6 +903,7 @@ export default function MarketPage() {
             items={filteredTickets}
             error={ticketListError}
             loadingMore={ticketLoadingMore}
+            hasActiveFilters={hasActiveMarketFilters(ticketFilters)}
             onRetry={() =>
               fetchTickets(undefined, searchKeyword, selectedCountry)
             }
@@ -899,6 +979,20 @@ export default function MarketPage() {
           setCountrySheetVisible(false);
         }}
       />
+      <MarketFilterSheet
+        visible={filterSheetVisible}
+        mode={selectedTab}
+        value={activeFilters}
+        onClose={() => setFilterSheetVisible(false)}
+        onApply={(value) => {
+          if (selectedTab === "bulk") {
+            setBulkFilters(value);
+          } else {
+            setTicketFilters(value);
+          }
+          setFilterSheetVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -965,11 +1059,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#252B35",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 5,
   },
 
   fabButtonOpen: {

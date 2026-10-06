@@ -1,10 +1,30 @@
-import { Text, TextInput } from '@/components/ui/app-text';
+import { Text, TextInput } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  KeyboardAvoidingView,
+  Platform,
+  Modal,
+  Pressable,
+  ScrollView,
+  Share,
+  StyleSheet,
+  View,
+} from "react-native";
+import { Colors, fonts } from "@/constants/theme";
 
 import { createOrGetChatRoom } from "../src/api/chat";
 import { getMemberMe } from "../src/api/auth";
@@ -31,7 +51,8 @@ import {
   toggleFreePostLike,
   toggleFreePostScrap,
 } from "../src/api/freePosts";
-import { BLUE, GREEN } from "../src/data/community";
+import { createReport, ReportReason } from "../src/api/reports";
+import { BLUE } from "../src/data/community";
 
 const LIKED_FREE_POSTS_STORAGE_KEY = "univ:profile:liked-free-posts";
 
@@ -60,6 +81,38 @@ const formatDate = (value?: string) => {
   return value.replaceAll("-", ".");
 };
 
+const formatCompanionCreatedAt = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return formatCompanionDate(value.slice(0, 10));
+  }
+  const dateText = formatCompanionDate(value);
+  const timeText = `${`${date.getHours()}`.padStart(2, "0")}:${`${date.getMinutes()}`.padStart(2, "0")}`;
+  return `${dateText}  ${timeText}`;
+};
+
+const formatCompanionDate = (value?: string) => {
+  if (!value) return "";
+  const date = value.slice(0, 10).split("-");
+  return date.length === 3
+    ? `${date[0]}. ${date[1]}. ${date[2]}`
+    : formatDate(value);
+};
+
+const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
+  const format = (value?: string) => {
+    if (!value) return "";
+    const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return formatCompanionDate(value);
+    const weekday = ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+    return `${formatCompanionDate(value)} (${weekday})`;
+  };
+  const start = format(startDate);
+  const end = format(endDate);
+  return !start ? "" : !end || start === end ? start : `${start} - ${end}`;
+};
+
 const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
   status === "RECRUITING" ? "모집중" : "모집완료";
 
@@ -79,7 +132,7 @@ const mapFreeComment = (comment: FreePostCommentResponse): FreeComment => ({
   id: comment.id,
   author: comment.authorName || "익명",
   content: comment.content,
-  time: formatDate(comment.createdAt?.slice(0, 10)),
+  time: formatCompanionCreatedAt(comment.createdAt),
   mine: comment.mine,
 });
 
@@ -132,6 +185,8 @@ export default function CommunityDetailScreen() {
   }>();
   const postId = Number(id);
   const detailType: DetailType = type === "companion" ? "companion" : "free";
+  const headerPaddingTop = insets.top + 8;
+  const headerHeight = headerPaddingTop + 56;
   const [post, setPost] = useState<DetailPost | null>(null);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -140,7 +195,8 @@ export default function CommunityDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [commentInputVisible, setCommentInputVisible] = useState(false);
+  const commentInputRef = useRef<TextInput>(null);
+  const [commentSort, setCommentSort] = useState<"oldest" | "newest">("oldest");
   const [commentText, setCommentText] = useState("");
   const [scrapped, setScrapped] = useState(false);
   const [scrapCount, setScrapCount] = useState(0);
@@ -247,14 +303,14 @@ export default function CommunityDetailScreen() {
           country: post.country,
           region: post.region,
           status: getCompanionStatusText(post.status),
-          statusColor: post.status === "RECRUITING" ? "#DDF4E4" : "#EEEEEE",
-          statusTextColor: post.status === "RECRUITING" ? "#238451" : "#777777",
-          period: `${formatDate(post.startDate)} - ${formatDate(post.endDate)}`,
+          statusColor: post.status === "RECRUITING" ? "#EAF1FF" : "#F0F2F6",
+          statusTextColor: post.status === "RECRUITING" ? BLUE : "#6B7684",
+          period: formatCompanionPeriod(post.startDate, post.endDate),
           current: post.currentParticipants,
           total: post.capacity,
           chatLink: post.chatLink,
           genderRatio: post.genderRatio || "무관",
-          createdAt: formatDate(post.createdAt?.slice(0, 10)),
+          createdAt: formatCompanionCreatedAt(post.createdAt),
           isMine: false,
         };
       }
@@ -265,13 +321,14 @@ export default function CommunityDetailScreen() {
 
     return {
       author: boardPost.authorName || "익명",
+      authorNickname: boardPost.authorNickname || boardPost.authorName || "익명",
       title: boardPost.title,
       content: boardPost.content,
       country: boardPost.country,
       status: boardPost.status,
       statusColor: statusColors.backgroundColor,
       statusTextColor: statusColors.color,
-      createdAt: formatDate(boardPost.createdAt?.slice(0, 10)),
+      createdAt: formatCompanionCreatedAt(boardPost.createdAt),
       likes: boardPost.likeCount,
       comments: boardPost.commentCount,
       liked: boardPost.liked,
@@ -281,16 +338,21 @@ export default function CommunityDetailScreen() {
     };
   }, [detailType, post]);
 
-  const isAuthor = post && isCompanionApiPost(post)
-    ? currentMemberId !== null && currentMemberId === post.memberId
-    : !!viewModel &&
-    (viewModel.isMine ||
-      (!!currentMemberName && currentMemberName === viewModel.author));
+  const isAuthor =
+    post && isCompanionApiPost(post)
+      ? currentMemberId !== null && currentMemberId === post.memberId
+      : !!viewModel &&
+        (viewModel.isMine ||
+          (!!currentMemberName && currentMemberName === viewModel.author));
 
   const handleStartCompanionChat = async () => {
-    if (!post || !isCompanionApiPost(post) || chatPending.current || isAuthor) return;
+    if (!post || !isCompanionApiPost(post) || chatPending.current || isAuthor)
+      return;
     if (!Number.isInteger(post.memberId) || post.memberId <= 0) {
-      Alert.alert("채팅을 시작할 수 없어요", "작성자 정보를 확인할 수 없어요. 잠시 후 다시 시도해주세요.");
+      Alert.alert(
+        "채팅을 시작할 수 없어요",
+        "작성자 정보를 확인할 수 없어요. 잠시 후 다시 시도해주세요.",
+      );
       return;
     }
 
@@ -316,10 +378,32 @@ export default function CommunityDetailScreen() {
         },
       });
     } catch (error: any) {
-      Alert.alert("채팅방 생성 실패", error.response?.data?.message || "잠시 후 다시 시도해주세요.");
+      Alert.alert(
+        "채팅방 생성 실패",
+        error.response?.data?.message || "잠시 후 다시 시도해주세요.",
+      );
     } finally {
       chatPending.current = false;
       setChatLoading(false);
+    }
+  };
+
+  const handleShareCompanionPost = async () => {
+    if (!viewModel) return;
+    try {
+      await Share.share({ message: viewModel.title });
+    } catch (error) {
+      console.log("동행 모집글 공유 실패:", error);
+    }
+  };
+
+  const handleOpenCompanionChatLink = async () => {
+    if (!viewModel?.chatLink) return;
+    try {
+      await Linking.openURL(viewModel.chatLink);
+    } catch (error) {
+      console.log("오픈채팅 링크 열기 실패:", error);
+      Alert.alert("링크를 열 수 없어요", "잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -452,7 +536,6 @@ export default function CommunityDetailScreen() {
         comments: [...(boardPost.comments ?? []), response.data.data],
       });
       setCommentText("");
-      setCommentInputVisible(false);
     } catch (error: any) {
       console.log(
         "자유게시판 댓글 작성 실패:",
@@ -460,6 +543,32 @@ export default function CommunityDetailScreen() {
       );
       Alert.alert("등록 실패", "댓글을 등록하지 못했어요.");
     }
+  };
+
+  const handleReportPost = () => {
+    const reasons: { text: string; reason: ReportReason }[] = [
+      { text: "스팸 / 광고", reason: "SPAM" },
+      { text: "욕설 / 비방", reason: "ABUSE" },
+      { text: "부적절한 내용", reason: "INAPPROPRIATE" },
+    ];
+    Alert.alert("게시글 신고", "신고 사유를 선택해주세요.", [
+      ...reasons.map(({ text, reason }) => ({
+        text,
+        onPress: async () => {
+          try {
+            await createReport({
+              targetType: "FREE_POST",
+              targetId: postId,
+              reason,
+            });
+            Alert.alert("신고 완료", "신고가 접수되었어요.");
+          } catch {
+            Alert.alert("신고 실패", "잠시 후 다시 시도해주세요.");
+          }
+        },
+      })),
+      { text: "취소", style: "cancel" },
+    ]);
   };
 
   const handleDeleteComment = async (commentId: number) => {
@@ -599,11 +708,23 @@ export default function CommunityDetailScreen() {
   }
 
   const freeCommentItems =
-    detailType === "free" ? (viewModel.commentItems ?? []) : [];
+    detailType === "free"
+      ? [...(viewModel.commentItems ?? [])].sort((a, b) =>
+          commentSort === "oldest" ? a.id - b.id : b.id - a.id,
+        )
+      : [];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <View
+        style={[
+          styles.header,
+          { height: headerHeight, paddingTop: headerPaddingTop },
+        ]}
+      >
         <AppBackButton
           onPress={() => {
             if (
@@ -625,7 +746,7 @@ export default function CommunityDetailScreen() {
           style={styles.headerIconButton}
         />
         <Text style={styles.headerTitle}>
-          {detailType === "companion" ? "동행 구하기" : "자유 게시판"}
+          {detailType === "companion" ? "동행 모집" : "자유 게시판"}
         </Text>
         <Pressable
           style={styles.headerIconButton}
@@ -637,95 +758,138 @@ export default function CommunityDetailScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          detailType === "free" && styles.freeContent,
+        ]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.titleBlock}>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: viewModel.statusColor },
-            ]}
-          >
-            <Text
-              style={[
-                styles.statusBadgeText,
-                { color: viewModel.statusTextColor },
-              ]}
-            >
-              {viewModel.status}
-            </Text>
-          </View>
-
-          <Text style={styles.title}>{viewModel.title}</Text>
-
-          <View style={styles.metaRow}>
-            <Text style={styles.authorText}>
-              {detailType === "free" ? "익명" : viewModel.author}
-            </Text>
-            <View style={styles.dot} />
-            <Text style={styles.metaText}>{viewModel.country}</Text>
-            <View style={styles.dot} />
-            <Text style={styles.metaText}>{viewModel.createdAt}</Text>
-          </View>
-        </View>
-
-        {detailType === "companion" && (
-          <View style={styles.infoPanel}>
-            <InfoItem
-              icon="location-outline"
-              label="지역"
-              value={`${viewModel.country} ${viewModel.region}`}
-            />
-            <InfoItem
-              icon="calendar-outline"
-              label="일정"
-              value={viewModel.period || "-"}
-            />
-            <InfoItem
-              icon="people-outline"
-              label="모집 인원"
-              value={`${viewModel.current}/${viewModel.total}명`}
-            />
-            <InfoItem
-              icon="shield-checkmark-outline"
-              label="참여 조건"
-              value={`학교인증 · ${viewModel.genderRatio}`}
-              accent
-            />
-          </View>
-        )}
-
-        {detailType === "free" && (viewModel.imageUrls ?? []).length > 0 && (
-          <View style={styles.imageSection}>
-            {(viewModel.imageUrls ?? []).map(
-              (imageUrl: string, index: number) => (
-                <Image
-                  key={`${imageUrl}-${index}`}
-                  source={{ uri: imageUrl }}
-                  style={styles.postImage}
-                />
-              ),
-            )}
-          </View>
-        )}
-
-        <View style={styles.bodyBlock}>
-          <Text style={styles.bodyText}>{viewModel.content}</Text>
-        </View>
-
-        {detailType === "companion" && !!viewModel.chatLink && (
-          <View style={styles.chatPanel}>
-            <View style={styles.chatIcon}>
-              <Ionicons name="chatbubbles-outline" size={20} color={BLUE} />
-            </View>
-            <View style={styles.chatTextBlock}>
-              <Text style={styles.chatTitle}>오픈채팅 링크</Text>
-              <Text style={styles.chatLink} numberOfLines={1}>
-                {viewModel.chatLink}
+        {detailType === "companion" ? (
+          <>
+            <View style={styles.companionTitleBlock}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: viewModel.statusColor },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: viewModel.statusTextColor },
+                  ]}
+                >
+                  {viewModel.status}
+                </Text>
+              </View>
+              <View style={styles.companionTitleRow}>
+                <Text style={styles.title}>{viewModel.title}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="동행 모집글 공유"
+                  onPress={handleShareCompanionPost}
+                  style={styles.shareButton}
+                >
+                  <Ionicons
+                    name="share-social-outline"
+                    size={22}
+                    color="#191F28"
+                  />
+                </Pressable>
+              </View>
+              <Text style={styles.companionCreatedAt}>
+                {viewModel.createdAt}
               </Text>
             </View>
-          </View>
+
+            <View style={styles.authorCard}>
+              <View style={styles.authorAvatar}>
+                <Ionicons name="person" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.authorCardText}>
+                <Text style={styles.authorCardName}>{viewModel.author}</Text>
+                <Text style={styles.authorCardMeta} numberOfLines={1}>
+                  {viewModel.country} · {viewModel.region}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color="#191F28" />
+            </View>
+
+            {!!viewModel.chatLink && (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="오픈채팅 링크 열기"
+                style={styles.companionLink}
+                onPress={handleOpenCompanionChatLink}
+              >
+                <Ionicons name="link-outline" size={20} color={BLUE} />
+                <Text style={styles.companionLinkText} numberOfLines={1}>
+                  {viewModel.chatLink}
+                </Text>
+              </Pressable>
+            )}
+
+            <View style={styles.companionBodyBlock}>
+              <Text style={styles.bodyText}>{viewModel.content}</Text>
+            </View>
+
+            <View style={styles.companionInfoPanel}>
+              <CompanionInfoItem
+                icon="flag-outline"
+                label="국가 및 지역"
+                value={`${viewModel.country} ${viewModel.region}`}
+              />
+              <CompanionInfoItem
+                icon="calendar-outline"
+                label="일정"
+                value={viewModel.period || "-"}
+              />
+              <CompanionInfoItem
+                icon="person-outline"
+                label="모집 인원"
+                value={`${viewModel.total}명`}
+              />
+              <CompanionInfoItem
+                icon="checkmark-circle-outline"
+                label="참여 조건"
+                value={viewModel.genderRatio!}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.freeTitleBlock}>
+              <Text style={styles.freeTitle}>{viewModel.title}</Text>
+              <Text style={styles.freeCreatedAt}>{viewModel.createdAt}</Text>
+            </View>
+            <View style={styles.freeAuthorCard}>
+              <View style={styles.freeAuthorAvatar} />
+              <View style={styles.authorCardText}>
+                <Text style={styles.freeAuthorName}>{viewModel.authorNickname}</Text>
+                <Text style={styles.freeAuthorMeta} numberOfLines={1}>{viewModel.country}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#111111" />
+            </View>
+
+            {(viewModel.imageUrls ?? []).length > 0 && (
+              <View style={styles.imageSection}>
+                {(viewModel.imageUrls ?? []).map(
+                  (imageUrl: string, index: number) => (
+                    <Image
+                      key={`${imageUrl}-${index}`}
+                      source={{ uri: imageUrl }}
+                      style={styles.postImage}
+                    />
+                  ),
+                )}
+              </View>
+            )}
+
+            <View style={styles.bodyBlock}>
+              <Text style={styles.bodyText}>{viewModel.content}</Text>
+            </View>
+          </>
         )}
 
         {detailType === "companion" && (
@@ -750,19 +914,21 @@ export default function CommunityDetailScreen() {
 
         {detailType === "free" && (
           <View style={styles.freeSection}>
-            <View style={styles.reactionBar}>
+            <View style={styles.freeReactionBar}>
               <Pressable
                 style={styles.reactionButton}
                 onPress={handleLikePress}
+                accessibilityRole="button"
+                accessibilityLabel="좋아요"
               >
                 <Ionicons
-                  name={viewModel.liked ? "thumbs-up" : "thumbs-up-outline"}
-                  size={17}
-                  color={viewModel.liked ? BLUE : "#777777"}
+                  name={viewModel.liked ? "heart" : "heart-outline"}
+                  size={24}
+                  color={viewModel.liked ? BLUE : "#536071"}
                 />
                 <Text
                   style={[
-                    styles.reactionText,
+                    styles.freeReactionText,
                     viewModel.liked && styles.reactionTextActive,
                   ]}
                 >
@@ -771,95 +937,146 @@ export default function CommunityDetailScreen() {
               </Pressable>
               <Pressable
                 style={styles.reactionButton}
-                onPress={() => setCommentInputVisible((prev) => !prev)}
-              >
-                <Ionicons name="chatbubble-outline" size={17} color="#777777" />
-                <Text style={styles.reactionText}>{viewModel.comments}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.reactionButton}
-                onPress={handleScrapPress}
+                onPress={() => commentInputRef.current?.focus()}
+                accessibilityRole="button"
+                accessibilityLabel="댓글 쓰기"
               >
                 <Ionicons
-                  name={scrapped ? "bookmark" : "bookmark-outline"}
-                  size={17}
-                  color={scrapped ? BLUE : "#777777"}
+                  name="chatbubble-ellipses-outline"
+                  size={23}
+                  color="#536071"
                 />
-                <Text
-                  style={[
-                    styles.reactionText,
-                    scrapped && styles.reactionTextActive,
-                  ]}
-                >
-                  {scrapCount}
+                <Text style={styles.freeReactionText}>
+                  {viewModel.comments}
                 </Text>
               </Pressable>
+              <Pressable
+                style={styles.freeSaveButton}
+                onPress={handleReportPost}
+              >
+                <Text style={styles.commentSecondaryText}>게시글 신고</Text>
+              </Pressable>
             </View>
-
             <View style={styles.commentSection}>
-              <Text style={styles.commentTitle}>
-                댓글 {viewModel.comments}개
-              </Text>
-
+              <View style={styles.commentSortRow}>
+                {(["oldest", "newest"] as const).map((sort) => (
+                  <Pressable
+                    key={sort}
+                    style={styles.commentSortButton}
+                    onPress={() => setCommentSort(sort)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: commentSort === sort }}
+                  >
+                    {commentSort === sort && (
+                      <View style={styles.commentSortDot} />
+                    )}
+                    <Text
+                      style={[
+                        styles.commentSecondaryText,
+                        commentSort === sort && styles.commentSortActive,
+                      ]}
+                    >
+                      {sort === "oldest" ? "등록순" : "최신순"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               {freeCommentItems.map((comment) => (
                 <View key={comment.id} style={styles.commentItem}>
-                  <View style={styles.commentMetaRow}>
-                    <Text style={styles.commentAuthor}>{comment.author}</Text>
-                    <View style={styles.commentMetaRight}>
-                      <Text style={styles.commentTime}>{comment.time}</Text>
+                  <View style={styles.commentAvatar} />
+                  <View style={styles.commentMain}>
+                    <View style={styles.commentMetaRow}>
+                      <View style={styles.commentAuthorBlock}>
+                        <Text style={styles.commentAuthor}>
+                          {comment.author}
+                        </Text>
+                        <Text style={styles.commentTime}>{comment.time}</Text>
+                      </View>
                       {comment.mine && (
                         <Pressable
-                          onPress={() => handleDeleteComment(comment.id)}
+                          hitSlop={8}
+                          accessibilityLabel="댓글 메뉴"
+                          onPress={() =>
+                            Alert.alert("댓글 삭제", "댓글을 삭제하시겠어요?", [
+                              { text: "취소", style: "cancel" },
+                              {
+                                text: "삭제",
+                                style: "destructive",
+                                onPress: () => handleDeleteComment(comment.id),
+                              },
+                            ])
+                          }
                         >
-                          <Text style={styles.commentDeleteText}>삭제</Text>
+                          <Ionicons
+                            name="ellipsis-vertical"
+                            size={20}
+                            color="#536071"
+                          />
                         </Pressable>
                       )}
                     </View>
+                    <Text style={styles.commentContent}>{comment.content}</Text>
                   </View>
-                  <Text style={styles.commentContent}>{comment.content}</Text>
                 </View>
               ))}
-
-              {commentInputVisible && (
-                <View style={styles.commentInputBox}>
-                  <TextInput
-                    style={styles.commentInput}
-                    placeholder="댓글을 입력해보세요"
-                    placeholderTextColor="#9A9A9A"
-                    value={commentText}
-                    onChangeText={setCommentText}
-                    multiline
-                  />
-                  <Pressable
-                    style={[
-                      styles.commentSubmitButton,
-                      !commentText.trim() && styles.commentSubmitButtonDisabled,
-                    ]}
-                    onPress={handleSubmitComment}
-                    disabled={!commentText.trim()}
-                  >
-                    <Text style={styles.commentSubmitText}>등록</Text>
-                  </Pressable>
-                </View>
-              )}
             </View>
           </View>
         )}
       </ScrollView>
 
+      {detailType === "free" && (
+        <View
+          style={[
+            styles.commentComposer,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
+          <View style={styles.commentInputBox}>
+            <TextInput
+              ref={commentInputRef}
+              style={styles.commentInput}
+              placeholder="따뜻한 댓글을 입력해주세요"
+              placeholderTextColor="#AFB7C4"
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+            />
+            {!!commentText.trim() && (
+              <Pressable
+                style={styles.commentSubmitButton}
+                onPress={handleSubmitComment}
+                accessibilityLabel="댓글 등록"
+              >
+                <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
+
       {detailType === "companion" && (
-        <View style={[styles.chatActionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View
+          style={[
+            styles.chatActionBar,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
           {isAuthor ? (
             <Text style={styles.ownPostHint}>내가 작성한 동행 글이에요</Text>
           ) : (
             <Pressable
-              style={[styles.startChatButton, chatLoading && styles.startChatButtonDisabled]}
+              style={[
+                styles.startChatButton,
+                chatLoading && styles.startChatButtonDisabled,
+              ]}
               onPress={handleStartCompanionChat}
               disabled={chatLoading}
               accessibilityRole="button"
               accessibilityState={{ disabled: chatLoading, busy: chatLoading }}
             >
-              {chatLoading ? <ActivityIndicator color="#FFFFFF" /> : (
+              {chatLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
                 <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
               )}
               <Text style={styles.startChatText}>
@@ -922,6 +1139,18 @@ export default function CommunityDetailScreen() {
                 </Pressable>
               </>
             )}
+            {detailType === "free" && (
+              <Pressable style={styles.menuItem} onPress={handleScrapPress}>
+                <Ionicons
+                  name={scrapped ? "bookmark" : "bookmark-outline"}
+                  size={19}
+                  color={scrapped ? BLUE : "#111111"}
+                />
+                <Text style={styles.menuText}>
+                  {scrapped ? "저장 취소" : "게시글 저장"}
+                </Text>
+              </Pressable>
+            )}
             <Pressable style={styles.menuItem} onPress={handleRefresh}>
               <Ionicons
                 name="refresh"
@@ -937,30 +1166,24 @@ export default function CommunityDetailScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-function InfoItem({
+function CompanionInfoItem({
   icon,
   label,
   value,
-  accent = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
-  accent?: boolean;
 }) {
   return (
-    <View style={styles.infoItem}>
-      <View style={[styles.infoIcon, accent && styles.infoIconAccent]}>
-        <Ionicons name={icon} size={18} color={accent ? GREEN : BLUE} />
-      </View>
-      <View style={styles.infoTextBlock}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
-      </View>
+    <View style={styles.companionInfoRow}>
+      <Ionicons name={icon} size={17} color="#6B7684" />
+      <Text style={styles.companionInfoLabel}>{label}</Text>
+      <Text style={styles.companionInfoValue}>{value}</Text>
     </View>
   );
 }
@@ -1021,14 +1244,13 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   header: {
-    height: 108,
-    paddingTop: 58,
-    paddingHorizontal: 18,
+    paddingHorizontal: 22,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F1F1",
+    backgroundColor: Colors.common.white,
+    zIndex: 10,
+    flexShrink: 0,
   },
   headerIconButton: {
     width: 42,
@@ -1037,8 +1259,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 16,
-    fontWeight: "900",
+    ...fonts.sub3_sb_16,
     color: "#111111",
   },
   scroll: {
@@ -1052,28 +1273,117 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 54,
   },
-  titleBlock: {
+  companionTitleBlock: {
     paddingBottom: 20,
+  },
+  titleBlock: {
+    marginBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
   statusBadge: {
     alignSelf: "flex-start",
-    borderRadius: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    marginBottom: 13,
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    marginBottom: 8,
   },
   statusBadgeText: {
-    fontSize: 12,
-    fontWeight: "900",
+    ...fonts.caption4_m_12,
   },
   title: {
-    fontSize: 23,
-    lineHeight: 31,
-    fontWeight: "900",
-    color: "#111111",
-    letterSpacing: 0,
+    ...fonts.title3_b_24,
+  },
+  companionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  shareButton: {
+    width: 36,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  companionCreatedAt: {
+    ...fonts.body4_r_14,
+    color: Colors.gray[7],
+  },
+  authorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.gray[3],
+    borderRadius: 10,
+    backgroundColor: Colors.gray[1],
+  },
+  authorAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#D1D6DC",
+  },
+  authorCardText: {
+    flex: 1,
+    gap: 2,
+  },
+  authorCardName: {
+    ...fonts.sub4_sb_14,
+    color: Colors.common.black,
+  },
+  authorCardMeta: {
+    ...fonts.caption6_r_12,
+    color: Colors.gray[8],
+  },
+  companionLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.primary.default,
+    backgroundColor: "#E8EBFF",
+  },
+  companionLinkText: {
+    flex: 1,
+    ...fonts.body2_m_14,
+    color: Colors.common.black,
+  },
+  companionBodyBlock: {
+    marginVertical: 24,
+  },
+  companionInfoPanel: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E1E4E9",
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  companionInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  companionInfoLabel: {
+    ...fonts.body2_m_14,
+    color: Colors.gray[8],
+    width: 82,
+  },
+  companionInfoValue: {
+    flex: 1,
+    ...fonts.body2_m_14,
+    color: Colors.gray[10],
+    textAlign: "right",
   },
   metaRow: {
     marginTop: 13,
@@ -1098,46 +1408,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "#C8C8C8",
   },
-  infoPanel: {
-    marginTop: 18,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E8ECF3",
-    backgroundColor: "#F8FAFD",
-    padding: 14,
-    gap: 12,
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-  },
-  infoIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EAF1FF",
-  },
-  infoIconAccent: {
-    backgroundColor: "#EAF7EF",
-  },
-  infoTextBlock: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#8A8A8A",
-    marginBottom: 3,
-  },
-  infoValue: {
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "900",
-    color: "#111111",
-  },
   bodyBlock: {
     paddingTop: 24,
   },
@@ -1152,43 +1422,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2F2F2",
   },
   bodyText: {
-    fontSize: 16,
-    lineHeight: 26,
-    fontWeight: "600",
-    color: "#222222",
-  },
-  chatPanel: {
-    marginTop: 28,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8ECF3",
-    backgroundColor: "#FFFFFF",
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  chatIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0F3FF",
-  },
-  chatTextBlock: {
-    flex: 1,
-  },
-  chatTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#111111",
-    marginBottom: 4,
-  },
-  chatLink: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#777777",
+    ...fonts.long_body2_r_16,
+    color: Colors.gray[10],
   },
   reactionBar: {
     marginTop: 28,
@@ -1217,89 +1452,108 @@ const styles = StyleSheet.create({
   freeSection: {
     marginTop: 0,
   },
+  freeTitleBlock: { paddingBottom: 24 },
+  freeTitle: { ...fonts.title3_b_24, color: "#090B0D", lineHeight: 36 },
+  freeCreatedAt: { fontSize: 16, lineHeight: 24, color: "#737F90", marginTop: 16 },
+  freeAuthorCard: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 1, borderColor: "#E0E4EA", borderRadius: 12, backgroundColor: "#F8F9FA" },
+  freeAuthorAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#E0E4E9" },
+  freeAuthorName: { fontSize: 16, fontWeight: "600", color: "#111111" },
+  freeAuthorMeta: { fontSize: 14, lineHeight: 21, color: "#536071" },
+  freeContent: { paddingHorizontal: 16, paddingBottom: 0 },
+  freeReactionBar: {
+    marginTop: 28,
+    paddingBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
+  freeReactionText: { fontSize: 16, color: "#374151" },
+  freeSaveButton: { marginLeft: "auto", padding: 10 },
+  commentSecondaryText: { fontSize: 14, color: "#8B97A8" },
   commentSection: {
-    marginTop: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-    paddingTop: 20,
-    gap: 14,
+    marginHorizontal: -16,
+    borderTopWidth: 10,
+    borderTopColor: "#F0F2F5",
+    paddingTop: 16,
   },
-  commentTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111111",
+  commentSortRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 18,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  commentItem: {
-    borderRadius: 14,
-    backgroundColor: "#F8F9FB",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+  commentSortButton: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
+    minHeight: 32,
   },
-  commentMetaRow: {
+  commentSortDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: BLUE,
+  },
+  commentSortActive: { color: "#111111", fontWeight: "700" },
+  commentItem: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
     gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 24,
   },
-  commentAuthor: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#333333",
+  commentAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#E0E4E9",
   },
-  commentTime: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#999999",
-  },
-  commentMetaRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-  },
-  commentDeleteText: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#D94343",
-  },
+  commentMain: { flex: 1 },
+  commentAuthorBlock: { gap: 3, flex: 1 },
+  commentMetaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  commentAuthor: { fontSize: 14, fontWeight: "600", color: "#111111" },
+  commentTime: { fontSize: 12, color: "#8B97A8" },
   commentContent: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: "600",
-    color: "#333333",
+    fontSize: 16,
+    lineHeight: 27,
+    color: "#293140",
+    marginTop: 16,
+  },
+  commentComposer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    backgroundColor: "#FFFFFF",
+    width: "100%",
+    maxWidth: 760,
+    alignSelf: "center",
   },
   commentInputBox: {
-    borderRadius: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: "#E2E6EE",
-    backgroundColor: "#FFFFFF",
-    padding: 12,
-    gap: 10,
+    borderColor: "#E2E5EA",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   commentInput: {
-    minHeight: 74,
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "600",
-    color: "#111111",
-    textAlignVertical: "top",
+    flex: 1,
+    minHeight: 28,
+    maxHeight: 100,
+    fontSize: 15,
+    lineHeight: 22,
+    color: "#293140",
+    paddingVertical: 0,
   },
   commentSubmitButton: {
-    alignSelf: "flex-end",
-    height: 38,
-    borderRadius: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
-  },
-  commentSubmitButtonDisabled: {
-    backgroundColor: "#C7CBD6",
-  },
-  commentSubmitText: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#FFFFFF",
   },
   menuOverlay: {
     flex: 1,

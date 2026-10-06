@@ -1171,6 +1171,7 @@ export default function MarketPreviewPage() {
                 <Text style={styles.tradeReviewLabel}>희망 장소</Text>
                 <TextInput
                   style={styles.reviewInput}
+                  underlineColorAndroid="transparent"
                   value={region}
                   onChangeText={setRegion}
                   placeholder="거래 장소 입력"
@@ -2004,6 +2005,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D8DCE8',
     borderRadius: 6,
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
     fontSize: 14,
     color: '#111111',

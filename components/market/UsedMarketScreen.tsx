@@ -9,6 +9,9 @@ export type UsedMarketListing = {
   id: number;
   title: string;
   status: string;
+  price: number;
+  categories: string[];
+  returnDate?: string;
   tradeCountry: string;
   region: string;
   priceText: string;
@@ -20,15 +23,29 @@ type Props = {
   items: UsedMarketListing[];
   error: string;
   onRetry: () => void;
+  hasActiveFilters?: boolean;
 };
 
-export function UsedMarketScreen({ items, error, onRetry }: Props) {
+export function UsedMarketScreen({
+  items,
+  error,
+  onRetry,
+  hasActiveFilters = false,
+}: Props) {
   if (error) return <MarketEmptyState error={error} onRetry={onRetry} />;
   if (!items.length)
     return (
       <MarketEmptyState
-        title="등록한 거래글이 아직 없어요"
-        description="첫 거래글을 기다리고 있어요."
+        title={
+          hasActiveFilters
+            ? "조건에 맞는 거래글이 없어요"
+            : "등록한 거래글이 아직 없어요"
+        }
+        description={
+          hasActiveFilters
+            ? "필터 조건을 변경해보세요."
+            : "첫 거래글을 기다리고 있어요."
+        }
       />
     );
   return (

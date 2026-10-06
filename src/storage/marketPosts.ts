@@ -93,7 +93,7 @@ export const saveLocalMarketPost = async (
   const post: LocalMarketPost = {
     ...input,
     id,
-    createdAt: new Date().toISOString(),
+    createdAt: posts.find((item) => item.id === id)?.createdAt ?? new Date().toISOString(),
   };
 
   await writePosts([post, ...posts.filter((item) => item.id !== id)]);

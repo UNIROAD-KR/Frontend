@@ -43,6 +43,7 @@ import { styles } from "./styles";
 import PenIcon from "@/assets/icon/pen.svg";
 
 type Params = {
+  editId?: string;
   type?: string;
   title?: string;
   content?: string;
@@ -96,6 +97,7 @@ function restoreItems(params: Params): RegistrationItem[] {
 
 export default function MarketRegistration() {
   const params = useLocalSearchParams<Params>();
+  const isEditing = Boolean(params.editId);
   const wizard = parseJson<{ step: number; items: RegistrationItem[] } | null>(
     params.wizard,
     null,
@@ -187,6 +189,7 @@ export default function MarketRegistration() {
     try {
       await saveMarketDraft({
         step: "write",
+        editId: params.editId,
         write: { ...form, type: params.type ?? "all" },
         wizard: { step, items },
       });
@@ -254,17 +257,17 @@ export default function MarketRegistration() {
         ]);
         return;
       }
-      await submitRegistration(form, items);
+      await submitRegistration(form, items, params.editId);
       // A local cleanup failure must not cause a second server submission.
       await clearMarketDraft().catch((error) =>
         console.warn("임시저장 정리 실패", error),
       );
-      Alert.alert("등록 완료", "중고거래 게시글이 등록되었습니다.");
+      Alert.alert(isEditing ? "수정 완료" : "등록 완료", isEditing ? "중고거래 게시글이 수정되었습니다." : "중고거래 게시글이 등록되었습니다.");
       router.replace("/market");
     } catch (error) {
       console.warn("중고거래 등록 실패", error);
       Alert.alert(
-        "등록 실패",
+        isEditing ? "수정 실패" : "등록 실패",
         "작성한 내용은 유지됩니다. 잠시 후 다시 시도해주세요.",
       );
     } finally {
@@ -315,7 +318,7 @@ export default function MarketRegistration() {
     >
       <View style={styles.header}>
         <AppBackButton onPress={back} />
-        <Text style={fonts.sub3_sb_16}>중고물품 등록</Text>
+        <Text style={fonts.sub3_sb_16}>{isEditing ? "중고물품 수정" : "중고물품 등록"}</Text>
         <View style={{ width: 24 }} />
       </View>
       <ScrollView
@@ -389,6 +392,7 @@ export default function MarketRegistration() {
               </Text>
               <TextInput
                 style={styles.input}
+                underlineColorAndroid="transparent"
                 placeholder="구체적인 장소를 입력해주세요"
                 placeholderTextColor={Colors.gray[5]}
                 value={form.region}
@@ -601,7 +605,7 @@ export default function MarketRegistration() {
             <ActivityIndicator color="white" />
           ) : (
             <Text style={styles.buttonText}>
-              {step === 3 ? "등록하기" : "다음 단계로"}
+              {step === 3 ? (isEditing ? "수정 완료" : "등록하기") : "다음 단계로"}
             </Text>
           )}
         </Pressable>

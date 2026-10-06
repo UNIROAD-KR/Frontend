@@ -696,32 +696,19 @@ export default function MarketDetailPage() {
   const handleEditPost = () => {
     if (!post) return;
 
-    const selectedItems = post.itemGroups.map((group) => ({
-      category: group.category,
-      items: group.items.map((item) => ({
+    const items = post.itemGroups.flatMap((group, groupIndex) =>
+      group.items.map((item, index) => ({
+        id: `edit-${groupIndex}-${index}`,
+        category: group.category,
         name: item.name,
         quantity: item.quantity,
-        description: item.description,
+        description: item.description ?? group.description ?? "",
+        photos: item.photos ?? group.photos ?? [],
       })),
-    }));
-    const categoryDetails = post.itemGroups.reduce<
-      Record<
-        string,
-        {
-          photos: string[];
-          description: string;
-        }
-      >
-    >((acc, group) => {
-      acc[group.category] = {
-        photos: group.photos ?? [],
-        description: group.description ?? "",
-      };
-      return acc;
-    }, {});
+    );
 
     router.push({
-      pathname: "/market/preview",
+      pathname: "/market/write",
       params: {
         editId: String(post.id),
         title: post.title,
@@ -732,8 +719,7 @@ export default function MarketDetailPage() {
         returnDate: post.returnDate,
         semester: post.semester,
         photos: JSON.stringify(post.photos),
-        selectedItems: JSON.stringify(selectedItems),
-        draftCategoryDetails: JSON.stringify(categoryDetails),
+        wizard: JSON.stringify({ step: 1, items }),
       },
     } as any);
   };
