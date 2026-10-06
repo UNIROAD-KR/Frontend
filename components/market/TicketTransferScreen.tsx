@@ -2,11 +2,9 @@ import { Text } from "@/components/ui/app-text";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -32,71 +30,27 @@ type Props = {
   error: string;
   loadingMore: boolean;
   hasMore: boolean;
+  hasActiveFilters?: boolean;
   onLoadMore: () => void;
   onRetry: () => void;
 };
-const categories = [
-  { value: "all", label: "전체" },
-  { value: "TOUR", label: "관광 티켓" },
-  { value: "CONCERT", label: "콘서트·공연" },
-  { value: "TRAIN", label: "기차표" },
-  { value: "FLIGHT", label: "항공권" },
-  { value: "ACCOMMODATION", label: "숙박" },
-  { value: "OTHER", label: "기타" },
-];
 
 export function TicketTransferScreen({
   items,
   error,
   loadingMore,
   hasMore,
+  hasActiveFilters = false,
   onLoadMore,
   onRetry,
 }: Props) {
-  const [category, setCategory] = useState("all");
-  const visibleItems =
-    category === "all"
-      ? items
-      : items.filter((item) => item.ticketType === category);
   return (
     <View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categories}
-      >
-        {categories.map((option) => (
-          <Pressable
-            key={option.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected: category === option.value }}
-            style={[
-              styles.chip,
-              category === option.value && styles.activeChip,
-            ]}
-            onPress={() => setCategory(option.value)}
-          >
-            <Text
-              style={[
-                fonts.body2_m_14,
-                {
-                  color:
-                    category === option.value
-                      ? Colors.common.white
-                      : Colors.gray[7],
-                },
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
       {error ? (
         <MarketEmptyState error={error} onRetry={onRetry} />
       ) : (
         <>
-          {visibleItems.map((item) => (
+          {items.map((item) => (
             <Pressable
               key={item.id}
               style={styles.card}
@@ -141,9 +95,7 @@ export function TicketTransferScreen({
                 <View style={styles.metaRow}>
                   <Text style={styles.metaLabel}>유형</Text>
                   <Text style={styles.metaValue}>
-                    {categories.find(
-                      (option) => option.value === item.ticketType,
-                    )?.label || item.category}
+                    {item.category}
                   </Text>
                 </View>
                 <View style={styles.prices}>
@@ -159,21 +111,17 @@ export function TicketTransferScreen({
               </View>
             </Pressable>
           ))}
-          {!visibleItems.length && !loadingMore && (
+          {!items.length && !loadingMore && (
             <MarketEmptyState
-              title={
-                category === "all"
-                  ? "등록한 티켓이 아직 없어요"
-                  : "해당 유형의 티켓이 없어요"
-              }
+              title={hasActiveFilters ? "조건에 맞는 티켓이 없어요" : "등록한 티켓이 아직 없어요"}
               description={
-                category === "all"
-                  ? "첫 티켓 양도글을 기다리고 있어요."
-                  : "다른 유형을 선택해보세요."
+                hasActiveFilters
+                  ? "필터 조건을 변경해보세요."
+                  : "첫 티켓 양도글을 기다리고 있어요."
               }
             />
           )}
-          {category !== "all" && hasMore && !loadingMore && (
+          {hasMore && !loadingMore && (
             <Pressable style={styles.loading} onPress={onLoadMore}>
               <Text
                 style={[
@@ -196,16 +144,6 @@ export function TicketTransferScreen({
   );
 }
 const styles = StyleSheet.create({
-  categories: { gap: 8, paddingTop: 2, paddingBottom: 22 },
-  chip: {
-    paddingHorizontal: 14,
-    height: 42,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: Colors.gray[1],
-  },
-  activeChip: { backgroundColor: Colors.gray[10] },
   card: {
     flexDirection: "row",
     alignItems: "flex-start",

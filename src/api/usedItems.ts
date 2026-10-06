@@ -39,9 +39,13 @@ export interface UsedItemSummaryResponse {
   id: number;
   title: string;
   price: number;
+  category?: TradeCategory;
+  items?: TradeItemResponse[];
+  categoryImages?: TradeCategoryImageResponse[];
   country?: string;
   region: string;
   semester: string;
+  returnDate?: string;
   status?: "SELLING" | "RESERVED" | "SOLD" | "AVAILABLE" | "COMPLETED";
   scrapCount?: number;
   thumbnailImageUrl: string;

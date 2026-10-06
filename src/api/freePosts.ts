@@ -38,6 +38,7 @@ export interface FreePostDetailResponse {
   country: string;
   status: string;
   authorName: string;
+  authorNickname?: string;
   imageUrls?: string[];
   likeCount: number;
   scrapCount?: number;

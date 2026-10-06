@@ -20,6 +20,7 @@ import ArrowRightIcon from "@/assets/icon/Property 1=arrow2, Property 2=right.sv
 import AllServicesIcon from "@/assets/icon/profile/all-services.svg";
 import AccountSettingsIcon from "@/assets/icon/profile/account-settings.svg";
 import AppVersionIcon from "@/assets/icon/profile/app-version.svg";
+import BlogIcon from "@/assets/icon/profile/blog.svg";
 import ContactIcon from "@/assets/icon/profile/contact.svg";
 import FreePostsIcon from "@/assets/icon/profile/free-posts.svg";
 import HeartIcon from "@/assets/icon/profile/heart.svg";
@@ -110,6 +111,11 @@ const serviceItems: MenuItem[] = [
 ];
 
 const guideItems: MenuItem[] = [
+  {
+    title: "블로그 미리보기 (임시)",
+    icon: BlogIcon,
+    route: "/blog",
+  },
   {
     title: "앱 버전",
     icon: AppVersionIcon,

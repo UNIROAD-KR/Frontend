@@ -201,6 +201,12 @@ export const fonts = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: -0.64,
   },
+  long_body2_r_16: {
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 25.6,
+    letterSpacing: -0.64,
+  },
   body4_r_14: {
     fontSize: 14,
     fontWeight: "400",

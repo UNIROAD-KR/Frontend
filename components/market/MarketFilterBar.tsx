@@ -5,11 +5,15 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 export function MarketFilterBar({
   selectedCountry,
+  filterActive,
   onSelectCountry,
+  onSelectFilter,
   onSelectSort,
 }: {
   selectedCountry: string;
+  filterActive?: boolean;
   onSelectCountry: () => void;
+  onSelectFilter: () => void;
   onSelectSort: () => void;
 }) {
   return (
@@ -32,13 +36,19 @@ export function MarketFilterBar({
         <Ionicons name="chevron-down" size={18} color="#17191D" />
       </Pressable>
       <Pressable
-        disabled
         accessibilityRole="button"
-        accessibilityState={{ disabled: true }}
-        style={styles.button}
+        accessibilityLabel="필터 설정"
+        onPress={onSelectFilter}
+        style={[styles.button, filterActive && styles.activeFilter]}
       >
-        <Text style={styles.label}>필터</Text>
-        <Ionicons name="options-outline" size={18} color="#17191D" />
+        <Text style={[styles.label, filterActive && styles.activeFilterLabel]}>
+          필터
+        </Text>
+        <Ionicons
+          name="options-outline"
+          size={18}
+          color={filterActive ? "#506AFF" : "#17191D"}
+        />
       </Pressable>
       <Pressable
         onPress={onSelectSort}
@@ -71,6 +81,8 @@ const styles = StyleSheet.create({
     minWidth: 0,
     paddingHorizontal: 14,
   },
+  activeFilter: { borderColor: "#506AFF" },
+  activeFilterLabel: { color: "#506AFF" },
   placeholder: { flexShrink: 1, ...fonts.body4_r_14, color: "#8B95A1" },
   label: { fontSize: 14, color: "#17191D" },
 });

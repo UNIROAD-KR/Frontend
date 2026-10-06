@@ -20,6 +20,9 @@ import {
 import { getUploadUrl, uploadFileToStorage } from '../src/api/upload';
 import { BLUE } from '../src/data/community';
 import { canUseMarketWithoutVerification } from '../src/utils/verification';
+import { Colors, fonts } from '@/constants/theme';
+import { MarketCountrySheet } from '@/components/market/MarketCountrySheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
 
 type DateTarget = 'start' | 'end' | null;
@@ -49,6 +52,7 @@ const parseDate = (value?: string) => {
 
 export default function CommunityWriteScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
     type?: string;
     mode?: string;
@@ -76,12 +80,12 @@ export default function CommunityWriteScreen() {
   const [startDate, setStartDate] = useState(params.startDate || '');
   const [endDate, setEndDate] = useState(params.endDate || '');
   const [capacity, setCapacity] = useState(params.capacity || '');
-  const [currentParticipants, setCurrentParticipants] = useState(
+  const [currentParticipants] = useState(
     params.currentParticipants || '1',
   );
-  const [genderRatio, setGenderRatio] = useState(params.genderRatio || '무관');
+  const [countrySheetVisible, setCountrySheetVisible] = useState(false);
   const [chatLink, setChatLink] = useState(params.chatLink || '');
-  const [status, setStatus] = useState<'RECRUITING' | 'COMPLETED'>(
+  const [status] = useState<'RECRUITING' | 'COMPLETED'>(
     params.status || 'RECRUITING',
   );
   const [dateTarget, setDateTarget] = useState<DateTarget>(null);
@@ -176,7 +180,8 @@ export default function CommunityWriteScreen() {
       !region.trim() ||
       !startDate ||
       !endDate ||
-      !capacity.trim()
+      !capacity.trim() ||
+      !chatLink.trim()
     ) {
       Alert.alert('입력 오류', '필수 항목을 모두 입력해주세요.');
       return null;
@@ -208,7 +213,7 @@ export default function CommunityWriteScreen() {
       status,
       capacity: capacityNumber,
       currentParticipants: currentNumber,
-      genderRatio: genderRatio.trim() || '무관',
+      genderRatio: isEdit ? (params.genderRatio || '무관') : '무관',
     };
   };
 
@@ -302,7 +307,7 @@ export default function CommunityWriteScreen() {
   };
 
   const handleSubmit = async () => {
-    if (submitting) {
+    if (submitting || (isCompanion && !companionValid)) {
       return;
     }
 
@@ -378,37 +383,110 @@ export default function CommunityWriteScreen() {
     }
   };
 
-  const submitDisabled =
-    submitting ||
-    !title.trim() ||
-    !body.trim() ||
-    (isCompanion &&
-      (!country.trim() ||
-        !region.trim() ||
-        !startDate ||
-        !endDate ||
-        !capacity.trim()));
+  const companionValid = Boolean(
+    country.trim() && region.trim() && startDate && endDate &&
+    startDate <= endDate && chatLink.trim() &&
+    Number.isInteger(Number(capacity)) && Number(capacity) >= 2 &&
+    Number.isInteger(Number(currentParticipants)) && Number(currentParticipants) >= 1 &&
+    Number(currentParticipants) <= Number(capacity) &&
+    title.trim() && body.trim() && body.length <= 200
+  );
+  const submitDisabled = submitting || (isCompanion ? !companionValid : !title.trim() || !body.trim());
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, isCompanion && { height: insets.top + 56, paddingTop: insets.top, borderBottomWidth: 0 }]}>
+        {isCompanion ? (
+          <>
+            <View style={styles.companionHeaderSide}>
+              <AppBackButton onPress={() => goBackOrReplace('/community')} style={styles.backButton} />
+            </View>
+            <Text style={styles.companionHeaderTitle}>동행 모집 {isEdit ? '수정' : '글쓰기'}</Text>
+            <Pressable style={[styles.companionHeaderSide, styles.companionHeaderSubmit]} onPress={handleSubmit} disabled={submitDisabled} accessibilityRole="button" accessibilityLabel={isEdit ? '동행 글 수정 제출' : '동행 글쓰기 제출'} accessibilityState={{ disabled: submitDisabled, busy: submitting }}>
+              <Text style={[styles.companionWriteText, !submitDisabled && { color: Colors.primary.default }]}>{submitting ? '저장 중' : isEdit ? '수정' : '글쓰기'}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
         <AppBackButton
           onPress={() => goBackOrReplace('/community')}
           style={styles.backButton}
         />
         <Text style={styles.headerTitle}>{screenText.title}</Text>
         <View style={styles.headerSpacer} />
+          </>
+        )}
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, isCompanion && { paddingHorizontal: 20, paddingBottom: Math.max(insets.bottom, 24) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {isCompanion ? (
+          <>
+            <Text style={styles.companionSectionTitle}>모집 조건</Text>
+            <View style={styles.companionField}>
+              <Text style={styles.companionLabel}>국가 및 지역</Text>
+              <Pressable style={styles.companionSelect} onPress={() => setCountrySheetVisible(true)} accessibilityRole="button">
+                <Text style={[styles.companionValue, { flex: 1 }, !country && styles.companionPlaceholder]}>{country || '국가 및 지역을 선택해주세요'}</Text>
+                <Ionicons name="chevron-down" size={20} color={Colors.gray[11]} />
+              </Pressable>
+              {!!country && <TextInput style={[styles.companionInput, { marginTop: 8 }]} value={region} onChangeText={setRegion} placeholder="도시 / 지역을 입력해주세요" placeholderTextColor={Colors.gray[5]} />}
+            </View>
+            <View style={styles.companionDateRow}>
+              {(['start', 'end'] as const).map((target) => {
+                const value = target === 'start' ? startDate : endDate;
+                return (
+                  <View key={target} style={styles.inlineField}>
+                    <Text style={styles.companionLabel}>일정 {target === 'start' ? '시작' : '종료'}</Text>
+                    <Pressable style={styles.companionDateParts} onPress={() => openDatePicker(target)} accessibilityRole="button" accessibilityLabel={`${target === 'start' ? '시작일' : '종료일'} ${value || '선택'}`}>
+                      <View style={styles.companionDatePart}><Text style={[styles.companionValue, !value && styles.companionPlaceholder]}>{value ? value.slice(0, 4) : '년'}</Text></View>
+                      <View style={styles.companionDatePart}><Text style={[styles.companionValue, !value && styles.companionPlaceholder]}>{value ? value.slice(5).replace('-', '.') : '월 / 일'}</Text></View>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </View>
+            <View style={styles.companionField}>
+              <Text style={styles.companionLabel}>모집 인원</Text>
+              <View style={styles.companionStepper}>
+                <Pressable style={styles.companionStepButton} onPress={() => setCapacity(String(Math.max(Math.max(2, Number(currentParticipants)), (Number(capacity) || 0) - 1)))} disabled={Number(capacity) <= Math.max(2, Number(currentParticipants))} accessibilityLabel="모집 인원 줄이기">
+                  <Ionicons name="remove" size={20} color={Colors.gray[7]} />
+                </Pressable>
+                <View style={styles.companionStepValue}><Text style={styles.companionValue}>{capacity || '0'}</Text></View>
+                <Pressable style={styles.companionStepButton} onPress={() => setCapacity(String(Math.max(2, Number(currentParticipants), (Number(capacity) || 0) + 1)))} accessibilityLabel="모집 인원 늘리기">
+                  <Ionicons name="add" size={20} color={Colors.gray[7]} />
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.companionField}>
+              <Text style={styles.companionLabel}>소통 링크</Text>
+              <View style={styles.companionSelect}>
+                <Ionicons name="link-outline" size={22} color={Colors.gray[11]} />
+                <TextInput style={styles.companionLinkInput} value={chatLink} onChangeText={setChatLink} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder="링크를 입력해주세요" placeholderTextColor={Colors.gray[5]} />
+              </View>
+            </View>
+            <View style={styles.companionDivider} />
+            <Text style={styles.companionSectionTitle}>게시글 작성</Text>
+            <View style={styles.companionField}>
+              <Text style={styles.companionLabel}>제목</Text>
+              <TextInput style={styles.companionInput} value={title} onChangeText={setTitle} placeholder="제목을 입력해주세요" placeholderTextColor={Colors.gray[5]} />
+            </View>
+            <View style={styles.companionField}>
+              <Text style={styles.companionLabel}>내용</Text>
+              <View style={styles.companionBodyBox}>
+                <TextInput style={styles.companionBodyInput} value={body} onChangeText={setBody} multiline maxLength={200} textAlignVertical="top" placeholder="세부적인 동행 모집 내용을 작성해주세요" placeholderTextColor={Colors.gray[5]} />
+                <Text style={styles.companionBodyCount}>{body.length}/200</Text>
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
         <Text style={styles.subtitle}>{screenText.subtitle}</Text>
 
         <View style={styles.fieldGroup}>
@@ -475,139 +553,6 @@ export default function CommunityWriteScreen() {
           </>
         )}
 
-        {isCompanion && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>모집 정보</Text>
-              <View style={styles.sectionLine} />
-            </View>
-
-            <View style={styles.inlineFields}>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>국가</Text>
-                <TextInput
-                  style={styles.input}
-                  value={country}
-                  onChangeText={setCountry}
-                  placeholder="예: 독일"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>도시/지역</Text>
-                <TextInput
-                  style={styles.input}
-                  value={region}
-                  onChangeText={setRegion}
-                  placeholder="예: 뮌헨"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-            </View>
-
-            <View style={styles.inlineFields}>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>시작일</Text>
-                <Pressable
-                  style={styles.dateInput}
-                  onPress={() => openDatePicker('start')}
-                >
-                  <Text style={[styles.dateText, startDate && styles.dateTextActive]}>
-                    {startDate || '연도-월-일'}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={17} color="#777777" />
-                </Pressable>
-              </View>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>종료일</Text>
-                <Pressable
-                  style={styles.dateInput}
-                  onPress={() => openDatePicker('end')}
-                >
-                  <Text style={[styles.dateText, endDate && styles.dateTextActive]}>
-                    {endDate || '연도-월-일'}
-                  </Text>
-                  <Ionicons name="calendar-outline" size={17} color="#777777" />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.inlineFields}>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>모집 인원</Text>
-                <TextInput
-                  style={styles.input}
-                  value={capacity}
-                  onChangeText={setCapacity}
-                  keyboardType="number-pad"
-                  placeholder="예: 4"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-              <View style={styles.inlineField}>
-                <Text style={styles.label}>현재 인원</Text>
-                <TextInput
-                  style={styles.input}
-                  value={currentParticipants}
-                  onChangeText={setCurrentParticipants}
-                  keyboardType="number-pad"
-                  placeholder="예: 1"
-                  placeholderTextColor="#A0A0A0"
-                />
-              </View>
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>모집 상태</Text>
-              <View style={styles.segmented}>
-                {(['RECRUITING', 'COMPLETED'] as const).map((item) => {
-                  const active = status === item;
-
-                  return (
-                    <Pressable
-                      key={item}
-                      style={[styles.segmentButton, active && styles.segmentActive]}
-                      onPress={() => setStatus(item)}
-                    >
-                      <Text
-                        style={[
-                          styles.segmentText,
-                          active && styles.segmentTextActive,
-                        ]}
-                      >
-                        {item === 'RECRUITING' ? '모집중' : '모집완료'}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>성별 조건</Text>
-              <TextInput
-                style={styles.input}
-                value={genderRatio}
-                onChangeText={setGenderRatio}
-                placeholder="예: 무관, 여성 2명"
-                placeholderTextColor="#A0A0A0"
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>오픈채팅 링크</Text>
-              <TextInput
-                style={styles.input}
-                value={chatLink}
-                onChangeText={setChatLink}
-                autoCapitalize="none"
-                placeholder="선택 입력"
-                placeholderTextColor="#A0A0A0"
-              />
-            </View>
-          </>
-        )}
-
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>내용</Text>
           <TextInput
@@ -620,9 +565,11 @@ export default function CommunityWriteScreen() {
             textAlignVertical="top"
           />
         </View>
+          </>
+        )}
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      {!isCompanion && <View style={styles.bottomBar}>
         <Pressable
           style={[
             styles.submitButton,
@@ -635,7 +582,9 @@ export default function CommunityWriteScreen() {
             {submitting ? '저장 중...' : screenText.button}
           </Text>
         </Pressable>
-      </View>
+      </View>}
+
+      <MarketCountrySheet visible={countrySheetVisible} allowAll={false} selectedCountry={country} onClose={() => setCountrySheetVisible(false)} onSelect={(value) => { setCountry(value); if (value !== country) setRegion(''); setCountrySheetVisible(false); }} />
 
       <BottomSheetModal
         visible={dateTarget !== null}
@@ -714,6 +663,28 @@ export default function CommunityWriteScreen() {
 }
 
 const styles = StyleSheet.create({
+  companionHeaderSide: { width: 64, minHeight: 44, justifyContent: 'center' },
+  companionHeaderSubmit: { alignItems: 'flex-end' },
+  companionHeaderTitle: { ...fonts.sub3_sb_16, color: Colors.gray[11], flex: 1, textAlign: 'center' },
+  companionWriteText: { ...fonts.body2_m_14, color: Colors.gray[6] },
+  companionSectionTitle: { ...fonts.sub1_sb_18, color: Colors.gray[11], marginBottom: 22 },
+  companionField: { marginBottom: 28 },
+  companionLabel: { ...fonts.body2_m_14, color: Colors.gray[8], marginBottom: 8 },
+  companionInput: { ...fonts.body3_r_16, minHeight: 52, borderWidth: 1, borderColor: Colors.gray[3], borderRadius: 10, paddingHorizontal: 16, color: Colors.gray[11] },
+  companionSelect: { minHeight: 52, borderWidth: 1, borderColor: Colors.gray[3], borderRadius: 10, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  companionValue: { ...fonts.body3_r_16, color: Colors.gray[11], flexShrink: 1 },
+  companionPlaceholder: { color: Colors.gray[5] },
+  companionDateRow: { flexDirection: 'row', gap: 8, marginBottom: 28 },
+  companionDateParts: { flexDirection: 'row', gap: 4 },
+  companionDatePart: { flex: 1, minHeight: 52, borderWidth: 1, borderColor: Colors.gray[3], borderRadius: 10, paddingHorizontal: 10, justifyContent: 'center' },
+  companionStepper: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.gray[2], borderRadius: 8, padding: 4 },
+  companionStepButton: { width: 42, height: 38, justifyContent: 'center', alignItems: 'center' },
+  companionStepValue: { width: 42, height: 38, borderRadius: 6, backgroundColor: Colors.common.white, justifyContent: 'center', alignItems: 'center' },
+  companionLinkInput: { ...fonts.body3_r_16, flex: 1, color: Colors.gray[11], paddingVertical: 12 },
+  companionDivider: { height: 10, backgroundColor: Colors.gray[2], marginHorizontal: -20, marginBottom: 24 },
+  companionBodyBox: { borderWidth: 1, borderColor: Colors.gray[3], borderRadius: 10, padding: 16 },
+  companionBodyInput: { ...fonts.body3_r_16, minHeight: 140, color: Colors.gray[11], padding: 0 },
+  companionBodyCount: { ...fonts.body4_r_14, textAlign: 'right', color: Colors.gray[7], marginTop: 12 },
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
