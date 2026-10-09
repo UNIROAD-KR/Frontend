@@ -281,10 +281,10 @@ export default function LoginPage() {
 
         if (status === "NEED_SIGNUP") {
           await clearOnboardingDraft();
-          router.replace("/sns-signup");
+          router.replace("/signup-success");
         } else if (status === "NEED_ONBOARDING") {
           await clearOnboardingDraft();
-          router.replace("/onboarding/nickname");
+          router.replace("/signup-success");
         } else {
           router.replace("/home");
         }
