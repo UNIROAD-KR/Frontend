@@ -35,6 +35,7 @@ import {
   submitVerification,
   VerificationResponse,
 } from "../src/api/verification";
+import { Modal } from "@/components/ui/modal";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
 
 type FormMode = "history" | "form";
@@ -139,6 +140,7 @@ export default function VerificationPage() {
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
   const [sortOrder, setSortOrder] = useState<VerificationSortOrder>("latest");
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isSubmitCompleteVisible, setIsSubmitCompleteVisible] = useState(false);
 
   const hasHistory = verifications.length > 0;
   const canSubmit = Boolean(pickedImage) && !isSubmitting;
@@ -349,12 +351,7 @@ export default function VerificationPage() {
       setPickedImage(null);
       await loadVerifications();
 
-      Alert.alert("제출 완료", "인증 요청이 제출되었습니다.", [
-        {
-          text: "확인",
-          onPress: () => router.replace("/verification-complete" as any),
-        },
-      ]);
+      setIsSubmitCompleteVisible(true);
     } catch (error: any) {
       console.log("인증 요청 실패:", error.response?.data || error.message);
       Alert.alert(
@@ -517,10 +514,13 @@ export default function VerificationPage() {
               style={styles.previewImage}
             />
             <View style={styles.previewTextBox}>
-              <Text style={styles.previewTitle} numberOfLines={1}>
+              <Text
+                style={[fonts.body1_m_16, { color: Colors.gray[11] }]}
+                numberOfLines={1}
+              >
                 {pickedImage.fileName}
               </Text>
-              <Text style={styles.previewSubtitle}>
+              <Text style={[fonts.caption5_r_13, { color: Colors.gray[6] }]}>
                 다시 누르면 사진을 변경할 수 있어요.
               </Text>
             </View>
@@ -639,6 +639,19 @@ export default function VerificationPage() {
           </Text>
         </View>
       ) : null}
+
+      <Modal
+        isOpen={isSubmitCompleteVisible}
+        title="인증 요청이 제출되었습니다"
+        description="서류 검토는 영업일 기준 최대 24시간이 소요될 수 있으며, 검토가 완료되면 알림으로 알려드립니다."
+        primaryButton={{
+          label: "확인했어요",
+          onPress: () => {
+            setIsSubmitCompleteVisible(false);
+            router.replace("/home" as any);
+          },
+        }}
+      />
     </SafeAreaView>
   );
 }

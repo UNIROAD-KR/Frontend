@@ -1,5 +1,8 @@
 import { MarketSortSheet } from "@/components/market/MarketSortSheet";
-import { compareMarketDates, type MarketSortOrder } from "@/src/utils/marketSort";
+import {
+  compareMarketDates,
+  type MarketSortOrder,
+} from "@/src/utils/marketSort";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { MarketFilterBar } from "@/components/market/MarketFilterBar";
 import {
@@ -774,7 +777,10 @@ export default function MarketPage() {
     region: item.country,
     category: ticketTypeLabelMap[item.ticketType],
     title: item.title,
-    date: item.eventDate.split("~").map((date) => date.trim().replace(/-/g, ". ")).join(" ~ "),
+    date: item.eventDate
+      .split("~")
+      .map((date) => date.trim().replace(/-/g, ". "))
+      .join(" ~ "),
     count: `${item.quantity}매`,
     price: formatTicketPrice(
       item.transferPrice,
@@ -791,7 +797,9 @@ export default function MarketPage() {
 
   const filteredTickets = displayTickets
     .filter((item) => {
-      return selectedCountry === "전체" || item.region.includes(selectedCountry);
+      return (
+        selectedCountry === "전체" || item.region.includes(selectedCountry)
+      );
     })
     .filter((item) => {
       const categoriesMatch =
@@ -809,8 +817,7 @@ export default function MarketPage() {
     })
     .sort((a, b) => compareMarketDates(a, b, sortOrder));
 
-  const activeFilters =
-    selectedTab === "bulk" ? bulkFilters : ticketFilters;
+  const activeFilters = selectedTab === "bulk" ? bulkFilters : ticketFilters;
   const filtersAreActive = hasActiveMarketFilters(activeFilters);
 
   return (

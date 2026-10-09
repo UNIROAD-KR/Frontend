@@ -186,6 +186,7 @@ export default function ProfileCardScreen() {
           profileAvatarUri,
           exchangeStatus,
           savedIsVerified,
+          savedIsVerificationPending,
           savedOverrides,
         ] = await Promise.all([
           AsyncStorage.getItem("nickname"),
@@ -197,11 +198,12 @@ export default function ProfileCardScreen() {
           AsyncStorage.getItem("profileAvatarUri"),
           AsyncStorage.getItem("exchangeStatus"),
           AsyncStorage.getItem("isVerified"),
+          AsyncStorage.getItem("isVerificationPending"),
           AsyncStorage.getItem("profileFieldOverrides"),
         ]);
 
         setIsVerified(savedIsVerified === "true");
-        setIsVerificationPending(false);
+        setIsVerificationPending(savedIsVerificationPending === "true");
         const overrides = savedOverrides ? JSON.parse(savedOverrides) : {};
 
         if (isPreview) {
@@ -229,20 +231,26 @@ export default function ProfileCardScreen() {
 
         try {
           const verificationRes = await getMyVerifications();
-          const hasApprovedVerification = verificationRes.data.data.some(
+          const verifications = verificationRes.data.data;
+          const hasSubmittedVerification = verifications.length > 0;
+          const hasApprovedVerification = verifications.some(
             (verification) => verification.status === "APPROVED",
           );
           const hasPendingVerification =
             !hasApprovedVerification &&
-            verificationRes.data.data.some(
+            verifications.some(
               (verification) => verification.status === "PENDING",
             );
+          const isVerified =
+            hasSubmittedVerification && hasApprovedVerification;
+          const isVerificationPending =
+            hasSubmittedVerification && hasPendingVerification;
 
-          setIsVerified(hasApprovedVerification);
-          setIsVerificationPending(hasPendingVerification);
+          setIsVerified(isVerified);
+          setIsVerificationPending(isVerificationPending);
           await AsyncStorage.setItem(
             "isVerified",
-            hasApprovedVerification ? "true" : "false",
+            isVerified ? "true" : "false",
           );
         } catch (error: any) {
           if (error instanceof SessionExpiredError) return;
@@ -358,10 +366,14 @@ export default function ProfileCardScreen() {
     : VerificationPendingIcon;
   const verificationTitle = isVerificationApproved
     ? "교환학생 인증 완료"
-    : "교환학생 인증 검토 중";
+    : isVerificationPending
+      ? "교환학생 인증 검토 중"
+      : "교환학생 인증 서류 제출";
   const verificationDescription = isVerificationApproved
     ? "인증이 완료되어 안전한 교환학생으로 표시됨"
-    : "제출하신 인증 서류를 확인하고 있어요";
+    : isVerificationPending
+      ? "제출하신 인증 서류를 확인하고 있어요"
+      : "파견교 인증을 위해 인증 서류를 제출해주세요";
   return (
     <SafeAreaView style={commonStyles.container}>
       <View style={[commonStyles.header]}>
@@ -641,19 +653,14 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   verificationTitle: {
-    fontSize: 14,
-    fontWeight: "800",
+    ...fonts.sub3_sb_16,
     color: "#18202B",
-    marginBottom: 2,
   },
   verificationTitleApproved: {
     color: "#FFFFFF",
   },
   verificationDesc: {
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 17,
-    color: "#64748B",
+    ...fonts.caption5_r_13,
   },
   verificationDescApproved: {
     color: "#ABB4C0",
