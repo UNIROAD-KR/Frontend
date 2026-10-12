@@ -1,4 +1,5 @@
 import { Text, TextInput } from "@/components/ui/app-text";
+import type { FreePostStatusFilter } from "../../../src/api/freePosts";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -31,7 +32,6 @@ import {
 } from "../../../src/api/companion";
 import { flags as countryFlags } from "@/components/market/MarketCountrySheet";
 import {
-  FreePostStatusFilter,
   FreePostSummaryResponse,
   getFreePosts,
 } from "../../../src/api/freePosts";
@@ -41,8 +41,9 @@ import { BLUE } from "../../../src/data/community";
 const communityTabs = ["자유 게시판", "동행 모집"] as const;
 const boardStatusFilters: FreePostStatusFilter[] = [
   "전체",
-  "파견 전",
-  "파견 중",
+  "고민글",
+  "사담글",
+  "질문글",
 ];
 const COMMUNITY_PAGE_SIZE = 10;
 const boardSortOptions = [
@@ -343,9 +344,7 @@ export default function CommunityScreen() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={
-                  `정렬 기준: ${boardSortOptions.find((option) => option.value === boardSortOrder)?.label}`
-                }
+                accessibilityLabel={`정렬 기준: ${boardSortOptions.find((option) => option.value === boardSortOrder)?.label}`}
                 onPress={() => setBoardSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
@@ -636,9 +635,7 @@ export default function CommunityScreen() {
                   }}
                   style={styles.boardSortOption}
                 >
-                  <Text style={styles.boardSortOptionText}>
-                    {option.label}
-                  </Text>
+                  <Text style={styles.boardSortOptionText}>{option.label}</Text>
                 </Pressable>
               ))}
             </View>

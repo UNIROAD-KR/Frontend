@@ -154,6 +154,7 @@ const syncLikedFreePostStorage = async (
       preview: post.content?.slice(0, 80) ?? "",
       country: post.country,
       status: post.status,
+      category: post.category,
       authorName: post.authorName,
       imageUrls: post.imageUrls,
       thumbnailImageUrl: post.imageUrls?.[0],
@@ -321,7 +322,8 @@ export default function CommunityDetailScreen() {
 
     return {
       author: boardPost.authorName || "익명",
-      authorNickname: boardPost.authorNickname || boardPost.authorName || "익명",
+      authorNickname:
+        boardPost.authorNickname || boardPost.authorName || "익명",
       title: boardPost.title,
       content: boardPost.content,
       country: boardPost.country,
@@ -866,8 +868,12 @@ export default function CommunityDetailScreen() {
             <View style={styles.freeAuthorCard}>
               <View style={styles.freeAuthorAvatar} />
               <View style={styles.authorCardText}>
-                <Text style={styles.freeAuthorName}>{viewModel.authorNickname}</Text>
-                <Text style={styles.freeAuthorMeta} numberOfLines={1}>{viewModel.country}</Text>
+                <Text style={styles.freeAuthorName}>
+                  {viewModel.authorNickname}
+                </Text>
+                <Text style={styles.freeAuthorMeta} numberOfLines={1}>
+                  {viewModel.country}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={24} color="#111111" />
             </View>
@@ -1454,9 +1460,29 @@ const styles = StyleSheet.create({
   },
   freeTitleBlock: { paddingBottom: 24 },
   freeTitle: { ...fonts.title3_b_24, color: "#090B0D", lineHeight: 36 },
-  freeCreatedAt: { fontSize: 16, lineHeight: 24, color: "#737F90", marginTop: 16 },
-  freeAuthorCard: { flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 1, borderColor: "#E0E4EA", borderRadius: 12, backgroundColor: "#F8F9FA" },
-  freeAuthorAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#E0E4E9" },
+  freeCreatedAt: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#737F90",
+    marginTop: 16,
+  },
+  freeAuthorCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#E0E4EA",
+    borderRadius: 12,
+    backgroundColor: "#F8F9FA",
+  },
+  freeAuthorAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#E0E4E9",
+  },
   freeAuthorName: { fontSize: 16, fontWeight: "600", color: "#111111" },
   freeAuthorMeta: { fontSize: 14, lineHeight: 21, color: "#536071" },
   freeContent: { paddingHorizontal: 16, paddingBottom: 0 },
