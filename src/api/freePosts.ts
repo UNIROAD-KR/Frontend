@@ -1,13 +1,20 @@
-import { api } from './client';
-import { BaseResponse, CursorRequest, CursorResponse } from './types';
+import { api } from "./client";
+import { BaseResponse, CursorRequest, CursorResponse } from "./types";
+export type FreePostStatusFilter = "전체" | "고민글" | "사담글" | "질문글";
+export const FreePostCategoryMap = {
+  질문글: "QUESTION",
+  사담글: "CHAT",
+  고민글: "WORRY",
+} as const;
+export type FreePostCategory =
+  (typeof FreePostCategoryMap)[keyof typeof FreePostCategoryMap];
 
 export interface FreePostRequest {
+  category?: FreePostCategory;
   title: string;
   content: string;
   imageUrls?: string[];
 }
-
-export type FreePostStatusFilter = '전체' | '파견 전' | '파견 중';
 
 export interface FreePostSummaryResponse {
   id: number;
@@ -15,6 +22,7 @@ export interface FreePostSummaryResponse {
   preview: string;
   country: string;
   status: string;
+  category: string;
   authorName: string;
   likeCount: number;
   scrapCount?: number;
@@ -37,6 +45,7 @@ export interface FreePostDetailResponse {
   content: string;
   country: string;
   status: string;
+  category: string;
   authorName: string;
   authorNickname?: string;
   imageUrls?: string[];
@@ -54,37 +63,31 @@ export interface FreePostLikeResponse {
   likeCount: number;
 }
 
-const freePostListEndpointMap: Record<FreePostStatusFilter, string[]> = {
-  전체: ['/api/community/free-posts/all', '/api/community/free-posts'],
-  '파견 전': [
-    '/api/community/free-posts/pre-dispatch',
-    '/api/community/free-posts/before-dispatch',
-  ],
-  '파견 중': [
-    '/api/community/free-posts/dispatching',
-    '/api/community/free-posts/dispatched',
-  ],
+const freePostListEndpointMap: Record<FreePostStatusFilter, string> = {
+  전체: "/api/community/free-posts?sort=LATEST&size=10",
+  질문글: "/api/community/free-posts?category=QUESTION&sort=LATEST&size=10",
+  사담글: "/api/community/free-posts?category=CHAT&sort=LATEST&size=10",
+  고민글: "/api/community/free-posts?category=WORRY&sort=LATEST&size=10",
 };
 
 export const getFreePosts = async (
   params: CursorRequest = { size: 10 },
-  statusFilter: FreePostStatusFilter = '전체',
+  statusFilter: FreePostStatusFilter,
 ) => {
   const endpoints = freePostListEndpointMap[statusFilter];
   let lastError: unknown = null;
 
-  for (const endpoint of endpoints) {
-    try {
-      return await api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-        endpoint,
-        { params },
-      );
-    } catch (error: any) {
-      lastError = error;
+  try {
+    const response = await api.get<
+      BaseResponse<CursorResponse<FreePostSummaryResponse>>
+    >(endpoints, { params });
+    console.log(response.data);
+    return response.data;
+  } catch (error: any) {
+    lastError = error;
 
-      if (error.response?.status !== 404) {
-        throw error;
-      }
+    if (error.response?.status !== 404) {
+      throw error;
     }
   }
 
@@ -93,27 +96,27 @@ export const getFreePosts = async (
 
 export const getMyFreePosts = (params: CursorRequest = { size: 20 }) => {
   return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-    '/api/community/free-posts/my',
+    "/api/community/free-posts/my",
     { params },
   );
 };
 
 export const getLikedFreePosts = (params: CursorRequest = { size: 20 }) => {
   return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-    '/api/community/free-posts/liked',
+    "/api/community/free-posts/liked",
     { params },
   );
 };
 
 export const getScrappedFreePosts = (params: CursorRequest = { size: 20 }) => {
   return api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-    '/api/community/free-posts/scraps',
+    "/api/community/free-posts/scraps",
     { params },
   );
 };
 
 export const createFreePost = (data: FreePostRequest) => {
-  return api.post<BaseResponse<number>>('/api/community/free-posts', data);
+  return api.post<BaseResponse<number>>("/api/community/free-posts", data);
 };
 
 export const getFreePostDetail = (postId: number) => {
@@ -123,7 +126,10 @@ export const getFreePostDetail = (postId: number) => {
 };
 
 export const updateFreePost = (postId: number, data: FreePostRequest) => {
-  return api.put<BaseResponse<void>>(`/api/community/free-posts/${postId}`, data);
+  return api.put<BaseResponse<void>>(
+    `/api/community/free-posts/${postId}`,
+    data,
+  );
 };
 
 export const deleteFreePost = (postId: number) => {

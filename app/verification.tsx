@@ -24,10 +24,7 @@ import {
 } from "@/components/ui/app-back-button";
 import ArrowDownIcon from "@/assets/icon/Property 1=arrow2, Property 2=down.svg";
 import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-approved-card.svg";
-import VerificationAddImageIcon from "@/assets/icon/verification/add-image.svg";
-import ApprovedBadge from "@/assets/icon/verification/approved-badge.svg";
 import LatestReviewIcon from "@/assets/icon/verification/latest-review-icon.svg";
-import PendingBadge from "@/assets/icon/verification/pending-badge.svg";
 import { getMemberMe } from "../src/api/auth";
 import { getUploadUrl, uploadFileToStorage } from "../src/api/upload";
 import {
@@ -50,8 +47,6 @@ type PickedImage = {
 };
 
 const BLUE = "#3568DA";
-const NAVY = "#18202B";
-const INK = "#1A2029";
 const MUTED = "#7A8491";
 const LINE = "#E3E7EC";
 const SOFT = "#F2F4F7";
@@ -705,34 +700,8 @@ function VerificationBadge({ status }: { status: VerificationStatus }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F6F8FA",
-  },
-  header: {
-    height: 118,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 43,
-    paddingBottom: 12,
-    backgroundColor: "#F6F8FA",
-    position: "relative",
-  },
   backButton: {
     backgroundColor: "transparent",
-  },
-  headerTitle: {
-    position: "absolute",
-    top: 57,
-    left: 0,
-    right: 0,
-    height: 34,
-    lineHeight: 34,
-    fontSize: 16,
-    fontWeight: "800",
-    color: NAVY,
-    textAlign: "center",
   },
   scroll: {
     flex: 1,
@@ -750,26 +719,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  title: {
-    fontSize: 24,
-    lineHeight: 34,
-    fontWeight: "900",
-    color: INK,
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: MUTED,
-    marginBottom: 26,
-  },
-  formSectionTitle: {
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: "900",
-    color: INK,
-    marginBottom: 16,
-  },
   sectionHeader: {
     marginTop: 32,
     marginBottom: 12,
@@ -778,12 +727,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     position: "relative",
     zIndex: 2,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    lineHeight: 28,
-    fontWeight: "900",
-    color: INK,
   },
   sortControl: {
     position: "relative",
@@ -794,11 +737,6 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingVertical: 6,
     paddingLeft: 8,
-  },
-  sortLabelText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: MUTED,
   },
   sortMenu: {
     position: "absolute",
@@ -894,13 +832,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 3,
   },
-  historyTitle: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "900",
-    color: INK,
-  },
   statusPill: {
     borderRadius: 3,
     paddingHorizontal: 6,
@@ -909,12 +840,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: "900",
-  },
-  historyDate: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: MUTED,
-    marginTop: 1,
   },
   rejectReason: {
     marginTop: 8,
@@ -934,21 +859,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 20,
   },
-  imagePickerTitle: {
-    marginTop: 14,
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: "900",
-    color: INK,
-  },
-  imagePickerDescription: {
-    marginTop: 8,
-    fontSize: 14,
-    lineHeight: 21,
-    fontWeight: "700",
-    color: MUTED,
-    textAlign: "center",
-  },
   previewContent: {
     width: "100%",
     flexDirection: "row",
@@ -964,18 +874,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  previewTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: INK,
-  },
-  previewSubtitle: {
-    marginTop: 5,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-    color: MUTED,
-  },
   infoBox: {
     borderWidth: 1,
     borderColor: Colors.gray[3],
@@ -983,12 +881,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray[1],
     padding: 16,
     gap: 8,
-  },
-  infoText: {
-    fontSize: 13,
-    lineHeight: 21,
-    fontWeight: "700",
-    color: "#536174",
   },
   primaryButton: {
     height: 52,
@@ -1000,18 +892,6 @@ const styles = StyleSheet.create({
   primaryButtonDisabled: {
     backgroundColor: "#B1B8C1",
   },
-  primaryButtonText: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-  bottomNotice: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#A0A0A0",
-    textAlign: "center",
-    marginTop: 12,
-  },
   historyFooter: {
     position: "absolute",
     right: 0,
@@ -1020,7 +900,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 30,
-    backgroundColor: "#F6F8FA",
+    backgroundColor: "#FFFFFF",
   },
   formFooter: {
     position: "absolute",

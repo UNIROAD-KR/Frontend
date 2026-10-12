@@ -34,7 +34,7 @@ const initials = [
   "ㅍ",
   "ㅎ",
 ];
-const filters = [
+export const countryInitialFilters = [
   "전체",
   "ㄱ",
   "ㄴ",
@@ -82,7 +82,7 @@ export const flags: Record<string, string> = {
   브라질: "🇧🇷",
   튀르키예: "🇹🇷",
 };
-const countries = [
+export const sortedCountries = [
   ...new Set([
     ...countryOptions.filter(
       (country) => country !== CUSTOM_COUNTRY_OPTION && country !== "미정",
@@ -90,7 +90,7 @@ const countries = [
     "튀르키예",
   ]),
 ].sort((a, b) => a.localeCompare(b, "ko"));
-function initialOf(value: string) {
+export function initialOf(value: string) {
   const code = value.charCodeAt(0) - 0xac00;
   if (code < 0 || code > 11171) return "";
   const initial = initials[Math.floor(code / 588)];
@@ -122,8 +122,8 @@ export function MarketCountrySheet({
   const insets = useSafeAreaInsets();
   const displayed =
     initial === "전체"
-      ? countries
-      : countries.filter((country) => initialOf(country) === initial);
+      ? sortedCountries
+      : sortedCountries.filter((country) => initialOf(country) === initial);
   return (
     <BottomSheetModal
       visible={visible}
@@ -158,7 +158,7 @@ export function MarketCountrySheet({
             style={styles.filterScroll}
             contentContainerStyle={styles.filters}
           >
-            {filters.map((value) => (
+            {countryInitialFilters.map((value) => (
               <Pressable
                 key={value}
                 accessibilityRole="button"

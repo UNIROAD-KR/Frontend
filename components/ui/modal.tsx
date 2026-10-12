@@ -7,6 +7,7 @@ import { Colors, fonts } from "@/constants/theme";
 interface ModalButton {
   label: string;
   onPress: () => void;
+  tone?: "default" | "destructive";
 }
 
 interface ModalProps {
@@ -16,6 +17,7 @@ interface ModalProps {
   description?: string;
   primaryButton?: ModalButton;
   secondaryButton?: ModalButton;
+  tertiaryButton?: ModalButton;
 }
 
 export function Modal({
@@ -25,6 +27,7 @@ export function Modal({
   description,
   primaryButton,
   secondaryButton,
+  tertiaryButton,
 }: ModalProps) {
   return (
     <RNModal
@@ -63,7 +66,7 @@ export function Modal({
               {description}
             </Text>
           ) : null}
-          {primaryButton || secondaryButton ? (
+          {primaryButton || secondaryButton || tertiaryButton ? (
             <View
               style={{
                 flexDirection: "row",
@@ -71,6 +74,21 @@ export function Modal({
                 marginTop: 8,
               }}
             >
+              {tertiaryButton ? (
+                <Pressable
+                  onPress={tertiaryButton.onPress}
+                  style={{
+                    minWidth: 80,
+                    height: 36,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+                    {tertiaryButton.label}
+                  </Text>
+                </Pressable>
+              ) : null}
               {secondaryButton ? (
                 <Pressable
                   onPress={secondaryButton.onPress}
@@ -81,7 +99,17 @@ export function Modal({
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+                  <Text
+                    style={[
+                      fonts.sub4_sb_14,
+                      {
+                        color:
+                          secondaryButton.tone === "destructive"
+                            ? "#D92D20"
+                            : Colors.gray[8],
+                      },
+                    ]}
+                  >
                     {secondaryButton.label}
                   </Text>
                 </Pressable>

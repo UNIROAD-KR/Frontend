@@ -1,4 +1,5 @@
 import { Text, TextInput } from "@/components/ui/app-text";
+import type { FreePostStatusFilter } from "../../../src/api/freePosts";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -31,18 +32,25 @@ import {
 } from "../../../src/api/companion";
 import { flags as countryFlags } from "@/components/market/MarketCountrySheet";
 import {
-  FreePostStatusFilter,
   FreePostSummaryResponse,
   getFreePosts,
 } from "../../../src/api/freePosts";
 import { Colors, fonts } from "@/constants/theme";
 import { BLUE } from "../../../src/data/community";
+import FreePostList from "@/components/community/FreePostList";
+import {
+  CompanionFilterSheet,
+  emptyCompanionFilters,
+  matchesCompanionFilters,
+  type CompanionFilters,
+} from "@/components/community/CompanionFilterSheet";
 
 const communityTabs = ["자유 게시판", "동행 모집"] as const;
 const boardStatusFilters: FreePostStatusFilter[] = [
   "전체",
-  "파견 전",
-  "파견 중",
+  "고민글",
+  "사담글",
+  "질문글",
 ];
 const COMMUNITY_PAGE_SIZE = 10;
 const boardSortOptions = [
@@ -53,6 +61,54 @@ const boardSortOptions = [
 
 type CommunityTab = (typeof communityTabs)[number];
 type BoardSortOrder = (typeof boardSortOptions)[number]["value"];
+const companionSortOptions = [
+  { value: "newest", label: "최신순" },
+  { value: "oldest", label: "오래된순" },
+] as const;
+type CompanionSortOrder = (typeof companionSortOptions)[number]["value"];
+
+const BoardStatusFilters = React.memo(function BoardStatusFilters({
+  selectedStatus,
+  onSelect,
+}: {
+  selectedStatus: FreePostStatusFilter;
+  onSelect: (status: FreePostStatusFilter) => void;
+}) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.boardStatusFilterRow}
+    >
+      {boardStatusFilters.map((status) => {
+        const selected = selectedStatus === status;
+        return (
+          <Pressable
+            key={status}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            onPress={() => onSelect(status)}
+            style={[
+              styles.boardStatusFilter,
+              selected && styles.boardStatusFilterSelected,
+            ]}
+          >
+            <Text
+              style={[
+                fonts.body2_m_14,
+                selected
+                  ? styles.boardStatusFilterTextSelected
+                  : styles.boardStatusFilterText,
+              ]}
+            >
+              {status}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+});
 
 const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
   const formatDate = (value?: string) =>
@@ -68,7 +124,7 @@ const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
 };
 
 const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
-  status === "RECRUITING" ? "모집중" : "모집완료";
+  status === "RECRUITING" ? "모집 중" : "모집완료";
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -81,10 +137,18 @@ export default function CommunityScreen() {
   const [activeTab, setActiveTab] = useState<CommunityTab>("자유 게시판");
   const [boardKeyword, setBoardKeyword] = useState("");
   const [companionKeyword, setCompanionKeyword] = useState("");
+  const [companionFilterSheetVisible, setCompanionFilterSheetVisible] =
+    useState(false);
+  const [companionFilters, setCompanionFilters] =
+    useState<CompanionFilters>(emptyCompanionFilters);
   const [selectedBoardStatus, setSelectedBoardStatus] =
     useState<FreePostStatusFilter>("전체");
   const [boardSortOrder, setBoardSortOrder] =
     useState<BoardSortOrder>("newest");
+  const [companionSortOrder, setCompanionSortOrder] =
+    useState<CompanionSortOrder>("newest");
+  const [companionSortSheetVisible, setCompanionSortSheetVisible] =
+    useState(false);
   const [boardSortSheetVisible, setBoardSortSheetVisible] = useState(false);
   const [boardPosts, setBoardPosts] = useState<FreePostSummaryResponse[]>([]);
   const [boardLoadError, setBoardLoadError] = useState(false);
@@ -104,6 +168,8 @@ export default function CommunityScreen() {
   const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
   const didMountRef = useRef(false);
   const boardKeywordRef = useRef("");
+  const selectedBoardStatusRef = useRef(selectedBoardStatus);
+  const didMountBoardStatusRef = useRef(false);
   const isWide = width >= 768;
 
   const loadFreePosts = useCallback(
@@ -120,9 +186,10 @@ export default function CommunityScreen() {
             keyword: keyword.length > 0 ? keyword : undefined,
             size: COMMUNITY_PAGE_SIZE,
           },
-          selectedBoardStatus,
+          selectedBoardStatusRef.current,
         );
-        const cursorData = freeResponse.data.data;
+        console.log(freeResponse.data);
+        const cursorData = freeResponse.data;
         const nextItems = cursorData?.items ?? [];
 
         setBoardLoadError(false);
@@ -137,7 +204,7 @@ export default function CommunityScreen() {
         );
       }
     },
-    [selectedBoardStatus],
+    [],
   );
 
   const loadCompanionPosts = useCallback(
@@ -226,6 +293,19 @@ export default function CommunityScreen() {
     return () => clearTimeout(timer);
   }, [boardKeyword, loadFreePosts]);
 
+  useEffect(() => {
+    selectedBoardStatusRef.current = selectedBoardStatus;
+  }, [selectedBoardStatus]);
+
+  useEffect(() => {
+    if (!didMountBoardStatusRef.current) {
+      didMountBoardStatusRef.current = true;
+      return;
+    }
+
+    void loadFreePosts();
+  }, [selectedBoardStatus, loadFreePosts]);
+
   const initialTab = Array.isArray(tab) ? tab[0] : tab;
   const openedFromTab =
     (Array.isArray(fromTab) ? fromTab[0] : fromTab) === "true";
@@ -243,10 +323,8 @@ export default function CommunityScreen() {
       const matchesKeyword =
         keyword.length === 0 ||
         `${post.title} ${post.preview}`.toLowerCase().includes(keyword);
-      const matchesStatus =
-        selectedBoardStatus === "전체" || post.status === selectedBoardStatus;
 
-      return matchesKeyword && matchesStatus;
+      return matchesKeyword;
     });
     return [...filtered].sort((a, b) => {
       const dateOrder =
@@ -256,7 +334,7 @@ export default function CommunityScreen() {
       }
       return boardSortOrder === "oldest" ? dateOrder : -dateOrder;
     });
-  }, [boardKeyword, boardPosts, boardSortOrder, selectedBoardStatus]);
+  }, [boardKeyword, boardPosts, boardSortOrder]);
 
   const filteredCompanions = useMemo(() => {
     const keyword = companionKeyword.trim().toLowerCase();
@@ -267,11 +345,23 @@ export default function CommunityScreen() {
           .toLowerCase()
           .includes(keyword);
 
-      return matchesKeyword;
+      return matchesKeyword && matchesCompanionFilters(post, companionFilters);
     });
 
-    return filtered;
-  }, [companionPosts, companionKeyword]);
+    return [...filtered].sort((a, b) => {
+      const dateOrder =
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return companionSortOrder === "oldest" ? dateOrder : -dateOrder;
+    });
+  }, [companionPosts, companionKeyword, companionFilters, companionSortOrder]);
+
+  const hasCompanionFilters = useMemo(
+    () =>
+      (Object.keys(emptyCompanionFilters) as (keyof CompanionFilters)[]).some(
+        (key) => companionFilters[key] !== emptyCompanionFilters[key],
+      ),
+    [companionFilters],
+  );
 
   const handleFabPress = () => {
     router.push({
@@ -343,9 +433,7 @@ export default function CommunityScreen() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={
-                  `정렬 기준: ${boardSortOptions.find((option) => option.value === boardSortOrder)?.label}`
-                }
+                accessibilityLabel={`정렬 기준: ${boardSortOptions.find((option) => option.value === boardSortOrder)?.label}`}
                 onPress={() => setBoardSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
@@ -353,122 +441,17 @@ export default function CommunityScreen() {
               </Pressable>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.boardStatusFilterRow}
-            >
-              {boardStatusFilters.map((status) => {
-                const selected = selectedBoardStatus === status;
-                return (
-                  <Pressable
-                    key={status}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => setSelectedBoardStatus(status)}
-                    style={[
-                      styles.boardStatusFilter,
-                      selected && styles.boardStatusFilterSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        fonts.body2_m_14,
-                        selected
-                          ? styles.boardStatusFilterTextSelected
-                          : styles.boardStatusFilterText,
-                      ]}
-                    >
-                      {status}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <BoardStatusFilters
+              selectedStatus={selectedBoardStatus}
+              onSelect={setSelectedBoardStatus}
+            />
 
-            <View style={[styles.boardList, isWide && styles.gridList]}>
-              {filteredBoardPosts.length ? (
-                filteredBoardPosts.map((post) => (
-                  <Pressable
-                    key={post.id}
-                    style={[styles.boardCard, isWide && styles.gridCard]}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/community-detail",
-                        params: { type: "free", id: String(post.id) },
-                      } as never)
-                    }
-                  >
-                    <View style={styles.boardInfo}>
-                      <View style={styles.boardText}>
-                        <Text style={styles.boardTitle} numberOfLines={1}>
-                          {post.title}
-                        </Text>
-                        <Text style={styles.boardPreview} numberOfLines={1}>
-                          {post.preview}
-                        </Text>
-                        <View style={styles.boardFooter}>
-                          <View style={styles.statsRow}>
-                            <Text style={styles.statText}>
-                              좋아요 {post.likeCount}
-                            </Text>
-                            <Text style={styles.statDivider}>·</Text>
-                            <Text style={styles.statText}>
-                              댓글 {post.commentCount}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.boardThumbnail}>
-                      {!!post.thumbnailImageUrl && (
-                        <Image
-                          source={{ uri: post.thumbnailImageUrl }}
-                          style={styles.boardThumbnailImage}
-                        />
-                      )}
-                    </View>
-                  </Pressable>
-                ))
-              ) : (
-                <View style={styles.boardEmptyState}>
-                  <Ionicons
-                    name={
-                      boardLoadError
-                        ? "cloud-offline-outline"
-                        : "chatbubbles-outline"
-                    }
-                    size={30}
-                    color="#B1B8C1"
-                  />
-                  <Text style={styles.boardEmptyTitle}>
-                    {boardLoadError
-                      ? "게시글을 불러오지 못했어요"
-                      : boardKeyword.trim()
-                        ? "검색 결과가 없어요"
-                        : "아직 게시글이 없어요"}
-                  </Text>
-                  <Text style={styles.boardEmptyDescription}>
-                    {boardLoadError
-                      ? "잠시 후 다시 시도해주세요."
-                      : boardKeyword.trim()
-                        ? "다른 키워드로 검색해보세요."
-                        : "자유 게시판의 첫 글을 기다리고 있어요."}
-                  </Text>
-                  {boardLoadError && (
-                    <Pressable
-                      accessibilityRole="button"
-                      style={styles.boardEmptyRetry}
-                      onPress={() =>
-                        loadFreePosts(undefined, false, boardKeyword)
-                      }
-                    >
-                      <Text style={styles.boardEmptyRetryText}>다시 시도</Text>
-                    </Pressable>
-                  )}
-                </View>
-              )}
-            </View>
+            <FreePostList
+              data={filteredBoardPosts}
+              boardKeyword={boardKeyword}
+              boardLoadError={boardLoadError}
+              onRetry={() => loadFreePosts(undefined, false, boardKeyword)}
+            />
 
             {boardHasNext && (
               <Pressable
@@ -497,16 +480,42 @@ export default function CommunityScreen() {
                 />
                 <Ionicons name="search" size={23} color="#17191D" />
               </View>
+              <View style={styles.filterButtonWrap}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="동행 모집 필터"
+                  onPress={() => setCompanionFilterSheetVisible(true)}
+                  style={[
+                    styles.boardSortButton,
+                    hasCompanionFilters && {
+                      borderColor: Colors.primary.default,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={22}
+                    color={
+                      hasCompanionFilters ? Colors.primary.default : "#17191D"
+                    }
+                  />
+                </Pressable>
+                {hasCompanionFilters && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="필터 초기화"
+                    hitSlop={8}
+                    onPress={() => setCompanionFilters(emptyCompanionFilters)}
+                    style={styles.filterResetButton}
+                  >
+                    <Ionicons name="close" size={12} color="#FFFFFF" />
+                  </Pressable>
+                )}
+              </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="동행 모집 필터"
-                style={styles.boardSortButton}
-              >
-                <Ionicons name="options-outline" size={22} color="#17191D" />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="동행 모집 정렬"
+                accessibilityLabel={`정렬 기준: ${companionSortOptions.find((option) => option.value === companionSortOrder)?.label}`}
+                onPress={() => setCompanionSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
                 <Ionicons name="swap-vertical" size={22} color="#17191D" />
@@ -548,32 +557,41 @@ export default function CommunityScreen() {
                     <Text style={styles.companionTitle} numberOfLines={1}>
                       {post.title}
                     </Text>
-                    <View style={styles.companionInfoRow}>
-                      <Text style={styles.companionInfoLabel}>일정</Text>
-                      <Text style={styles.companionInfoValue}>
-                        {formatCompanionPeriod(post.startDate, post.endDate)}
-                      </Text>
-                    </View>
-                    <View style={styles.companionInfoRow}>
-                      <Text style={styles.companionInfoLabel}>인원</Text>
-                      <Text style={styles.companionInfoValue}>
-                        {post.currentParticipants}/{post.capacity}명
-                      </Text>
-                      <View
-                        style={[
-                          styles.smallStatus,
-                          post.status === "COMPLETED" && styles.smallStatusDone,
-                        ]}
-                      >
-                        <Text
+                    <View style={{ flexDirection: "column", gap: 4 }}>
+                      <View style={styles.companionInfoRow}>
+                        <Text style={styles.companionInfoLabel}>일정</Text>
+                        <Text style={styles.companionInfoValue}>
+                          {formatCompanionPeriod(post.startDate, post.endDate)}
+                        </Text>
+                      </View>
+                      <View style={styles.companionInfoRow}>
+                        <Text style={styles.companionInfoLabel}>성별</Text>
+                        <Text style={styles.companionInfoValue}>
+                          {post.genderRatio}
+                        </Text>
+                      </View>
+                      <View style={styles.companionInfoRow}>
+                        <Text style={styles.companionInfoLabel}>인원</Text>
+                        <Text style={styles.companionInfoValue}>
+                          {post.currentParticipants}/{post.capacity}명
+                        </Text>
+                        <View
                           style={[
-                            styles.smallStatusText,
+                            styles.smallStatus,
                             post.status === "COMPLETED" &&
-                              styles.smallStatusDoneText,
+                              styles.smallStatusDone,
                           ]}
                         >
-                          {getCompanionStatusText(post.status)}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.smallStatusText,
+                              post.status === "COMPLETED" &&
+                                styles.smallStatusDoneText,
+                            ]}
+                          >
+                            {getCompanionStatusText(post.status)}
+                          </Text>
+                        </View>
                       </View>
                     </View>
                   </View>
@@ -636,9 +654,7 @@ export default function CommunityScreen() {
                   }}
                   style={styles.boardSortOption}
                 >
-                  <Text style={styles.boardSortOptionText}>
-                    {option.label}
-                  </Text>
+                  <Text style={styles.boardSortOptionText}>{option.label}</Text>
                 </Pressable>
               ))}
             </View>
@@ -646,6 +662,50 @@ export default function CommunityScreen() {
           </BottomSheetView>
         </View>
       </BottomSheetModal>
+      <BottomSheetModal
+        visible={companionSortSheetVisible}
+        onRequestClose={() => setCompanionSortSheetVisible(false)}
+      >
+        <View style={styles.boardSortOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityRole="button"
+            accessibilityLabel="정렬 선택 닫기"
+            onPress={() => setCompanionSortSheetVisible(false)}
+          />
+          <BottomSheetView style={styles.boardSortSheet}>
+            <View style={styles.boardSortOptions}>
+              <View style={styles.boardSortHandle} />
+              {companionSortOptions.map((option) => (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{
+                    checked: companionSortOrder === option.value,
+                  }}
+                  onPress={() => {
+                    setCompanionSortOrder(option.value);
+                    setCompanionSortSheetVisible(false);
+                  }}
+                  style={styles.boardSortOption}
+                >
+                  <Text style={styles.boardSortOptionText}>{option.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={{ height: insets.bottom }} />
+          </BottomSheetView>
+        </View>
+      </BottomSheetModal>
+      <CompanionFilterSheet
+        visible={companionFilterSheetVisible}
+        value={companionFilters}
+        onClose={() => setCompanionFilterSheetVisible(false)}
+        onApply={(filters) => {
+          setCompanionFilters(filters);
+          setCompanionFilterSheetVisible(false);
+        }}
+      />
     </View>
   );
 }
@@ -785,6 +845,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  filterButtonWrap: { position: "relative" },
+  filterResetButton: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.gray[7],
+    alignItems: "center",
+    justifyContent: "center",
+  },
   boardSortOverlay: {
     flex: 1,
     justifyContent: "flex-end",
@@ -888,41 +960,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#111111",
   },
-  boardList: {
-    gap: 0,
-  },
-  boardEmptyState: {
-    minHeight: 220,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  boardEmptyTitle: {
-    marginTop: 4,
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333D4B",
-    textAlign: "center",
-  },
-  boardEmptyDescription: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#8B95A1",
-    textAlign: "center",
-  },
-  boardEmptyRetry: {
-    marginTop: 8,
-    borderRadius: 18,
-    backgroundColor: "#F0F2F6",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  boardEmptyRetryText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#4E5968",
-  },
   loadMoreButton: {
     height: 44,
     borderRadius: 12,
@@ -943,70 +980,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "stretch",
   },
-  boardCard: {
-    minHeight: 76,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-  },
   gridCard: {
     width: "48.7%",
-  },
-  boardInfo: {
-    minHeight: 76,
-    flex: 1,
-    minWidth: 0,
-    justifyContent: "space-between",
-  },
-  boardText: {
-    flex: 1,
-    justifyContent: "center",
-  },
-  boardThumbnail: {
-    width: 76,
-    height: 76,
-    borderRadius: 8,
-    overflow: "hidden",
-    backgroundColor: "#E1E4E9",
-  },
-  boardThumbnailImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-  },
-  timeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#B4B4B4",
-  },
-  boardTitle: {
-    ...fonts.sub3_sb_16,
-    color: Colors.gray[11],
-  },
-  boardPreview: {
-    marginTop: 4,
-    ...fonts.body4_r_14,
-    color: Colors.gray[6],
-  },
-  boardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  statText: {
-    ...fonts.caption3_m_13,
-    color: Colors.gray[8],
-  },
-  statDivider: {
-    fontSize: 13,
-    color: "#596579",
   },
   compactFilterBar: {
     position: "relative",
@@ -1174,20 +1149,20 @@ const styles = StyleSheet.create({
   companionTitle: {
     ...fonts.sub1_sb_18,
     color: Colors.gray[10],
-    marginBottom: 5,
+    marginBottom: 4,
   },
   smallStatus: {
-    borderRadius: 4,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    backgroundColor: "#EAF1FF",
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    backgroundColor: "#EAF3FF",
   },
   smallStatusDone: {
     backgroundColor: "#F0F2F6",
   },
   smallStatusText: {
-    ...fonts.caption3_m_13,
-    color: BLUE,
+    ...fonts.caption4_m_12,
+    color: Colors.primary.default,
   },
   smallStatusDoneText: {
     color: "#6B7684",
@@ -1195,11 +1170,9 @@ const styles = StyleSheet.create({
   companionInfoRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 25,
-    gap: 10,
+    gap: 8,
   },
   companionInfoLabel: {
-    width: 30,
     ...fonts.caption4_m_12,
     color: Colors.gray[8],
   },
