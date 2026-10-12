@@ -19,15 +19,15 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { SvgProps } from "react-native-svg";
 
-import ChatFilledIcon from "@/assets/icon/Property 1=chat, Property 2=fill.svg";
-import ChatLineIcon from "@/assets/icon/Property 1=chat, Property 2=line.svg";
-import CommunityFilledIcon from "@/assets/icon/Property 1=community, Property 2=fill.svg";
-import CommunityLineIcon from "@/assets/icon/Property 1=community, Property 2=line.svg";
-import HomeFilledIcon from "@/assets/icon/Property 1=home, Property 2=fill.svg";
-import HomeLineIcon from "@/assets/icon/Property 1=home, Property 2=line.svg";
-import SearchFilledIcon from "@/assets/icon/Property 1=search, Property 2=fill.svg";
-import SearchLineIcon from "@/assets/icon/Property 1=search, Property 2=line.svg";
-import ShopFilledIcon from "@/assets/icon/Property 1=shop, Property 2=fill.svg";
+import ChatFilledIcon from "@/assets/icon/chat-fill.svg";
+import ChatLineIcon from "@/assets/icon/chat.svg";
+import CommunityFilledIcon from "@/assets/icon/people.svg";
+import CommunityLineIcon from "@/assets/icon/people-line.svg";
+import HomeFilledIcon from "@/assets/icon/home-fill.svg";
+import HomeLineIcon from "@/assets/icon/home.svg";
+import SearchFilledIcon from "@/assets/icon/list-fill.svg";
+import SearchLineIcon from "@/assets/icon/list.svg";
+import ShopFilledIcon from "@/assets/icon/shop-fill.svg";
 import HeaderProvider from "./components/HeaderProvider";
 
 type SvgIcon = ComponentType<SvgProps>;
@@ -47,12 +47,12 @@ const MARKET_CREATION_ROUTES = new Set([
 
 const tabMeta = {
   home: {
-    label: "홈 화면",
+    label: "홈",
     icon: HomeLineIcon,
     activeIcon: HomeFilledIcon,
   },
   explore: {
-    label: "탐색하기",
+    label: "관리",
     icon: SearchLineIcon,
     activeIcon: SearchFilledIcon,
   },
@@ -251,7 +251,7 @@ export default function TabLayout() {
               },
             }}
             options={{
-              title: "탐색하기",
+              title: "관리",
             }}
           />
 
@@ -329,11 +329,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
     borderTopColor: "#EEF0F3",
+    paddingHorizontal: 16,
   },
   tabSlot: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     gap: 6,
   },
   tabLabel: {

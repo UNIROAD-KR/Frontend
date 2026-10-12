@@ -23,9 +23,9 @@ import {
   CompanionPostRequest,
   createCompanionPost,
   updateCompanionPost,
-} from "../src/api/companion";
-import { BLUE } from "../src/data/community";
-import { canUseMarketWithoutVerification } from "../src/utils/verification";
+} from "../../src/api/companion";
+import { BLUE } from "../../src/data/community";
+import { canUseMarketWithoutVerification } from "../../src/utils/verification";
 import { Colors, fonts } from "@/constants/theme";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

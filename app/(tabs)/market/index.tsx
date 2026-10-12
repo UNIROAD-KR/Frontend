@@ -13,13 +13,13 @@ import {
 import { UsedMarketScreen } from "@/components/market/UsedMarketScreen";
 import { TicketTransferScreen } from "@/components/market/TicketTransferScreen";
 import { Text, TextInput } from "@/components/ui/app-text";
+import { Modal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -67,6 +67,12 @@ type LikedMarketPost = {
   time: string;
   imageUrl: string;
 };
+
+type MarketModalState =
+  | { type: "verification"; visible: boolean }
+  | { type: "bulkDraft"; draft: MarketDraft; visible: boolean }
+  | { type: "ticketDraft"; visible: boolean }
+  | null;
 
 const formatPrice = (price: number) => {
   if (!price) return "가격 미정";
@@ -186,6 +192,7 @@ export default function MarketPage() {
     useState<MarketFilters>(emptyMarketFilters);
   const [sortOrder, setSortOrder] = useState<MarketSortOrder>("newest");
   const [isFabOpen, setIsFabOpen] = useState(false);
+  const [marketModal, setMarketModal] = useState<MarketModalState>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const openedEditDetailRef = useRef<string | null>(null);
   const latestMarketQueryRef = useRef({
@@ -465,22 +472,8 @@ export default function MarketPage() {
   };
 
   const checkVerificationStatus = async () => {
-    const showVerificationAlert = () => {
-      Alert.alert(
-        "교환학생 인증",
-        "중고거래를 이용하려면 교환학생 신원 인증이 필요해요.",
-        [
-          {
-            text: "취소",
-            style: "cancel",
-          },
-          {
-            text: "신원 인증하기",
-            onPress: () => router.push("/verification-consent" as any),
-          },
-        ],
-      );
-    };
+    const showVerificationModal = () =>
+      setMarketModal({ type: "verification", visible: true });
 
     try {
       const canUseMarket = await canUseMarketWithoutVerification();
@@ -491,10 +484,10 @@ export default function MarketPage() {
         return;
       }
 
-      showVerificationAlert();
+      showVerificationModal();
     } catch (error: any) {
       console.log("내 정보 조회 실패:", error.response?.data || error.message);
-      showVerificationAlert();
+      showVerificationModal();
     }
   };
 
@@ -601,21 +594,7 @@ export default function MarketPage() {
       return;
     }
 
-    Alert.alert("임시저장 중인 글이 있어요", "이어서 작성할까요?", [
-      { text: "취소", style: "cancel" },
-      {
-        text: "새로 쓰기",
-        style: "destructive",
-        onPress: async () => {
-          await clearMarketDraft();
-          router.push("/market/write?type=all" as any);
-        },
-      },
-      {
-        text: "이어쓰기",
-        onPress: () => navigateToBulkDraft(draft),
-      },
-    ]);
+    setMarketModal({ type: "bulkDraft", draft, visible: true });
   };
 
   const openTicketWrite = async () => {
@@ -626,25 +605,7 @@ export default function MarketPage() {
       return;
     }
 
-    Alert.alert("임시저장 중인 글이 있어요", "이어서 작성할까요?", [
-      { text: "취소", style: "cancel" },
-      {
-        text: "새로 쓰기",
-        style: "destructive",
-        onPress: async () => {
-          await clearTicketDraft();
-          router.push("/market/ticket-write" as any);
-        },
-      },
-      {
-        text: "이어쓰기",
-        onPress: () =>
-          router.push({
-            pathname: "/market/ticket-write",
-            params: { resumeDraft: "true" },
-          } as any),
-      },
-    ]);
+    setMarketModal({ type: "ticketDraft", visible: true });
   };
 
   const handleFabPress = () => {
@@ -677,17 +638,46 @@ export default function MarketPage() {
       console.log("내 정보 조회 실패:", error.response?.data || error.message);
     }
 
-    Alert.alert(
-      "교환학생 인증",
-      "중고거래를 이용하려면 교환학생 신원 인증이 필요해요.",
-      [
-        { text: "취소", style: "cancel" },
-        {
-          text: "신원 인증하기",
-          onPress: () => router.push("/verification-consent" as any),
-        },
-      ],
+    setMarketModal({ type: "verification", visible: true });
+  };
+
+  const closeMarketModal = () => {
+    setMarketModal((current) =>
+      current ? { ...current, visible: false } : null,
     );
+  };
+
+  const handleStartNewDraft = async () => {
+    const currentModal = marketModal;
+    closeMarketModal();
+
+    if (currentModal?.type === "bulkDraft") {
+      await clearMarketDraft();
+      router.push("/market/write?type=all" as any);
+      return;
+    }
+
+    if (currentModal?.type === "ticketDraft") {
+      await clearTicketDraft();
+      router.push("/market/ticket-write" as any);
+    }
+  };
+
+  const handleContinueDraft = () => {
+    const currentModal = marketModal;
+    closeMarketModal();
+
+    if (currentModal?.type === "bulkDraft") {
+      navigateToBulkDraft(currentModal.draft);
+      return;
+    }
+
+    if (currentModal?.type === "ticketDraft") {
+      router.push({
+        pathname: "/market/ticket-write",
+        params: { resumeDraft: "true" },
+      } as any);
+    }
   };
 
   const displayItems = items.map((item) => {
@@ -999,6 +989,59 @@ export default function MarketPage() {
           }
           setFilterSheetVisible(false);
         }}
+      />
+      <Modal
+        isOpen={marketModal?.visible ?? false}
+        onClose={closeMarketModal}
+        title={
+          marketModal?.type === "verification"
+            ? "교환학생 인증"
+            : "임시저장 중인 글이 있어요"
+        }
+        description={
+          marketModal?.type === "verification"
+            ? "중고거래를 이용하려면 교환학생 신원 인증이 필요해요."
+            : "이어서 작성할까요?"
+        }
+        tertiaryButton={
+          marketModal?.type === "verification"
+            ? undefined
+            : {
+                label: "취소",
+                onPress: closeMarketModal,
+              }
+        }
+        secondaryButton={
+          marketModal?.type === "verification"
+            ? {
+                label: "취소",
+                onPress: () => {
+                  closeMarketModal();
+                  router.push("/home" as any);
+                },
+              }
+            : {
+                label: "새로 쓰기",
+                tone: "destructive",
+                onPress: () => {
+                  void handleStartNewDraft();
+                },
+              }
+        }
+        primaryButton={
+          marketModal?.type === "verification"
+            ? {
+                label: "신원 인증하기",
+                onPress: () => {
+                  closeMarketModal();
+                  router.push("/verification-consent" as any);
+                },
+              }
+            : {
+                label: "이어쓰기",
+                onPress: handleContinueDraft,
+              }
+        }
       />
     </SafeAreaView>
   );

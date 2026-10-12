@@ -22,6 +22,7 @@ export interface FreePostSummaryResponse {
   preview: string;
   country: string;
   status: string;
+  category: string;
   authorName: string;
   likeCount: number;
   scrapCount?: number;
@@ -63,24 +64,25 @@ export interface FreePostLikeResponse {
 }
 
 const freePostListEndpointMap: Record<FreePostStatusFilter, string> = {
-  전체: "/api/community/free-posts/all",
-  질문글: "/api/community/free-posts?category=QUESTION",
-  사담글: "/api/community/free-posts?category=CHAT",
-  고민글: "/api/community/free-posts?category=WORRY",
+  전체: "/api/community/free-posts?sort=LATEST&size=10",
+  질문글: "/api/community/free-posts?category=QUESTION&sort=LATEST&size=10",
+  사담글: "/api/community/free-posts?category=CHAT&sort=LATEST&size=10",
+  고민글: "/api/community/free-posts?category=WORRY&sort=LATEST&size=10",
 };
 
 export const getFreePosts = async (
   params: CursorRequest = { size: 10 },
-  statusFilter: FreePostStatusFilter = "전체",
+  statusFilter: FreePostStatusFilter,
 ) => {
   const endpoints = freePostListEndpointMap[statusFilter];
   let lastError: unknown = null;
 
   try {
-    return await api.get<BaseResponse<CursorResponse<FreePostSummaryResponse>>>(
-      endpoints,
-      { params },
-    );
+    const response = await api.get<
+      BaseResponse<CursorResponse<FreePostSummaryResponse>>
+    >(endpoints, { params });
+    console.log(response.data);
+    return response.data;
   } catch (error: any) {
     lastError = error;
 

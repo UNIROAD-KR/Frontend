@@ -20,11 +20,11 @@ import {
   createFreePost,
   FreePostCategoryMap,
   updateFreePost,
-} from "../src/api/freePosts";
-import { getUploadUrl, uploadFileToStorage } from "../src/api/upload";
-import { BLUE } from "../src/data/community";
+} from "../../src/api/freePosts";
+import { getUploadUrl, uploadFileToStorage } from "../../src/api/upload";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Modal } from "../ui/modal";
 
 const MAX_FREE_POST_PHOTOS = 10;
 const boardStatusFilters = Object.keys(
@@ -82,7 +82,7 @@ export function CommunityFreeWriteForm() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [selectedBoardStatus, setSelectedBoardStatus] =
-    useState<keyof typeof FreePostCategoryMap>("고민글");
+    useState<keyof typeof FreePostCategoryMap>("질문글");
 
   const submitDisabled = submitting || !title.trim() || !body.trim();
 
@@ -145,8 +145,19 @@ export function CommunityFreeWriteForm() {
             onPress={() => goBackOrReplace("/community")}
             style={styles.backButton}
           />
-          <Text style={fonts.sub3_sb_16}>자유 게시판 글쓰기</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={[fonts.sub3_sb_16, { textAlign: "center" }]}>
+            자유게시판 글쓰기
+          </Text>
+          <Pressable disabled={submitDisabled} onPress={handleSubmit}>
+            <Text
+              style={{
+                ...fonts.body1_m_16,
+                color: submitDisabled ? Colors.gray[7] : Colors.primary.default,
+              }}
+            >
+              등록하기
+            </Text>
+          </Pressable>
         </View>
 
         <ScrollView
@@ -220,21 +231,18 @@ export function CommunityFreeWriteForm() {
           </View>
         </ScrollView>
 
-        <View style={styles.bottomBar}>
-          <Pressable
-            style={[
-              styles.submitButton,
-              submitDisabled && styles.submitButtonDisabled,
-            ]}
-            disabled={submitDisabled}
-            onPress={handleSubmit}
-          >
-            <Text style={styles.submitText}>
-              {submitting ? "저장 중..." : isEdit ? "수정 완료" : "게시글 등록"}
-            </Text>
-          </Pressable>
-        </View>
+        <View style={styles.bottomBar}></View>
       </KeyboardAvoidingView>
+      <Modal
+        title={isEdit ? "수정 완료" : "등록 완료"}
+        description={isEdit ? "게시글을 수정했어요." : "게시글을 등록했어요."}
+        primaryButton={{
+          label: "확인",
+          onPress: () => goBackOrReplace("/community"),
+        }}
+        isOpen
+      />
+      ;
     </SafeAreaView>
   );
 }
@@ -267,6 +275,8 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 42,
+    alignItems: "center",
+    justifyContent: "center",
   },
   scroll: {
     flex: 1,

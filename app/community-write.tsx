@@ -1,5 +1,5 @@
-import { CommunityCompanionWriteForm } from "@/components/CommunityCompanionWriteForm";
-import { CommunityFreeWriteForm } from "@/components/CommunityFreeWriteForm";
+import { CommunityCompanionWriteForm } from "@/components/community/CommunityCompanionWriteForm";
+import { CommunityFreeWriteForm } from "@/components/community/CommunityFreeWriteForm";
 import { useLocalSearchParams } from "expo-router";
 import React from "react";
 
