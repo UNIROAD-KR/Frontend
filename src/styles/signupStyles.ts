@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { StyleSheet } from 'react-native';
 
 import { designColors } from './design-tokens';
@@ -38,9 +39,7 @@ export const signupStyles = StyleSheet.create({
   },
 
   label: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#66717F',
+    ...commonStyles.inputLabel,
     marginBottom: 9,
   },
 

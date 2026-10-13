@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 export const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: Colors.common.white },
   header: {
@@ -13,24 +13,19 @@ export const styles = StyleSheet.create({
   progress: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     marginTop: 14,
     marginBottom: 26,
   },
   dot: {
-    width: 22,
-    height: 22,
+    width: 6,
+    height: 6,
     borderRadius: 11,
     backgroundColor: Colors.gray[4],
     alignItems: "center",
     justifyContent: "center",
   },
-  dotActive: { backgroundColor: Colors.gray[9] },
-  connector: {
-    width: 14,
-    height: 1,
-    backgroundColor: Colors.gray[4],
-    marginHorizontal: 5,
-  },
+  dotActive: { width: 20, height: 20, backgroundColor: Colors.gray[9] },
   save: { marginLeft: "auto", paddingVertical: 8 },
   subtitle: {
     ...fonts.body4_r_14,
@@ -39,7 +34,10 @@ export const styles = StyleSheet.create({
     marginBottom: 28,
   },
   field: { paddingVertical: 20, gap: 24 },
-  label: { ...fonts.body2_m_14, color: Colors.gray[8], marginBottom: 8 },
+  label: {
+    ...commonStyles.inputLabel,
+    marginBottom: 8
+  },
   input: {
     ...fonts.sub4_sb_14,
     minHeight: 48,

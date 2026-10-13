@@ -1,7 +1,9 @@
 import { Text, TextInput } from "@/components/ui/app-text";
+import { Modal as AppModal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Toast } from "@/components/ui/fade-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, {
   useCallback,
@@ -12,7 +14,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Linking,
   KeyboardAvoidingView,
@@ -24,8 +25,10 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Colors, fonts } from "@/constants/theme";
-
+import { Colors, commonStyles, fonts } from "@/constants/theme";
+import CompleteIcon from "@/assets/icon/complete.svg";
+import EditIcon from "@/assets/icon/edit.svg";
+import DeleteIcon from "@/assets/icon/delete.svg";
 import { createOrGetChatRoom } from "../src/api/chat";
 import { getMemberMe } from "../src/api/auth";
 import {
@@ -53,6 +56,7 @@ import {
 } from "../src/api/freePosts";
 import { createReport, ReportReason } from "../src/api/reports";
 import { BLUE } from "../src/data/community";
+import Button from "@/components/ui/button";
 
 const LIKED_FREE_POSTS_STORAGE_KEY = "univ:profile:liked-free-posts";
 
@@ -172,8 +176,51 @@ const syncLikedFreePostStorage = async (
   );
 };
 
+type AlertButton = {
+  text: string;
+  style?: "default" | "cancel" | "destructive";
+  onPress?: () => void;
+};
+
 export default function CommunityDetailScreen() {
   const router = useRouter();
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    description?: string;
+    buttons: AlertButton[];
+  }>({ visible: false, title: "", buttons: [] });
+  const showAlert = (
+    title: string,
+    description?: string,
+    buttons: AlertButton[] = [],
+  ) => setAlertState({ visible: true, title, description, buttons });
+  const closeAlert = () =>
+    setAlertState((prev) => ({ ...prev, visible: false }));
+  const alertModalButtons = () => {
+    const { buttons } = alertState;
+    if (buttons.length === 0) {
+      return { primaryButton: { label: "확인", onPress: closeAlert } };
+    }
+    const cancel = buttons.filter((b) => b.style === "cancel");
+    const others = buttons.filter((b) => b.style !== "cancel");
+    const display = [...cancel, ...others];
+    const visibleButtons = display.length > 3 ? others.slice(0, 3) : display;
+    const mapped = visibleButtons.map((b) => ({
+      label: b.text,
+      tone: b.style === "destructive" ? ("destructive" as const) : undefined,
+      onPress: () => {
+        closeAlert();
+        b.onPress?.();
+      },
+    }));
+    return {
+      primaryButton: mapped[mapped.length - 1],
+      secondaryButton:
+        mapped.length > 1 ? mapped[mapped.length - 2] : undefined,
+      tertiaryButton: mapped.length > 2 ? mapped[mapped.length - 3] : undefined,
+    };
+  };
   const insets = useSafeAreaInsets();
   const {
     type = "free",
@@ -215,6 +262,12 @@ export default function CommunityDetailScreen() {
         const nextPost = response.data.data;
 
         setPost(nextPost);
+        if (nextPost.status === "COMPLETED") {
+          Toast.show({
+            type: "success",
+            text: "이미 모집이 완료된 게시글입니다",
+          });
+        }
         setScrapCount(nextPost.scrapCount ?? 0);
 
         try {
@@ -351,7 +404,7 @@ export default function CommunityDetailScreen() {
     if (!post || !isCompanionApiPost(post) || chatPending.current || isAuthor)
       return;
     if (!Number.isInteger(post.memberId) || post.memberId <= 0) {
-      Alert.alert(
+      showAlert(
         "채팅을 시작할 수 없어요",
         "작성자 정보를 확인할 수 없어요. 잠시 후 다시 시도해주세요.",
       );
@@ -380,7 +433,7 @@ export default function CommunityDetailScreen() {
         },
       });
     } catch (error: any) {
-      Alert.alert(
+      showAlert(
         "채팅방 생성 실패",
         error.response?.data?.message || "잠시 후 다시 시도해주세요.",
       );
@@ -402,10 +455,16 @@ export default function CommunityDetailScreen() {
   const handleOpenCompanionChatLink = async () => {
     if (!viewModel?.chatLink) return;
     try {
-      await Linking.openURL(viewModel.chatLink);
+      // 네이티브 모듈이 빌드에 없어도 화면 로딩이 깨지지 않도록 지연 로드
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Clipboard = require("expo-clipboard");
+      await Clipboard.setStringAsync(viewModel.chatLink);
+      showAlert(
+        "오픈채팅 링크 복사 완료",
+        "클립보드에 오픈채팅 링크가 복사되었어요.",
+      );
     } catch (error) {
-      console.log("오픈채팅 링크 열기 실패:", error);
-      Alert.alert("링크를 열 수 없어요", "잠시 후 다시 시도해주세요.");
+      console.log("오픈채팅 링크 복사 실패:", error);
     }
   };
 
@@ -414,7 +473,7 @@ export default function CommunityDetailScreen() {
     await loadPost();
     setRefreshing(false);
     setMenuVisible(false);
-    Alert.alert("새로고침 완료", "게시글 내용을 다시 불러왔어요.");
+    showAlert("새로고침 완료", "게시글 내용을 다시 불러왔어요.");
   };
 
   const handleEdit = () => {
@@ -487,7 +546,7 @@ export default function CommunityDetailScreen() {
         "자유게시판 좋아요 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert("처리 실패", "좋아요 상태를 변경하지 못했어요.");
+      showAlert("처리 실패", "좋아요 상태를 변경하지 못했어요.");
     }
   };
 
@@ -517,7 +576,7 @@ export default function CommunityDetailScreen() {
     } catch (error: any) {
       console.log("게시글 스크랩 실패:", error.response?.data || error.message);
       setScrapped(wasScrapped);
-      Alert.alert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
+      showAlert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
     }
   };
 
@@ -543,7 +602,7 @@ export default function CommunityDetailScreen() {
         "자유게시판 댓글 작성 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert("등록 실패", "댓글을 등록하지 못했어요.");
+      showAlert("등록 실패", "댓글을 등록하지 못했어요.");
     }
   };
 
@@ -553,7 +612,7 @@ export default function CommunityDetailScreen() {
       { text: "욕설 / 비방", reason: "ABUSE" },
       { text: "부적절한 내용", reason: "INAPPROPRIATE" },
     ];
-    Alert.alert("게시글 신고", "신고 사유를 선택해주세요.", [
+    showAlert("게시글 신고", "신고 사유를 선택해주세요.", [
       ...reasons.map(({ text, reason }) => ({
         text,
         onPress: async () => {
@@ -563,9 +622,9 @@ export default function CommunityDetailScreen() {
               targetId: postId,
               reason,
             });
-            Alert.alert("신고 완료", "신고가 접수되었어요.");
+            showAlert("신고 완료", "신고가 접수되었어요.");
           } catch {
-            Alert.alert("신고 실패", "잠시 후 다시 시도해주세요.");
+            showAlert("신고 실패", "잠시 후 다시 시도해주세요.");
           }
         },
       })),
@@ -594,7 +653,7 @@ export default function CommunityDetailScreen() {
         "자유게시판 댓글 삭제 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert("삭제 실패", "댓글을 삭제하지 못했어요.");
+      showAlert("삭제 실패", "댓글을 삭제하지 못했어요.");
     }
   };
 
@@ -604,7 +663,7 @@ export default function CommunityDetailScreen() {
     }
 
     setMenuVisible(false);
-    Alert.alert("게시글 삭제", "게시글을 삭제할까요?", [
+    showAlert("게시글 삭제", "게시글을 삭제할까요?", [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
@@ -623,68 +682,48 @@ export default function CommunityDetailScreen() {
               "게시글 삭제 실패:",
               error.response?.data || error.message,
             );
-            Alert.alert("삭제 실패", "게시글을 삭제하지 못했어요.");
+            showAlert("삭제 실패", "게시글을 삭제하지 못했어요.");
           }
         },
       },
     ]);
   };
 
-  const handleParticipantsChange = async (delta: 1 | -1) => {
-    if (!post || !viewModel || detailType !== "companion") {
-      return;
-    }
-
-    const currentParticipants = Number(viewModel.current);
-    const capacity = Number(viewModel.total);
-    const nextParticipants = currentParticipants + delta;
-
-    if (nextParticipants < 1) {
-      Alert.alert("변경 불가", "모집 인원은 1명보다 작아질 수 없어요.");
-      return;
-    }
-
-    if (nextParticipants > capacity) {
-      Alert.alert("변경 불가", "모집 인원은 전체 정원을 넘을 수 없어요.");
+  const handleCompleteRecruitment = async () => {
+    if (!post || detailType !== "companion") {
       return;
     }
 
     setMenuVisible(false);
+    showAlert("모집 완료", "모집을 완료할까요?", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "완료",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            if (isCompanionApiPost(post)) {
+              await updateCompanionPost(post.id, {
+                ...post,
+                status: "COMPLETED",
+              });
 
-    if (isCompanionApiPost(post)) {
-      const nextStatus =
-        nextParticipants >= post.capacity ? "COMPLETED" : "RECRUITING";
-
-      try {
-        await updateCompanionPost(post.id, {
-          title: post.title,
-          content: post.content,
-          startDate: post.startDate,
-          endDate: post.endDate,
-          country: post.country,
-          region: post.region,
-          chatLink: post.chatLink,
-          status: nextStatus,
-          capacity: post.capacity,
-          currentParticipants: nextParticipants,
-          genderRatio: post.genderRatio,
-        });
-
-        setPost({
-          ...post,
-          status: nextStatus,
-          currentParticipants: nextParticipants,
-        });
-      } catch (error: any) {
-        console.log(
-          "동행 모집 인원 변경 실패:",
-          error.response?.data || error.message,
-        );
-        Alert.alert("변경 실패", "모집 인원을 변경하지 못했어요.");
-      }
-
-      return;
-    }
+              setPost({
+                ...post,
+                status: "COMPLETED",
+              });
+            }
+            Toast.show({ type: "success", text: "모집 완료 처리 되었습니다" });
+          } catch (error: any) {
+            console.log(
+              "모집 완료 실패:",
+              error.response?.data || error.message,
+            );
+            showAlert("완료 실패", "모집을 완료하지 못했어요.");
+          }
+        },
+      },
+    ]);
   };
 
   if (loading) {
@@ -1003,7 +1042,7 @@ export default function CommunityDetailScreen() {
                           hitSlop={8}
                           accessibilityLabel="댓글 메뉴"
                           onPress={() =>
-                            Alert.alert("댓글 삭제", "댓글을 삭제하시겠어요?", [
+                            showAlert("댓글 삭제", "댓글을 삭제하시겠어요?", [
                               { text: "취소", style: "cancel" },
                               {
                                 text: "삭제",
@@ -1070,25 +1109,19 @@ export default function CommunityDetailScreen() {
           {isAuthor ? (
             <Text style={styles.ownPostHint}>내가 작성한 동행 글이에요</Text>
           ) : (
-            <Pressable
-              style={[
-                styles.startChatButton,
-                chatLoading && styles.startChatButtonDisabled,
-              ]}
+            <Button
               onPress={handleStartCompanionChat}
               disabled={chatLoading}
-              accessibilityRole="button"
-              accessibilityState={{ disabled: chatLoading, busy: chatLoading }}
-            >
-              {chatLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Ionicons name="chatbubble-outline" size={20} color="#FFFFFF" />
-              )}
-              <Text style={styles.startChatText}>
-                {chatLoading ? "채팅방 연결 중..." : "채팅 시작하기"}
-              </Text>
-            </Pressable>
+              title={
+                chatLoading ? (
+                  <>
+                    <ActivityIndicator color="#FFFFFF" />
+                  </>
+                ) : (
+                  "채팅 시작하기"
+                )
+              }
+            />
           )}
         </View>
       )}
@@ -1106,42 +1139,27 @@ export default function CommunityDetailScreen() {
           />
           <View style={styles.menuSheet}>
             {isAuthor && (
-              <Pressable style={styles.menuItem} onPress={handleEdit}>
-                <Ionicons name="create-outline" size={19} color="#111111" />
-                <Text style={styles.menuText}>수정</Text>
-              </Pressable>
-            )}
-            {isAuthor && (
-              <Pressable style={styles.menuItem} onPress={handleDeletePost}>
-                <Ionicons name="trash-outline" size={19} color="#D94343" />
-                <Text style={[styles.menuText, styles.menuDangerText]}>
-                  삭제
-                </Text>
-              </Pressable>
-            )}
-            {isAuthor && detailType === "companion" && (
               <>
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={() => handleParticipantsChange(1)}
-                >
-                  <Ionicons
-                    name="person-add-outline"
-                    size={19}
-                    color="#111111"
-                  />
-                  <Text style={styles.menuText}>모집 인원 추가</Text>
+                <Pressable style={styles.menuItem} onPress={handleEdit}>
+                  <EditIcon />
+                  <Text style={styles.menuText}>수정</Text>
                 </Pressable>
+
+                <Pressable style={styles.menuItem} onPress={handleDeletePost}>
+                  <DeleteIcon />
+                  <Text style={[styles.menuText, styles.menuDangerText]}>
+                    삭제
+                  </Text>
+                </Pressable>
+
                 <Pressable
                   style={styles.menuItem}
-                  onPress={() => handleParticipantsChange(-1)}
+                  onPress={handleCompleteRecruitment}
                 >
-                  <Ionicons
-                    name="person-remove-outline"
-                    size={19}
-                    color="#111111"
-                  />
-                  <Text style={styles.menuText}>모집 인원 감소</Text>
+                  <CompleteIcon />
+                  <Text style={[styles.menuText, styles.menuDangerText]}>
+                    모집 완료
+                  </Text>
                 </Pressable>
               </>
             )}
@@ -1157,21 +1175,16 @@ export default function CommunityDetailScreen() {
                 </Text>
               </Pressable>
             )}
-            <Pressable style={styles.menuItem} onPress={handleRefresh}>
-              <Ionicons
-                name="refresh"
-                size={19}
-                color={refreshing ? "#A0A0A0" : "#111111"}
-              />
-              <Text
-                style={[styles.menuText, refreshing && styles.menuTextMuted]}
-              >
-                새로고침
-              </Text>
-            </Pressable>
           </View>
         </View>
       </Modal>
+      <AppModal
+        isOpen={alertState.visible}
+        onClose={closeAlert}
+        title={alertState.title}
+        description={alertState.description}
+        {...alertModalButtons()}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -1196,6 +1209,7 @@ function CompanionInfoItem({
 
 const styles = StyleSheet.create({
   chatActionBar: {
+    flexDirection: "row",
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -1209,6 +1223,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   startChatButtonDisabled: { opacity: 0.6 },
+  startChatButtonFill: { flex: 0, alignSelf: "stretch" },
   startChatButton: {
     paddingVertical: 15,
     borderRadius: 10,

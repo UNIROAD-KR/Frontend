@@ -1,10 +1,11 @@
 import { Text, TextInput } from "@/components/ui/app-text";
+import Button from "@/components/ui/button";
 import {
   BottomSheetModal,
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import {
   countryInitialFilters,
   flags,
@@ -103,10 +104,7 @@ export function matchesCompanionFilters(
   if (hasStart || hasEnd) {
     const postStart = new Date(post.startDate);
     const postEnd = new Date(post.endDate);
-    if (
-      Number.isNaN(postStart.getTime()) ||
-      Number.isNaN(postEnd.getTime())
-    ) {
+    if (Number.isNaN(postStart.getTime()) || Number.isNaN(postEnd.getTime())) {
       return false;
     }
     const filterStart = hasStart
@@ -115,8 +113,7 @@ export function matchesCompanionFilters(
     const filterEnd = hasEnd
       ? toMonthNumber(filters.endYear, filters.endMonth)
       : Number.POSITIVE_INFINITY;
-    const postStartMonth =
-      postStart.getFullYear() * 12 + postStart.getMonth();
+    const postStartMonth = postStart.getFullYear() * 12 + postStart.getMonth();
     const postEndMonth = postEnd.getFullYear() * 12 + postEnd.getMonth();
     if (postStartMonth > filterEnd || postEndMonth < filterStart) {
       return false;
@@ -229,311 +226,324 @@ export function CompanionFilterSheet({
           accessibilityLabel="필터 닫기"
         />
         <BottomSheetView
-          style={[
-            styles.sheet,
-            { paddingBottom: Math.max(insets.bottom, 16) },
-          ]}
+          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
         >
           <View style={styles.handle} />
           <View style={styles.pages}>
-          <Animated.View
-            style={[styles.page, { transform: [{ translateX: filterPageX }] }]}
-            pointerEvents={countryPageOpen ? "none" : "auto"}
-          >
-          <View style={styles.header}>
-            <Text style={styles.title}>필터 설정하기</Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="필터 닫기"
+            <Animated.View
+              style={[
+                styles.page,
+                { transform: [{ translateX: filterPageX }] },
+              ]}
+              pointerEvents={countryPageOpen ? "none" : "auto"}
             >
-              <Ionicons name="close" size={26} color={Colors.common.black} />
-            </Pressable>
-          </View>
-          <ScrollView
-            style={styles.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.content}
-          >
-            <View style={styles.section}>
-              <Text style={styles.label}>국가 및 지역</Text>
-              <Pressable
-                style={styles.locationRow}
-                onPress={() => showCountryPage(true)}
-                accessibilityRole="button"
-                accessibilityLabel="국가 및 지역 선택"
-              >
-                <Text
-                  style={[
-                    styles.locationText,
-                    !draft.country && styles.placeholder,
-                  ]}
-                  numberOfLines={1}
+              <View style={styles.header}>
+                <Text style={styles.title}>필터 설정하기</Text>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="필터 닫기"
                 >
-                  {draft.country
-                    ? `${draft.country}${draft.region ? ` · ${draft.region}` : ""}`
-                    : "국가 및 지역을 입력해주세요"}
-                </Text>
-                <View pointerEvents="none">
                   <Ionicons
-                    name="chevron-down"
-                    size={22}
+                    name="close"
+                    size={26}
                     color={Colors.common.black}
                   />
-                </View>
-              </Pressable>
-              {draft.country ? (
-                <TextInput
-                  style={styles.regionInput}
-                  value={draft.region}
-                  onChangeText={(region) => patch({ region })}
-                  placeholder="도시 / 지역을 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
-                />
-              ) : null}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>시작일</Text>
-              <View style={styles.dateRow}>
-                <InlineDropdown
-                  compact
-                  value={draft.startYear}
-                  displayValue={draft.startYear ? `${draft.startYear}년` : ""}
-                  placeholder="연도"
-                  open={openPart === "startYear"}
-                  options={yearOptions}
-                  onPress={() =>
-                    setOpenPart(openPart === "startYear" ? null : "startYear")
-                  }
-                  onSelect={(next) => selectDatePart("startYear", next)}
-                />
-                <InlineDropdown
-                  compact
-                  value={draft.startMonth}
-                  displayValue={
-                    draft.startMonth ? `${Number(draft.startMonth)}월` : ""
-                  }
-                  placeholder="월"
-                  open={openPart === "startMonth"}
-                  options={monthOptions}
-                  onPress={() =>
-                    setOpenPart(openPart === "startMonth" ? null : "startMonth")
-                  }
-                  onSelect={(next) => selectDatePart("startMonth", next)}
-                />
-              </View>
-            </View>
-            <View style={styles.section}>
-              <Text style={styles.label}>종료일</Text>
-              <View style={styles.dateRow}>
-                <InlineDropdown
-                  compact
-                  value={draft.endYear}
-                  displayValue={draft.endYear ? `${draft.endYear}년` : ""}
-                  placeholder="연도"
-                  open={openPart === "endYear"}
-                  options={yearOptions}
-                  onPress={() =>
-                    setOpenPart(openPart === "endYear" ? null : "endYear")
-                  }
-                  onSelect={(next) => selectDatePart("endYear", next)}
-                />
-                <InlineDropdown
-                  compact
-                  value={draft.endMonth}
-                  displayValue={
-                    draft.endMonth ? `${Number(draft.endMonth)}월` : ""
-                  }
-                  placeholder="월"
-                  open={openPart === "endMonth"}
-                  options={monthOptions}
-                  onPress={() =>
-                    setOpenPart(openPart === "endMonth" ? null : "endMonth")
-                  }
-                  onSelect={(next) => selectDatePart("endMonth", next)}
-                />
-              </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>최대 인원</Text>
-              <View style={styles.stepper}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="최대 인원 줄이기"
-                  onPress={() =>
-                    patch({
-                      maxParticipants: Math.max(
-                        0,
-                        draft.maxParticipants - 1,
-                      ),
-                    })
-                  }
-                  style={styles.stepButton}
-                >
-                  <Ionicons name="remove" size={20} color={Colors.gray[7]} />
-                </Pressable>
-                <View style={styles.stepValue}>
-                  <Text style={styles.stepValueText}>
-                    {draft.maxParticipants}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="최대 인원 늘리기"
-                  onPress={() =>
-                    patch({ maxParticipants: draft.maxParticipants + 1 })
-                  }
-                  style={styles.stepButton}
-                >
-                  <Ionicons name="add" size={20} color={Colors.gray[7]} />
                 </Pressable>
               </View>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.label}>성별 조건</Text>
-              <View style={styles.genderOptions}>
-                {(
-                  [
-                    ["ANY", "무관"],
-                    ["FEMALE", "여성만"],
-                    ["MALE", "남성만"],
-                  ] as const
-                ).map(([value, label]) => {
-                  const selected = draft.gender === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      onPress={() => patch({ gender: value })}
-                      style={[
-                        styles.genderChip,
-                        selected && styles.genderChipSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          fonts.body2_m_14,
-                          selected
-                            ? styles.genderTextSelected
-                            : styles.genderText,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          </ScrollView>
-          <View style={styles.footer}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !valid }}
-              disabled={!valid}
-              onPress={() => {
-                onApply(draft);
-              }}
-              style={[styles.applyButton, !valid && styles.applyButtonDisabled]}
-            >
-              <Text style={styles.applyText}>적용하기</Text>
-            </Pressable>
-          </View>
-          </Animated.View>
-          <Animated.View
-            style={[styles.page, { transform: [{ translateX: countryPageX }] }]}
-            pointerEvents={countryPageOpen ? "auto" : "none"}
-          >
-            <View style={styles.countryHeader}>
-              <Pressable
-                onPress={() => showCountryPage(false)}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="뒤로가기"
+              <ScrollView
+                style={styles.scroll}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
               >
-                <Ionicons
-                  name="chevron-back"
-                  size={28}
-                  color={Colors.common.black}
-                />
-              </Pressable>
-              <Text style={styles.title}>국가 및 지역 선택</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipScroll}
-              contentContainerStyle={styles.chips}
-            >
-              {countryInitialFilters.map((chip) => (
-                <Pressable
-                  key={chip}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: chip === initial }}
-                  onPress={() => setInitial(chip)}
-                  style={[styles.chip, chip === initial && styles.chipActive]}
-                >
-                  <Text
-                    style={[
-                      fonts.body1_m_16,
-                      {
-                        color:
-                          chip === initial
-                            ? Colors.common.white
-                            : Colors.gray[7],
-                      },
-                    ]}
+                <View style={styles.section}>
+                  <Text style={styles.label}>국가 및 지역</Text>
+                  <Pressable
+                    style={styles.locationRow}
+                    onPress={() => showCountryPage(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="국가 및 지역 선택"
                   >
-                    {chip}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <ScrollView key={initial} showsVerticalScrollIndicator={false}>
-              {displayedCountries.map((country) => (
-                <Pressable
-                  key={country}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: draft.country === country }}
+                    <Text
+                      style={[
+                        styles.locationText,
+                        !draft.country && styles.placeholder,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {draft.country
+                        ? `${draft.country}${draft.region ? ` · ${draft.region}` : ""}`
+                        : "국가 및 지역을 입력해주세요"}
+                    </Text>
+                    <View pointerEvents="none">
+                      <Ionicons
+                        name="chevron-down"
+                        size={22}
+                        color={Colors.common.black}
+                      />
+                    </View>
+                  </Pressable>
+                  {draft.country ? (
+                    <TextInput
+                      style={styles.regionInput}
+                      value={draft.region}
+                      onChangeText={(region) => patch({ region })}
+                      placeholder="도시 / 지역을 입력해주세요"
+                      placeholderTextColor={Colors.gray[5]}
+                    />
+                  ) : null}
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.label}>시작일</Text>
+                  <View style={styles.dateRow}>
+                    <InlineDropdown
+                      compact
+                      value={draft.startYear}
+                      displayValue={
+                        draft.startYear ? `${draft.startYear}년` : ""
+                      }
+                      placeholder="연도"
+                      open={openPart === "startYear"}
+                      options={yearOptions}
+                      onPress={() =>
+                        setOpenPart(
+                          openPart === "startYear" ? null : "startYear",
+                        )
+                      }
+                      onSelect={(next) => selectDatePart("startYear", next)}
+                    />
+                    <InlineDropdown
+                      compact
+                      value={draft.startMonth}
+                      displayValue={
+                        draft.startMonth ? `${Number(draft.startMonth)}월` : ""
+                      }
+                      placeholder="월"
+                      open={openPart === "startMonth"}
+                      options={monthOptions}
+                      onPress={() =>
+                        setOpenPart(
+                          openPart === "startMonth" ? null : "startMonth",
+                        )
+                      }
+                      onSelect={(next) => selectDatePart("startMonth", next)}
+                    />
+                  </View>
+                </View>
+                <View style={styles.section}>
+                  <Text style={styles.label}>종료일</Text>
+                  <View style={styles.dateRow}>
+                    <InlineDropdown
+                      compact
+                      value={draft.endYear}
+                      displayValue={draft.endYear ? `${draft.endYear}년` : ""}
+                      placeholder="연도"
+                      open={openPart === "endYear"}
+                      options={yearOptions}
+                      onPress={() =>
+                        setOpenPart(openPart === "endYear" ? null : "endYear")
+                      }
+                      onSelect={(next) => selectDatePart("endYear", next)}
+                    />
+                    <InlineDropdown
+                      compact
+                      value={draft.endMonth}
+                      displayValue={
+                        draft.endMonth ? `${Number(draft.endMonth)}월` : ""
+                      }
+                      placeholder="월"
+                      open={openPart === "endMonth"}
+                      options={monthOptions}
+                      onPress={() =>
+                        setOpenPart(openPart === "endMonth" ? null : "endMonth")
+                      }
+                      onSelect={(next) => selectDatePart("endMonth", next)}
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.label}>최대 인원</Text>
+                  <View style={styles.stepper}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="최대 인원 줄이기"
+                      onPress={() =>
+                        patch({
+                          maxParticipants: Math.max(
+                            0,
+                            draft.maxParticipants - 1,
+                          ),
+                        })
+                      }
+                      style={styles.stepButton}
+                    >
+                      <Ionicons
+                        name="remove"
+                        size={20}
+                        color={Colors.gray[7]}
+                      />
+                    </Pressable>
+                    <View style={styles.stepValue}>
+                      <Text style={styles.stepValueText}>
+                        {draft.maxParticipants}
+                      </Text>
+                    </View>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="최대 인원 늘리기"
+                      onPress={() =>
+                        patch({ maxParticipants: draft.maxParticipants + 1 })
+                      }
+                      style={styles.stepButton}
+                    >
+                      <Ionicons name="add" size={20} color={Colors.gray[7]} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.section}>
+                  <Text style={styles.label}>성별 조건</Text>
+                  <View style={styles.genderOptions}>
+                    {(
+                      [
+                        ["ANY", "무관"],
+                        ["FEMALE", "여성만"],
+                        ["MALE", "남성만"],
+                      ] as const
+                    ).map(([value, label]) => {
+                      const selected = draft.gender === value;
+                      return (
+                        <Pressable
+                          key={value}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          onPress={() => patch({ gender: value })}
+                          style={[
+                            styles.genderChip,
+                            selected && styles.genderChipSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              fonts.body2_m_14,
+                              selected
+                                ? styles.genderTextSelected
+                                : styles.genderText,
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </ScrollView>
+              <View style={styles.footer}>
+                <Button
+                  disabled={!valid}
+                  title="적용하기"
                   onPress={() => {
-                    patch({
-                      country,
-                      region: country === draft.country ? draft.region : "",
-                    });
-                    showCountryPage(false);
+                    onApply(draft);
                   }}
-                  style={styles.countryRow}
+                />
+              </View>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.page,
+                { transform: [{ translateX: countryPageX }] },
+              ]}
+              pointerEvents={countryPageOpen ? "auto" : "none"}
+            >
+              <View style={styles.countryHeader}>
+                <Pressable
+                  onPress={() => showCountryPage(false)}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="뒤로가기"
                 >
-                  <Text style={styles.flag}>{flags[country]}</Text>
-                  <Text
-                    style={[
-                      fonts.body1_m_16,
-                      styles.countryName,
-                      draft.country === country && {
-                        color: Colors.primary.default,
-                      },
-                    ]}
-                  >
-                    {country}
-                  </Text>
                   <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={Colors.gray[5]}
+                    name="chevron-back"
+                    size={28}
+                    color={Colors.common.black}
                   />
                 </Pressable>
-              ))}
-              {!displayedCountries.length && (
-                <Text style={styles.empty}>해당 초성의 국가가 없어요.</Text>
-              )}
-            </ScrollView>
-          </Animated.View>
+                <Text style={styles.title}>국가 및 지역 선택</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+                contentContainerStyle={styles.chips}
+              >
+                {countryInitialFilters.map((chip) => (
+                  <Pressable
+                    key={chip}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: chip === initial }}
+                    onPress={() => setInitial(chip)}
+                    style={[styles.chip, chip === initial && styles.chipActive]}
+                  >
+                    <Text
+                      style={[
+                        fonts.body1_m_16,
+                        {
+                          color:
+                            chip === initial
+                              ? Colors.common.white
+                              : Colors.gray[7],
+                        },
+                      ]}
+                    >
+                      {chip}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <ScrollView key={initial} showsVerticalScrollIndicator={false}>
+                {displayedCountries.map((country) => (
+                  <Pressable
+                    key={country}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: draft.country === country }}
+                    onPress={() => {
+                      patch({
+                        country,
+                        region: country === draft.country ? draft.region : "",
+                      });
+                      showCountryPage(false);
+                    }}
+                    style={styles.countryRow}
+                  >
+                    <Text style={styles.flag}>{flags[country]}</Text>
+                    <Text
+                      style={[
+                        fonts.body1_m_16,
+                        styles.countryName,
+                        draft.country === country && {
+                          color: Colors.primary.default,
+                        },
+                      ]}
+                    >
+                      {country}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={Colors.gray[5]}
+                    />
+                  </Pressable>
+                ))}
+                {!displayedCountries.length && (
+                  <Text style={styles.empty}>해당 초성의 국가가 없어요.</Text>
+                )}
+              </ScrollView>
+            </Animated.View>
           </View>
         </BottomSheetView>
       </View>
@@ -576,8 +586,8 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   section: { gap: 12 },
   label: {
-    ...fonts.body1_m_16,
-    color: Colors.common.black,
+    ...commonStyles.inputLabel,
+    marginBottom: 0,
   },
   locationRow: {
     height: 60,
@@ -680,6 +690,7 @@ const styles = StyleSheet.create({
   genderText: { color: Colors.gray[7] },
   genderTextSelected: { color: Colors.common.white },
   footer: {
+    flexDirection: "row",
     paddingTop: 12,
   },
   applyButton: {

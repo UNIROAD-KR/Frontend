@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -643,9 +644,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
+    ...commonStyles.inputLabel,
     marginBottom: 12,
   },
 
@@ -731,9 +730,7 @@ const styles = StyleSheet.create({
   },
 
   dateLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
+    ...commonStyles.inputLabel,
     marginBottom: 12,
   },
 

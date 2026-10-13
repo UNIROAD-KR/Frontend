@@ -1,5 +1,5 @@
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { styles as registrationStyles } from "@/components/market/registration/styles";
 import { TicketDateField } from "@/components/market/registration/TicketDateField";
 import {
@@ -783,27 +783,30 @@ export default function TicketWritePage() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={registrationStyles.progress}>
+        <View style={[registrationStyles.progress, { gap: 12 }]}>
           <View
             style={[
-              registrationStyles.dot,
-              step === 1 && registrationStyles.dotActive,
+              ticketStyles.dot,
+              step === 1 && ticketStyles.dotActive,
             ]}
           >
-            <Text style={[fonts.caption4_m_12, { color: Colors.common.white }]}>
-              1
-            </Text>
+            {step === 1 && (
+              <Text style={[fonts.caption4_m_12, { color: Colors.common.white }]}>
+                1
+              </Text>
+            )}
           </View>
-          <View style={registrationStyles.connector} />
           <View
             style={[
-              registrationStyles.dot,
-              step === 2 && registrationStyles.dotActive,
+              ticketStyles.dot,
+              step === 2 && ticketStyles.dotActive,
             ]}
           >
-            <Text style={[fonts.caption4_m_12, { color: Colors.common.white }]}>
-              2
-            </Text>
+            {step === 2 && (
+              <Text style={[fonts.caption4_m_12, { color: Colors.common.white }]}>
+                2
+              </Text>
+            )}
           </View>
           <Pressable
             disabled={submitting}
@@ -846,10 +849,11 @@ export default function TicketWritePage() {
                 <View style={ticketStyles.field}>
                   <Text style={ticketStyles.label}>{fieldLabels.location}</Text>
                   <TextInput
-                    style={registrationStyles.input}
+                  cursorColor={Colors.primary.default}
+                    style={ticketStyles.input}
                     ref={departureInputRef}
                     placeholder="출발 장소를 입력해주세요"
-                    placeholderTextColor={Colors.gray[5]}
+                    placeholderTextColor="#B1B8C1"
                     value={departureLocation}
                     onChangeText={setDepartureLocation}
                   />
@@ -857,10 +861,11 @@ export default function TicketWritePage() {
                 <View style={ticketStyles.field}>
                   <Text style={ticketStyles.label}>{fieldLabels.arrival}</Text>
                   <TextInput
-                    style={registrationStyles.input}
+                  cursorColor={Colors.primary.default}
+                    style={ticketStyles.input}
                     ref={arrivalInputRef}
                     placeholder="도착 장소를 입력해주세요"
-                    placeholderTextColor={Colors.gray[5]}
+                    placeholderTextColor="#B1B8C1"
                     value={arrivalLocation}
                     onChangeText={setArrivalLocation}
                   />
@@ -870,10 +875,11 @@ export default function TicketWritePage() {
               <View style={ticketStyles.field}>
                 <Text style={ticketStyles.label}>구체적인 장소</Text>
                 <TextInput
-                  style={registrationStyles.input}
+                  cursorColor={Colors.primary.default}
+                  style={ticketStyles.input}
                   ref={locationInputRef}
                   placeholder="구체적인 장소를 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
+                  placeholderTextColor="#B1B8C1"
                   value={location}
                   onChangeText={setLocation}
                 />
@@ -919,11 +925,12 @@ export default function TicketWritePage() {
               <View style={ticketStyles.field}>
                 <Text style={ticketStyles.label}>티켓 종류 직접 입력</Text>
                 <TextInput
-                  style={registrationStyles.input}
+                  cursorColor={Colors.primary.default}
+                  style={ticketStyles.input}
                   value={customTicketType}
                   onChangeText={setCustomTicketType}
                   placeholder="티켓 종류를 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
+                  placeholderTextColor="#B1B8C1"
                 />
               </View>
             )}
@@ -1005,7 +1012,8 @@ export default function TicketWritePage() {
               </Pressable>
               {currencyUnit === "직접 입력" && (
                 <TextInput
-                  style={[registrationStyles.input, { marginTop: 8 }]}
+                  cursorColor={Colors.primary.default}
+                  style={[ticketStyles.input, { marginTop: 8 }]}
                   placeholder="예: CHF"
                   value={customCurrencyUnit}
                   onChangeText={setCustomCurrencyUnit}
@@ -1014,12 +1022,13 @@ export default function TicketWritePage() {
             </View>
             <View style={ticketStyles.field}>
               <Text style={ticketStyles.label}>양도할 가격</Text>
-              <View style={registrationStyles.select}>
+              <View style={ticketStyles.priceField}>
                 <TextInput
+                  cursorColor={Colors.primary.default}
                   ref={transferPriceInputRef}
                   style={ticketStyles.priceInput}
                   placeholder="양도할 가격을 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
+                  placeholderTextColor="#B1B8C1"
                   keyboardType="number-pad"
                   value={transferPrice}
                   onChangeText={(value) =>
@@ -1033,12 +1042,13 @@ export default function TicketWritePage() {
             </View>
             <View style={ticketStyles.field}>
               <Text style={ticketStyles.label}>원가</Text>
-              <View style={registrationStyles.select}>
+              <View style={ticketStyles.priceField}>
                 <TextInput
+                  cursorColor={Colors.primary.default}
                   ref={originalPriceInputRef}
                   style={ticketStyles.priceInput}
                   placeholder="원가를 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
+                  placeholderTextColor="#B1B8C1"
                   keyboardType="number-pad"
                   value={originalPrice}
                   onChangeText={(value) =>
@@ -1056,10 +1066,11 @@ export default function TicketWritePage() {
             <View style={ticketStyles.field}>
               <Text style={ticketStyles.label}>게시글 제목</Text>
               <TextInput
-                style={registrationStyles.input}
+                  cursorColor={Colors.primary.default}
+                style={ticketStyles.input}
                 ref={titleInputRef}
                 placeholder="제목을 입력해주세요"
-                placeholderTextColor={Colors.gray[5]}
+                placeholderTextColor="#B1B8C1"
                 value={title}
                 onChangeText={setTitle}
                 returnKeyType="next"
@@ -1068,12 +1079,13 @@ export default function TicketWritePage() {
             </View>
             <View style={ticketStyles.field}>
               <Text style={ticketStyles.label}>상세 설명</Text>
-              <View style={registrationStyles.textBox}>
+              <View style={ticketStyles.textBox}>
                 <TextInput
-                  style={[registrationStyles.textarea, { minHeight: 150 }]}
+                  cursorColor={Colors.primary.default}
+                  style={ticketStyles.textarea}
                   ref={contentInputRef}
                   placeholder="티켓의 상세 설명을 입력해주세요"
-                  placeholderTextColor={Colors.gray[5]}
+                  placeholderTextColor="#B1B8C1"
                   value={content}
                   onChangeText={setContent}
                   maxLength={Math.max(
@@ -2170,6 +2182,21 @@ const styles = StyleSheet.create({
 });
 
 const ticketStyles = StyleSheet.create({
+  dot: { width: 6, height: 6, borderRadius: 10, backgroundColor: Colors.gray[4], alignItems: "center", justifyContent: "center" },
+  dotActive: { width: 20, height: 20, backgroundColor: Colors.gray[9] },
+  input: {
+    borderColor: "#E6E8EB", borderWidth: 1, paddingHorizontal: 16,
+    paddingVertical: 14, borderRadius: 10, ...fonts.body1_m_16,
+  },
+  priceField: {
+    borderColor: "#E6E8EB", borderWidth: 1, paddingHorizontal: 16,
+    borderRadius: 10, flexDirection: "row", alignItems: "center", gap: 8,
+  },
+  textBox: { borderColor: "#E6E8EB", borderWidth: 1, borderRadius: 10 },
+  textarea: {
+    ...fonts.body1_m_16, minHeight: 150, paddingHorizontal: 16,
+    paddingVertical: 14, textAlignVertical: "top",
+  },
   content: { paddingHorizontal: 24, paddingBottom: 16 },
   sectionTitle: {
     ...fonts.title5_b_20,
@@ -2177,7 +2204,7 @@ const ticketStyles = StyleSheet.create({
     marginBottom: 16,
   },
   field: { marginBottom: 22 },
-  label: { ...fonts.sub4_sb_14, color: Colors.gray[8], marginBottom: 4 },
+  label: commonStyles.inputLabel,
   divider: {
     height: 8,
     backgroundColor: Colors.gray[2],
@@ -2185,9 +2212,10 @@ const ticketStyles = StyleSheet.create({
     marginBottom: 24,
   },
   priceInput: {
-    ...fonts.body2_m_14,
+    ...fonts.body1_m_16,
     flex: 1,
-    minHeight: 46,
+    paddingVertical: 14,
+    minHeight: 52,
     color: Colors.gray[10],
   },
 });

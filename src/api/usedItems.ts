@@ -103,6 +103,9 @@ export type UsedItemCursorParams = {
 };
 
 export type UsedItemSearchParams = UsedItemCursorParams & {
+  minPrice?: number;
+  maxPrice?: number;
+  sort?: "LATEST" | "OLDEST";
   title?: string;
   country?: string;
   region?: string;

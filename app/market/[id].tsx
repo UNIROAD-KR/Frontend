@@ -4,9 +4,11 @@ import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import EditIcon from "@/assets/icon/edit.svg";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Image,
@@ -45,6 +47,7 @@ import {
   UsedItemTradeStatus,
 } from "../../src/storage/usedItemStatus";
 import { commonStyles, fonts, Colors } from "@/constants/theme";
+import Button from "@/components/ui/button";
 
 const BLUE = "#123F9F";
 const CHAT_BAR_CLEARANCE = 120;
@@ -950,11 +953,17 @@ export default function MarketDetailPage() {
           />
         </Pressable>
 
-        <Pressable style={commonStyles.button} onPress={handleStartChat}>
-          <Text style={[fonts.sub3_sb_16, { color: "#FFFFFF" }]}>
-            {chatLoading ? "채팅방 여는 중..." : "채팅 시작하기"}
-          </Text>
-        </Pressable>
+        <Button
+          onPress={handleStartChat}
+          disabled={chatLoading}
+          title={
+            chatLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              "채팅 시작하기"
+            )
+          }
+        />
       </View>
 
       <FullImageModal
@@ -1088,7 +1097,7 @@ function HeaderBack({
                     onEdit?.();
                   }}
                 >
-                  <Ionicons name="create-outline" size={18} color="#111111" />
+                  <EditIcon />
                   <Text style={styles.postMenuText}>수정하기</Text>
                 </Pressable>
 

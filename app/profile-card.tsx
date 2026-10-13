@@ -6,6 +6,7 @@ import Constants from "expo-constants";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState, type ComponentType } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Modal } from "@/components/ui/modal";
 import {
   Alert,
   Image,
@@ -28,7 +29,6 @@ import LogoutIcon from "@/assets/icon/profile/logout.svg";
 import NoticesIcon from "@/assets/icon/profile/notices.svg";
 import NotificationsIcon from "@/assets/icon/profile/notifications.svg";
 import PrivacyIcon from "@/assets/icon/profile/privacy.svg";
-import ProfileEditButton from "@/assets/icon/profile/profile-edit-button.svg";
 import TermsIcon from "@/assets/icon/profile/terms.svg";
 import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-approved-card.svg";
 import VerificationIcon from "@/assets/icon/profile/verification.svg";
@@ -162,6 +162,7 @@ export default function ProfileCardScreen() {
   const { preview } = useLocalSearchParams<{ preview?: string }>();
   const isPreview = preview === "true";
   const [isVerified, setIsVerified] = useState(false);
+  const [isLogoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isVerificationPending, setIsVerificationPending] = useState(false);
   const [profile, setProfile] = useState({
     nickname: "닉네임",
@@ -338,10 +339,7 @@ export default function ProfileCardScreen() {
   };
 
   const confirmLogout = () => {
-    Alert.alert("로그아웃", "로그아웃 하시겠습니까?", [
-      { text: "취소", style: "cancel" },
-      { text: "확인", style: "destructive", onPress: performLogout },
-    ]);
+    setLogoutModalVisible(true);
   };
 
   const handleMenuPress = (item: MenuItem) => {
@@ -503,6 +501,19 @@ export default function ProfileCardScreen() {
           separated
         />
       </ScrollView>
+      <Modal
+        title="로그아웃"
+        description="로그아웃 하시겠습니까?"
+        isOpen={isLogoutModalVisible}
+        primaryButton={{
+          label: "로그아웃",
+          onPress: performLogout,
+        }}
+        secondaryButton={{
+          label: "취소",
+          onPress: () => setLogoutModalVisible(false),
+        }}
+      />
     </SafeAreaView>
   );
 }

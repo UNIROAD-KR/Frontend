@@ -1,11 +1,22 @@
-import { Text, TextInput } from '@/components/ui/app-text';
+import { Text, TextInput } from "@/components/ui/app-text";
+import ErrorIcon from "@/assets/icon/error.svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { AppBackButton } from "@/components/ui/app-back-button";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { login } from "../src/api/auth";
 import { registerDeviceForPushNotifications } from "../src/notifications/push";
 
@@ -125,10 +136,7 @@ export default function EmailLoginPage() {
       }
 
       const serverMessage = String(error.response?.data?.message || "");
-      const isUsernameError =
-        error.response?.status === 404 ||
-        /존재하지|not.?found|username|user.?id/i.test(serverMessage);
-
+      const isUsernameError = serverMessage === "존재하지 않는 아이디입니다.";
       setLoginError({
         field: isUsernameError ? "username" : "password",
         message: isUsernameError
@@ -177,7 +185,7 @@ export default function EmailLoginPage() {
 
           <View style={styles.inputGroup}>
             <View style={{ gap: 4 }}>
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+              <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
                 아이디
               </Text>
               <TextInput
@@ -199,7 +207,7 @@ export default function EmailLoginPage() {
               />
               {usernameErrorMessage ? (
                 <View style={styles.inlineError}>
-                  <Text style={[styles.errorMark]}>!</Text>
+                  <ErrorIcon />
                   <Text style={[fonts.caption3_m_13, { color: "#FF3636" }]}>
                     {usernameErrorMessage}
                   </Text>
@@ -207,7 +215,7 @@ export default function EmailLoginPage() {
               ) : null}
             </View>
             <View style={{ gap: 4 }}>
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+              <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
                 비밀번호
               </Text>
               <TextInput
@@ -229,7 +237,7 @@ export default function EmailLoginPage() {
               />
               {passwordErrorMessage ? (
                 <View style={styles.inlineError}>
-                  <Text style={styles.errorMark}>!</Text>
+                  <ErrorIcon />
                   <Text style={[fonts.caption3_m_13, { color: "#FF3636" }]}>
                     {passwordErrorMessage}
                   </Text>
@@ -344,14 +352,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     marginTop: 7,
-  },
-  errorMark: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: "#E5484D",
-    color: "#FFFFFF",
-    textAlign: "center",
   },
   footer: {
     marginTop: "auto",

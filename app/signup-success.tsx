@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { router } from "expo-router";
 import type { ComponentType } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -7,6 +7,7 @@ import type { SvgProps } from "react-native-svg";
 import ConsentIcon from "@/assets/icon/onboarding-consent.svg";
 import ProfileIcon from "@/assets/icon/onboarding-profile.svg";
 import { Colors, fonts } from "@/constants/theme";
+import SchoolIcon from "@/assets/icon/school.svg";
 
 type OnboardingStepProps = {
   Icon: ComponentType<SvgProps>;
@@ -61,6 +62,12 @@ export default function SignupSuccessPage() {
             iconSize={22}
             title="프로필 설정"
             description="재학 학교 및 닉네임 설정"
+          />
+          <OnboardingStep
+            Icon={SchoolIcon}
+            iconSize={22}
+            title="파견 정보 설정"
+            description="파견교 및 파견 학기 설정"
           />
         </View>
       </View>

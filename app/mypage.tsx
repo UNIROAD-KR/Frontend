@@ -1,27 +1,34 @@
-import { Text, TextInput } from "@/components/ui/app-text";
+import { Text } from "@/components/ui/app-text";
+import Button from "@/components/ui/button";
+import { Modal as AppModal } from "@/components/ui/modal";
 import { AppBackButton } from "@/components/ui/app-back-button";
-import { fonts, commonStyles } from "@/constants/theme";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/components/ui/bottom-sheet";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
+import DetailIcon from "../assets/icon/detail.svg";
+import EditIcon from "../assets/icon/edit.svg";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  TouchableWithoutFeedback,
   useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import ArrowLeftIcon from "../assets/icon/arrow-left.svg";
 import ArrowRightIcon from "../assets/icon/arrow-right.svg";
 import { MonthlyManagementCard } from "../components/account-book/monthly-management-card";
@@ -32,10 +39,13 @@ import {
   AccountBookResponse,
   addAccountBookTransaction,
   getAccountBookBalance,
+  deleteAccountBookTransaction,
   getAccountBookDailyDetails,
+  updateAccountBookTransaction,
   getAccountBookMonthlySummary,
 } from "../src/api/accountBook";
 import { getMemberMe } from "../src/api/auth";
+import { validateTransactionInput } from "@/components/account-book/transaction-validation";
 
 const { width } = Dimensions.get("window");
 
@@ -88,7 +98,11 @@ const CATEGORIES: {
   },
 ];
 
-export default function MyPageScreen() {
+export default function MyPageScreen({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const { fromHome, fromService } = useLocalSearchParams<{
     fromHome?: string | string[];
     fromService?: string | string[];
@@ -165,8 +179,95 @@ export default function MyPageScreen() {
     setShowDatePicker(true);
   };
 
+  const [alertState, setAlertState] = useState<{
+    visible: boolean;
+    title: string;
+    description: string;
+  }>({ visible: false, title: "", description: "" });
+  const insets = useSafeAreaInsets();
+  const [actionItem, setActionItem] = useState<AccountBookResponse | null>(
+    null,
+  );
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const closeActionSheet = () => setActionSheetVisible(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AccountBookResponse | null>(
+    null,
+  );
+  const [deleteVisible, setDeleteVisible] = useState(false);
+
+
+  const refreshAfterChange = () => {
+    fetchData();
+    if (selectedDate) fetchDailyDetails(selectedDate);
+  };
+
+  const pendingAction = React.useRef<(() => void) | null>(null);
+
+  const runAfterSheetClose = (action: () => void) => {
+    pendingAction.current = action;
+    closeActionSheet();
+  };
+
+  const handleActionSheetAfterClose = () => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    action?.();
+  };
+
+  const handleEditPress = () => {
+    const item = actionItem;
+    if (!item) return;
+    runAfterSheetClose(() => {
+      setEditingId(item.id);
+      setTransactionType(item.type);
+      setExpenseDate(item.transactionDate);
+      setExpenseDateValue(parseDateInput(item.transactionDate) || new Date());
+      if (item.type === "INCOME") {
+        setChargeAmount(String(item.amount));
+        setChargeTitle(item.title);
+      } else {
+        setSelectedCategory(item.category);
+        setExpenseAmount(String(item.amount));
+        setExpenseTitle(item.title);
+        setExpenseDescription(item.description ?? "");
+      }
+      setShowDatePicker(false);
+      setTransactionModalVisible(true);
+    });
+  };
+
+  const handleDeletePress = () => {
+    const item = actionItem;
+    if (!item) return;
+    runAfterSheetClose(() => {
+      setDeleteTarget(item);
+      setDeleteVisible(true);
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    const target = deleteTarget;
+    setDeleteVisible(false);
+    if (!target) return;
+    try {
+      await deleteAccountBookTransaction(target.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      refreshAfterChange();
+    } catch {
+      showAlert("삭제 실패", "내역 삭제에 실패했습니다.", 300);
+    }
+  };
+
+  const showAlert = (title: string, description: string, delay = 0) => {
+    const open = () => setAlertState({ visible: true, title, description });
+    if (delay) setTimeout(open, delay);
+    else open();
+  };
+
   const closeExpenseModal = () => {
     Keyboard.dismiss();
+    setEditingId(null);
     setShowDatePicker(false);
     setTransactionModalVisible(false);
   };
@@ -180,6 +281,7 @@ export default function MyPageScreen() {
 
   const openTransactionModal = (type: "INCOME" | "EXPENSE") => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setEditingId(null);
     const today = new Date();
     setTransactionType(type);
     setExpenseDate(formatDate(today));
@@ -262,24 +364,32 @@ export default function MyPageScreen() {
 
   // 잔액 충전(수입 추가) API 호출
   const handleChargeSubmit = async () => {
-    const amountNum = parseFloat(chargeAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert("입력 오류", "올바른 금액을 입력해주세요.");
-      return;
-    }
+    if (!validateTransactionInput(chargeAmount, chargeTitle, true).isValid) return;
+    const amountNum = Number(chargeAmount);
 
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await addAccountBookTransaction({
+      const payload = {
         amount: amountNum,
-        type: "INCOME",
-        category: "CHARGE",
+        type: "INCOME" as const,
+        category: "CHARGE" as const,
         title: chargeTitle.trim() || "잔액 충전",
         transactionDate: expenseDate || new Date().toISOString().split("T")[0],
-      });
+      };
+      if (editingId !== null) {
+        await updateAccountBookTransaction(editingId, payload);
+      } else {
+        await addAccountBookTransaction(payload);
+      }
 
-      Alert.alert("충전 완료", "성공적으로 잔액이 충전되었습니다.");
-      setTransactionModalVisible(false);
+      showAlert(
+        editingId !== null ? "수정 완료" : "충전 완료",
+        editingId !== null
+          ? "내역이 수정되었습니다."
+          : "성공적으로 잔액이 충전되었습니다.",
+        400,
+      );
+      closeExpenseModal();
       setChargeAmount("");
       setChargeTitle("잔액 충전");
 
@@ -287,24 +397,22 @@ export default function MyPageScreen() {
       fetchData();
       if (selectedDate) fetchDailyDetails(selectedDate);
     } catch (error: any) {
-      Alert.alert("충전 실패", "금액 충전에 실패했습니다.");
+      showAlert(
+        editingId !== null ? "수정 실패" : "충전 실패",
+        editingId !== null
+          ? "내역 수정에 실패했습니다."
+          : "금액 충전에 실패했습니다.",
+      );
     }
   };
 
   // 지출 등록 API 호출
   const handleExpenseSubmit = async () => {
-    const amountNum = parseFloat(expenseAmount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      Alert.alert("입력 오류", "올바른 금액을 입력해주세요.");
-      return;
-    }
-    if (!expenseTitle.trim()) {
-      Alert.alert("입력 오류", "내역 이름을 입력해주세요.");
-      return;
-    }
+    if (!validateTransactionInput(expenseAmount, expenseTitle, false).isValid) return;
+    const amountNum = Number(expenseAmount);
 
     if (!parseDateInput(expenseDate)) {
-      Alert.alert(
+      showAlert(
         "입력 오류",
         "날짜 형식은 YYYY-MM-DD 여야 하며 실제 존재하는 날짜여야 합니다.",
       );
@@ -313,16 +421,27 @@ export default function MyPageScreen() {
 
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await addAccountBookTransaction({
+      const payload = {
         amount: amountNum,
-        type: "EXPENSE",
+        type: "EXPENSE" as const,
         category: selectedCategory,
         title: expenseTitle.trim(),
         description: expenseDescription.trim() || undefined,
         transactionDate: expenseDate,
-      });
+      };
+      if (editingId !== null) {
+        await updateAccountBookTransaction(editingId, payload);
+      } else {
+        await addAccountBookTransaction(payload);
+      }
 
-      Alert.alert("등록 완료", "지출 내역이 성공적으로 등록되었습니다.");
+      showAlert(
+        editingId !== null ? "수정 완료" : "등록 완료",
+        editingId !== null
+          ? "내역이 수정되었습니다."
+          : "지출 내역이 성공적으로 등록되었습니다.",
+        400,
+      );
       closeExpenseModal();
       setExpenseAmount("");
       setExpenseTitle("");
@@ -332,7 +451,12 @@ export default function MyPageScreen() {
       fetchData();
       if (selectedDate) fetchDailyDetails(selectedDate);
     } catch (error: any) {
-      Alert.alert("등록 실패", "지출 등록에 실패했습니다.");
+      showAlert(
+        editingId !== null ? "수정 실패" : "등록 실패",
+        editingId !== null
+          ? "내역 수정에 실패했습니다."
+          : "지출 등록에 실패했습니다.",
+      );
     }
   };
 
@@ -439,18 +563,22 @@ export default function MyPageScreen() {
     return days;
   };
 
+  const Container = embedded ? View : SafeAreaView;
+
   return (
-    <SafeAreaView style={commonStyles.container}>
+    <Container style={embedded ? { flex: 1 } : commonStyles.container}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* 헤더 */}
-        <View style={commonStyles.header}>
-          {showBackButton ? <AppBackButton fallbackHref="/home" /> : null}
-          <Text style={fonts.sub3_sb_16}>지출 관리</Text>
-          {showBackButton ? <View style={commonStyles.headerSpacer} /> : null}
-        </View>
+        {!embedded && (
+          <View style={commonStyles.header}>
+            {showBackButton ? <AppBackButton fallbackHref="/home" /> : null}
+            <Text style={fonts.sub3_sb_16}>지출 관리</Text>
+            {showBackButton ? <View style={commonStyles.headerSpacer} /> : null}
+          </View>
+        )}
 
         <View style={styles.contentSections}>
           <MonthlyManagementCard
@@ -569,7 +697,9 @@ export default function MyPageScreen() {
                         <Text
                           style={[fonts.caption3_m_13, { color: "#6B7684" }]}
                         >
-                          {isIncome ? "충전" : catInfo?.label}{" "}
+                          {isIncome
+                            ? "입금 내역"
+                            : `출금 내역 • ${catInfo?.label}`}
                           {item.description ? `• ${item.description}` : ""}
                         </Text>
                       </View>
@@ -586,19 +716,23 @@ export default function MyPageScreen() {
                         maximumFractionDigits: 2,
                       })}
                     </Text>
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => {
+                        setActionItem(item);
+                        setActionSheetVisible(true);
+                      }}
+                    >
+                      <DetailIcon />
+                    </Pressable>
                   </View>
                 );
               })
             )}
-
-            <Pressable
-              style={styles.registerTransactionButton}
+            <Button
               onPress={() => openTransactionModal("EXPENSE")}
-            >
-              <Text style={styles.registerTransactionButtonText}>
-                입출금 등록하기
-              </Text>
-            </Pressable>
+              title="입출금 등록하기"
+            />
           </View>
         )}
       </ScrollView>
@@ -606,10 +740,12 @@ export default function MyPageScreen() {
       {/* 1. 잔액 충전 모달 */}
       <TransactionModal
         visible={transactionModalVisible}
+        isEditing={editingId !== null}
+        category={selectedCategory}
+        onChangeCategory={setSelectedCategory}
         type={transactionType}
         amount={transactionType === "INCOME" ? chargeAmount : expenseAmount}
         title={transactionType === "INCOME" ? chargeTitle : expenseTitle}
-        description={expenseDescription}
         transactionDate={expenseDate}
         dateValue={expenseDateValue}
         showDatePicker={showDatePicker}
@@ -621,12 +757,11 @@ export default function MyPageScreen() {
         onChangeTitle={
           transactionType === "INCOME" ? setChargeTitle : setExpenseTitle
         }
-        onChangeDescription={setExpenseDescription}
         onChangeDate={onDateChange}
         onOpenDatePicker={openDatePicker}
         onCloseDatePicker={() => setShowDatePicker(false)}
         onDismissKeyboardAndPicker={dismissKeyboardAndTabletPicker}
-        onClose={() => setTransactionModalVisible(false)}
+        onClose={closeExpenseModal}
         onSubmit={
           transactionType === "INCOME"
             ? handleChargeSubmit
@@ -634,189 +769,104 @@ export default function MyPageScreen() {
         }
       />
 
-      {/* 2. 지출 등록 모달 */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={false}
-        onRequestClose={closeExpenseModal}
+      <BottomSheetModal
+        visible={actionSheetVisible}
+        onRequestClose={closeActionSheet}
+        onAfterClose={handleActionSheetAfterClose}
       >
-        <TouchableWithoutFeedback
-          onPress={dismissKeyboardAndTabletPicker}
-          accessible={false}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              {showDatePicker && isTabletDatePicker && (
-                <Pressable
-                  style={styles.tabletPickerDismissLayer}
-                  onPress={() => setShowDatePicker(false)}
-                />
-              )}
-
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalHeaderTitle}>
-                  지출 등록 (
-                  {CATEGORIES.find((c) => c.key === selectedCategory)?.label})
-                </Text>
-                <Pressable onPress={closeExpenseModal}>
-                  <Ionicons name="close" size={24} color="#000" />
-                </Pressable>
-              </View>
-
-              <Text style={styles.inputLabel}>지출 금액 (€)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="예: 12.5"
-                placeholderTextColor="#C7C7CC"
-                keyboardType="decimal-pad"
-                value={expenseAmount}
-                onChangeText={setExpenseAmount}
-              />
-
-              <Text style={styles.inputLabel}>내역 이름 (필수)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="예: 점심 학식, 에펠탑 티켓"
-                placeholderTextColor="#C7C7CC"
-                value={expenseTitle}
-                onChangeText={setExpenseTitle}
-              />
-
-              <Text style={styles.inputLabel}>메모 (선택)</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="예: 마트 장보기 지출"
-                placeholderTextColor="#C7C7CC"
-                value={expenseDescription}
-                onChangeText={setExpenseDescription}
-              />
-
-              <Text style={styles.inputLabel}>거래 일자 (선택)</Text>
-              <View
-                style={[
-                  styles.datePickerAnchor,
-                  showDatePicker &&
-                    isTabletDatePicker &&
-                    styles.datePickerAnchorOpen,
-                ]}
-              >
-                <Pressable
-                  style={styles.dateSelectorField}
-                  onPress={openDatePicker}
-                  accessibilityRole="button"
-                  accessibilityLabel="거래 일자 달력 열기"
-                >
-                  <Text
-                    style={[
-                      styles.dateSelectorText,
-                      !expenseDate && styles.dateSelectorPlaceholder,
-                    ]}
-                  >
-                    {expenseDate || formatDate(new Date())}
-                  </Text>
-                  <View style={styles.dateSelectorButton}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={22}
-                      color="#8E8E93"
-                    />
-                  </View>
-                </Pressable>
-
-                {showDatePicker && isTabletDatePicker && (
-                  <View style={styles.tabletPickerPopover}>
-                    <View style={styles.tabletPickerHeader}>
-                      <Text style={styles.tabletPickerTitle}>
-                        거래 일자 선택
-                      </Text>
-                      <Pressable
-                        style={styles.tabletPickerCloseButton}
-                        onPress={() => setShowDatePicker(false)}
-                        accessibilityRole="button"
-                        accessibilityLabel="거래 일자 달력 닫기"
-                      >
-                        <Ionicons name="close" size={18} color="#8E8E93" />
-                      </Pressable>
-                    </View>
-
-                    <DateTimePicker
-                      value={expenseDateValue}
-                      mode="date"
-                      display="inline"
-                      locale="ko-KR"
-                      textColor="#111111"
-                      accentColor="#123F9F"
-                      themeVariant="light"
-                      style={styles.tabletInlinePicker}
-                      onChange={onDateChange}
-                    />
-                  </View>
-                )}
-              </View>
-
+        <View style={styles.actionOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityRole="button"
+            accessibilityLabel="메뉴 닫기"
+            onPress={closeActionSheet}
+          />
+          <BottomSheetView style={styles.actionSheet}>
+            <View style={styles.actionContent}>
+              <View style={styles.actionHandle} />
               <Pressable
-                style={[
-                  styles.submitModalButton,
-                  { backgroundColor: "#FF3B30" },
-                ]}
-                onPress={handleExpenseSubmit}
+                accessibilityRole="button"
+                style={styles.actionOption}
+                onPress={handleEditPress}
               >
-                <Text style={styles.submitModalButtonText}>지출 기록하기</Text>
+                <EditIcon />
+                <Text style={styles.actionText}>수정하기</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                style={styles.actionOption}
+                onPress={handleDeletePress}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={24}
+                  color={Colors.gray[10]}
+                />
+                <Text style={styles.actionText}>삭제하기</Text>
               </Pressable>
             </View>
-
-            {showDatePicker && Platform.OS === "ios" && !isTabletDatePicker && (
-              <View style={styles.pickerOverlay}>
-                <Pressable
-                  style={styles.pickerBackdrop}
-                  onPress={() => setShowDatePicker(false)}
-                />
-
-                <View style={styles.pickerSheet}>
-                  <View style={styles.pickerHeader}>
-                    <Pressable onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.pickerCancel}>취소</Text>
-                    </Pressable>
-
-                    <Text style={styles.pickerTitle}>거래 일자 선택</Text>
-
-                    <Pressable onPress={() => setShowDatePicker(false)}>
-                      <Text style={styles.pickerDone}>완료</Text>
-                    </Pressable>
-                  </View>
-
-                  <DateTimePicker
-                    value={expenseDateValue}
-                    mode="date"
-                    display="inline"
-                    locale="ko-KR"
-                    textColor="#111111"
-                    accentColor="#123F9F"
-                    themeVariant="light"
-                    style={styles.iosPicker}
-                    onChange={onDateChange}
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-
-      {showDatePicker && Platform.OS === "android" && (
-        <DateTimePicker
-          value={expenseDateValue}
-          mode="date"
-          display="calendar"
-          onChange={onDateChange}
-        />
-      )}
-    </SafeAreaView>
+            <View style={{ height: Math.max(insets.bottom, 16) }} />
+          </BottomSheetView>
+        </View>
+      </BottomSheetModal>
+      <AppModal
+        isOpen={deleteVisible}
+        onClose={() => setDeleteVisible(false)}
+        title="내역을 삭제할까요?"
+        description="삭제한 내역은 복구할 수 없고, 잔액과 요약에 바로 반영돼요."
+        primaryButton={{
+          label: "삭제",
+          tone: "destructive",
+          onPress: handleDeleteConfirm,
+        }}
+        secondaryButton={{
+          label: "취소",
+          onPress: () => setDeleteVisible(false),
+        }}
+      />
+      <AppModal
+        isOpen={alertState.visible}
+        onClose={() => setAlertState((c) => ({ ...c, visible: false }))}
+        title={alertState.title}
+        description={alertState.description}
+        primaryButton={{
+          label: "확인",
+          onPress: () => setAlertState((c) => ({ ...c, visible: false })),
+        }}
+      />
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
+  actionOverlay: { flex: 1, justifyContent: "flex-end" },
+  actionSheet: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+  },
+  actionContent: {
+    paddingHorizontal: 24,
+    paddingTop: 34,
+    paddingBottom: 12,
+  },
+  actionHandle: {
+    position: "absolute",
+    top: 9,
+    alignSelf: "center",
+    width: 72,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D2D6DC",
+  },
+  actionOption: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  actionText: { ...fonts.body1_m_16, color: Colors.gray[10] },
   scrollContent: {
     paddingBottom: 40,
   },
@@ -831,8 +881,7 @@ const styles = StyleSheet.create({
   },
   registerTransactionButtonText: {
     color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "800",
+    ...fonts.sub3_sb_16,
   },
   contentSections: {
     gap: 24,
@@ -1033,6 +1082,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
     marginVertical: 10,
   },
   detailLeft: {
@@ -1069,183 +1119,5 @@ const styles = StyleSheet.create({
   detailAmountText: {
     fontSize: 15,
     fontWeight: "800",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    overflow: "visible",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalHeaderTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1C1C1E",
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#3A3A3C",
-    marginBottom: 8,
-    marginTop: 14,
-  },
-  modalInput: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    color: "#1C1C1E",
-  },
-  datePickerAnchor: {
-    position: "relative",
-  },
-  datePickerAnchorOpen: {
-    zIndex: 20,
-  },
-  dateSelectorField: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 10,
-    paddingLeft: 16,
-    paddingRight: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
-  },
-  dateSelectorText: {
-    flex: 1,
-    fontSize: 16,
-    color: "#1C1C1E",
-  },
-  dateSelectorPlaceholder: {
-    color: "#C7C7CC",
-  },
-  dateSelectorButton: {
-    width: 48,
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tabletPickerDismissLayer: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
-    backgroundColor: "transparent",
-  },
-  tabletPickerPopover: {
-    position: "absolute",
-    right: 0,
-    bottom: 62,
-    width: 350,
-    maxWidth: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 12,
-    overflow: "hidden",
-  },
-  tabletPickerHeader: {
-    height: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingLeft: 16,
-    paddingRight: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F2F2F7",
-  },
-  tabletPickerTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#1C1C1E",
-  },
-  tabletPickerCloseButton: {
-    width: 34,
-    height: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 17,
-  },
-  tabletInlinePicker: {
-    width: "100%",
-    height: 320,
-    backgroundColor: "#FFFFFF",
-  },
-  submitModalButton: {
-    height: 54,
-    backgroundColor: "#123F9F",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 30,
-  },
-  submitModalButtonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  pickerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "flex-end",
-  },
-  pickerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.25)",
-  },
-  pickerSheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingBottom: 24,
-    overflow: "hidden",
-  },
-  pickerHeader: {
-    height: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEEEEE",
-  },
-  pickerCancel: {
-    fontSize: 16,
-    color: "#777777",
-    fontWeight: "700",
-  },
-  pickerTitle: {
-    fontSize: 17,
-    color: "#111111",
-    fontWeight: "900",
-  },
-  pickerDone: {
-    fontSize: 16,
-    color: "#123F9F",
-    fontWeight: "800",
-  },
-  iosPicker: {
-    height: 360,
-    width: "100%",
-    backgroundColor: "#FFFFFF",
   },
 });

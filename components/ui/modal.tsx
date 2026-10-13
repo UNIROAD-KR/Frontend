@@ -125,7 +125,15 @@ export function Modal({
                   }}
                 >
                   <Text
-                    style={[fonts.sub4_sb_14, { color: Colors.primary.default }]}
+                    style={[
+                      fonts.sub4_sb_14,
+                      {
+                        color:
+                          primaryButton.tone === "destructive"
+                            ? "#D92D20"
+                            : Colors.primary.default,
+                      },
+                    ]}
                   >
                     {primaryButton.label}
                   </Text>
