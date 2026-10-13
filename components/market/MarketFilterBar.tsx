@@ -1,4 +1,5 @@
 import { Text } from "@/components/ui/app-text";
+import { FilterResetButton } from "@/components/ui/filter-reset-button";
 import { fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -8,12 +9,14 @@ export function MarketFilterBar({
   filterActive,
   onSelectCountry,
   onSelectFilter,
+  onResetFilter,
   onSelectSort,
 }: {
   selectedCountry: string;
   filterActive?: boolean;
   onSelectCountry: () => void;
   onSelectFilter: () => void;
+  onResetFilter: () => void;
   onSelectSort: () => void;
 }) {
   return (
@@ -35,6 +38,7 @@ export function MarketFilterBar({
         </Text>
         <Ionicons name="chevron-down" size={18} color="#17191D" />
       </Pressable>
+      <View style={styles.filterWrap}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="필터 설정"
@@ -50,6 +54,8 @@ export function MarketFilterBar({
           color={filterActive ? "#506AFF" : "#17191D"}
         />
       </Pressable>
+      {filterActive && <FilterResetButton onPress={onResetFilter} />}
+      </View>
       <Pressable
         onPress={onSelectSort}
         accessibilityRole="button"
@@ -63,6 +69,7 @@ export function MarketFilterBar({
   );
 }
 const styles = StyleSheet.create({
+  filterWrap: { position: "relative" },
   row: { flexDirection: "row", gap: 5, marginBottom: 12 },
   button: {
     flexDirection: "row",

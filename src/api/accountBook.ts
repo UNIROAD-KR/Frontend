@@ -40,6 +40,16 @@ export const addAccountBookTransaction = (data: AccountBookRequest) => {
   return api.post<BaseResponse<number>>('/api/account-book', data);
 };
 
+// 가계부 내역 수정 (연관 데이터는 수정 후 조회 API를 다시 호출해 갱신)
+export const updateAccountBookTransaction = (id: number, data: AccountBookRequest) => {
+  return api.put<BaseResponse<unknown>>(`/api/account-book/${id}`, data);
+};
+
+// 가계부 내역 삭제
+export const deleteAccountBookTransaction = (id: number) => {
+  return api.delete<BaseResponse<unknown>>(`/api/account-book/${id}`);
+};
+
 // 월간 요약 조회
 export const getAccountBookMonthlySummary = (year: number, month: number) => {
   return api.get<BaseResponse<MonthlySummaryResponse>>('/api/account-book/summary', {

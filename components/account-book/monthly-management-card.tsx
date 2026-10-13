@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
@@ -44,7 +44,7 @@ export function MonthlyManagementCard({
           <Pressable style={styles.chargeButton} onPress={onPressCharge}>
             <Ionicons name="add-circle" size={20} color="#FFF" />
             <Text style={[fonts.sub4_sb_14, { color: "#FFF", marginRight: 4 }]}>
-              등록하기
+              입출금 등록
             </Text>
           </Pressable>
         </View>

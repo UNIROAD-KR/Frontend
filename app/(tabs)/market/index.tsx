@@ -39,11 +39,11 @@ import {
 } from "../../../src/api/ticket";
 import {
   getScrappedUsedItems,
-  getUsedItems,
   searchUsedItems,
   UsedItem,
 } from "../../../src/api/usedItems";
-import { canUseMarketWithoutVerification } from "../../../src/utils/verification";
+import { getMemberMe } from "@/src/api/auth";
+import { getMyVerifications } from "@/src/api/verification";
 import {
   clearMarketDraft,
   getMarketDraft,
@@ -69,6 +69,7 @@ type LikedMarketPost = {
 };
 
 type MarketModalState =
+  | { type: "verificationPending"; visible: boolean }
   | { type: "verification"; visible: boolean }
   | { type: "bulkDraft"; draft: MarketDraft; visible: boolean }
   | { type: "ticketDraft"; visible: boolean }
@@ -102,6 +103,7 @@ const formatTicketPrice = (price: number, currencyUnit = "€") =>
   `${currencyUnit} ${price.toLocaleString("ko-KR")}`;
 
 const hasActiveMarketFilters = (filters: MarketFilters) =>
+  filters.status !== "all" ||
   filters.categories.length > 0 ||
   filters.minPrice > 0 ||
   filters.maxPrice !== null ||
@@ -316,41 +318,36 @@ export default function MarketPage() {
     loadStoredMarketInteractions();
   }, []);
 
+  const usedItemsRequestId = useRef(0);
   const fetchUsedItems = useCallback(async (keyword = "", country = "전체") => {
+    const requestId = ++usedItemsRequestId.current;
     try {
       setMarketListError("");
       const keywordText = keyword.trim();
       const countryParam = country === "전체" ? undefined : country;
 
-      if (keywordText.length > 0) {
-        const [titleResponse, contentResponse] = await Promise.all([
-          searchUsedItems({
-            title: keywordText,
-            country: countryParam,
-            size: 30,
-          }),
-          searchUsedItems({
-            content: keywordText,
-            country: countryParam,
-            size: 30,
-          }),
-        ]);
-
-        setItems(
-          mergeUniqueById([
-            titleResponse.data.data.items ?? [],
-            contentResponse.data.data.items ?? [],
-          ]),
-        );
-        return;
-      }
-
-      const response = countryParam
-        ? await searchUsedItems({ country: countryParam, size: 30 })
-        : await getUsedItems({ size: 30 });
-
-      setItems(response.data.data.items ?? []);
+      // The UI groups reserved listings with items still being traded.
+      const statuses = bulkFilters.status === "active"
+        ? ["SELLING", "RESERVED"]
+        : bulkFilters.status === "sold" ? ["SOLD"] : [undefined];
+      const searches = keywordText
+        ? [{ title: keywordText }, { content: keywordText }]
+        : [{}];
+      const responses = await Promise.all(statuses.flatMap((status) =>
+        searches.map((search) => searchUsedItems({
+          ...search,
+          country: countryParam,
+          status,
+          minPrice: bulkFilters.minPrice || undefined,
+          maxPrice: bulkFilters.maxPrice ?? undefined,
+          sort: sortOrder === "newest" ? "LATEST" : "OLDEST",
+          size: 30,
+        })),
+      ));
+      if (requestId !== usedItemsRequestId.current) return;
+      setItems(mergeUniqueById(responses.map((response) => response.data.data.items ?? [])));
     } catch (error: any) {
+      if (requestId !== usedItemsRequestId.current) return;
       console.log(
         "중고거래 목록 조회 실패:",
         error.response?.data || error.message,
@@ -360,7 +357,7 @@ export default function MarketPage() {
       );
       setItems([]);
     }
-  }, []);
+  }, [bulkFilters.status, bulkFilters.minPrice, bulkFilters.maxPrice, sortOrder]);
 
   const fetchTickets = useCallback(
     async (cursorId?: number, keyword = "", country = "전체") => {
@@ -471,25 +468,38 @@ export default function MarketPage() {
     }
   };
 
-  const checkVerificationStatus = async () => {
-    const showVerificationModal = () =>
-      setMarketModal({ type: "verification", visible: true });
+  const getMarketAccess = useCallback(async () => {
+    const member = (await getMemberMe()).data.data;
+    if (member.role === "VERIFIED" || member.role === "ADMIN") return "allowed";
+    const verifications = (await getMyVerifications()).data.data;
+    return verifications.some(
+      (verification) => verification.status === "PENDING",
+    )
+      ? "verificationPending"
+      : "verification";
+  }, []);
 
-    try {
-      const canUseMarket = await canUseMarketWithoutVerification();
+  const checkVerificationStatus = useCallback(
+    async (isActive: () => boolean) => {
+      const showVerificationModal = () =>
+        setMarketModal({ type: "verification", visible: true });
 
-      console.log("현재 마켓 이용 가능 상태:", canUseMarket);
-
-      if (canUseMarket) {
-        return;
+      try {
+        const access = await getMarketAccess();
+        if (!isActive() || access === "allowed") {
+          return;
+        }
+        setMarketModal({ type: access, visible: true });
+      } catch (error: any) {
+        console.log(
+          "내 정보 조회 실패:",
+          error.response?.data || error.message,
+        );
+        if (isActive()) showVerificationModal();
       }
-
-      showVerificationModal();
-    } catch (error: any) {
-      console.log("내 정보 조회 실패:", error.response?.data || error.message);
-      showVerificationModal();
-    }
-  };
+    },
+    [getMarketAccess],
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -498,8 +508,12 @@ export default function MarketPage() {
       loadStoredMarketInteractions();
       fetchUsedItems(keyword, country);
       fetchTickets(undefined, keyword, country);
-      checkVerificationStatus();
-    }, [fetchTickets, fetchUsedItems]),
+      let active = true;
+      void checkVerificationStatus(() => active);
+      return () => {
+        active = false;
+      };
+    }, [fetchTickets, fetchUsedItems, checkVerificationStatus]),
   );
 
   useEffect(() => {
@@ -624,9 +638,9 @@ export default function MarketPage() {
     onAllowed?: () => void | Promise<void>,
   ) => {
     try {
-      const canUseMarket = await canUseMarketWithoutVerification();
+      const access = await getMarketAccess();
 
-      if (canUseMarket) {
+      if (access === "allowed") {
         if (onAllowed) {
           await onAllowed();
         } else {
@@ -634,6 +648,8 @@ export default function MarketPage() {
         }
         return;
       }
+      setMarketModal({ type: access, visible: true });
+      return;
     } catch (error: any) {
       console.log("내 정보 조회 실패:", error.response?.data || error.message);
     }
@@ -817,6 +833,7 @@ export default function MarketPage() {
     >
       <View style={styles.tradeTypeWrapper}>
         <TouchableOpacity
+          activeOpacity={1}
           style={[
             styles.tradeTypeButton,
             selectedTab === "bulk" && styles.tradeTypeButtonActive,
@@ -839,6 +856,7 @@ export default function MarketPage() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          activeOpacity={1}
           style={[
             styles.tradeTypeButton,
             selectedTab === "ticket" && styles.tradeTypeButtonActive,
@@ -881,6 +899,10 @@ export default function MarketPage() {
         <MarketFilterBar
           selectedCountry={selectedCountry}
           filterActive={filtersAreActive}
+          onResetFilter={() => {
+            if (selectedTab === "bulk") setBulkFilters(emptyMarketFilters);
+            else setTicketFilters(emptyMarketFilters);
+          }}
           onSelectCountry={() => setCountrySheetVisible(true)}
           onSelectFilter={() => setFilterSheetVisible(true)}
           onSelectSort={() => setSortSheetVisible(true)}
@@ -994,17 +1016,22 @@ export default function MarketPage() {
         isOpen={marketModal?.visible ?? false}
         onClose={closeMarketModal}
         title={
-          marketModal?.type === "verification"
-            ? "교환학생 인증"
-            : "임시저장 중인 글이 있어요"
+          marketModal?.type === "verificationPending"
+            ? "서류 심사 결과를 기다려주세요."
+            : marketModal?.type === "verification"
+              ? "교환학생 인증"
+              : "임시저장 중인 글이 있어요"
         }
         description={
-          marketModal?.type === "verification"
-            ? "중고거래를 이용하려면 교환학생 신원 인증이 필요해요."
-            : "이어서 작성할까요?"
+          marketModal?.type === "verificationPending"
+            ? "제출하신 서류를 심사 중이에요.\n승인 후 중고거래를 이용할 수 있어요."
+            : marketModal?.type === "verification"
+              ? "중고거래를 이용하려면 교환학생 신원 인증이 필요해요."
+              : "이어서 작성할까요?"
         }
         tertiaryButton={
-          marketModal?.type === "verification"
+          marketModal?.type === "verification" ||
+          marketModal?.type === "verificationPending"
             ? undefined
             : {
                 label: "취소",
@@ -1012,35 +1039,45 @@ export default function MarketPage() {
               }
         }
         secondaryButton={
-          marketModal?.type === "verification"
+          marketModal?.type === "verificationPending"
+            ? undefined
+            : marketModal?.type === "verification"
+              ? {
+                  label: "취소",
+                  onPress: () => {
+                    closeMarketModal();
+                    router.push("/home" as any);
+                  },
+                }
+              : {
+                  label: "새로 쓰기",
+                  tone: "destructive",
+                  onPress: () => {
+                    void handleStartNewDraft();
+                  },
+                }
+        }
+        primaryButton={
+          marketModal?.type === "verificationPending"
             ? {
-                label: "취소",
+                label: "확인",
                 onPress: () => {
                   closeMarketModal();
                   router.push("/home" as any);
                 },
               }
-            : {
-                label: "새로 쓰기",
-                tone: "destructive",
-                onPress: () => {
-                  void handleStartNewDraft();
-                },
-              }
-        }
-        primaryButton={
-          marketModal?.type === "verification"
-            ? {
-                label: "신원 인증하기",
-                onPress: () => {
-                  closeMarketModal();
-                  router.push("/verification-consent" as any);
-                },
-              }
-            : {
-                label: "이어쓰기",
-                onPress: handleContinueDraft,
-              }
+            : marketModal?.type === "verification"
+              ? {
+                  label: "신원 인증하기",
+                  onPress: () => {
+                    closeMarketModal();
+                    router.push("/verification-consent" as any);
+                  },
+                }
+              : {
+                  label: "이어쓰기",
+                  onPress: handleContinueDraft,
+                }
         }
       />
     </SafeAreaView>

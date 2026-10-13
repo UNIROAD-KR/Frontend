@@ -1,11 +1,14 @@
 import XIcon from "@/assets/icon/x-icon.svg";
+import InputField from "@/components/ui/input-field";
+import { validateTransactionInput } from "./transaction-validation";
 import { Text, TextInput } from "@/components/ui/app-text";
+import ErrorIcon from "@/assets/icon/error.svg";
 import {
   BottomSheetModal,
   bottomSheetStyles,
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
@@ -17,16 +20,29 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import Button from "../ui/button";
 
 type TransactionType = "INCOME" | "EXPENSE";
 const expenseTags = ["식비", "교통비", "쇼핑", "여행", "기타"] as const;
 
+const tagCategory = {
+  식비: "FOOD",
+  교통비: "TRANSPORT",
+  쇼핑: "SHOPPING",
+  여행: "TRAVEL",
+  기타: "ETC",
+} as const;
+
 type TransactionModalProps = {
+  category?: string;
+  onChangeCategory?: (
+    category: (typeof tagCategory)[keyof typeof tagCategory],
+  ) => void;
   visible: boolean;
+  isEditing?: boolean;
   type: TransactionType;
   amount: string;
   title: string;
-  description: string;
   transactionDate: string;
   dateValue: Date;
   showDatePicker: boolean;
@@ -34,7 +50,6 @@ type TransactionModalProps = {
   onChangeType: (type: TransactionType) => void;
   onChangeAmount: (value: string) => void;
   onChangeTitle: (value: string) => void;
-  onChangeDescription: (value: string) => void;
   onChangeDate: (event: any, date?: Date) => void;
   onOpenDatePicker: () => void;
   onCloseDatePicker: () => void;
@@ -43,15 +58,14 @@ type TransactionModalProps = {
   onSubmit: () => void;
 };
 
-const formatDatePart = (date: string, index: number, fallback: string) =>
-  date.split("-")[index] || fallback;
-
 export function TransactionModal({
+  category,
+  onChangeCategory,
   visible,
+  isEditing = false,
   type,
   amount,
   title,
-  description,
   transactionDate,
   dateValue,
   showDatePicker,
@@ -59,7 +73,6 @@ export function TransactionModal({
   onChangeType,
   onChangeAmount,
   onChangeTitle,
-  onChangeDescription,
   onChangeDate,
   onOpenDatePicker,
   onCloseDatePicker,
@@ -68,7 +81,8 @@ export function TransactionModal({
   onSubmit,
 }: TransactionModalProps) {
   // UI-only selection; intentionally separate from the submitted category.
-  const [selectedTag, setSelectedTag] = useState<(typeof expenseTags)[number]>("식비");
+  const [selectedTag, setSelectedTag] =
+    useState<(typeof expenseTags)[number]>("식비");
   const [tagRowHeight, setTagRowHeight] = useState(
     fonts.sub4_sb_14.lineHeight + 20,
   );
@@ -79,6 +93,12 @@ export function TransactionModal({
     onClose();
   };
 
+  const { amountError, titleError, isValid } = validateTransactionInput(
+    amount,
+    title,
+    isIncome,
+  );
+
   return (
     <BottomSheetModal
       visible={visible}
@@ -86,6 +106,7 @@ export function TransactionModal({
       onAfterClose={() => {
         onChangeType("INCOME");
         setSelectedTag("식비");
+        onChangeCategory?.("FOOD");
       }}
     >
       <TouchableWithoutFeedback
@@ -94,6 +115,11 @@ export function TransactionModal({
       >
         <View style={[styles.overlay, bottomSheetStyles.transparent]}>
           <BottomSheetView style={styles.content}>
+            <View
+              style={styles.handle}
+              pointerEvents="none"
+              accessible={false}
+            />
             {showDatePicker && isTabletDatePicker && (
               <Pressable
                 style={styles.dismissLayer}
@@ -102,7 +128,9 @@ export function TransactionModal({
             )}
 
             <View style={styles.header}>
-              <Text style={fonts.title3_b_24}>입출금 등록하기</Text>
+              <Text style={fonts.title3_b_24}>
+                {isEditing ? "입출금 수정하기" : "입출금 등록하기"}
+              </Text>
               <Pressable onPress={handleClose} accessibilityLabel="모달 닫기">
                 <XIcon />
               </Pressable>
@@ -111,6 +139,7 @@ export function TransactionModal({
             <View style={styles.tabs}>
               <Pressable
                 style={[styles.tab, isIncome && styles.activeTab]}
+                disabled={isEditing}
                 onPress={() => onChangeType("INCOME")}
               >
                 <Text
@@ -121,6 +150,7 @@ export function TransactionModal({
               </Pressable>
               <Pressable
                 style={[styles.tab, !isIncome && styles.activeTab]}
+                disabled={isEditing}
                 onPress={() => onChangeType("EXPENSE")}
               >
                 <Text
@@ -133,30 +163,44 @@ export function TransactionModal({
 
             <View
               style={[styles.tagRow, isIncome && styles.hiddenTagRow]}
-              onLayout={(event) => setTagRowHeight(event.nativeEvent.layout.height)}
+              onLayout={(event) =>
+                setTagRowHeight(event.nativeEvent.layout.height)
+              }
               pointerEvents={isIncome ? "none" : "auto"}
               accessibilityElementsHidden={isIncome}
-              importantForAccessibility={isIncome ? "no-hide-descendants" : "auto"}
+              importantForAccessibility={
+                isIncome ? "no-hide-descendants" : "auto"
+              }
               aria-hidden={isIncome}
             >
-                {expenseTags.map((tag) => {
-                  const selected = selectedTag === tag;
-                  return (
-                    <Pressable
-                      key={tag}
-                      accessibilityRole="radio"
-                      accessibilityLabel={tag}
-                      accessibilityState={{ checked: selected }}
-                      disabled={isIncome}
-                      onPress={() => setSelectedTag(tag)}
-                      style={[styles.tag, selected && styles.selectedTag]}
+              {expenseTags.map((tag) => {
+                const selected = category
+                  ? tagCategory[tag] === category
+                  : selectedTag === tag;
+                return (
+                  <Pressable
+                    key={tag}
+                    accessibilityRole="radio"
+                    accessibilityLabel={tag}
+                    accessibilityState={{ checked: selected }}
+                    disabled={isIncome}
+                    onPress={() => {
+                      setSelectedTag(tag);
+                      onChangeCategory?.(tagCategory[tag]);
+                    }}
+                    style={[styles.tag, selected && styles.selectedTag]}
+                  >
+                    <Text
+                      style={[
+                        styles.tagText,
+                        selected && styles.selectedTagText,
+                      ]}
                     >
-                      <Text style={[styles.tagText, selected && styles.selectedTagText]}>
-                        {tag}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                      {tag}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={{ gap: 24 }}>
@@ -164,24 +208,22 @@ export function TransactionModal({
                 <Text style={styles.label}>
                   {isIncome ? "입금 일자" : "출금 일자"}
                 </Text>
-                <View style={styles.dateRow}>
-                  {[0, 1, 2].map((index) => (
-                    <Pressable
-                      key={index}
-                      style={styles.dateField}
-                      onPress={onOpenDatePicker}
-                    >
-                      <Text style={styles.dateText}>
-                        {formatDatePart(
-                          transactionDate,
-                          index,
-                          index === 0 ? "2026" : "01",
-                        )}
-                      </Text>
-                      <Ionicons name="chevron-down" size={21} color="#111111" />
-                    </Pressable>
-                  ))}
-                </View>
+                <Pressable
+                  style={styles.decoratedField}
+                  onPress={onOpenDatePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel={`거래 일자 선택, ${transactionDate || "미선택"}`}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.dateText, !transactionDate && styles.placeholder]}
+                  >
+                    {transactionDate || "날짜를 입력해주세요"}
+                  </Text>
+                  <View style={styles.fieldAccessory} pointerEvents="none">
+                    <Ionicons name="calendar-outline" size={24} color="#B1B8C1" />
+                  </View>
+                </Pressable>
               </View>
 
               {showDatePicker && isTabletDatePicker && (
@@ -209,38 +251,40 @@ export function TransactionModal({
                 <Text style={styles.label}>
                   {isIncome ? "입금 금액" : "출금 금액"}
                 </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="금액을 입력해주세요"
-                  placeholderTextColor="#A8B0BB"
-                  keyboardType="decimal-pad"
-                  value={amount}
-                  onChangeText={onChangeAmount}
-                />
+                    <View style={styles.amountField}>
+                      <TextInput
+                        style={styles.decoratedField}
+                        placeholder={isIncome ? "입금 금액을 입력해주세요" : "출금 금액을 입력해주세요"}
+                        placeholderTextColor="#B1B8C1"
+                        keyboardType="decimal-pad"
+                        value={amount}
+                        onChangeText={onChangeAmount}
+                        selectionColor={Colors.primary.default}
+                        accessibilityLabel={isIncome ? "입금 금액" : "출금 금액"}
+                      />
+                      <View style={styles.fieldAccessory} pointerEvents="none">
+                        <Text style={fonts.body1_m_16}>원</Text>
+                      </View>
+                    </View>
+                    {amountError && (
+                      <View style={styles.amountError}>
+                        <ErrorIcon />
+                        <Text style={styles.amountErrorText}>{amountError}</Text>
+                      </View>
+                    )}
               </View>
               <View>
                 <Text style={styles.label}>내역 이름</Text>
-                <TextInput
+                <InputField
                   style={styles.input}
                   placeholder="내역 이름을 입력해주세요"
-                  placeholderTextColor="#A8B0BB"
+                  placeholderTextColor="#B1B8C1"
                   value={title}
                   onChangeText={onChangeTitle}
+                  error={titleError}
                 />
               </View>
             </View>
-            {/* {!isIncome && (
-              <>
-                <Text style={styles.label}>메모 (선택)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="메모를 입력해주세요"
-                  placeholderTextColor="#A8B0BB"
-                  value={description}
-                  onChangeText={onChangeDescription}
-                />
-              </>
-            )} */}
 
             {isIncome && (
               <View
@@ -248,9 +292,15 @@ export function TransactionModal({
                 style={{ height: tagRowHeight + styles.tagRow.marginBottom }}
               />
             )}
-            <Pressable style={styles.submitButton} onPress={onSubmit}>
-              <Text style={styles.submitButtonText}>등록하기</Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", marginTop: 30 }}>
+              <Button
+                title={isEditing ? "수정하기" : "등록하기"}
+                onPress={() => {
+                  if (isValid) onSubmit();
+                }}
+                disabled={!isValid}
+              />
+            </View>
           </BottomSheetView>
 
           {showDatePicker && Platform.OS === "ios" && !isTabletDatePicker && (
@@ -309,9 +359,18 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingTop: 34,
     paddingBottom: 32,
     overflow: "visible",
+  },
+  handle: {
+    position: "absolute",
+    top: 9,
+    alignSelf: "center",
+    width: 72,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D2D6DC",
   },
   header: {
     flexDirection: "row",
@@ -343,8 +402,7 @@ const styles = StyleSheet.create({
     color: Colors.gray[11],
   },
   label: {
-    ...fonts.sub4_sb_14,
-    color: Colors.gray[8],
+    ...commonStyles.inputLabel,
     marginBottom: 4,
   },
   tagRow: {
@@ -378,20 +436,42 @@ const styles = StyleSheet.create({
   selectedTagText: {
     color: Colors.common.white,
   },
-  dateRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  dateField: {
-    flex: 1,
+  decoratedField: {
     height: 58,
     borderWidth: 1,
     borderColor: "#DDE2E8",
     borderRadius: 11,
-    paddingHorizontal: 14,
+    paddingLeft: 16,
+    paddingRight: 52,
+    justifyContent: "center",
+    ...fonts.body1_m_16,
+    color: "#1C1C1E",
+  },
+  amountField: {
+    position: "relative",
+  },
+  fieldAccessory: {
+    position: "absolute",
+    right: 16,
+    top: 0,
+    height: 58,
+    width: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  placeholder: {
+    color: "#B1B8C1",
+  },
+  amountError: {
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 4,
+  },
+  amountErrorText: {
+    ...fonts.caption3_m_13,
+    color: "#FF3636",
+    flexShrink: 1,
   },
   dateText: {
     fontSize: 17,
@@ -406,14 +486,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 16,
     color: "#1C1C1E",
-  },
-  submitButton: {
-    height: 60,
-    marginTop: 30,
-    borderRadius: 11,
-    backgroundColor: Colors.primary.default,
-    alignItems: "center",
-    justifyContent: "center",
   },
   submitButtonText: {
     ...fonts.sub3_sb_16,

@@ -13,6 +13,7 @@ import {
   subscribeToFcmTokenRefresh,
   subscribeToForegroundPushNotifications,
 } from "@/src/notifications/push";
+import { FadeToastHost } from "@/components/ui/fade-toast";
 
 if (Platform.OS !== "web") {
   void SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -24,7 +25,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (fontsLoaded || fontError) {
       if (fontError) console.error("Pretendard 폰트 로딩 실패:", fontError);
-      if (Platform.OS !== "web") void SplashScreen.hideAsync().catch(() => undefined);
+      if (Platform.OS !== "web")
+        void SplashScreen.hideAsync().catch(() => undefined);
     }
   }, [fontsLoaded, fontError]);
 
@@ -61,9 +63,18 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="login" />
-        <Stack.Screen name="market/ticket-preview" options={{ animation: "slide_from_right" }} />
-        <Stack.Screen name="market/write" options={{ animation: "slide_from_right", gestureEnabled: false }} />
-        <Stack.Screen name="market/ticket-write" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen
+          name="market/ticket-preview"
+          options={{ animation: "slide_from_right" }}
+        />
+        <Stack.Screen
+          name="market/write"
+          options={{ animation: "slide_from_right", gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="market/ticket-write"
+          options={{ animation: "slide_from_right" }}
+        />
         <Stack.Screen
           name="signup"
           options={{
@@ -107,6 +118,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="id-login" />
       </Stack>
+      <FadeToastHost />
 
       <StatusBar style="dark" />
     </ThemeProvider>

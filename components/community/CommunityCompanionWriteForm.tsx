@@ -26,7 +26,7 @@ import {
 } from "../../src/api/companion";
 import { BLUE } from "../../src/data/community";
 import { canUseMarketWithoutVerification } from "../../src/utils/verification";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -560,8 +560,7 @@ const styles = StyleSheet.create({
   },
   field: { marginBottom: 28 },
   label: {
-    ...fonts.body2_m_14,
-    color: Colors.gray[8],
+    ...commonStyles.inputLabel,
     marginBottom: 8,
   },
   input: {

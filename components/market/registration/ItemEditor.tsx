@@ -1,5 +1,4 @@
 import XIcon from "@/assets/icon/x-icon.svg";
-import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
 import {
   BottomSheetModal,
@@ -17,7 +16,6 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { PhotoField } from "./PhotoField";
 import { itemOptions, categoryLabel, type RegistrationItem } from "./model";
 import { styles } from "./styles";
 
@@ -35,7 +33,6 @@ export function ItemEditor({
   onSave: (item: RegistrationItem) => void;
 }) {
   const [item, setItem] = useState(initial);
-  const [expanded, setExpanded] = useState(false);
   const [custom, setCustom] = useState(
     Boolean(
       initial.name &&
@@ -64,7 +61,10 @@ export function ItemEditor({
           accessibilityLabel="세부 물품 등록 닫기"
         />
         <BottomSheetView
-          style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}
+          style={[
+            styles.sheet,
+            { minHeight: "85%", paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
         >
           <View style={styles.handle} />
           <View style={[styles.sheetHeader, { marginBottom: 28 }]}>
@@ -85,6 +85,7 @@ export function ItemEditor({
                 {Object.keys(itemOptions).map((category) => (
                   <Pressable
                     key={category}
+                    accessibilityRole="button"
                     accessibilityState={{
                       selected: category === item.category,
                     }}
@@ -95,7 +96,6 @@ export function ItemEditor({
                     onPress={() => {
                       setItem({ ...item, category, name: "" });
                       setCustom(false);
-                      setExpanded(false);
                     }}
                   >
                     <Text
@@ -119,39 +119,60 @@ export function ItemEditor({
               <Text style={[fonts.sub3_sb_16, { color: Colors.common.black }]}>
                 상세 물품
               </Text>
-              <View style={{ flexDirection: "row" }}>
-                <InlineDropdown
-                  value={custom ? "직접 입력" : item.name}
-                  placeholder="상세 물품을 선택해주세요"
-                  open={expanded}
-                  onPress={() => {
-                    if (item.category) setExpanded(!expanded);
-                  }}
-                  options={[
-                    ...(itemOptions[item.category] ?? []),
-                    "직접 입력",
-                  ].map((name) => {
-                    const taken = items.some(
-                      (other) =>
-                        other.id !== item.id &&
-                        other.category === item.category &&
-                        other.name === name,
-                    );
-                    return {
-                      value: name,
-                      label: `${name}${taken ? " (등록됨)" : ""}`,
-                      disabled: taken,
-                    };
-                  })}
-                  onSelect={(name) => {
-                    setCustom(name === "직접 입력");
-                    setItem({
-                      ...item,
-                      name: name === "직접 입력" ? "" : name,
-                    });
-                    setExpanded(false);
-                  }}
-                />
+              {!item.category && (
+                <Text style={[fonts.body2_m_14, { color: Colors.gray[7] }]}>
+                  카테고리를 선택해주세요
+                </Text>
+              )}
+              <View style={styles.chips}>
+                {item.category &&
+                  [...(itemOptions[item.category] ?? []), "직접 입력"].map(
+                    (name) => {
+                      const taken = items.some(
+                        (other) =>
+                          other.id !== item.id &&
+                          other.category === item.category &&
+                          other.name === name,
+                      );
+                      const selected = custom
+                        ? name === "직접 입력"
+                        : name === item.name;
+                      return (
+                        <Pressable
+                          key={name}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected, disabled: taken }}
+                          disabled={taken}
+                          style={[
+                            styles.chip,
+                            selected && styles.chipActive,
+                            taken && { opacity: 0.4 },
+                          ]}
+                          onPress={() => {
+                            setCustom(name === "직접 입력");
+                            setItem({
+                              ...item,
+                              name: name === "직접 입력" ? "" : name,
+                            });
+                          }}
+                        >
+                          <Text
+                            style={[
+                              fonts.body2_m_14,
+                              {
+                                color: selected
+                                  ? Colors.common.white
+                                  : Colors.gray[7],
+                              },
+                            ]}
+                          >
+                            {name}
+                            {taken ? " (등록됨)" : ""}
+                          </Text>
+                        </Pressable>
+                      );
+                    },
+                  )}
               </View>
               {custom && (
                 <TextInput
@@ -196,16 +217,6 @@ export function ItemEditor({
                   <Ionicons name="add" size={20} color={Colors.gray[7]} />
                 </Pressable>
               </View>
-            </View>
-            <View style={styles.itemEditorField}>
-              <Text style={[fonts.sub3_sb_16, { color: Colors.common.black }]}>
-                이미지 등록
-              </Text>
-              <PhotoField
-                photos={item.photos}
-                onChange={(photos) => setItem({ ...item, photos })}
-                limit={3}
-              />
             </View>
             <View style={styles.itemEditorField}>
               <Text style={[fonts.sub3_sb_16, { color: Colors.common.black }]}>

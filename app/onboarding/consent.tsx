@@ -11,9 +11,7 @@ import { AppBackButton } from "@/components/ui/app-back-button";
 function ProgressStep({ label, active }: { label: string; active?: boolean }) {
   return (
     <View style={[styles.progressStep, active && styles.progressStepActive]}>
-      <Text style={[fonts.caption1_sb_13, { color: Colors.common.white }]}>
-        {label}
-      </Text>
+      {active && <Text style={styles.progressNumber}>{label}</Text>}
     </View>
   );
 }
@@ -45,8 +43,8 @@ export default function OnboardingConsentPage() {
 
         <View style={styles.progressRow}>
           <ProgressStep label="1" active />
-          <View style={styles.progressLine} />
           <ProgressStep label="2" />
+          <ProgressStep label="3" />
         </View>
 
         <Text style={fonts.title3_b_24}>인증 서류 수집 및 이용 동의</Text>
@@ -181,23 +179,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
     marginBottom: 20,
-    gap: 6,
+    gap: 12,
   },
   progressStep: {
-    width: 24,
-    height: 24,
+    width: 6,
+    height: 6,
     borderRadius: 100,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.gray[4],
   },
   progressStepActive: {
+    width: 20,
+    height: 20,
     backgroundColor: Colors.gray[9],
   },
-  progressLine: {
-    width: 16,
-    height: 2,
-    backgroundColor: Colors.gray[4],
+  progressNumber: {
+    ...fonts.caption4_m_12,
+    color: Colors.common.white,
   },
   title: {
     color: "#101318",

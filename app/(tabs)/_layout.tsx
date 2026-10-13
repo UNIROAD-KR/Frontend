@@ -51,7 +51,7 @@ const tabMeta = {
     icon: HomeLineIcon,
     activeIcon: HomeFilledIcon,
   },
-  explore: {
+  management: {
     label: "관리",
     icon: SearchLineIcon,
     activeIcon: SearchFilledIcon,
@@ -243,11 +243,11 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="explore"
+            name="management"
             listeners={{
               tabPress: (e) => {
                 e.preventDefault();
-                router.replace("/explore" as any);
+                router.replace("/management" as any);
               },
             }}
             options={{

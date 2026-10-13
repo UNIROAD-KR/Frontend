@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
@@ -180,8 +181,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...commonStyles.inputLabel,
     marginBottom: 12,
   },
 

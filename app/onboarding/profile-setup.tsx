@@ -1,6 +1,8 @@
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { BottomSheetModal, BottomSheetView } from "@/components/ui/bottom-sheet";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -19,7 +21,7 @@ import {
 import { AppBackButton } from "@/components/ui/app-back-button";
 import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
 import { useResetScrollOnFocus } from "@/hooks/use-reset-scroll-on-focus";
-import { onboarding, type OnboardingRequest } from "@/src/api/auth";
+import { onboarding, updateMemberProfile, type OnboardingRequest } from "@/src/api/auth";
 import {
   countryOptions,
   CUSTOM_COUNTRY_OPTION,
@@ -58,7 +60,7 @@ const statusOptions: StatusOption[] = [
   {
     value: "accepted",
     label: "출국 준비 중",
-    dateLabel: "출국 예정일",
+    dateLabel: "출국일",
     dateKey: "departureDate",
     profileStatus: "출국 준비 중",
   },
@@ -75,12 +77,6 @@ const emptyStatusDates: Record<ExchangeStatus, string> = {
   preparing: "",
   accepted: "",
   dispatched: "",
-};
-
-const startOfToday = () => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return today;
 };
 
 const toStorageDate = (date: Date) => {
@@ -132,9 +128,7 @@ const calculateAge = (birthYear: string | null) => {
 function Step({ label, active }: { label: string; active?: boolean }) {
   return (
     <View style={[styles.progressStep, active && styles.progressStepActive]}>
-      <Text style={[fonts.caption1_sb_13, { color: Colors.common.white }]}>
-        {label}
-      </Text>
+      {active && <Text style={styles.progressNumber}>{label}</Text>}
     </View>
   );
 }
@@ -159,7 +153,7 @@ function SelectField({ value, placeholder, onPress }: SelectFieldProps) {
   );
 }
 
-export default function ProfileSetupPage() {
+export default function ProfileSetupPage({ dispatchStep = false }: { dispatchStep?: boolean }) {
   const scrollRef = useResetScrollOnFocus();
   const [nickname, setNickname] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "">("");
@@ -178,7 +172,10 @@ export default function ProfileSetupPage() {
     useState<Record<ExchangeStatus, string>>(emptyStatusDates);
   const [universityPickerVisible, setUniversityPickerVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  const [birthYearPickerVisible, setBirthYearPickerVisible] = useState(false);
+  const [returnDate, setReturnDate] = useState("");
+  const [dateTarget, setDateTarget] = useState<"status" | "return" | null>(null);
+  const [pickerDate, setPickerDate] = useState(new Date());
+  const [onboardingSaved, setOnboardingSaved] = useState(false);
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
   const [openDatePart, setOpenDatePart] = useState<
     "year" | "month" | "day" | null
@@ -198,27 +195,10 @@ export default function ProfileSetupPage() {
   const statusDate = status ? statusDates[status] : "";
   const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const finalCountry = isCustomCountry ? customCountry.trim() : selectedCountry;
-  const isValid = Boolean(
-    nickname.trim() &&
-    !nicknameError &&
-    university &&
-    finalCountry &&
-    region.trim() &&
-    dispatchedUniversity.trim() &&
-    semesterYear &&
-    semesterTerm &&
-    status &&
-    statusDate,
-  );
-
-  const birthYearOptions = useMemo(
-    () =>
-      Array.from({ length: 63 }, (_, index) => {
-        const year = String(new Date().getFullYear() - 18 - index);
-        return { value: year, label: `${year}년` };
-      }),
-    [],
-  );
+  const returnDateError = status === "dispatched" && returnDate && statusDate && returnDate < statusDate
+    ? "귀국일은 파견 시작일 이후로 선택해주세요." : "";
+  const isProfileValid = Boolean(nickname.trim() && !nicknameError && university && status && statusDate && !returnDateError);
+  const isValid = isProfileValid && Boolean(finalCountry && semesterYear && semesterTerm);
 
   const semesterYears = useMemo(
     () =>
@@ -229,8 +209,8 @@ export default function ProfileSetupPage() {
   );
   const dateYearOptions = useMemo(
     () =>
-      Array.from({ length: 7 }, (_, index) => {
-        const year = String(new Date().getFullYear() + index);
+      Array.from({ length: 21 }, (_, index) => {
+        const year = String(new Date().getFullYear() - 10 + index);
         return { value: year, label: `${year}년` };
       }),
     [],
@@ -271,6 +251,7 @@ export default function ProfileSetupPage() {
         "applicationDeadline",
         "departureDate",
         "dispatchStartDate",
+        "returnDate",
       ]);
       const saved = Object.fromEntries(entries);
       const country = resolveCountrySelection(saved.dispatchedCountry);
@@ -284,6 +265,7 @@ export default function ProfileSetupPage() {
       );
       setBirthYear(saved.birthYear ?? "");
       setUniversity(saved.university ?? "");
+      setReturnDate(saved.returnDate ?? "");
       setSelectedCountry(country.selectedCountry);
       setCustomCountry(country.customCountry);
       setRegion(saved.dispatchedRegion ?? "");
@@ -351,6 +333,7 @@ export default function ProfileSetupPage() {
 
   const selectStatus = (nextStatus: ExchangeStatus) => {
     setStatus(nextStatus);
+    setDateTarget(null);
     setDateDraftParts(getStoredDateParts(statusDates[nextStatus]));
     setOpenDatePart(null);
     void AsyncStorage.setItem("onboardingSituation", nextStatus);
@@ -363,7 +346,10 @@ export default function ProfileSetupPage() {
     setDateDraftParts(nextParts);
     setOpenDatePart(null);
 
-    if (!nextParts.year || !nextParts.month || !nextParts.day) return;
+    if (!nextParts.year || !nextParts.month || !nextParts.day) {
+      commitDate("");
+      return;
+    }
 
     const selectedDate = new Date(
       Number(nextParts.year),
@@ -375,33 +361,55 @@ export default function ProfileSetupPage() {
       selectedDate.getMonth() === Number(nextParts.month) - 1 &&
       selectedDate.getDate() === Number(nextParts.day);
 
-    if (!isRealDate || selectedDate < startOfToday()) {
+    if (!isRealDate) {
+      commitDate("");
       Alert.alert(
         "날짜를 확인해주세요",
-        "오늘 이후의 날짜만 선택할 수 있어요.",
+        "실제 존재하는 날짜를 선택해주세요.",
       );
       return;
     }
 
-    const nextDate = toStorageDate(selectedDate);
-    setStatusDates((current) => ({ ...current, [status]: nextDate }));
-    const statusOption = statusOptions.find(
-      (option) => option.value === status,
-    );
-    if (statusOption) void AsyncStorage.setItem(statusOption.dateKey, nextDate);
+    commitDate(toStorageDate(selectedDate));
   };
 
-  const toggleDateDropdown = (part: "year" | "month" | "day") => {
-    if (openDatePart === part) {
-      setOpenDatePart(null);
-      return;
+  const commitDate = (value: string) => {
+    if (dateTarget === "return") {
+      setReturnDate(value);
+      void AsyncStorage.setItem("returnDate", value);
+    } else if (status && selectedStatus) {
+      setStatusDates((current) => ({ ...current, [status]: value }));
+      void AsyncStorage.setItem(selectedStatus.dateKey, value);
     }
+  };
 
-    setOpenDatePart(part);
+  const openDatePicker = (target: "status" | "return") => {
+    Keyboard.dismiss();
+    const value = target === "return" ? returnDate : statusDate;
+    setPickerDate(value ? new Date(value + "T12:00:00") : new Date());
+    setDateDraftParts(getStoredDateParts(value));
+    setOpenDatePart(null);
+    setDateTarget(target);
+  };
 
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
+  const handleNext = async () => {
+    if (!isProfileValid || !status || !selectedStatus || submitting) return;
+    setSubmitting(true);
+    try {
+      await AsyncStorage.multiSet([
+        [ONBOARDING_NICKNAME_KEY, nickname],
+        ["university", university],
+        ["onboardingSituation", status],
+        [selectedStatus.dateKey, statusDate],
+        ["returnDate", returnDate],
+      ]);
+      Keyboard.dismiss();
+      router.push("/onboarding/dispatch-setup");
+    } catch {
+      Alert.alert("저장 실패", "잠시 후 다시 시도해주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleStart = async () => {
@@ -426,9 +434,9 @@ export default function ProfileSetupPage() {
         ...(requestAge ? { age: requestAge } : {}),
         currentSituation: mapCurrentSituation(status),
         domesticUniversity: university,
-        dispatchedUniversity: dispatchedUniversity.trim(),
+        ...(dispatchedUniversity.trim() ? { dispatchedUniversity: dispatchedUniversity.trim() } : {}),
         dispatchedCountry: finalCountry,
-        dispatchedRegion: region.trim(),
+        ...(region.trim() ? { dispatchedRegion: region.trim() } : {}),
         dispatchSemester,
         ...(selectedDateKey === "applicationDeadline"
           ? { applicationDeadline: statusDate }
@@ -472,7 +480,27 @@ export default function ProfileSetupPage() {
       if (__DEV__) {
         console.log("[Onboarding] 저장 요청:", request);
       }
-      await onboarding(request);
+      if (!onboardingSaved) {
+        await onboarding(request);
+        setOnboardingSaved(true);
+      } else {
+        await updateMemberProfile({
+          nickname: request.nickname,
+          currentSituation: request.currentSituation,
+          domesticUniversity: request.domesticUniversity,
+          dispatchedCountry: request.dispatchedCountry,
+          dispatchedRegion: region.trim(),
+          dispatchedUniversity: dispatchedUniversity.trim(),
+          dispatchSemester,
+          applicationDeadline: request.applicationDeadline,
+          departureDate: request.departureDate,
+          dispatchStartDate: request.dispatchStartDate,
+        });
+      }
+      if (status === "dispatched" && returnDate) {
+        await updateMemberProfile({ returnDate });
+      }
+      await AsyncStorage.setItem("returnDate", status === "dispatched" ? returnDate : "");
       await AsyncStorage.setItem("nickname", nickname.trim());
       await clearOnboardingDraft();
       router.replace("/home");
@@ -499,39 +527,38 @@ export default function ProfileSetupPage() {
     >
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[
-          styles.content,
-        ]}
+        contentContainerStyle={[styles.content]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <AppBackButton
-            fallbackHref="/onboarding/consent"
+            fallbackHref={dispatchStep ? "/onboarding/profile-setup" : "/onboarding/consent"}
             style={styles.backButton}
           />
           <Text style={[fonts.sub3_sb_16, { textAlign: "center" }]}>
-            교환학생 신원 인증
+            {dispatchStep ? "파견 정보 설정" : "프로필 설정"}
           </Text>
         </View>
 
         <View style={styles.progressRow}>
           <Step label="1" />
-          <View style={styles.progressLine} />
-          <Step label="2" active />
+          <Step label="2" active={!dispatchStep} />
+          <Step label="3" active={dispatchStep} />
         </View>
 
         <View style={{ gap: 6 }}>
           <Text style={[fonts.title3_b_24, { color: Colors.common.black }]}>
-            프로필 설정하기
+            {dispatchStep ? "파견 정보 설정하기" : "프로필 설정하기"}
           </Text>
           <Text style={[fonts.body4_r_14, { color: Colors.gray[7] }]}>
-            프로필을 설정하고 나만의 서비스를 시작해 보세요.
+            {dispatchStep ? "파견 학기와 국가, 지역 정보를 설정해 주세요." : "프로필을 설정하고 나만의 서비스를 시작해 보세요."}
           </Text>
         </View>
 
+        {!dispatchStep ? (<>
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>닉네임</Text>
+          <Text style={styles.label}>닉네임<Text style={styles.required}> *</Text></Text>
           <View
             style={[styles.textField, nicknameError && styles.textFieldError]}
           >
@@ -553,62 +580,8 @@ export default function ProfileSetupPage() {
           ) : null}
         </View>
 
-        {/* <View style={styles.fieldGroup}> */}
-        {/* <Text style={styles.label}>성별</Text>
-          <View style={styles.genderRow}>
-            {(
-              [
-                { value: "female", label: "여성" },
-                { value: "male", label: "남성" },
-              ] as const
-            ).map((option) => {
-              const selected = gender === option.value;
-
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.genderButton,
-                    selected && styles.genderButtonSelected,
-                  ]}
-                  onPress={() => {
-                    setGender(option.value);
-                    void AsyncStorage.setItem("gender", option.value);
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.genderText,
-                      selected && styles.genderTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View> */}
-        {/* </View> */}
-        {/* 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>출생연도</Text>
-          <InlineDropdown
-            value={birthYear}
-            displayValue={birthYear ? `${birthYear}년` : ""}
-            placeholder="출생연도를 선택해주세요"
-            open={birthYearPickerVisible}
-            options={birthYearOptions}
-            onPress={() => setBirthYearPickerVisible((visible) => !visible)}
-            onSelect={(value) => {
-              setBirthYear(value);
-              setBirthYearPickerVisible(false);
-              void AsyncStorage.setItem("birthYear", value);
-            }}
-          />
-        </View> */}
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>소속 대학</Text>
+          <Text style={styles.label}>소속 대학<Text style={styles.required}> *</Text></Text>
           <SelectField
             value={university}
             placeholder="소속 대학을 선택해주세요"
@@ -617,60 +590,55 @@ export default function ProfileSetupPage() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 국가 및 지역</Text>
-          <SelectField
-            value={
-              selectedCountry === CUSTOM_COUNTRY_OPTION
-                ? customCountry
-                : selectedCountry
-            }
-            placeholder="파견 국가를 선택해주세요"
-            onPress={() => setCountryPickerVisible(true)}
-          />
-          {isCustomCountry ? (
-            <TextInput
-              value={customCountry}
-              onChangeText={(value) => {
-                setCustomCountry(value);
-                void AsyncStorage.setItem("dispatchedCountry", value.trim());
-              }}
-              placeholder="파견 국가를 입력해주세요"
-              placeholderTextColor="#B3BDC9"
-              style={[
-                styles.textField,
-                styles.followingField,
-                styles.textInput,
-              ]}
-            />
-          ) : null}
-          <TextInput
-            value={region}
-            onChangeText={(value) => {
-              setRegion(value);
-              void AsyncStorage.setItem("dispatchedRegion", value.trim());
-            }}
-            placeholder="상세 지역을 입력해주세요"
-            placeholderTextColor="#B3BDC9"
-            style={[styles.textField, styles.followingField, styles.textInput]}
-          />
+          <Text style={styles.label}>파견 상태<Text style={styles.required}> *</Text></Text>
+          <View style={styles.statusRow}>
+            {statusOptions.map((option) => {
+              const selected = status === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.statusButton,
+                    selected && styles.statusButtonSelected,
+                  ]}
+                  onPress={() => selectStatus(option.value)}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      selected && styles.statusTextSelected,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
+        {selectedStatus && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>{selectedStatus.dateLabel}<Text style={styles.required}> *</Text></Text>
+            <Pressable style={styles.selectField} onPress={() => openDatePicker("status")} accessibilityRole="button" accessibilityLabel={selectedStatus.dateLabel}>
+              <Text style={[styles.selectValue, !statusDate && styles.placeholder]}>{statusDate || "날짜를 입력해주세요"}</Text>
+              <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
+            </Pressable>
+          </View>
+        )}
+        {status === "dispatched" && (
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>귀국일</Text>
+            <Pressable style={styles.selectField} onPress={() => openDatePicker("return")} accessibilityRole="button" accessibilityLabel="귀국일">
+              <Text style={[styles.selectValue, !returnDate && styles.placeholder]}>{returnDate || "날짜를 입력해주세요"}</Text>
+              <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
+            </Pressable>
+            {returnDateError ? <Text style={styles.errorText}>{returnDateError}</Text> : null}
+          </View>
+        )}
+        </>) : (<>
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견교</Text>
-          <TextInput
-            value={dispatchedUniversity}
-            onChangeText={(value) => {
-              setDispatchedUniversity(value);
-              void AsyncStorage.setItem("dispatchedUniversity", value.trim());
-            }}
-            placeholder="파견 대학을 입력해주세요"
-            placeholderTextColor="#B3BDC9"
-            style={[styles.textField, styles.textInput]}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 학기</Text>
+          <Text style={styles.label}>파견 학기<Text style={styles.required}> *</Text></Text>
           <InlineDropdown
             value={semesterYear}
             displayValue={semesterYear ? `${semesterYear}년` : ""}
@@ -713,78 +681,105 @@ export default function ProfileSetupPage() {
         </View>
 
         <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 상태</Text>
-          <View style={styles.statusRow}>
-            {statusOptions.map((option) => {
-              const selected = status === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[
-                    styles.statusButton,
-                    selected && styles.statusButtonSelected,
-                  ]}
-                  onPress={() => selectStatus(option.value)}
-                >
-                  <Text
-                    style={[
-                      styles.statusText,
-                      selected && styles.statusTextSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Text style={styles.label}>파견 국가<Text style={styles.required}> *</Text></Text>
+          <SelectField
+            value={
+              selectedCountry === CUSTOM_COUNTRY_OPTION
+                ? customCountry
+                : selectedCountry
+            }
+            placeholder="파견 국가를 선택해주세요"
+            onPress={() => setCountryPickerVisible(true)}
+          />
+          {isCustomCountry ? (
+            <TextInput
+              value={customCountry}
+              onChangeText={(value) => {
+                setCustomCountry(value);
+                void AsyncStorage.setItem("dispatchedCountry", value.trim());
+              }}
+              placeholder="파견 국가를 입력해주세요"
+              placeholderTextColor="#B3BDC9"
+              style={[
+                styles.textField,
+                styles.followingField,
+                styles.textInput,
+              ]}
+            />
+          ) : null}
         </View>
 
-        {selectedStatus ? (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{selectedStatus.dateLabel}</Text>
-            <View style={styles.dateRow}>
-              <InlineDropdown
-                value={dateDraftParts.year}
-                placeholder="연도"
-                open={openDatePart === "year"}
-                compact
-                options={dateYearOptions}
-                onPress={() => toggleDateDropdown("year")}
-                onSelect={(value) => selectDatePart("year", value)}
-              />
-              <InlineDropdown
-                value={dateDraftParts.month}
-                placeholder="월"
-                open={openDatePart === "month"}
-                compact
-                options={dateMonthOptions}
-                onPress={() => toggleDateDropdown("month")}
-                onSelect={(value) => selectDatePart("month", value)}
-              />
-              <InlineDropdown
-                value={dateDraftParts.day}
-                placeholder="일"
-                open={openDatePart === "day"}
-                compact
-                options={dateDayOptions}
-                onPress={() => toggleDateDropdown("day")}
-                onSelect={(value) => selectDatePart("day", value)}
-              />
-            </View>
-          </View>
-        ) : null}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>상세 지역</Text>
+          <TextInput
+            value={region}
+            onChangeText={(value) => {
+              setRegion(value);
+              void AsyncStorage.setItem("dispatchedRegion", value.trim());
+            }}
+            placeholder="상세 지역을 입력해주세요"
+            placeholderTextColor="#B3BDC9"
+            style={[styles.textField, styles.textInput]}
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>파견교</Text>
+          <TextInput
+            value={dispatchedUniversity}
+            onChangeText={(value) => {
+              setDispatchedUniversity(value);
+              void AsyncStorage.setItem("dispatchedUniversity", value.trim());
+            }}
+            placeholder="파견 대학을 입력해주세요"
+            placeholderTextColor="#B3BDC9"
+            style={[styles.textField, styles.textInput]}
+          />
+        </View>
+
+        </>)}
 
         <Pressable
-          style={[styles.startButton, isValid && styles.startButtonActive]}
-          onPress={handleStart}
-          disabled={!isValid || submitting}
+          style={[styles.startButton, (dispatchStep ? isValid : isProfileValid) && styles.startButtonActive]}
+          onPress={dispatchStep ? handleStart : handleNext}
+          disabled={!(dispatchStep ? isValid : isProfileValid) || submitting}
         >
           <Text style={styles.startButtonText}>
-            {submitting ? "저장 중..." : "유니로드 시작하기"}
+            {submitting ? "저장 중..." : dispatchStep ? "UNIROAD 시작하기" : "다음 단계로"}
           </Text>
         </Pressable>
       </ScrollView>
+
+      <BottomSheetModal visible={dateTarget !== null} onRequestClose={() => setDateTarget(null)}>
+        <View style={{ flex: 1, justifyContent: "flex-end" }}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDateTarget(null)} accessibilityLabel="날짜 선택 닫기" />
+          <BottomSheetView style={{ backgroundColor: Colors.common.white, padding: 20 }}>
+            <Text style={styles.label}>{dateTarget === "return" ? "귀국일" : selectedStatus?.dateLabel}</Text>
+            {Platform.OS === "web" ? (
+              <View style={styles.dateRow}>
+                {(["year", "month", "day"] as const).map((part) => (
+                  <InlineDropdown key={part} value={dateDraftParts[part]} placeholder={{ year: "연도", month: "월", day: "일" }[part]} compact
+                    open={openDatePart === part} options={part === "year" ? dateYearOptions : part === "month" ? dateMonthOptions : dateDayOptions}
+                    onPress={() => setOpenDatePart(openDatePart === part ? null : part)}
+                    onSelect={(value) => selectDatePart(part, value)} />
+                ))}
+              </View>
+            ) : dateTarget !== null && (
+              <DateTimePicker value={pickerDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} locale="ko-KR"
+                onChange={(event, value) => {
+                  if (Platform.OS === "android") setDateTarget(null);
+                  if (event.type === "dismissed" || !value) return;
+                  setPickerDate(value);
+                  if (Platform.OS === "android") commitDate(toStorageDate(value));
+                }} />
+            )}
+            <Pressable style={[styles.startButton, styles.startButtonActive]} onPress={() => {
+              if (Platform.OS !== "web") commitDate(toStorageDate(pickerDate));
+              setDateTarget(null);
+            }}><Text style={styles.startButtonText}>확인</Text></Pressable>
+          </BottomSheetView>
+        </View>
+      </BottomSheetModal>
 
       <OnboardingSelectModal
         visible={universityPickerVisible}
@@ -835,10 +830,10 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   fieldGroup: { marginTop: 20 },
+  required: { color: "#F04452" },
   label: {
-    color: Colors.gray[8],
+    ...commonStyles.inputLabel,
     marginBottom: 4,
-    ...fonts.sub4_sb_14,
   },
   textField: {
     minHeight: 52,
@@ -982,22 +977,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
     marginBottom: 20,
-    gap: 6,
+    gap: 12,
   },
   progressStep: {
-    width: 24,
-    height: 24,
+    width: 6,
+    height: 6,
     borderRadius: 100,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.gray[4],
   },
   progressStepActive: {
+    width: 20,
+    height: 20,
     backgroundColor: Colors.gray[9],
   },
-  progressLine: {
-    width: 16,
-    height: 2,
-    backgroundColor: Colors.gray[4],
+  progressNumber: {
+    ...fonts.caption4_m_12,
+    color: Colors.common.white,
   },
 });

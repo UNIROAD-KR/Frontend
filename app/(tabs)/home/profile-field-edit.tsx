@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetTouchable } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import { Ionicons } from '@expo/vector-icons';
@@ -542,10 +543,8 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   label: {
+    ...commonStyles.inputLabel,
     marginBottom: 8,
-    fontSize: 14,
-    fontWeight: '900',
-    color: MUTED,
   },
   input: {
     height: 46,

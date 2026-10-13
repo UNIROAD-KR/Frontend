@@ -11,6 +11,7 @@ import SchoolIcon from "@/assets/icon/school.svg";
 import FlagIcon from "@/assets/icon/flag.svg";
 import LocationIcon from "@/assets/icon/location.svg";
 import CalendarIcon from "@/assets/icon/calendar.svg";
+import EditIcon from "@/assets/icon/edit.svg";
 import {
   ActivityIndicator,
   Alert,
@@ -39,6 +40,7 @@ import {
 import { createReport, ReportReason } from "@/src/api/reports";
 import { createOrGetChatRoom } from "@/src/api/chat";
 import { getTicketCurrency } from "@/src/storage/ticketMetadata";
+import Button from "@/components/ui/button";
 
 const BLUE = "#123F9F";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -804,7 +806,7 @@ export default function TicketPreviewPage() {
                     handleEditTicket();
                   }}
                 >
-                  <Ionicons name="create-outline" size={18} color="#111111" />
+                  <EditIcon />
                   <Text style={styles.postMenuText}>수정하기</Text>
                 </Pressable>
 
@@ -1062,7 +1064,9 @@ export default function TicketPreviewPage() {
               <View style={detailStyles.value}>
                 {row.country && countryFlags[row.country] ? (
                   <View style={detailStyles.flagBox}>
-                    <Text style={detailStyles.flag}>{countryFlags[row.country]}</Text>
+                    <Text style={detailStyles.flag}>
+                      {countryFlags[row.country]}
+                    </Text>
                   </View>
                 ) : null}
                 <Text
@@ -1099,15 +1103,17 @@ export default function TicketPreviewPage() {
             color={liked ? BLUE : "#111111"}
           />
         </Pressable>
-        <Pressable
-          style={[styles.chatButton, chatLoading && styles.chatButtonDisabled]}
+        <Button
           onPress={handleStartChat}
           disabled={chatLoading}
-        >
-          <Text style={styles.chatText}>
-            {chatLoading ? "채팅방 여는 중..." : "채팅 시작하기"}
-          </Text>
-        </Pressable>
+          title={
+            chatLoading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              "채팅 시작하기"
+            )
+          }
+        />
       </View>
     </View>
   );
@@ -1537,8 +1543,18 @@ const detailStyles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 8,
   },
-  flagBox: { width: 28, height: 24, alignItems: "center", justifyContent: "center" },
-  flag: { fontSize: 20, lineHeight: 24, includeFontPadding: false, textAlign: "center" },
+  flagBox: {
+    width: 28,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  flag: {
+    fontSize: 20,
+    lineHeight: 24,
+    includeFontPadding: false,
+    textAlign: "center",
+  },
   profile: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -341,9 +342,7 @@ const styles = StyleSheet.create({
   },
 
   label: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111111',
+    ...commonStyles.inputLabel,
     marginBottom: 12,
   },
 

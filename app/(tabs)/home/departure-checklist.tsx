@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -1148,11 +1149,9 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   inputLabel: {
+    ...commonStyles.inputLabel,
     marginTop: 4,
     marginBottom: 8,
-    fontSize: 13,
-    fontWeight: '900',
-    color: NAVY,
   },
   textInput: {
     height: 48,

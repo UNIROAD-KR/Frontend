@@ -1,4 +1,5 @@
 import { Text, TextInput } from "@/components/ui/app-text";
+import { FilterResetButton } from "@/components/ui/filter-reset-button";
 import type { FreePostStatusFilter } from "../../../src/api/freePosts";
 import {
   BottomSheetModal,
@@ -501,15 +502,9 @@ export default function CommunityScreen() {
                   />
                 </Pressable>
                 {hasCompanionFilters && (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="필터 초기화"
-                    hitSlop={8}
+                  <FilterResetButton
                     onPress={() => setCompanionFilters(emptyCompanionFilters)}
-                    style={styles.filterResetButton}
-                  >
-                    <Ionicons name="close" size={12} color="#FFFFFF" />
-                  </Pressable>
+                  />
                 )}
               </View>
               <Pressable
@@ -523,6 +518,25 @@ export default function CommunityScreen() {
             </View>
 
             <View style={[styles.companionList, isWide && styles.gridList]}>
+              {filteredCompanions.length === 0 && (
+                <View style={styles.companionEmpty}>
+                  <Ionicons
+                    name={hasCompanionFilters ? "search-outline" : "people-outline"}
+                    size={40}
+                    color={Colors.gray[5]}
+                  />
+                  <Text style={styles.companionEmptyTitle}>
+                    {hasCompanionFilters
+                      ? "조건에 맞는 동행이 없어요"
+                      : "아직 모집 중인 동행이 없어요"}
+                  </Text>
+                  <Text style={styles.companionEmptyDesc}>
+                    {hasCompanionFilters
+                      ? "필터를 바꾸거나 초기화해 보세요"
+                      : "첫 번째 동행 모집 글을 올려 보세요!"}
+                  </Text>
+                </View>
+              )}
               {filteredCompanions.map((post) => (
                 <Pressable
                   key={post.id}
@@ -846,17 +860,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   filterButtonWrap: { position: "relative" },
-  filterResetButton: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: Colors.gray[7],
-    alignItems: "center",
-    justifyContent: "center",
-  },
   boardSortOverlay: {
     flex: 1,
     justifyContent: "flex-end",
@@ -1110,6 +1113,21 @@ const styles = StyleSheet.create({
   },
   companionList: {
     gap: 20,
+  },
+  companionEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 72,
+    gap: 8,
+  },
+  companionEmptyTitle: {
+    ...fonts.body1_m_16,
+    color: Colors.gray[9],
+    marginTop: 8,
+  },
+  companionEmptyDesc: {
+    ...fonts.caption5_r_13,
+    color: Colors.gray[6],
   },
   companionCard: {
     flexDirection: "row",

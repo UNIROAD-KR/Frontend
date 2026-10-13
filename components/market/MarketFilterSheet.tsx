@@ -6,11 +6,12 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import XIcon from "@/assets/icon/x-icon.svg";
 import { TicketDateField } from "./registration/TicketDateField";
 
 export type MarketFilters = {
+  status: "all" | "active" | "sold";
   categories: string[];
   minPrice: number;
   maxPrice: number | null;
@@ -18,6 +19,7 @@ export type MarketFilters = {
   deadline: string;
 };
 export const emptyMarketFilters: MarketFilters = {
+  status: "all",
   categories: [],
   minPrice: 0,
   maxPrice: null,
@@ -103,10 +105,35 @@ export function MarketFilterSheet({
             </Pressable>
           </View>
           <ScrollView
+            style={styles.scroll}
             scrollEnabled={!dragging}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.content}
           >
+            {mode === "bulk" && (
+              <View style={styles.section}>
+                <Text style={styles.label}>거래 상태</Text>
+                <View style={styles.chips}>
+                  {([
+                    ["all", "전체"],
+                    ["active", "거래 중"],
+                    ["sold", "거래 완료"],
+                  ] as const).map(([status, label]) => (
+                    <Pressable
+                      key={status}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: draft.status === status }}
+                      onPress={() => patch({ status })}
+                      style={[styles.chip, draft.status === status && styles.selectedChip]}
+                    >
+                      <Text style={[fonts.body2_m_14, {
+                        color: draft.status === status ? Colors.common.white : Colors.gray[6],
+                      }]}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
             <View style={styles.section}>
               <Text style={styles.label}>카테고리</Text>
               <View style={styles.chips}>
@@ -358,9 +385,14 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   title: { fontSize: 24, fontWeight: "600", color: Colors.common.black },
-  content: { paddingBottom: 24, gap: 36 },
+  // 스크롤바를 시트 오른쪽 끝에 붙이기 위해 시트 좌우 패딩을 상쇄한다.
+  scroll: { marginHorizontal: -16 },
+  content: { paddingHorizontal: 16, paddingBottom: 24, gap: 36 },
   section: { gap: 12 },
-  label: { ...fonts.sub3_sb_16, color: Colors.common.black },
+  label: {
+    ...commonStyles.inputLabel,
+    marginBottom: 0,
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
     borderRadius: 24,

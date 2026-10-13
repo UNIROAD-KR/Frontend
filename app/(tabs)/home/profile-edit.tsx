@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1206,10 +1207,8 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   fieldLabel: {
+    ...commonStyles.inputLabel,
     marginBottom: 8,
-    fontSize: 14,
-    fontWeight: '900',
-    color: '#64748B',
   },
   textInputWrap: {
     height: 52,

@@ -252,6 +252,11 @@ export const fonts = StyleSheet.create({
 });
 
 export const commonStyles = StyleSheet.create({
+  inputLabel: {
+    ...fonts.sub4_sb_14,
+    color: Colors.gray[11],
+    marginBottom: 4,
+  },
   dimmed: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -265,6 +270,7 @@ export const commonStyles = StyleSheet.create({
     flex: 1,
   },
   button: {
+    height: 52,
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 10,

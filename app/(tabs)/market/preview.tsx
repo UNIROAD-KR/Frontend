@@ -1,3 +1,4 @@
+import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, useBottomSheetMotion, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1995,9 +1996,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   tradeReviewLabel: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: '#222222',
+    ...commonStyles.inputLabel,
     marginBottom: 8,
   },
   reviewInput: {

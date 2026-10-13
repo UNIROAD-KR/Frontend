@@ -5,7 +5,7 @@ import {
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { countryOptions } from "@/src/constants/onboarding";
 import {
   clearMarketDraft,
@@ -14,14 +14,13 @@ import {
   type DraftCategoryDetail,
 } from "@/src/storage/marketDraft";
 import { canUseMarketWithoutVerification } from "@/src/utils/verification";
+import { useAppAlert } from "@/hooks/use-app-alert";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { Fragment, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   BackHandler,
-  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -102,6 +101,7 @@ export default function MarketRegistration() {
     params.wizard,
     null,
   );
+  const { showAlert, alertElement } = useAppAlert();
   const [step, setStep] = useState(() =>
     Math.min(
       3,
@@ -159,7 +159,7 @@ export default function MarketRegistration() {
     canUseMarketWithoutVerification()
       .then((allowed) => {
         if (active && !allowed)
-          Alert.alert(
+          showAlert(
             "교환학생 인증",
             "중고거래를 이용하려면 교환학생 신원 인증이 필요해요.",
             [
@@ -173,10 +173,7 @@ export default function MarketRegistration() {
       })
       .catch(() => {
         if (active)
-          Alert.alert(
-            "인증 확인 실패",
-            "등록할 때 인증 상태를 다시 확인합니다.",
-          );
+          showAlert("인증 확인 실패", "등록할 때 인증 상태를 다시 확인합니다.");
       });
     return () => {
       active = false;
@@ -193,11 +190,10 @@ export default function MarketRegistration() {
         write: { ...form, type: params.type ?? "all" },
         wizard: { step, items },
       });
-      if (notify)
-        Alert.alert("임시저장 완료", "작성 중인 거래글을 저장했어요.");
+      if (notify) showAlert("임시저장 완료", "작성 중인 거래글을 저장했어요.");
       return true;
     } catch {
-      Alert.alert("임시저장 실패", "저장하지 못했어요. 다시 시도해주세요.");
+      showAlert("임시저장 실패", "저장하지 못했어요. 다시 시도해주세요.");
       return false;
     } finally {
       setSaving(false);
@@ -210,7 +206,7 @@ export default function MarketRegistration() {
       scroll.current?.scrollTo({ y: 0, animated: false });
       return;
     }
-    Alert.alert(
+    showAlert(
       "작성을 나갈까요?",
       "임시저장하면 나중에 이어서 작성할 수 있어요.",
       [
@@ -248,7 +244,7 @@ export default function MarketRegistration() {
     setUploading(true);
     try {
       if (!(await canUseMarketWithoutVerification())) {
-        Alert.alert("교환학생 인증", "신원 인증 후 등록할 수 있어요.", [
+        showAlert("교환학생 인증", "신원 인증 후 등록할 수 있어요.", [
           { text: "확인" },
           {
             text: "인증하기",
@@ -262,16 +258,16 @@ export default function MarketRegistration() {
       await clearMarketDraft().catch((error) =>
         console.warn("임시저장 정리 실패", error),
       );
-      Alert.alert(
+      showAlert(
         isEditing ? "수정 완료" : "등록 완료",
         isEditing
           ? "중고거래 게시글이 수정되었습니다."
           : "중고거래 게시글이 등록되었습니다.",
+        [{ text: "확인", onPress: () => router.replace("/market") }],
       );
-      router.replace("/market");
     } catch (error) {
       console.warn("중고거래 등록 실패", error);
-      Alert.alert(
+      showAlert(
         isEditing ? "수정 실패" : "등록 실패",
         "작성한 내용은 유지됩니다. 잠시 후 다시 시도해주세요.",
       );
@@ -338,11 +334,12 @@ export default function MarketRegistration() {
         <View style={styles.progress}>
           {[1, 2, 3].map((value) => (
             <Fragment key={value}>
-              {value > 1 && <View style={styles.connector} />}
               <View style={[styles.dot, step === value && styles.dotActive]}>
-                <Text style={[fonts.caption4_m_12, { color: "white" }]}>
-                  {value}
-                </Text>
+                {step === value && (
+                  <Text style={[fonts.caption4_m_12, { color: "white" }]}>
+                    {value}
+                  </Text>
+                )}
               </View>
             </Fragment>
           ))}
@@ -367,7 +364,7 @@ export default function MarketRegistration() {
         {step === 1 && (
           <View style={styles.field}>
             <View style={{ gap: 4 }}>
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+              <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
                 국가 및 지역
               </Text>
               <Pressable
@@ -394,7 +391,7 @@ export default function MarketRegistration() {
               )}
             </View>
             <View style={{ gap: 4 }}>
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+              <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
                 희망 장소
               </Text>
               <TextInput
@@ -407,7 +404,7 @@ export default function MarketRegistration() {
               />
             </View>
             <View style={{ gap: 4 }}>
-              <Text style={[fonts.sub4_sb_14, { color: Colors.gray[8] }]}>
+              <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
                 귀국일
               </Text>
               <View
@@ -514,7 +511,7 @@ export default function MarketRegistration() {
               </View>
             </View>
             <View>
-              <Text style={styles.label}>이미지</Text>
+              <Text style={styles.label}>대표 이미지 추가</Text>
               <PhotoField
                 photos={form.photos}
                 onChange={(photos) => patch({ photos })}
@@ -533,25 +530,6 @@ export default function MarketRegistration() {
                   accessibilityRole="button"
                   accessibilityLabel={`${item.name} ${item.quantity}개 수정`}
                 >
-                  {item.photos[0] ? (
-                    <Image
-                      source={{ uri: item.photos[0] }}
-                      style={styles.thumb}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.thumb,
-                        { alignItems: "center", justifyContent: "center" },
-                      ]}
-                    >
-                      <Ionicons
-                        name="image-outline"
-                        size={24}
-                        color={Colors.gray[5]}
-                      />
-                    </View>
-                  )}
                   <View style={{ flex: 1, minWidth: 0, gap: 5 }}>
                     <Text numberOfLines={1} style={fonts.sub3_sb_16}>
                       {item.name}
@@ -675,6 +653,7 @@ export default function MarketRegistration() {
           }}
         />
       )}
+      {alertElement}
     </KeyboardAvoidingView>
   );
 }

@@ -7,7 +7,6 @@ import { PhotoField } from "@/components/market/registration/PhotoField";
 import { useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -24,7 +23,7 @@ import {
 import { getUploadUrl, uploadFileToStorage } from "../../src/api/upload";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Modal } from "../ui/modal";
+import { useAppAlert } from "@/hooks/use-app-alert";
 
 const MAX_FREE_POST_PHOTOS = 10;
 const boardStatusFilters = Object.keys(
@@ -75,6 +74,7 @@ export function CommunityFreeWriteForm() {
   }>();
   const isEdit = params.mode === "edit";
 
+  const { showAlert, alertElement } = useAppAlert();
   const [title, setTitle] = useState(params.title || "");
   const [body, setBody] = useState(params.body || "");
   const [photos, setPhotos] = useState<string[]>(() =>
@@ -92,7 +92,7 @@ export function CommunityFreeWriteForm() {
     }
 
     if (!title.trim() || !body.trim()) {
-      Alert.alert("입력 오류", "제목과 내용을 입력해주세요.");
+      showAlert("입력 오류", "제목과 내용을 입력해주세요.");
       return;
     }
 
@@ -115,7 +115,7 @@ export function CommunityFreeWriteForm() {
         await createFreePost(payload);
       }
 
-      Alert.alert(
+      showAlert(
         isEdit ? "수정 완료" : "등록 완료",
         isEdit ? "게시글을 수정했어요." : "게시글을 등록했어요.",
         [{ text: "확인", onPress: () => goBackOrReplace("/community") }],
@@ -125,7 +125,7 @@ export function CommunityFreeWriteForm() {
         "자유게시판 저장 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert(
+      showAlert(
         "저장 실패",
         error.response?.data?.message || "잠시 후 다시 시도해주세요.",
       );
@@ -233,16 +233,7 @@ export function CommunityFreeWriteForm() {
 
         <View style={styles.bottomBar}></View>
       </KeyboardAvoidingView>
-      <Modal
-        title={isEdit ? "수정 완료" : "등록 완료"}
-        description={isEdit ? "게시글을 수정했어요." : "게시글을 등록했어요."}
-        primaryButton={{
-          label: "확인",
-          onPress: () => goBackOrReplace("/community"),
-        }}
-        isOpen
-      />
-      ;
+      {alertElement}
     </SafeAreaView>
   );
 }
@@ -301,8 +292,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
-    ...fonts.sub4_sb_14,
-    color: Colors.gray[8],
+    ...commonStyles.inputLabel,
+    marginBottom: 0,
   },
   input: {
     height: 48,
