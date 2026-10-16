@@ -5,10 +5,13 @@ import BuildingIcon from "../assets/icon/actions/building.svg";
 import CartIcon from "../assets/icon/actions/cart.svg";
 import DocumentIcon from "../assets/icon/actions/document.svg";
 import HandshakeIcon from "../assets/icon/actions/handshake.svg";
+import PeopleGreenIcon from "../assets/icon/actions/people-green.svg";
 import SchoolIcon from "../assets/icon/actions/school.svg";
 import TicketIcon from "../assets/icon/actions/ticket.svg";
 import TrophyIcon from "../assets/icon/actions/trophy.svg";
 import WalletIcon from "../assets/icon/actions/wallet.svg";
+import CalendarIcon from "../assets/icon/actions/calendar.svg";
+import BookIcon from "../assets/icon/actions/book.svg";
 
 export const CAROUSEL_ITEMS = [
   {
@@ -57,31 +60,10 @@ export type SocialProvider = keyof typeof SOCIAL_LOGIN_ICONS;
 
 export const quickActionsByStatus = [
   {
-    title: "파견교",
-    icon: SchoolIcon,
-    route: "/home/school-info",
-  },
-  {
-    title: "장학금",
-    icon: TrophyIcon,
-    route: "/home/scholarship-info",
-  },
-  {
-    title: "출국 가이드",
-    icon: DocumentIcon,
-    route: "/home/visa-guide",
-  },
-  {
-    title: "지원 기준",
-    icon: BuildingIcon,
-    route: "/home/my-school-info",
-  },
-  {
-    title: "중고 마켓",
+    title: "중고 거래",
     icon: CartIcon,
     route: {
       pathname: "/market",
-      params: { fromHome: "true" },
     },
   },
   {
@@ -89,31 +71,69 @@ export const quickActionsByStatus = [
     icon: TicketIcon,
     route: {
       pathname: "/market",
-      params: { tab: "ticket" },
     },
   },
-  {
-    title: "동행 구하기",
-    icon: HandshakeIcon,
-    route: {
-      pathname: "/community",
-      params: { tab: "companion" },
-    },
-  },
-
   {
     title: "지출 관리",
     icon: WalletIcon,
     route: {
-      pathname: "/mypage",
+      pathname: "/management",
+      params: { fromHome: "true" },
+    },
+  },
+  {
+    title: "자유게시판",
+    icon: PeopleGreenIcon,
+    route: {
+      pathname: "/community",
+      params: { fromHome: "true" },
+    },
+  },
+  {
+    title: "동행 모집",
+    icon: HandshakeIcon,
+    route: {
+      pathname: "/community",
+    },
+  },
+  {
+    title: "캘린더",
+    icon: CalendarIcon,
+    route: {
+      pathname: "/calendar",
       params: { fromHome: "true" },
     },
   },
   {
     title: "출국 준비",
-    icon: AirplaneIcon,
+    icon: DocumentIcon,
     route: "/home/departure-checklist",
   },
+  {
+    title: "교환 정보",
+    icon: BookIcon,
+    route: "/home",
+  },
+  // {
+  //   title: "파견교",
+  //   icon: SchoolIcon,
+  //   route: "/home/school-info",
+  // },
+  // {
+  //   title: "장학금",
+  //   icon: TrophyIcon,
+  //   route: "/home/scholarship-info",
+  // },
+  // {
+  //   title: "출국 가이드",
+  //   icon: DocumentIcon,
+  //   route: "/home/visa-guide",
+  // },
+  // {
+  //   title: "지원 기준",
+  //   icon: BuildingIcon,
+  //   route: "/home/my-school-info",
+  // },
 
   // {
   //   title: "후기 작성",

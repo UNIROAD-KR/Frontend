@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import AccountBookScreen from "../../mypage";
+import { CalendarTab } from "@/components/management/calendar-tab";
 import { getMemberMe } from "../../../src/api/auth";
 import { commonStyles } from "@/constants/theme";
 
@@ -52,6 +53,7 @@ export default function ExploreScreen() {
         </View>
       </View>
       {selectedTab === "지출 관리" && <AccountBookScreen embedded />}
+      {selectedTab === "캘린더" && <CalendarTab />}
     </View>
   );
 

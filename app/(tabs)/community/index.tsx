@@ -31,7 +31,7 @@ import {
   CompanionPostResponse,
   getCompanionPosts,
 } from "../../../src/api/companion";
-import { flags as countryFlags } from "@/components/market/MarketCountrySheet";
+import { CompanionPostCard } from "@/components/community/CompanionPostCard";
 import {
   FreePostSummaryResponse,
   getFreePosts,
@@ -110,22 +110,6 @@ const BoardStatusFilters = React.memo(function BoardStatusFilters({
     </ScrollView>
   );
 });
-
-const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
-  const formatDate = (value?: string) =>
-    value ? value.slice(0, 10).replaceAll("-", ". ") : "";
-  const start = formatDate(startDate);
-  const end = formatDate(endDate);
-
-  if (!start) {
-    return "";
-  }
-
-  return start === end || !end ? start : `${start} - ${end}`;
-};
-
-const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
-  status === "RECRUITING" ? "모집 중" : "모집완료";
 
 export default function CommunityScreen() {
   const router = useRouter();
@@ -541,78 +525,12 @@ export default function CommunityScreen() {
                 </View>
               )}
               {filteredCompanions.map((post) => (
-                <Pressable
+                <CompanionPostCard
                   key={post.id}
-                  style={[styles.companionCard, isWide && styles.gridCard]}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/community-detail",
-                      params: { type: "companion", id: String(post.id) },
-                    } as never)
-                  }
-                >
-                  <View style={styles.companionCountry}>
-                    <View style={styles.companionFlagBox}>
-                      {countryFlags[post.country] ? (
-                        <Text style={styles.companionFlag}>
-                          {countryFlags[post.country]}
-                        </Text>
-                      ) : (
-                        <Ionicons
-                          name="globe-outline"
-                          size={30}
-                          color="#8B95A1"
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.companionCountryName} numberOfLines={2}>
-                      {post.country}
-                    </Text>
-                  </View>
-
-                  <View style={styles.companionBody}>
-                    <Text style={styles.companionTitle} numberOfLines={1}>
-                      {post.title}
-                    </Text>
-                    <View style={{ flexDirection: "column", gap: 4 }}>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>일정</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {formatCompanionPeriod(post.startDate, post.endDate)}
-                        </Text>
-                      </View>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>성별</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {post.genderRatio}
-                        </Text>
-                      </View>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>인원</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {post.currentParticipants}/{post.capacity}명
-                        </Text>
-                        <View
-                          style={[
-                            styles.smallStatus,
-                            post.status === "COMPLETED" &&
-                              styles.smallStatusDone,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.smallStatusText,
-                              post.status === "COMPLETED" &&
-                                styles.smallStatusDoneText,
-                            ]}
-                          >
-                            {getCompanionStatusText(post.status)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
+                  post={post}
+                  style={isWide && styles.gridCard}
+                  onPress={() => router.push({ pathname: "/community-detail", params: { type: "companion", id: String(post.id) } } as never)}
+                />
               ))}
             </View>
 
@@ -1130,75 +1048,6 @@ const styles = StyleSheet.create({
   },
   companionEmptyDesc: {
     ...fonts.caption5_r_13,
-    color: Colors.gray[6],
-  },
-  companionCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 4,
-  },
-  companionCountry: {
-    width: 70,
-    alignItems: "center",
-    marginRight: 14,
-    paddingTop: 3,
-  },
-  companionFlagBox: {
-    width: 56,
-    height: 48,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0F2F6",
-  },
-  companionFlag: {
-    fontSize: 42,
-    lineHeight: 48,
-    includeFontPadding: false,
-  },
-  companionCountryName: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#4E5968",
-    textAlign: "center",
-  },
-  companionBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  companionTitle: {
-    ...fonts.sub1_sb_18,
-    color: Colors.gray[10],
-    marginBottom: 4,
-  },
-  smallStatus: {
-    borderRadius: 3,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    backgroundColor: "#EAF3FF",
-  },
-  smallStatusDone: {
-    backgroundColor: "#F0F2F6",
-  },
-  smallStatusText: {
-    ...fonts.caption4_m_12,
-    color: Colors.primary.default,
-  },
-  smallStatusDoneText: {
-    color: "#6B7684",
-  },
-  companionInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  companionInfoLabel: {
-    ...fonts.caption4_m_12,
-    color: Colors.gray[8],
-  },
-  companionInfoValue: {
-    ...fonts.caption4_m_12,
     color: Colors.gray[6],
   },
   pickerOverlay: {

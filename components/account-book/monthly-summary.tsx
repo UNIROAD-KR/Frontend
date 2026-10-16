@@ -1,4 +1,4 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { fonts } from "@/constants/theme";
 import { StyleSheet, View } from "react-native";
 import MinusRedIcon from "../../assets/icon/minus-red.svg";
@@ -10,11 +10,7 @@ type MonthlySummaryProps = {
   totalExpense: number;
 };
 
-const formatAmount = (amount: number) =>
-  amount.toLocaleString("ko-KR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const formatAmount = (amount: number) => amount.toLocaleString("ko-KR", {});
 
 export function MonthlySummary({
   month,

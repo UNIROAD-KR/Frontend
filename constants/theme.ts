@@ -213,6 +213,12 @@ export const fonts = StyleSheet.create({
     lineHeight: 21,
     letterSpacing: -0.56,
   },
+  quick: {
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
+    lineHeight: 18.2,
+  },
   caption1_sb_13: {
     fontSize: 13,
     fontWeight: "600",
