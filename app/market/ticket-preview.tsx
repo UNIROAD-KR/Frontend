@@ -487,7 +487,12 @@ export default function TicketPreviewPage() {
               fromProfileList === "written"
             ) {
               router.replace({
-                pathname: "/home/profile-list",
+                pathname:
+                  fromProfileList === "liked"
+                    ? "/liked-posts"
+                    : fromProfileList === "written"
+                      ? "/profile-posts"
+                      : "/home/profile-list",
                 params: { type: fromProfileList },
               } as any);
               return;
@@ -770,7 +775,12 @@ export default function TicketPreviewPage() {
               fromProfileList === "written"
             ) {
               router.replace({
-                pathname: "/home/profile-list",
+                pathname:
+                  fromProfileList === "liked"
+                    ? "/liked-posts"
+                    : fromProfileList === "written"
+                      ? "/profile-posts"
+                      : "/home/profile-list",
                 params: { type: fromProfileList },
               } as any);
               return;

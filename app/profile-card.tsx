@@ -62,7 +62,7 @@ const activityItems: MenuItem[] = [
     title: "좋아요 누른 글",
     icon: HeartIcon,
     route: {
-      pathname: "/home/profile-list",
+      pathname: "/liked-posts",
       params: { type: "liked" },
     },
   },
@@ -70,7 +70,7 @@ const activityItems: MenuItem[] = [
     title: "자유게시판 작성글",
     icon: FreePostsIcon,
     route: {
-      pathname: "/home/profile-list",
+      pathname: "/profile-posts",
       params: { type: "free" },
     },
   },
@@ -78,7 +78,7 @@ const activityItems: MenuItem[] = [
     title: "내가 쓴 글",
     icon: WrittenPostsIcon,
     route: {
-      pathname: "/home/profile-list",
+      pathname: "/profile-posts",
       params: { type: "written" },
     },
   },
@@ -86,20 +86,20 @@ const activityItems: MenuItem[] = [
 
 const accountItems: MenuItem[] = [
   {
-    title: "계정 설정",
+    title: "비밀번호 변경",
     icon: AccountSettingsIcon,
-    route: "/home/account-settings",
+    route: "/account-settings",
   },
   {
     title: "알림 설정",
     icon: NotificationsIcon,
-    route: "/home/profile-notifications",
+    route: "/notification-settings",
   },
-  {
-    title: "파견교 인증",
-    icon: VerificationIcon,
-    route: "/verification",
-  },
+  // {
+  //   title: "파견교 인증",
+  //   icon: VerificationIcon,
+  //   route: "/verification",
+  // },
 ];
 
 const serviceItems: MenuItem[] = [
@@ -111,11 +111,11 @@ const serviceItems: MenuItem[] = [
 ];
 
 const guideItems: MenuItem[] = [
-  {
-    title: "블로그 미리보기 (임시)",
-    icon: BlogIcon,
-    route: "/blog",
-  },
+  // {
+  //   title: "블로그 미리보기 (임시)",
+  //   icon: BlogIcon,
+  //   route: "/blog",
+  // },
   {
     title: "앱 버전",
     icon: AppVersionIcon,
@@ -531,7 +531,11 @@ function MenuSection({
 }) {
   return (
     <View style={[styles.section, separated && styles.sectionSeparated]}>
-      <Text style={[fonts.body2_m_14, { color: Colors.gray[7] }]}>{title}</Text>
+      <Text
+        style={[fonts.body2_m_14, { color: Colors.gray[7], marginBottom: 4 }]}
+      >
+        {title}
+      </Text>
 
       {items.map((item) => {
         const interactive = !!item.route || !!item.action;
@@ -593,7 +597,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: 20,
   },
   profileCard: {
     marginHorizontal: 16,
@@ -623,6 +627,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     minWidth: 0,
     paddingRight: 8,
+    gap: 4,
   },
   nickname: {
     fontSize: 20,

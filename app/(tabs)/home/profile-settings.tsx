@@ -35,13 +35,13 @@ const accountItems: SettingItem[] = [
     title: '계정 설정',
     description: '아이디 확인 및 비밀번호 변경',
     icon: 'settings-outline',
-    route: '/home/account-settings',
+    route: '/account-settings',
   },
   {
     title: '알림 설정',
     description: '채팅, 거래, 출국 준비 알림 관리',
     icon: 'notifications-outline',
-    route: '/home/profile-notifications',
+    route: '/notification-settings',
   },
   {
     title: '학교 인증',

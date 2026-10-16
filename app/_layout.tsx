@@ -1,3 +1,4 @@
+import { ChatListSettingsProvider } from "@/components/chat/chat-list-settings";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useAppFonts } from "@/hooks/use-app-fonts";
 import { Stack } from "expo-router";
@@ -54,6 +55,7 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={DefaultTheme}>
+      <ChatListSettingsProvider>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -103,6 +105,10 @@ export default function RootLayout() {
             fullScreenGestureEnabled: false,
           }}
         />
+        <Stack.Screen name="liked-posts" />
+        <Stack.Screen name="profile-posts" />
+        <Stack.Screen name="account-settings" />
+        <Stack.Screen name="notification-settings" />
         <Stack.Screen
           name="notifications"
           options={{ animation: "slide_from_right" }}
@@ -118,6 +124,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="id-login" />
       </Stack>
+      </ChatListSettingsProvider>
       <FadeToastHost />
 
       <StatusBar style="dark" />

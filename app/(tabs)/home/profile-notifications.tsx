@@ -5,7 +5,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import { AppBackButton } from "@/components/ui/app-back-button";
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import {
   getNotificationSettings,
   NotificationCategory,
@@ -285,11 +285,7 @@ export default function ProfileNotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <AppBackButton style={styles.iconBtn} />
-        <Text style={styles.headerTitle}>알림 설정</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ProfileScreenHeader title="알림 설정" />
 
       <ScrollView
         style={styles.scroll}
@@ -383,29 +379,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F6F7F9",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 44,
-    paddingBottom: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  iconBtn: {
-    backgroundColor: "transparent",
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: NAVY,
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
   },
   scroll: {
     flex: 1,

@@ -140,8 +140,9 @@ export default function CommunityScreen() {
   const [companionKeyword, setCompanionKeyword] = useState("");
   const [companionFilterSheetVisible, setCompanionFilterSheetVisible] =
     useState(false);
-  const [companionFilters, setCompanionFilters] =
-    useState<CompanionFilters>(emptyCompanionFilters);
+  const [companionFilters, setCompanionFilters] = useState<CompanionFilters>(
+    emptyCompanionFilters,
+  );
   const [selectedBoardStatus, setSelectedBoardStatus] =
     useState<FreePostStatusFilter>("전체");
   const [boardSortOrder, setBoardSortOrder] =
@@ -521,7 +522,9 @@ export default function CommunityScreen() {
               {filteredCompanions.length === 0 && (
                 <View style={styles.companionEmpty}>
                   <Ionicons
-                    name={hasCompanionFilters ? "search-outline" : "people-outline"}
+                    name={
+                      hasCompanionFilters ? "search-outline" : "people-outline"
+                    }
                     size={40}
                     color={Colors.gray[5]}
                   />
@@ -778,7 +781,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 23,
-    paddingBottom: 120,
+    paddingBottom: 20,
   },
   contentWide: {
     width: "100%",

@@ -1,50 +1,93 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
+import { Colors, fonts } from "@/constants/theme";
+import { useChatListSettings } from "@/components/chat/chat-list-settings";
+import { sortChatRooms } from "@/src/utils/chatSort";
 
 const BLUE = "#102BE0";
+
+const categoryLabels = {
+  TRADE: "중고거래",
+  TICKET: "티켓 양도",
+  COMPANION: "동행 모집",
+  MENTOR: "멘토링",
+} as const;
+
+const chatFilters = [
+  { key: "ALL", label: "전체" },
+  { key: "TRADE", label: "중고거래" },
+  { key: "TICKET", label: "티켓 양도" },
+  { key: "COMPANION", label: "동행 모집" },
+] as const;
+type ChatFilter = (typeof chatFilters)[number]["key"];
 
 const roomLabels = {
   TRADE: { title: "중고거래 채팅", reference: "거래글", icon: "cart-outline" },
   MENTOR: { title: "멘토링 채팅", reference: "멘토링", icon: "school-outline" },
-  TICKET: { title: "티켓 양도 채팅", reference: "티켓 양도글", icon: "ticket-outline" },
-  COMPANION: { title: "동행 채팅", reference: "동행 모집글", icon: "people-outline" },
+  TICKET: {
+    title: "티켓 양도 채팅",
+    reference: "티켓 양도글",
+    icon: "ticket-outline",
+  },
+  COMPANION: {
+    title: "동행 채팅",
+    reference: "동행 모집글",
+    icon: "people-outline",
+  },
 } as const;
 
-const getRoomTitle = (room: ChatRoomResponse) => roomLabels[room.referenceType]?.title ?? "채팅";
+const getRoomTitle = (room: ChatRoomResponse) =>
+  roomLabels[room.referenceType]?.title ?? "채팅";
 const getRoomSubtitle = (room: ChatRoomResponse) =>
   `${roomLabels[room.referenceType]?.reference ?? "게시글"} #${room.referenceId}`;
 
-const formatRoomTime = (value?: string) => {
-  if (!value) return "";
+// const formatRoomTime = (value?: string) => {
+//   if (!value) return "";
 
-  const date = new Date(value);
+//   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return value.slice(0, 10).replaceAll("-", ".");
-  }
+//   if (Number.isNaN(date.getTime())) {
+//     return value.slice(0, 10).replaceAll("-", ".");
+//   }
 
-  const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
+//   const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
 
-  if (diffMinutes < 1) return "방금 전";
-  if (diffMinutes < 60) return `${diffMinutes}분 전`;
+//   if (diffMinutes < 1) return "방금 전";
+//   if (diffMinutes < 60) return `${diffMinutes}분 전`;
 
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}시간 전`;
+//   const diffHours = Math.floor(diffMinutes / 60);
+//   if (diffHours < 24) return `${diffHours}시간 전`;
 
-  return value.slice(0, 10).replaceAll("-", ".");
-};
+//   return value.slice(0, 10).replaceAll("-", ".");
+// };
 
 export default function ChatListPage() {
   const insets = useSafeAreaInsets();
   const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState<ChatFilter>("ALL");
+  const { sortOrder, roomOrder, refreshSettings } = useChatListSettings();
+  // 전체에는 멘토링을 포함하고, 개별 카테고리는 기존 referenceType으로 구분한다.
+  const filteredRooms = sortChatRooms(
+    selectedFilter === "ALL"
+      ? rooms
+      : rooms.filter((room) => room.referenceType === selectedFilter),
+    sortOrder,
+    roomOrder,
+  );
 
   const loadRooms = useCallback(async (showSpinner = true) => {
     try {
@@ -69,37 +112,65 @@ export default function ChatListPage() {
   useFocusEffect(
     useCallback(() => {
       loadRooms();
+      void refreshSettings().catch((error) =>
+        console.log("채팅 정렬 불러오기 실패", error),
+      );
 
       const timer = setInterval(() => {
         loadRooms(false);
       }, 5000);
 
       return () => clearInterval(timer);
-    }, [loadRooms]),
+    }, [loadRooms, refreshSettings]),
   );
 
   return (
     <View style={styles.container}>
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {chatFilters.map((filter) => {
+            const selected = selectedFilter === filter.key;
+            return (
+              <Pressable
+                key={filter.key}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => setSelectedFilter(filter.key)}
+                style={[styles.filterChip, selected && styles.filterChipActive]}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    selected && styles.filterChipTextActive,
+                  ]}
+                >
+                  {filter.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
       <ScrollView
         contentContainerStyle={[
-          styles.content,
           {
-            paddingTop: Math.max(76, insets.top + 34),
-            paddingBottom: Math.max(120, insets.bottom + 96),
+            paddingBottom: 20,
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>채팅</Text>
-
         {loading ? (
           <View style={styles.centerState}>
             <ActivityIndicator color={BLUE} />
             <Text style={styles.centerText}>채팅방을 불러오는 중이에요</Text>
           </View>
-        ) : rooms.length > 0 ? (
+        ) : filteredRooms.length > 0 ? (
           <View style={styles.roomList}>
-            {rooms.map((room) => {
+            {filteredRooms.map((room) => {
               const title = getRoomTitle(room);
               const subtitle = getRoomSubtitle(room);
               const opponentName =
@@ -132,30 +203,49 @@ export default function ChatListPage() {
                     } as any)
                   }
                 >
-                  <View style={styles.roomIcon}>
+                  {/* <View style={styles.roomIcon}>
                     <Ionicons
                       name={
-                        roomLabels[room.referenceType]?.icon ?? "chatbubble-outline"
+                        roomLabels[room.referenceType]?.icon ??
+                        "chatbubble-outline"
                       }
                       size={22}
                       color={BLUE}
                     />
-                  </View>
+
+                  </View> */}
+
+                  <View
+                    style={{
+                      width: 60,
+                      height: 60,
+                      backgroundColor: Colors.gray[3],
+                      marginRight: 12,
+                      borderRadius: 12,
+                    }}
+                  ></View>
 
                   <View style={styles.roomTextBox}>
                     <View style={styles.roomTitleRow}>
+                      {categoryLabels[room.referenceType] && (
+                        <View style={styles.categoryBadge}>
+                          <Text style={styles.categoryText}>
+                            {categoryLabels[room.referenceType]}
+                          </Text>
+                        </View>
+                      )}
                       <Text style={styles.roomTitle} numberOfLines={1}>
                         {opponentName}
                       </Text>
-                      {room.lastMessageCreatedAt && (
+                      {/* {room.lastMessageCreatedAt && (
                         <Text style={styles.roomTime}>
                           {formatRoomTime(room.lastMessageCreatedAt)}
                         </Text>
-                      )}
+                      )} */}
                     </View>
-                    <Text style={styles.roomSubtitle} numberOfLines={1}>
+                    {/* <Text style={styles.roomSubtitle} numberOfLines={1}>
                       {subtitle}
-                    </Text>
+                    </Text> */}
                     <Text style={styles.roomPreview} numberOfLines={1}>
                       {previewMessage}
                     </Text>
@@ -169,13 +259,13 @@ export default function ChatListPage() {
                           : room.unreadCount}
                       </Text>
                     </View>
-                  ) : (
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="#999999"
-                    />
-                  )}
+                  ) : null
+                  // <Ionicons
+                  //   name="chevron-forward"
+                  //   size={20}
+                  //   color="#999999"
+                  // />
+                  }
                 </Pressable>
               );
             })}
@@ -183,7 +273,11 @@ export default function ChatListPage() {
         ) : (
           <View style={styles.centerState}>
             <Ionicons name="chatbubbles-outline" size={38} color="#BBBBBB" />
-            <Text style={styles.emptyTitle}>아직 열린 채팅방이 없어요</Text>
+            <Text style={styles.emptyTitle}>
+              {selectedFilter === "ALL"
+                ? "아직 열린 채팅방이 없어요"
+                : "해당 카테고리의 채팅방이 없어요"}
+            </Text>
             <Text style={styles.centerText}>
               거래글이나 동행 모집글에서 시작한 채팅이 여기에 모여요.
             </Text>
@@ -199,9 +293,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
-  content: {
-    paddingHorizontal: 23,
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  filterChip: {
+    minHeight: 38,
+    borderRadius: 20,
+    backgroundColor: Colors.gray[1],
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterChipActive: {
+    backgroundColor: Colors.gray[11],
+  },
+  filterChipText: {
+    ...fonts.body2_m_14,
+    letterSpacing: 0,
+    color: Colors.gray[7],
+  },
+  filterChipTextActive: {
+    color: Colors.common.white,
   },
 
   title: {
@@ -233,17 +350,13 @@ const styles = StyleSheet.create({
   },
 
   roomList: {
-    gap: 10,
+    gap: 16,
   },
 
   roomCard: {
-    minHeight: 78,
-    borderRadius: 8,
-    backgroundColor: "#FAFAFA",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 12,
   },
 
   roomIcon: {
@@ -268,17 +381,21 @@ const styles = StyleSheet.create({
   },
 
   roomTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#111111",
-    marginBottom: 5,
+    flexShrink: 1,
+    ...fonts.sub3_sb_16,
   },
 
-  roomTime: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#999999",
+  categoryBadge: {
+    flexShrink: 0,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 3,
+    backgroundColor: "#EAF3FF",
+  },
+
+  categoryText: {
+    ...fonts.caption4_m_12,
+    color: Colors.primary.default,
   },
 
   roomSubtitle: {
@@ -288,10 +405,8 @@ const styles = StyleSheet.create({
   },
 
   roomPreview: {
-    marginTop: 5,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#555555",
+    ...fonts.body4_r_14,
+    color: Colors.gray[7],
   },
 
   unreadBadge: {
@@ -299,7 +414,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     paddingHorizontal: 6,
-    backgroundColor: BLUE,
+    backgroundColor: Colors.primary.default,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,

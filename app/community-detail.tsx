@@ -776,7 +776,13 @@ export default function CommunityDetailScreen() {
               fromProfileList === "written"
             ) {
               router.replace({
-                pathname: "/home/profile-list",
+                pathname:
+                  fromProfileList === "liked"
+                    ? "/liked-posts"
+                    : fromProfileList === "free" ||
+                        fromProfileList === "written"
+                      ? "/profile-posts"
+                      : "/home/profile-list",
                 params: { type: fromProfileList },
               } as never);
               return;

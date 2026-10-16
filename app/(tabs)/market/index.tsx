@@ -319,45 +319,59 @@ export default function MarketPage() {
   }, []);
 
   const usedItemsRequestId = useRef(0);
-  const fetchUsedItems = useCallback(async (keyword = "", country = "전체") => {
-    const requestId = ++usedItemsRequestId.current;
-    try {
-      setMarketListError("");
-      const keywordText = keyword.trim();
-      const countryParam = country === "전체" ? undefined : country;
+  const fetchUsedItems = useCallback(
+    async (keyword = "", country = "전체") => {
+      const requestId = ++usedItemsRequestId.current;
+      try {
+        setMarketListError("");
+        const keywordText = keyword.trim();
+        const countryParam = country === "전체" ? undefined : country;
 
-      // The UI groups reserved listings with items still being traded.
-      const statuses = bulkFilters.status === "active"
-        ? ["SELLING", "RESERVED"]
-        : bulkFilters.status === "sold" ? ["SOLD"] : [undefined];
-      const searches = keywordText
-        ? [{ title: keywordText }, { content: keywordText }]
-        : [{}];
-      const responses = await Promise.all(statuses.flatMap((status) =>
-        searches.map((search) => searchUsedItems({
-          ...search,
-          country: countryParam,
-          status,
-          minPrice: bulkFilters.minPrice || undefined,
-          maxPrice: bulkFilters.maxPrice ?? undefined,
-          sort: sortOrder === "newest" ? "LATEST" : "OLDEST",
-          size: 30,
-        })),
-      ));
-      if (requestId !== usedItemsRequestId.current) return;
-      setItems(mergeUniqueById(responses.map((response) => response.data.data.items ?? [])));
-    } catch (error: any) {
-      if (requestId !== usedItemsRequestId.current) return;
-      console.log(
-        "중고거래 목록 조회 실패:",
-        error.response?.data || error.message,
-      );
-      setMarketListError(
-        "중고거래 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
-      );
-      setItems([]);
-    }
-  }, [bulkFilters.status, bulkFilters.minPrice, bulkFilters.maxPrice, sortOrder]);
+        // The UI groups reserved listings with items still being traded.
+        const statuses =
+          bulkFilters.status === "active"
+            ? ["SELLING", "RESERVED"]
+            : bulkFilters.status === "sold"
+              ? ["SOLD"]
+              : [undefined];
+        const searches = keywordText
+          ? [{ title: keywordText }, { content: keywordText }]
+          : [{}];
+        const responses = await Promise.all(
+          statuses.flatMap((status) =>
+            searches.map((search) =>
+              searchUsedItems({
+                ...search,
+                country: countryParam,
+                status,
+                minPrice: bulkFilters.minPrice || undefined,
+                maxPrice: bulkFilters.maxPrice ?? undefined,
+                sort: sortOrder === "newest" ? "LATEST" : "OLDEST",
+                size: 30,
+              }),
+            ),
+          ),
+        );
+        if (requestId !== usedItemsRequestId.current) return;
+        setItems(
+          mergeUniqueById(
+            responses.map((response) => response.data.data.items ?? []),
+          ),
+        );
+      } catch (error: any) {
+        if (requestId !== usedItemsRequestId.current) return;
+        console.log(
+          "중고거래 목록 조회 실패:",
+          error.response?.data || error.message,
+        );
+        setMarketListError(
+          "중고거래 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
+        );
+        setItems([]);
+      }
+    },
+    [bulkFilters.status, bulkFilters.minPrice, bulkFilters.maxPrice, sortOrder],
+  );
 
   const fetchTickets = useCallback(
     async (cursorId?: number, keyword = "", country = "전체") => {
@@ -885,7 +899,7 @@ export default function MarketPage() {
         scrollEventThrottle={16}
         onScroll={handleMarketScroll}
       >
-        <View style={styles.searchBox}>
+        {/* <View style={styles.searchBox}>
           <Text style={styles.searchIcon}>⌕</Text>
           <TextInput
             style={styles.searchInput}
@@ -894,7 +908,7 @@ export default function MarketPage() {
             value={searchKeyword}
             onChangeText={setSearchKeyword}
           />
-        </View>
+        </View> */}
 
         <MarketFilterBar
           selectedCountry={selectedCountry}
