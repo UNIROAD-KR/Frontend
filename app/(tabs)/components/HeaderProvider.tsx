@@ -5,6 +5,11 @@ import {
   Text,
   AppState,
   DeviceEventEmitter,
+  Modal,
+  Pressable,
+  useWindowDimensions,
+  Platform,
+  Alert,
 } from "react-native";
 import {
   getUnreadNotificationCount,
@@ -15,12 +20,37 @@ import LogoIcon from "../../../assets/icon/logo.svg";
 import NotificationIcon from "../../../assets/icon/notification.svg";
 import SearchIcon from "../../../assets/icon/search.svg";
 import PersonIcon from "../../../assets/icon/person.svg";
+import SettingIcon from "../../../assets/icon/setting.svg";
+import SortGrayIcon from "../../../assets/icon/sort-gray.svg";
+import SettingGrayIcon from "../../../assets/icon/setting-gray.svg";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { fonts } from "@/constants/theme";
+import { SortSheet } from "@/components/ui/sort-sheet";
+import { useChatListSettings } from "@/components/chat/chat-list-settings";
 
-export default function HeaderProvider() {
+const chatSortOptions = [
+  { value: "newest", label: "최신순" },
+  { value: "unread", label: "안읽은 순" },
+] as const;
+
+export default function HeaderProvider({ isChat }: { isChat: boolean }) {
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [sortVisible, setSortVisible] = useState(false);
+  const pendingSort = useRef(false);
+  const pendingManage = useRef(false);
+  const { sortOrder, setSortOrder } = useChatListSettings();
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 20 });
+  const settingsRef = useRef<View>(null);
+  const { width } = useWindowDimensions();
+  useEffect(() => {
+    setMenuVisible(false);
+    setSortVisible(false);
+    pendingSort.current = false;
+    pendingManage.current = false;
+  }, [isChat, width]);
   const [unreadCount, setUnreadCount] = useState(0);
   useEffect(() => {
     if (__DEV__)
@@ -100,40 +130,155 @@ export default function HeaderProvider() {
   return (
     <View style={{ paddingTop: insets.top, paddingHorizontal: 20 }}>
       <View style={styles.header}>
-        <LogoIcon height="24" />
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            accessibilityLabel={`알림, 읽지 않은 알림 ${unreadCount}개`}
-            onPress={() => router.push("/notifications")}
-          >
-            <NotificationIcon />
-            {unreadCount > 0 && (
-              <View style={styles.notificationBadge} pointerEvents="none">
-                <Text style={styles.notificationBadgeText}>
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push("/profile-card" as any)}
-            activeOpacity={0.82}
-          >
-            <SearchIcon />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => router.push("/profile-card" as any)}
-            activeOpacity={0.82}
-          >
-            <PersonIcon />
-          </TouchableOpacity>
-        </View>
+        {isChat ? (
+          <Text style={{ ...fonts.title5_b_20, color: "#070A0D" }}>채팅</Text>
+        ) : (
+          <LogoIcon height="24" />
+        )}
+        {isChat ? (
+          <View style={styles.headerRight}>
+            <TouchableOpacity onPress={() => router.push("/settings" as any)}>
+              <SearchIcon />
+            </TouchableOpacity>
+            <Pressable
+              ref={settingsRef}
+              accessibilityRole="button"
+              accessibilityLabel="채팅 목록 설정"
+              accessibilityState={{ expanded: menuVisible }}
+              onPress={() => {
+                settingsRef.current?.measureInWindow(
+                  (x, y, buttonWidth, height) => {
+                    setMenuPosition({
+                      top: y + height + 8,
+                      right: Math.max(16, width - x - buttonWidth),
+                    });
+                    setMenuVisible(true);
+                  },
+                );
+              }}
+            >
+              <SettingIcon />
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              accessibilityLabel={`알림, 읽지 않은 알림 ${unreadCount}개`}
+              onPress={() => router.push("/notifications")}
+            >
+              <NotificationIcon />
+              {unreadCount > 0 && (
+                <View style={styles.notificationBadge} pointerEvents="none">
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/profile-card" as any)}
+              activeOpacity={0.82}
+            >
+              <SearchIcon />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/profile-card" as any)}
+              activeOpacity={0.82}
+            >
+              <PersonIcon />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
+      <Modal
+        transparent
+        visible={isChat && menuVisible}
+        animationType="none"
+        onRequestClose={() => setMenuVisible(false)}
+        onDismiss={() => {
+          if (pendingManage.current) {
+            pendingManage.current = false;
+            router.push("/chat-management");
+          }
+          if (pendingSort.current) {
+            pendingSort.current = false;
+            setSortVisible(true);
+          }
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            accessibilityLabel="채팅 목록 설정 닫기"
+            onPress={() => setMenuVisible(false)}
+          />
+          <View style={[styles.chatMenuPopover, menuPosition]}>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.chatMenuRow}
+              onPress={() => {
+                pendingSort.current = Platform.OS === "ios";
+                setMenuVisible(false);
+                if (Platform.OS !== "ios") setSortVisible(true);
+              }}
+            >
+              <SortGrayIcon width={16} height={16} />
+              <Text style={styles.chatMenuText}>채팅방 정렬</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.chatMenuRow}
+              onPress={() => {
+                pendingManage.current = Platform.OS === "ios";
+                setMenuVisible(false);
+                if (Platform.OS !== "ios") router.push("/chat-management");
+              }}
+            >
+              <SettingGrayIcon width={16} height={16} />
+              <Text style={styles.chatMenuText}>채팅방 관리</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+      <SortSheet
+        visible={isChat && sortVisible}
+        value={sortOrder}
+        options={chatSortOptions}
+        onClose={() => setSortVisible(false)}
+        onSelect={(value) => {
+          void setSortOrder(value).catch(() => Alert.alert("정렬 저장 실패", "잠시 후 다시 시도해주세요."));
+          setSortVisible(false);
+        }}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  chatMenuPopover: {
+    position: "absolute",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E7ECF3",
+    elevation: 8,
+    shadowColor: "#0F2042",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  chatMenuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 6,
+  },
+  chatMenuText: {
+    ...fonts.body2_m_14,
+    color: "#141416",
+    width: 74,
+  },
   notificationBadge: {
     position: "absolute",
     top: -2,

@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
-import { router, Tabs } from "expo-router";
+import { router, Tabs, useSegments } from "expo-router";
 import { useEffect, useState, type ComponentType } from "react";
 import {
   AppState,
@@ -220,9 +220,11 @@ function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 export default function TabLayout() {
+  const segments = useSegments();
+  const isChat = segments[1] === "chat";
   return (
     <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      <HeaderProvider />
+      <HeaderProvider isChat={isChat} />
       <View style={{ flex: 1 }}>
         <Tabs
           tabBar={(props) => <FloatingTabBar {...props} />}

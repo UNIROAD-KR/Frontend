@@ -64,7 +64,7 @@ export function MarketFilterSheet({
   useEffect(() => {
     if (visible) setDraft(value);
   }, [visible, value]);
-  const ceiling = Math.max(700000, draft.maxPrice ?? 0, draft.minPrice);
+  const ceiling = Math.max(300000, draft.maxPrice ?? 0, draft.minPrice);
   const max = draft.maxPrice ?? ceiling;
   const patch = (next: Partial<MarketFilters>) =>
     setDraft((prev) => ({ ...prev, ...next }));
@@ -114,21 +114,36 @@ export function MarketFilterSheet({
               <View style={styles.section}>
                 <Text style={styles.label}>거래 상태</Text>
                 <View style={styles.chips}>
-                  {([
-                    ["all", "전체"],
-                    ["active", "거래 중"],
-                    ["sold", "거래 완료"],
-                  ] as const).map(([status, label]) => (
+                  {(
+                    [
+                      ["all", "전체"],
+                      ["active", "거래 중"],
+                      ["sold", "거래 완료"],
+                    ] as const
+                  ).map(([status, label]) => (
                     <Pressable
                       key={status}
                       accessibilityRole="button"
                       accessibilityState={{ selected: draft.status === status }}
                       onPress={() => patch({ status })}
-                      style={[styles.chip, draft.status === status && styles.selectedChip]}
+                      style={[
+                        styles.chip,
+                        draft.status === status && styles.selectedChip,
+                      ]}
                     >
-                      <Text style={[fonts.body2_m_14, {
-                        color: draft.status === status ? Colors.common.white : Colors.gray[6],
-                      }]}>{label}</Text>
+                      <Text
+                        style={[
+                          fonts.body2_m_14,
+                          {
+                            color:
+                              draft.status === status
+                                ? Colors.common.white
+                                : Colors.gray[6],
+                          },
+                        ]}
+                      >
+                        {label}
+                      </Text>
                     </Pressable>
                   ))}
                 </View>
