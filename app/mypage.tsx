@@ -196,7 +196,6 @@ export default function MyPageScreen({
   );
   const [deleteVisible, setDeleteVisible] = useState(false);
 
-
   const refreshAfterChange = () => {
     fetchData();
     if (selectedDate) fetchDailyDetails(selectedDate);
@@ -364,7 +363,8 @@ export default function MyPageScreen({
 
   // 잔액 충전(수입 추가) API 호출
   const handleChargeSubmit = async () => {
-    if (!validateTransactionInput(chargeAmount, chargeTitle, true).isValid) return;
+    if (!validateTransactionInput(chargeAmount, chargeTitle, true).isValid)
+      return;
     const amountNum = Number(chargeAmount);
 
     try {
@@ -408,7 +408,8 @@ export default function MyPageScreen({
 
   // 지출 등록 API 호출
   const handleExpenseSubmit = async () => {
-    if (!validateTransactionInput(expenseAmount, expenseTitle, false).isValid) return;
+    if (!validateTransactionInput(expenseAmount, expenseTitle, false).isValid)
+      return;
     const amountNum = Number(expenseAmount);
 
     if (!parseDateInput(expenseDate)) {
@@ -550,10 +551,7 @@ export default function MyPageScreen({
               numberOfLines={1}
             >
               {dailyTotal > 0 ? "+" : ""}
-              {dailyTotal.toLocaleString("ko-KR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {dailyTotal.toLocaleString("ko-KR", {})}
             </Text>
           )}
         </Pressable>,
@@ -711,10 +709,7 @@ export default function MyPageScreen({
                       ]}
                     >
                       {isIncome ? "+" : "-"}
-                      {item.amount.toLocaleString("ko-KR", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
+                      {item.amount.toLocaleString("ko-KR", {})}
                     </Text>
                     <Pressable
                       hitSlop={8}
@@ -830,7 +825,7 @@ export default function MyPageScreen({
         title={alertState.title}
         description={alertState.description}
         primaryButton={{
-          label: "확인",
+          label: "확인했어요",
           onPress: () => setAlertState((c) => ({ ...c, visible: false })),
         }}
       />

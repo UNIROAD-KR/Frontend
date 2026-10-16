@@ -1,15 +1,23 @@
-import { Text } from '@/components/ui/app-text';
-import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/app-text";
+import ArrowGrayIcon from "@/assets/icon/arrow-gray.svg";
+import { sortedCountries } from "@/components/market/MarketCountrySheet";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { fonts } from "../../constants/theme";
+import { Colors, fonts } from "../../constants/theme";
 import type { UsedItem } from "../../src/api/usedItems";
 
 const formatTradePrice = (price: number) =>
   `${price.toLocaleString("ko-KR")}원`;
-const countryTabs = ["전체", "독일", "프랑스", "스페인", "체코", "캐나다"];
+const countryTabs = ["전체", ...sortedCountries];
 
 type BulkTradeSectionProps = {
   items: UsedItem[];
@@ -43,7 +51,7 @@ export function BulkTradeSection({ items, isReturned }: BulkTradeSectionProps) {
         >
           <View style={styles.moreButton}>
             <Text style={styles.moreText}>전체보기</Text>
-            <Ionicons name="chevron-forward" size={20} color="#4E5968" />
+            <ArrowGrayIcon />
           </View>
         </TouchableOpacity>
       </View>
@@ -153,9 +161,8 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   moreText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#4E5968",
+    ...fonts.body2_m_14,
+    color: Colors.gray[8],
   },
   countryScroll: {
     marginBottom: 8,

@@ -14,19 +14,23 @@ export default function InputField({
   error,
   keyboardType,
   onChangeText,
+  style,
+  ...inputProps
 }: InputFieldProps) {
   return (
     <>
       <TextInput
+        {...inputProps}
         style={[
           styles.input,
           size === "sm" && styles.inputSm,
           size === "lg" && styles.inputLg,
+          style,
         ]}
         placeholder={placeholder ?? ""}
         placeholderTextColor="#B1B8C1"
         keyboardType={keyboardType ?? "default"}
-        returnKeyType="next"
+        returnKeyType={inputProps.returnKeyType ?? "next"}
         onChangeText={onChangeText}
         cursorColor={Colors.primary.default}
       />

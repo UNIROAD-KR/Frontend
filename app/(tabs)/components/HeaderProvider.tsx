@@ -162,7 +162,7 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
           </View>
         ) : (
           <View style={styles.headerRight}>
-            <TouchableOpacity
+            <Pressable
               accessibilityLabel={`알림, 읽지 않은 알림 ${unreadCount}개`}
               onPress={() => router.push("/notifications")}
             >
@@ -174,19 +174,16 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
                   </Text>
                 </View>
               )}
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Pressable>
+            {/* <TouchableOpacity
               onPress={() => router.push("/profile-card" as any)}
               activeOpacity={0.82}
             >
               <SearchIcon />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push("/profile-card" as any)}
-              activeOpacity={0.82}
-            >
+            </TouchableOpacity> */}
+            <Pressable onPress={() => router.push("/profile-card" as any)}>
               <PersonIcon />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         )}
       </View>
@@ -246,7 +243,9 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
         options={chatSortOptions}
         onClose={() => setSortVisible(false)}
         onSelect={(value) => {
-          void setSortOrder(value).catch(() => Alert.alert("정렬 저장 실패", "잠시 후 다시 시도해주세요."));
+          void setSortOrder(value).catch(() =>
+            Alert.alert("정렬 저장 실패", "잠시 후 다시 시도해주세요."),
+          );
           setSortVisible(false);
         }}
       />

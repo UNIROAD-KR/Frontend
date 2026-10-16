@@ -9,11 +9,7 @@ type MonthlyManagementCardProps = {
   onPressCharge: () => void;
 };
 
-const formatAmount = (amount: number) =>
-  amount.toLocaleString("ko-KR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const formatAmount = (amount: number) => amount.toLocaleString("ko-KR", {});
 
 export function MonthlyManagementCard({
   balance,
