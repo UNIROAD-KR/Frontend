@@ -1,8 +1,8 @@
 import { Text, TextInput } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { router } from "expo-router";
-import { useCallback, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -16,9 +16,14 @@ import { getMemberMe } from "../../../src/api/auth";
 import { commonStyles } from "@/constants/theme";
 
 export default function ExploreScreen() {
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
   const [selectedTab, setSelectedTab] = useState<
     "지출 관리" | "캘린더" | "출국 준비"
   >("지출 관리");
+
+  useEffect(() => {
+    if (tab === "calendar") setSelectedTab("캘린더");
+  }, [tab]);
 
   return (
     <View style={{ ...commonStyles.container }}>

@@ -10,7 +10,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -33,6 +32,7 @@ import {
   AppBackButton,
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
+import { useAppAlert } from "@/hooks/use-app-alert";
 
 type DateTarget = "start" | "end" | null;
 
@@ -61,6 +61,7 @@ const parseDate = (value?: string) => {
 export function CommunityCompanionWriteForm() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { showAlert, alertElement } = useAppAlert();
   const params = useLocalSearchParams<{
     mode?: string;
     id?: string;
@@ -87,7 +88,7 @@ export function CommunityCompanionWriteForm() {
   const [capacity, setCapacity] = useState(params.capacity || "");
   const [currentParticipants] = useState(params.currentParticipants || "1");
   const [countrySheetVisible, setCountrySheetVisible] = useState(false);
-  const [chatLink, setChatLink] = useState(params.chatLink || "");
+  const chatLink = params.chatLink || "";
   const [status] = useState<"RECRUITING" | "COMPLETED">(
     params.status || "RECRUITING",
   );
@@ -153,25 +154,24 @@ export function CommunityCompanionWriteForm() {
       !region.trim() ||
       !startDate ||
       !endDate ||
-      !capacity.trim() ||
-      !chatLink.trim()
+      !capacity.trim()
     ) {
-      Alert.alert("입력 오류", "필수 항목을 모두 입력해주세요.");
+      showAlert("입력 오류", "필수 항목을 모두 입력해주세요.");
       return null;
     }
 
     if (!Number.isInteger(capacityNumber) || capacityNumber < 2) {
-      Alert.alert("입력 오류", "모집 인원은 2명 이상 숫자로 입력해주세요.");
+      showAlert("입력 오류", "모집 인원은 2명 이상 숫자로 입력해주세요.");
       return null;
     }
 
     if (!Number.isInteger(currentNumber) || currentNumber < 1) {
-      Alert.alert("입력 오류", "현재 인원은 1명 이상 숫자로 입력해주세요.");
+      showAlert("입력 오류", "현재 인원은 1명 이상 숫자로 입력해주세요.");
       return null;
     }
 
     if (currentNumber > capacityNumber) {
-      Alert.alert("입력 오류", "현재 인원은 모집 인원보다 클 수 없어요.");
+      showAlert("입력 오류", "현재 인원은 모집 인원보다 클 수 없어요.");
       return null;
     }
 
@@ -196,7 +196,6 @@ export function CommunityCompanionWriteForm() {
     startDate &&
     endDate &&
     startDate <= endDate &&
-    chatLink.trim() &&
     Number.isInteger(Number(capacity)) &&
     Number(capacity) >= 2 &&
     Number.isInteger(Number(currentParticipants)) &&
@@ -229,17 +228,17 @@ export function CommunityCompanionWriteForm() {
         await createCompanionPost(payload);
       }
 
-      Alert.alert(
+      showAlert(
         isEdit ? "수정 완료" : "등록 완료",
         isEdit ? "동행 모집 글을 수정했어요." : "동행 모집 글을 등록했어요.",
-        [{ text: "확인", onPress: () => goBackOrReplace("/community") }],
+        [{ text: "확인했어요", onPress: () => goBackOrReplace("/community") }],
       );
     } catch (error: any) {
       console.log(
         "동행 모집 저장 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert(
+      showAlert(
         "저장 실패",
         error.response?.data?.message || "잠시 후 다시 시도해주세요.",
       );
@@ -266,7 +265,7 @@ export function CommunityCompanionWriteForm() {
           />
         </View>
         <Text style={styles.headerTitle}>
-          동행 모집 {isEdit ? "수정" : "글쓰기"}
+          동행 모집 {isEdit ? "수정하기" : "글쓰기"}
         </Text>
         <Pressable
           style={[styles.headerSide, styles.headerSubmit]}
@@ -282,7 +281,7 @@ export function CommunityCompanionWriteForm() {
               !submitDisabled && { color: Colors.primary.default },
             ]}
           >
-            {submitting ? "저장 중" : isEdit ? "수정" : "글쓰기"}
+            {isEdit ? "수정하기" : "등록하기"}
           </Text>
         </Pressable>
       </View>
@@ -398,8 +397,8 @@ export function CommunityCompanionWriteForm() {
             </Pressable>
           </View>
         </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>소통 링크</Text>
+        {/* <View style={styles.field}> */}
+        {/* <Text style={styles.label}>소통 링크</Text>
           <View style={styles.select}>
             <Ionicons name="link-outline" size={22} color={Colors.gray[11]} />
             <TextInput
@@ -412,8 +411,8 @@ export function CommunityCompanionWriteForm() {
               placeholder="링크를 입력해주세요"
               placeholderTextColor={Colors.gray[5]}
             />
-          </View>
-        </View>
+          </View> */}
+        {/* </View> */}
         <View style={styles.divider} />
         <Text style={styles.sectionTitle}>게시글 작성</Text>
         <View style={styles.field}>
@@ -518,6 +517,7 @@ export function CommunityCompanionWriteForm() {
           },
         }}
       />
+      {alertElement}
     </KeyboardAvoidingView>
   );
 }

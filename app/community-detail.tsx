@@ -2,6 +2,8 @@ import { Text, TextInput } from "@/components/ui/app-text";
 import { Modal as AppModal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import ChatIcon from "@/assets/icon/chat.svg";
+import MoreIcon from "@/assets/icon/menu.svg";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Toast } from "@/components/ui/fade-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,7 +20,6 @@ import {
   Linking,
   KeyboardAvoidingView,
   Platform,
-  Modal,
   Pressable,
   ScrollView,
   Share,
@@ -35,6 +36,7 @@ import {
   AppBackButton,
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
+import { PopoverMenu } from "@/components/ui/popover-menu";
 import {
   CompanionPostResponse,
   deleteCompanionPost,
@@ -698,8 +700,7 @@ export default function CommunityDetailScreen() {
     showAlert("모집 완료", "모집을 완료할까요?", [
       { text: "취소", style: "cancel" },
       {
-        text: "완료",
-        style: "destructive",
+        text: "완료하기",
         onPress: async () => {
           try {
             if (isCompanionApiPost(post)) {
@@ -799,7 +800,7 @@ export default function CommunityDetailScreen() {
           style={styles.headerIconButton}
           onPress={() => setMenuVisible(true)}
         >
-          <Ionicons name="ellipsis-horizontal" size={23} color="#111111" />
+          <MoreIcon />
         </Pressable>
       </View>
 
@@ -863,7 +864,7 @@ export default function CommunityDetailScreen() {
               <Ionicons name="chevron-forward" size={22} color="#191F28" />
             </View>
 
-            {!!viewModel.chatLink && (
+            {/* {!!viewModel.chatLink && (
               <Pressable
                 accessibilityRole="link"
                 accessibilityLabel="오픈채팅 링크 열기"
@@ -875,7 +876,7 @@ export default function CommunityDetailScreen() {
                   {viewModel.chatLink}
                 </Text>
               </Pressable>
-            )}
+            )} */}
 
             <View style={styles.companionBodyBlock}>
               <Text style={styles.bodyText}>{viewModel.content}</Text>
@@ -943,7 +944,7 @@ export default function CommunityDetailScreen() {
           </>
         )}
 
-        {detailType === "companion" && (
+        {/* {detailType === "companion" && (
           <View style={styles.reactionBar}>
             <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
               <Ionicons
@@ -961,7 +962,7 @@ export default function CommunityDetailScreen() {
               </Text>
             </Pressable>
           </View>
-        )}
+        )} */}
 
         {detailType === "free" && (
           <View style={styles.freeSection}>
@@ -975,7 +976,7 @@ export default function CommunityDetailScreen() {
                 <Ionicons
                   name={viewModel.liked ? "heart" : "heart-outline"}
                   size={24}
-                  color={viewModel.liked ? BLUE : "#536071"}
+                  color={viewModel.liked ? Colors.primary.default : "#536071"}
                 />
                 <Text
                   style={[
@@ -992,11 +993,7 @@ export default function CommunityDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="댓글 쓰기"
               >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={23}
-                  color="#536071"
-                />
+                <ChatIcon width={24} height={24} color={Colors.gray[8]} />
                 <Text style={styles.freeReactionText}>
                   {viewModel.comments}
                 </Text>
@@ -1132,58 +1129,50 @@ export default function CommunityDetailScreen() {
         </View>
       )}
 
-      <Modal
-        transparent
+      <PopoverMenu
         visible={menuVisible}
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
-        <View style={styles.menuOverlay}>
-          <Pressable
-            style={styles.menuBackdrop}
-            onPress={() => setMenuVisible(false)}
-          />
-          <View style={styles.menuSheet}>
-            {isAuthor && (
-              <>
-                <Pressable style={styles.menuItem} onPress={handleEdit}>
-                  <EditIcon />
-                  <Text style={styles.menuText}>수정</Text>
-                </Pressable>
-
-                <Pressable style={styles.menuItem} onPress={handleDeletePost}>
-                  <DeleteIcon />
-                  <Text style={[styles.menuText, styles.menuDangerText]}>
-                    삭제
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={handleCompleteRecruitment}
-                >
-                  <CompleteIcon />
-                  <Text style={[styles.menuText, styles.menuDangerText]}>
-                    모집 완료
-                  </Text>
-                </Pressable>
-              </>
-            )}
-            {detailType === "free" && (
-              <Pressable style={styles.menuItem} onPress={handleScrapPress}>
-                <Ionicons
-                  name={scrapped ? "bookmark" : "bookmark-outline"}
-                  size={19}
-                  color={scrapped ? BLUE : "#111111"}
-                />
-                <Text style={styles.menuText}>
-                  {scrapped ? "저장 취소" : "게시글 저장"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      </Modal>
+        position={{ top: headerHeight - 4, right: 18 }}
+        width={198}
+        accessibilityLabel="게시글 메뉴 닫기"
+        onClose={() => setMenuVisible(false)}
+        items={[
+          ...(isAuthor
+            ? [
+                {
+                  label: "수정하기",
+                  icon: <EditIcon />,
+                  onPress: handleEdit,
+                },
+                {
+                  label: "삭제하기",
+                  icon: <DeleteIcon />,
+                  onPress: handleDeletePost,
+                },
+                ...(detailType === "companion"
+                  ? [
+                      {
+                        label: "모집 완료",
+                        icon: <CompleteIcon />,
+                        onPress: handleCompleteRecruitment,
+                      },
+                    ]
+                  : []),
+              ]
+            : [
+                {
+                  label: scrapped ? "스크랩 취소" : "스크랩하기",
+                  icon: (
+                    <Ionicons
+                      name={scrapped ? "bookmark" : "bookmark-outline"}
+                      size={16}
+                      color={scrapped ? BLUE : "#111111"}
+                    />
+                  ),
+                  onPress: handleScrapPress,
+                },
+              ]),
+        ]}
+      />
       <AppModal
         isOpen={alertState.visible}
         onClose={closeAlert}
@@ -1516,7 +1505,7 @@ const styles = StyleSheet.create({
   },
   freeReactionText: { fontSize: 16, color: "#374151" },
   freeSaveButton: { marginLeft: "auto", padding: 10 },
-  commentSecondaryText: { fontSize: 14, color: "#8B97A8" },
+  commentSecondaryText: { ...fonts.body2_m_14, color: Colors.gray[6] },
   commentSection: {
     marginHorizontal: -16,
     borderTopWidth: 10,
@@ -1540,7 +1529,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: BLUE,
+    backgroundColor: Colors.primary.default,
   },
   commentSortActive: { color: "#111111", fontWeight: "700" },
   commentItem: {
@@ -1601,46 +1590,5 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-  },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.18)",
-  },
-  menuBackdrop: {
-    flex: 1,
-  },
-  menuSheet: {
-    position: "absolute",
-    top: 86,
-    right: 18,
-    width: 198,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 7,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  menuItem: {
-    height: 47,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 15,
-  },
-  menuText: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#111111",
-  },
-  menuTextMuted: {
-    color: "#A0A0A0",
-  },
-  menuDangerText: {
-    color: "#D94343",
   },
 });

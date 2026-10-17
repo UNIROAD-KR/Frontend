@@ -71,6 +71,7 @@ export const quickActionsByStatus = [
     icon: TicketIcon,
     route: {
       pathname: "/market",
+      params: { tab: "ticket" },
     },
   },
   {
@@ -86,7 +87,7 @@ export const quickActionsByStatus = [
     icon: PeopleGreenIcon,
     route: {
       pathname: "/community",
-      params: { fromHome: "true" },
+      params: { fromTab: "true" },
     },
   },
   {
@@ -94,14 +95,15 @@ export const quickActionsByStatus = [
     icon: HandshakeIcon,
     route: {
       pathname: "/community",
+      params: { fromTab: "true", tab: "companion" },
     },
   },
   {
     title: "캘린더",
     icon: CalendarIcon,
     route: {
-      pathname: "/calendar",
-      params: { fromHome: "true" },
+      pathname: "/management",
+      params: { fromHome: "true", tab: "calendar" },
     },
   },
   {

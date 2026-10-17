@@ -41,6 +41,7 @@ import {
   AppBackButton,
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
+import { PopoverMenu } from "@/components/ui/popover-menu";
 import {
   getUsedItemStatus,
   saveUsedItemStatus,
@@ -1085,84 +1086,70 @@ function HeaderBack({
         <Ionicons name="ellipsis-horizontal" size={22} color="#111111" />
       </Pressable>
 
-      {menuVisible && (
-        <>
-          <Pressable
-            style={styles.menuBackdrop}
-            onPress={() => setMenuVisible(false)}
-          />
-          <View style={[styles.postMenuPopover, { top: headerHeight - 4 }]}>
-            <View style={styles.postMenuArrow} />
-            {canManagePost ? (
-              <>
-                <Pressable
-                  style={styles.postMenuRow}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    onEdit?.();
-                  }}
-                >
-                  <EditIcon />
-                  <Text style={styles.postMenuText}>수정하기</Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.postMenuRow}
-                  onPress={() => {
-                    setMenuVisible(false);
+      <PopoverMenu
+        visible={menuVisible}
+        position={{ top: headerHeight - 4, right: 20 }}
+        width={190}
+        accessibilityLabel="게시글 메뉴 닫기"
+        onClose={() => setMenuVisible(false)}
+        items={
+          canManagePost
+            ? [
+                {
+                  label: "수정하기",
+                  icon: <EditIcon />,
+                  onPress: () => onEdit?.(),
+                },
+                {
+                  label:
+                    tradeStatus === "COMPLETED"
+                      ? "판매중으로 변경"
+                      : "거래완료로 변경",
+                  icon: (
+                    <Ionicons
+                      name={
+                        tradeStatus === "COMPLETED"
+                          ? "refresh-outline"
+                          : "checkmark-circle-outline"
+                      }
+                      size={16}
+                      color="#111111"
+                    />
+                  ),
+                  onPress: () =>
                     onChangeStatus?.(
                       tradeStatus === "COMPLETED" ? "AVAILABLE" : "COMPLETED",
-                    );
-                  }}
-                >
-                  <Ionicons
-                    name={
-                      tradeStatus === "COMPLETED"
-                        ? "refresh-outline"
-                        : "checkmark-circle-outline"
-                    }
-                    size={18}
-                    color="#111111"
-                  />
-                  <Text style={styles.postMenuText}>
-                    {tradeStatus === "COMPLETED"
-                      ? "판매중으로 변경"
-                      : "거래완료로 변경"}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={styles.postMenuRow}
-                  onPress={() => {
-                    setMenuVisible(false);
-                    onDelete?.();
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#E5484D" />
-                  <Text
-                    style={[styles.postMenuText, styles.postMenuDangerText]}
-                  >
-                    삭제
-                  </Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                style={styles.postMenuRow}
-                onPress={() => {
-                  setMenuVisible(false);
-                  onReport?.();
-                }}
-              >
-                <Ionicons name="flag-outline" size={18} color="#E5484D" />
-                <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
-                  {reporting ? "신고 접수 중..." : "신고하기"}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        </>
-      )}
+                    ),
+                },
+                {
+                  label: "삭제",
+                  icon: (
+                    <Ionicons
+                      name="trash-outline"
+                      size={16}
+                      color="#E5484D"
+                    />
+                  ),
+                  onPress: () => onDelete?.(),
+                  tone: "danger",
+                },
+              ]
+            : [
+                {
+                  label: reporting ? "신고 접수 중..." : "신고하기",
+                  icon: (
+                    <Ionicons
+                      name="flag-outline"
+                      size={16}
+                      color="#E5484D"
+                    />
+                  ),
+                  onPress: () => onReport?.(),
+                  tone: "danger",
+                },
+              ]
+        }
+      />
     </View>
   );
 }
@@ -1477,59 +1464,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F6F8FC",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  menuBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 8,
-  },
-
-  postMenuPopover: {
-    position: "absolute",
-    right: 20,
-    width: 150,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#E7ECF3",
-    shadowColor: "#0F2042",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.14,
-    shadowRadius: 22,
-    elevation: 8,
-    zIndex: 9,
-  },
-
-  postMenuArrow: {
-    position: "absolute",
-    top: -7,
-    right: 17,
-    width: 14,
-    height: 14,
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: "#E7ECF3",
-    backgroundColor: "#FFFFFF",
-    transform: [{ rotate: "45deg" }],
-  },
-
-  postMenuRow: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    gap: 10,
-  },
-
-  postMenuText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#111111",
-  },
-
-  postMenuDangerText: {
-    color: "#E5484D",
   },
 
   centerState: {

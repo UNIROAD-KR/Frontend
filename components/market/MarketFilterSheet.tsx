@@ -312,13 +312,27 @@ export function MarketFilterSheet({
                 </Text>
               )}
             </View>
-            <View style={styles.section}>
+            {mode === "bulk" ? null : (
+              <View style={styles.section}>
+                <Text style={styles.label}>이용 마감일</Text>
+                <TicketDateField
+                  value={draft.deadline}
+                  onChange={(deadline) => patch({ deadline })}
+                />
+                {draft.deadline ? (
+                  <Pressable onPress={() => patch({ deadline: "" })}>
+                    <Text style={styles.hint}>날짜 선택 해제</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            )}
+            {/* <View style={styles.section}>
               <Text style={styles.label}>
                 {mode === "bulk" ? "대면 거래" : "이용 마감일"}
               </Text>
               {mode === "bulk" ? (
-                <>
-                  <View style={styles.chips}>
+                <> */}
+            {/* <View style={styles.chips}>
                     {(
                       [
                         ["all", "전체"],
@@ -346,9 +360,9 @@ export function MarketFilterSheet({
                         </Pressable>
                       );
                     })}
-                  </View>
-                </>
-              ) : (
+                  </View> */}
+            {/* </> */}
+            {/* ) : (
                 <>
                   <TicketDateField
                     value={draft.deadline}
@@ -360,8 +374,8 @@ export function MarketFilterSheet({
                     </Pressable>
                   ) : null}
                 </>
-              )}
-            </View>
+              )} */}
+            {/* </View> */}
           </ScrollView>
           <Pressable
             disabled={!valid}

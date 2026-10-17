@@ -5,7 +5,6 @@ import {
   Text,
   AppState,
   DeviceEventEmitter,
-  Modal,
   Pressable,
   useWindowDimensions,
   Platform,
@@ -29,6 +28,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts } from "@/constants/theme";
 import { SortSheet } from "@/components/ui/sort-sheet";
+import { PopoverMenu } from "@/components/ui/popover-menu";
 import { useChatListSettings } from "@/components/chat/chat-list-settings";
 
 const chatSortOptions = [
@@ -187,11 +187,12 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
           </View>
         )}
       </View>
-      <Modal
-        transparent
+      <PopoverMenu
         visible={isChat && menuVisible}
-        animationType="none"
-        onRequestClose={() => setMenuVisible(false)}
+        position={menuPosition}
+        width={126}
+        accessibilityLabel="채팅 목록 설정 닫기"
+        onClose={() => setMenuVisible(false)}
         onDismiss={() => {
           if (pendingManage.current) {
             pendingManage.current = false;
@@ -202,41 +203,25 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
             setSortVisible(true);
           }
         }}
-      >
-        <View style={{ flex: 1 }}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            accessibilityLabel="채팅 목록 설정 닫기"
-            onPress={() => setMenuVisible(false)}
-          />
-          <View style={[styles.chatMenuPopover, menuPosition]}>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.chatMenuRow}
-              onPress={() => {
-                pendingSort.current = Platform.OS === "ios";
-                setMenuVisible(false);
-                if (Platform.OS !== "ios") setSortVisible(true);
-              }}
-            >
-              <SortGrayIcon width={16} height={16} />
-              <Text style={styles.chatMenuText}>채팅방 정렬</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.chatMenuRow}
-              onPress={() => {
-                pendingManage.current = Platform.OS === "ios";
-                setMenuVisible(false);
-                if (Platform.OS !== "ios") router.push("/chat-management");
-              }}
-            >
-              <SettingGrayIcon width={16} height={16} />
-              <Text style={styles.chatMenuText}>채팅방 관리</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        items={[
+          {
+            label: "채팅방 정렬",
+            icon: <SortGrayIcon width={16} height={16} />,
+            onPress: () => {
+              pendingSort.current = Platform.OS === "ios";
+              if (Platform.OS !== "ios") setSortVisible(true);
+            },
+          },
+          {
+            label: "채팅방 관리",
+            icon: <SettingGrayIcon width={16} height={16} />,
+            onPress: () => {
+              pendingManage.current = Platform.OS === "ios";
+              if (Platform.OS !== "ios") router.push("/chat-management");
+            },
+          },
+        ]}
+      />
       <SortSheet
         visible={isChat && sortVisible}
         value={sortOrder}
@@ -254,30 +239,6 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  chatMenuPopover: {
-    position: "absolute",
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#E7ECF3",
-    elevation: 8,
-    shadowColor: "#0F2042",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-  },
-  chatMenuRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    gap: 6,
-  },
-  chatMenuText: {
-    ...fonts.body2_m_14,
-    color: "#141416",
-    width: 74,
-  },
   notificationBadge: {
     position: "absolute",
     top: -2,

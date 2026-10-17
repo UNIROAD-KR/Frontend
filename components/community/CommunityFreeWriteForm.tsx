@@ -118,7 +118,7 @@ export function CommunityFreeWriteForm() {
       showAlert(
         isEdit ? "수정 완료" : "등록 완료",
         isEdit ? "게시글을 수정했어요." : "게시글을 등록했어요.",
-        [{ text: "확인", onPress: () => goBackOrReplace("/community") }],
+        [{ text: "확인했어요", onPress: () => goBackOrReplace("/community") }],
       );
     } catch (error: any) {
       console.log(
