@@ -11,13 +11,15 @@ import {
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Button from "../ui/button";
@@ -86,6 +88,34 @@ export function TransactionModal({
   const [tagRowHeight, setTagRowHeight] = useState(
     fonts.sub4_sb_14.lineHeight + 20,
   );
+  const { height: windowHeight } = useWindowDimensions();
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldsY = useRef(0);
+  const amountY = useRef(0);
+  const titleY = useRef(0);
+  const scrollFieldToTop = (fieldY: number) => {
+    setTimeout(
+      () =>
+        scrollRef.current?.scrollTo({
+          y: fieldsY.current + fieldY,
+          animated: true,
+        }),
+      350,
+    );
+  };
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardHeight(0),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const isIncome = type === "INCOME";
   const handleClose = () => {
     Keyboard.dismiss();
@@ -127,6 +157,15 @@ export function TransactionModal({
               />
             )}
 
+            <ScrollView
+              ref={scrollRef}
+              style={{ maxHeight: windowHeight * 0.75 }}
+              contentContainerStyle={{
+                paddingBottom: keyboardHeight ? windowHeight * 0.6 : 0,
+              }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
             <View style={styles.header}>
               <Text style={fonts.title3_b_24}>
                 {isEditing ? "입출금 수정하기" : "입출금 등록하기"}
@@ -203,7 +242,12 @@ export function TransactionModal({
               })}
             </View>
 
-            <View style={{ gap: 24 }}>
+            <View
+              style={{ gap: 24 }}
+              onLayout={(e) => {
+                fieldsY.current = e.nativeEvent.layout.y;
+              }}
+            >
               <View>
                 <Text style={styles.label}>
                   {isIncome ? "입금 일자" : "출금 일자"}
@@ -216,12 +260,19 @@ export function TransactionModal({
                 >
                   <Text
                     numberOfLines={1}
-                    style={[styles.dateText, !transactionDate && styles.placeholder]}
+                    style={[
+                      styles.dateText,
+                      !transactionDate && styles.placeholder,
+                    ]}
                   >
                     {transactionDate || "날짜를 입력해주세요"}
                   </Text>
                   <View style={styles.fieldAccessory} pointerEvents="none">
-                    <Ionicons name="calendar-outline" size={24} color="#B1B8C1" />
+                    <Ionicons
+                      name="calendar-outline"
+                      size={24}
+                      color="#B1B8C1"
+                    />
                   </View>
                 </Pressable>
               </View>
@@ -247,35 +298,49 @@ export function TransactionModal({
                   />
                 </View>
               )}
-              <View>
+              <View
+                onLayout={(e) => {
+                  amountY.current = e.nativeEvent.layout.y;
+                }}
+              >
                 <Text style={styles.label}>
                   {isIncome ? "입금 금액" : "출금 금액"}
                 </Text>
-                    <View style={styles.amountField}>
-                      <TextInput
-                        style={styles.decoratedField}
-                        placeholder={isIncome ? "입금 금액을 입력해주세요" : "출금 금액을 입력해주세요"}
-                        placeholderTextColor="#B1B8C1"
-                        keyboardType="decimal-pad"
-                        value={amount}
-                        onChangeText={onChangeAmount}
-                        selectionColor={Colors.primary.default}
-                        accessibilityLabel={isIncome ? "입금 금액" : "출금 금액"}
-                      />
-                      <View style={styles.fieldAccessory} pointerEvents="none">
-                        <Text style={fonts.body1_m_16}>원</Text>
-                      </View>
-                    </View>
-                    {amountError && (
-                      <View style={styles.amountError}>
-                        <ErrorIcon />
-                        <Text style={styles.amountErrorText}>{amountError}</Text>
-                      </View>
-                    )}
+                <View style={styles.amountField}>
+                  <TextInput
+                    onFocus={() => scrollFieldToTop(amountY.current)}
+                    style={styles.decoratedField}
+                    placeholder={
+                      isIncome
+                        ? "입금 금액을 입력해주세요"
+                        : "출금 금액을 입력해주세요"
+                    }
+                    placeholderTextColor="#B1B8C1"
+                    keyboardType="decimal-pad"
+                    value={amount}
+                    onChangeText={onChangeAmount}
+                    selectionColor={Colors.primary.default}
+                    accessibilityLabel={isIncome ? "입금 금액" : "출금 금액"}
+                  />
+                  <View style={styles.fieldAccessory} pointerEvents="none">
+                    <Text style={fonts.body1_m_16}>원</Text>
+                  </View>
+                </View>
+                {amountError && (
+                  <View style={styles.amountError}>
+                    <ErrorIcon />
+                    <Text style={styles.amountErrorText}>{amountError}</Text>
+                  </View>
+                )}
               </View>
-              <View>
+              <View
+                onLayout={(e) => {
+                  titleY.current = e.nativeEvent.layout.y;
+                }}
+              >
                 <Text style={styles.label}>내역 이름</Text>
                 <InputField
+                  onFocus={() => scrollFieldToTop(titleY.current)}
                   style={styles.input}
                   placeholder="내역 이름을 입력해주세요"
                   placeholderTextColor="#B1B8C1"
@@ -301,6 +366,7 @@ export function TransactionModal({
                 disabled={!isValid}
               />
             </View>
+            </ScrollView>
           </BottomSheetView>
 
           {showDatePicker && Platform.OS === "ios" && !isTabletDatePicker && (
@@ -484,7 +550,7 @@ const styles = StyleSheet.create({
     borderColor: "#DDE2E8",
     borderRadius: 11,
     paddingHorizontal: 16,
-    fontSize: 16,
+    ...fonts.body1_m_16,
     color: "#1C1C1E",
   },
   submitButtonText: {

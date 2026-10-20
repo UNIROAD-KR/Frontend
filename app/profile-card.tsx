@@ -719,8 +719,7 @@ const styles = StyleSheet.create({
     color: "#27303C",
   },
   menuValue: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: MUTED,
+    ...fonts.body1_m_16,
+    color: Colors.gray[9],
   },
 });
