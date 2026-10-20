@@ -42,6 +42,7 @@ import {
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
 import { PopoverMenu } from "@/components/ui/popover-menu";
+import { useMarketVerification } from "@/hooks/use-market-verification";
 import {
   getUsedItemStatus,
   saveUsedItemStatus,
@@ -414,6 +415,7 @@ export default function MarketDetailPage() {
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
+  const { checkVerified, verificationModal } = useMarketVerification();
   const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
@@ -545,6 +547,7 @@ export default function MarketDetailPage() {
 
     try {
       setChatLoading(true);
+      if (!(await checkVerified())) return;
       const response = await createOrGetChatRoom({
         referenceType: "TRADE",
         referenceId: post.id,
@@ -971,6 +974,7 @@ export default function MarketDetailPage() {
         photo={expandedPhoto}
         onClose={() => setExpandedPhoto(null)}
       />
+      {verificationModal}
     </View>
   );
 }

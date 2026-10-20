@@ -1,50 +1,50 @@
 import { commonStyles } from "@/constants/theme";
-import { Text, TextInput } from '@/components/ui/app-text';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from "@/components/ui/app-text";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import { useCallback, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
-import { ProfileScreenHeader } from '@/components/ui/profile-screen-header';
-import { getMemberMe, updatePassword } from '../../../src/api/auth';
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
+import { getMemberMe, updatePassword } from "../../../src/api/auth";
 
-const NAVY = '#0F2042';
-const BLUE = '#2F66D0';
-const INK = '#111111';
-const MUTED = '#64748B';
-const LINE = '#E2E8F0';
-const SOFT = '#F6F8FC';
+const NAVY = "#0F2042";
+const BLUE = "#2F66D0";
+const INK = "#111111";
+const MUTED = "#64748B";
+const LINE = "#E2E8F0";
+const SOFT = "#F6F8FC";
 
 const getPasswordError = (value: string) => {
-  if (!value) return '';
+  if (!value) return "";
 
   if (value.length < 8 || value.length > 20) {
-    return '비밀번호는 8~20자로 입력해주세요.';
+    return "비밀번호는 8~20자로 입력해주세요.";
   }
 
   if (!/^[A-Za-z0-9@$!%*#?&^_-]+$/.test(value)) {
-    return '비밀번호에 사용할 수 없는 문자가 포함되어 있습니다.';
+    return "비밀번호에 사용할 수 없는 문자가 포함되어 있습니다.";
   }
 
   if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) {
-    return '비밀번호는 영문과 숫자를 모두 포함해야 합니다.';
+    return "비밀번호는 영문과 숫자를 모두 포함해야 합니다.";
   }
 
-  return '';
+  return "";
 };
 
 export default function AccountSettingsScreen() {
-  const [username, setUsername] = useState('로그인 계정');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState("로그인 계정");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const newPasswordError = getPasswordError(newPassword);
   const confirmPasswordError =
     confirmPassword.length > 0 && newPassword !== confirmPassword
-      ? '비밀번호가 일치하지 않습니다.'
-      : '';
+      ? "비밀번호가 일치하지 않습니다."
+      : "";
   const submitDisabled =
     submitting ||
     !newPassword ||
@@ -57,11 +57,14 @@ export default function AccountSettingsScreen() {
       const loadMember = async () => {
         try {
           const response = await getMemberMe();
-          setUsername(response.data.data.username || '로그인 계정');
+          setUsername(response.data.data.username || "로그인 계정");
         } catch (error: any) {
-          console.log('계정 정보 조회 실패:', error.response?.data || error.message);
-          const savedNickname = await AsyncStorage.getItem('nickname');
-          setUsername(savedNickname || '로그인 계정');
+          console.log(
+            "계정 정보 조회 실패:",
+            error.response?.data || error.message,
+          );
+          const savedNickname = await AsyncStorage.getItem("nickname");
+          setUsername(savedNickname || "로그인 계정");
         }
       };
 
@@ -71,17 +74,17 @@ export default function AccountSettingsScreen() {
 
   const handleSubmit = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert('입력 필요', '새 비밀번호를 입력해주세요.');
+      Alert.alert("입력 필요", "새 비밀번호를 입력해주세요.");
       return;
     }
 
     if (newPasswordError) {
-      Alert.alert('입력 오류', newPasswordError);
+      Alert.alert("입력 오류", newPasswordError);
       return;
     }
 
     if (confirmPasswordError) {
-      Alert.alert('입력 오류', confirmPasswordError);
+      Alert.alert("입력 오류", confirmPasswordError);
       return;
     }
 
@@ -89,21 +92,21 @@ export default function AccountSettingsScreen() {
 
     try {
       await updatePassword({ newPassword });
-      Alert.alert('변경 완료', '비밀번호가 변경되었습니다.', [
+      Alert.alert("변경 완료", "비밀번호가 변경되었습니다.", [
         {
-          text: '확인',
+          text: "확인",
           onPress: () => {
-            setNewPassword('');
-            setConfirmPassword('');
+            setNewPassword("");
+            setConfirmPassword("");
             router.back();
           },
         },
       ]);
     } catch (error: any) {
-      console.log('비밀번호 변경 실패:', error.response?.data || error.message);
+      console.log("비밀번호 변경 실패:", error.response?.data || error.message);
       Alert.alert(
-        '변경 실패',
-        error.response?.data?.message || '비밀번호 변경에 실패했어요.',
+        "변경 실패",
+        error.response?.data?.message || "비밀번호 변경에 실패했어요.",
       );
     } finally {
       setSubmitting(false);
@@ -112,7 +115,7 @@ export default function AccountSettingsScreen() {
 
   return (
     <View style={styles.container}>
-      <ProfileScreenHeader title="계정 설정" />
+      <ProfileScreenHeader title="비밀번호 변경" />
 
       <ScrollView
         style={styles.scroll}
@@ -154,13 +157,17 @@ export default function AccountSettingsScreen() {
             error={confirmPasswordError}
             success={
               confirmPassword.length > 0 && !confirmPasswordError
-                ? '비밀번호가 일치합니다.'
-                : ''
+                ? "비밀번호가 일치합니다."
+                : ""
             }
           />
 
           <View style={styles.ruleBox}>
-            <Ionicons name="information-circle-outline" size={18} color={BLUE} />
+            <Ionicons
+              name="information-circle-outline"
+              size={18}
+              color={BLUE}
+            />
             <Text style={styles.ruleText}>
               아이디는 보안을 위해 수정할 수 없고, 비밀번호만 변경할 수 있어요.
             </Text>
@@ -168,12 +175,15 @@ export default function AccountSettingsScreen() {
         </View>
 
         <Pressable
-          style={[styles.submitButton, submitDisabled && styles.submitButtonDisabled]}
+          style={[
+            styles.submitButton,
+            submitDisabled && styles.submitButtonDisabled,
+          ]}
           onPress={handleSubmit}
           disabled={submitDisabled}
         >
           <Text style={styles.submitText}>
-            {submitting ? '변경 중...' : '변경하기'}
+            {submitting ? "변경 중..." : "변경하기"}
           </Text>
         </Pressable>
       </ScrollView>
@@ -227,7 +237,7 @@ function PasswordField({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
+    backgroundColor: "#F6F7F9",
   },
   scroll: {
     flex: 1,
@@ -240,20 +250,20 @@ const styles = StyleSheet.create({
   readOnlyCard: {
     minHeight: 88,
     borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E9EE',
+    borderColor: "#E5E9EE",
     padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   readOnlyIconBox: {
     width: 42,
     height: 42,
     borderRadius: 10,
-    backgroundColor: '#EEF2F8',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#EEF2F8",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
   },
   readOnlyTextBox: {
@@ -263,40 +273,40 @@ const styles = StyleSheet.create({
   },
   readOnlyLabel: {
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: "900",
     color: MUTED,
   },
   readOnlyValue: {
     marginTop: 5,
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: "900",
     color: INK,
   },
   lockPill: {
     borderRadius: 5,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: "#F2F4F7",
     paddingHorizontal: 7,
     paddingVertical: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   lockText: {
     fontSize: 11,
-    fontWeight: '900',
+    fontWeight: "900",
     color: MUTED,
   },
   formCard: {
     marginTop: 18,
     borderRadius: 9,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E9EE',
+    borderColor: "#E5E9EE",
     padding: 16,
   },
   sectionTitle: {
     fontSize: 15,
-    fontWeight: '900',
+    fontWeight: "900",
     color: NAVY,
     marginBottom: 16,
   },
@@ -311,86 +321,86 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 7,
     borderWidth: 1,
-    borderColor: '#E3E7EC',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E3E7EC",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: "800",
     color: INK,
   },
   inputError: {
-    borderColor: '#E53935',
-    backgroundColor: '#FFFFFF',
+    borderColor: "#E53935",
+    backgroundColor: "#FFFFFF",
   },
   feedbackRow: {
     marginTop: 7,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   errorBadge: {
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#D94A45',
-    color: '#FFFFFF',
+    backgroundColor: "#D94A45",
+    color: "#FFFFFF",
     fontSize: 10,
-    fontWeight: '800',
+    fontWeight: "800",
     lineHeight: 14,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorText: {
     flex: 1,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
-    color: '#D94A45',
+    fontWeight: "800",
+    color: "#D94A45",
   },
   helpText: {
     marginTop: 7,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     color: MUTED,
   },
   successText: {
     marginTop: 7,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     color: BLUE,
   },
   ruleBox: {
     borderRadius: 7,
-    backgroundColor: '#F3F5F7',
+    backgroundColor: "#F3F5F7",
     borderWidth: 1,
-    borderColor: '#E5E9EE',
+    borderColor: "#E5E9EE",
     padding: 12,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    alignItems: "flex-start",
     gap: 8,
   },
   ruleText: {
     flex: 1,
     fontSize: 12,
     lineHeight: 18,
-    fontWeight: '800',
+    fontWeight: "800",
     color: MUTED,
   },
   submitButton: {
     marginTop: 18,
     height: 50,
     borderRadius: 7,
-    backgroundColor: '#3568DA',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#3568DA",
+    alignItems: "center",
+    justifyContent: "center",
   },
   submitButtonDisabled: {
-    backgroundColor: '#B7C0CD',
+    backgroundColor: "#B7C0CD",
   },
   submitText: {
     fontSize: 14,
-    fontWeight: '900',
-    color: '#FFFFFF',
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
 });

@@ -5,7 +5,6 @@ import { useFocusEffect } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState, type ComponentType } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Modal } from "@/components/ui/modal";
 import {
   Alert,
@@ -34,7 +33,7 @@ import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-app
 import VerificationIcon from "@/assets/icon/profile/verification.svg";
 import VerificationPendingIcon from "@/assets/icon/profile/verification-pending.svg";
 import WrittenPostsIcon from "@/assets/icon/profile/written-posts.svg";
-import { AppBackButton } from "@/components/ui/app-back-button";
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { getMemberMe, logout } from "../src/api/auth";
 import { getMyVerifications } from "../src/api/verification";
 import { openKakaoContact } from "../src/utils/contact";
@@ -106,7 +105,7 @@ const serviceItems: MenuItem[] = [
   {
     title: "전체 서비스",
     icon: AllServicesIcon,
-    route: "/home/more-menu",
+    route: "/more-menu",
   },
 ];
 
@@ -134,7 +133,7 @@ const guideItems: MenuItem[] = [
   {
     title: "서비스 이용약관",
     icon: TermsIcon,
-    route: "/home/terms",
+    route: "/terms",
   },
 ];
 
@@ -142,7 +141,7 @@ const extraItems: MenuItem[] = [
   {
     title: "개인정보 처리방침",
     icon: PrivacyIcon,
-    route: "/home/privacy-policy",
+    route: "privacy-policy",
   },
   {
     title: "로그아웃",
@@ -373,12 +372,8 @@ export default function ProfileCardScreen() {
       ? "제출하신 인증 서류를 확인하고 있어요"
       : "파견교 인증을 위해 인증 서류를 제출해주세요";
   return (
-    <SafeAreaView style={commonStyles.container}>
-      <View style={[commonStyles.header]}>
-        <AppBackButton fallbackHref="/home" />
-        <Text style={fonts.sub3_sb_16}>내 프로필</Text>
-        <View style={commonStyles.headerSpacer} />
-      </View>
+    <View style={commonStyles.container}>
+      <ProfileScreenHeader title="내 프로필" />
 
       <ScrollView
         // style={styles.scroll}
@@ -387,7 +382,7 @@ export default function ProfileCardScreen() {
       >
         <TouchableOpacity
           style={styles.profileCard}
-          onPress={() => router.push("/home/profile-edit" as any)}
+          onPress={() => router.push("/profile-edit" as any)}
           activeOpacity={0.86}
         >
           <View style={styles.profileMain}>
@@ -502,11 +497,11 @@ export default function ProfileCardScreen() {
         />
       </ScrollView>
       <Modal
-        title="로그아웃"
-        description="로그아웃 하시겠습니까?"
+        title="로그아웃하시겠어요?"
+        description={`로그아웃 이후 서비스를 이용하려면 다시 로그인해야 해요.\n언제든 다시 로그인할 수 있습니다.`}
         isOpen={isLogoutModalVisible}
         primaryButton={{
-          label: "로그아웃",
+          label: "확인했어요",
           onPress: performLogout,
         }}
         secondaryButton={{
@@ -514,7 +509,7 @@ export default function ProfileCardScreen() {
           onPress: () => setLogoutModalVisible(false),
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -71,14 +71,14 @@ export default function FreePostList({
                 </View>
               </View>
             </View>
-            <View style={styles.boardThumbnail}>
-              {!!post.thumbnailImageUrl && (
+            {!!post.thumbnailImageUrl && (
+              <View style={styles.boardThumbnail}>
                 <Image
                   source={{ uri: post.thumbnailImageUrl }}
                   style={styles.boardThumbnailImage}
                 />
-              )}
-            </View>
+              </View>
+            )}
           </Pressable>
         ))
       ) : (

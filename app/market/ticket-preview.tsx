@@ -41,6 +41,7 @@ import { createReport, ReportReason } from "@/src/api/reports";
 import { createOrGetChatRoom } from "@/src/api/chat";
 import { getTicketCurrency } from "@/src/storage/ticketMetadata";
 import Button from "@/components/ui/button";
+import { useMarketVerification } from "@/hooks/use-market-verification";
 
 const BLUE = "#123F9F";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -366,6 +367,7 @@ export default function TicketPreviewPage() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
+  const { checkVerified, verificationModal } = useMarketVerification();
   const [currencyUnit, setCurrencyUnit] = useState("€");
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
@@ -694,6 +696,7 @@ export default function TicketPreviewPage() {
 
     try {
       setChatLoading(true);
+      if (!(await checkVerified())) return;
       const response = await createOrGetChatRoom({
         referenceType: "TICKET",
         referenceId: ticket.id,
@@ -1110,7 +1113,7 @@ export default function TicketPreviewPage() {
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
             size={30}
-            color={liked ? BLUE : "#111111"}
+            color={liked ? "#E5484D" : "#111111"}
           />
         </Pressable>
         <Button
@@ -1125,6 +1128,7 @@ export default function TicketPreviewPage() {
           }
         />
       </View>
+      {verificationModal}
     </View>
   );
 }

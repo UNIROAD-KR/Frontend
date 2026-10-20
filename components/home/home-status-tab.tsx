@@ -126,7 +126,7 @@ export function HomeStatusTab() {
         <Pressable
           style={[styles.school, !data.university && styles.unsetSchool]}
           accessibilityRole="button"
-          onPress={() => router.push("/home/profile-edit")}
+          onPress={() => router.push("/profile-edit")}
         >
           <Text
             numberOfLines={1}
