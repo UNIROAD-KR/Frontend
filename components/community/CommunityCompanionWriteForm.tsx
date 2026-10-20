@@ -1,11 +1,6 @@
-import {
-  BottomSheetModal,
-  bottomSheetStyles,
-  BottomSheetView,
-} from "@/components/ui/bottom-sheet";
+import { CalendarPickerSheet } from "@/components/ui/calendar-picker-sheet";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Modal } from "@/components/ui/modal";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -23,7 +18,6 @@ import {
   createCompanionPost,
   updateCompanionPost,
 } from "../../src/api/companion";
-import { BLUE } from "../../src/data/community";
 import { canUseMarketWithoutVerification } from "../../src/utils/verification";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
@@ -35,6 +29,7 @@ import {
 import { useAppAlert } from "@/hooks/use-app-alert";
 
 type DateTarget = "start" | "end" | null;
+const GENDER_OPTIONS = ["무관", "여성만", "남성만"] as const;
 
 const formatDate = (date: Date) => {
   const year = date.getFullYear();
@@ -93,7 +88,9 @@ export function CommunityCompanionWriteForm() {
     params.status || "RECRUITING",
   );
   const [dateTarget, setDateTarget] = useState<DateTarget>(null);
-  const [draftDate, setDraftDate] = useState(new Date());
+  const [gender, setGender] = useState<(typeof GENDER_OPTIONS)[number]>(
+    GENDER_OPTIONS.find((option) => option === params.genderRatio) ?? "무관",
+  );
   const [submitting, setSubmitting] = useState(false);
   const [verificationModalVisible, setVerificationModalVisible] =
     useState(false);
@@ -119,12 +116,11 @@ export function CommunityCompanionWriteForm() {
   }, []);
 
   const openDatePicker = (target: Exclude<DateTarget, null>) => {
-    setDraftDate(parseDate(target === "start" ? startDate : endDate));
     setDateTarget(target);
   };
 
-  const handleConfirmDate = () => {
-    const nextDate = formatDate(draftDate);
+  const handleSelectDate = (date: Date) => {
+    const nextDate = formatDate(date);
 
     if (dateTarget === "start") {
       setStartDate(nextDate);
@@ -186,7 +182,7 @@ export function CommunityCompanionWriteForm() {
       status,
       capacity: capacityNumber,
       currentParticipants: currentNumber,
-      genderRatio: isEdit ? params.genderRatio || "무관" : "무관",
+      genderRatio: gender,
     };
   };
 
@@ -324,6 +320,32 @@ export function CommunityCompanionWriteForm() {
             />
           )}
         </View>
+        <View style={styles.field}>
+          <Text style={styles.label}>성별 조건</Text>
+          <View style={styles.genderRow}>
+            {GENDER_OPTIONS.map((option) => {
+              const selected = gender === option;
+              return (
+                <Pressable
+                  key={option}
+                  style={[styles.genderChip, selected && styles.genderChipOn]}
+                  onPress={() => setGender(option)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: selected }}
+                >
+                  <Text
+                    style={[
+                      styles.genderText,
+                      selected && styles.genderTextOn,
+                    ]}
+                  >
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <View style={styles.dateRow}>
           {(["start", "end"] as const).map((target) => {
             const value = target === "start" ? startDate : endDate;
@@ -455,48 +477,18 @@ export function CommunityCompanionWriteForm() {
         }}
       />
 
-      <BottomSheetModal
+      <CalendarPickerSheet
         visible={dateTarget !== null}
-        onRequestClose={() => setDateTarget(null)}
-      >
-        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
-          <Pressable
-            style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
-            onPress={() => setDateTarget(null)}
-          />
-
-          <BottomSheetView style={styles.pickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Pressable onPress={() => setDateTarget(null)}>
-                <Text style={styles.pickerCancel}>취소</Text>
-              </Pressable>
-
-              <Text style={styles.pickerTitle}>
-                {dateTarget === "start" ? "시작일 선택" : "종료일 선택"}
-              </Text>
-
-              <Pressable onPress={handleConfirmDate}>
-                <Text style={styles.pickerDone}>완료</Text>
-              </Pressable>
-            </View>
-
-            <DateTimePicker
-              value={draftDate}
-              mode="date"
-              display="spinner"
-              locale="ko-KR"
-              textColor="#111111"
-              themeVariant="light"
-              style={styles.iosPicker}
-              onChange={(event, date) => {
-                if (date) {
-                  setDraftDate(date);
-                }
-              }}
-            />
-          </BottomSheetView>
-        </View>
-      </BottomSheetModal>
+        title={dateTarget === "start" ? "시작일 선택" : "종료일 선택"}
+        value={
+          (dateTarget === "start" ? startDate : endDate)
+            ? parseDate(dateTarget === "start" ? startDate : endDate)
+            : undefined
+        }
+        minDate={dateTarget === "end" && startDate ? parseDate(startDate) : undefined}
+        onClose={() => setDateTarget(null)}
+        onSelect={handleSelectDate}
+      />
 
       <Modal
         isOpen={verificationModalVisible}
@@ -589,6 +581,16 @@ const styles = StyleSheet.create({
   },
   placeholder: { color: Colors.gray[5] },
   dateRow: { flexDirection: "row", gap: 8, marginBottom: 28 },
+  genderRow: { flexDirection: "row", gap: 8 },
+  genderChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: Colors.gray[2],
+  },
+  genderChipOn: { backgroundColor: Colors.gray[11] },
+  genderText: { ...fonts.body2_m_14, color: Colors.gray[8] },
+  genderTextOn: { color: "#FFFFFF" },
   dateParts: { flexDirection: "row", gap: 4 },
   datePart: {
     flex: 1,
@@ -651,30 +653,4 @@ const styles = StyleSheet.create({
     color: Colors.gray[7],
     marginTop: 12,
   },
-  pickerOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.25)",
-  },
-  pickerBackdrop: { flex: 1 },
-  pickerSheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    backgroundColor: "#FFFFFF",
-    paddingBottom: 24,
-    overflow: "hidden",
-  },
-  pickerHeader: {
-    height: 54,
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  pickerCancel: { fontSize: 15, fontWeight: "800", color: "#777777" },
-  pickerTitle: { fontSize: 16, fontWeight: "900", color: "#111111" },
-  pickerDone: { fontSize: 15, fontWeight: "900", color: BLUE },
-  iosPicker: { height: 216 },
 });

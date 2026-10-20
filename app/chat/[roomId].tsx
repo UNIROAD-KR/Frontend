@@ -256,6 +256,13 @@ export default function ChatRoomPage() {
     }
   }, [messages]);
 
+  useEffect(() => {
+    const event = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const sub = Keyboard.addListener(event, () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+    });
+    return () => sub.remove();
+  }, []);
   const fetchCurrentMember = useCallback(async () => {
     try {
       const response = await getMemberMe();
@@ -698,6 +705,10 @@ export default function ChatRoomPage() {
         contentContainerStyle={styles.chatContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() =>
+          scrollRef.current?.scrollToEnd({ animated: false })
+        }
+        onLayout={() => scrollRef.current?.scrollToEnd({ animated: false })}
       >
         {messages.length === 0 ? (
           <View style={styles.emptyBox}>
@@ -774,7 +785,7 @@ export default function ChatRoomPage() {
       </ScrollView>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         <View style={styles.bottomArea}>
