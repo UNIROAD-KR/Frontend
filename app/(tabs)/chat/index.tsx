@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -50,7 +51,7 @@ const roomLabels = {
 } as const;
 
 const getRoomTitle = (room: ChatRoomResponse) =>
-  roomLabels[room.referenceType]?.title ?? "채팅";
+  room.referenceTitle ?? roomLabels[room.referenceType]?.title ?? "채팅";
 const getRoomSubtitle = (room: ChatRoomResponse) =>
   `${roomLabels[room.referenceType]?.reference ?? "게시글"} #${room.referenceId}`;
 
@@ -165,7 +166,7 @@ export default function ChatListPage() {
       >
         {loading ? (
           <View style={styles.centerState}>
-            <ActivityIndicator color={BLUE} />
+            <ActivityIndicator color={Colors.primary.default} />
             <Text style={styles.centerText}>채팅방을 불러오는 중이에요</Text>
           </View>
         ) : filteredRooms.length > 0 ? (
@@ -173,8 +174,9 @@ export default function ChatListPage() {
             {filteredRooms.map((room) => {
               const title = getRoomTitle(room);
               const subtitle = getRoomSubtitle(room);
-              const opponentName =
-                room.opponentNickname || room.opponentName || title;
+
+              // const opponentName =
+              //   room.opponentNickname || room.opponentName || title;
               const previewMessage =
                 room.lastMessage ||
                 (room.lastMessageType === "ENTER"
@@ -191,7 +193,7 @@ export default function ChatListPage() {
                       params: {
                         roomId: String(room.roomId),
                         title,
-                        sellerName: opponentName,
+                        // sellerName: opponentName,
                         price: "",
                         thumbnail: "",
                         referenceType: room.referenceType,
@@ -222,8 +224,17 @@ export default function ChatListPage() {
                       backgroundColor: Colors.gray[3],
                       marginRight: 12,
                       borderRadius: 12,
+                      overflow: "hidden",
                     }}
-                  ></View>
+                  >
+                    {room.referenceImageUrl ? (
+                      <Image
+                        source={{ uri: room.referenceImageUrl }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+                  </View>
 
                   <View style={styles.roomTextBox}>
                     <View style={styles.roomTitleRow}>
@@ -235,7 +246,7 @@ export default function ChatListPage() {
                         </View>
                       )}
                       <Text style={styles.roomTitle} numberOfLines={1}>
-                        {opponentName}
+                        {title}
                       </Text>
                       {/* {room.lastMessageCreatedAt && (
                         <Text style={styles.roomTime}>
@@ -251,20 +262,21 @@ export default function ChatListPage() {
                     </Text>
                   </View>
 
-                  {Number(room.unreadCount) > 0 ? (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadText}>
-                        {Number(room.unreadCount) > 99
-                          ? "99+"
-                          : room.unreadCount}
-                      </Text>
-                    </View>
-                  ) : null
-                  // <Ionicons
-                  //   name="chevron-forward"
-                  //   size={20}
-                  //   color="#999999"
-                  // />
+                  {
+                    Number(room.unreadCount) > 0 ? (
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>
+                          {Number(room.unreadCount) > 99
+                            ? "99+"
+                            : room.unreadCount}
+                        </Text>
+                      </View>
+                    ) : null
+                    // <Ionicons
+                    //   name="chevron-forward"
+                    //   size={20}
+                    //   color="#999999"
+                    // />
                   }
                 </Pressable>
               );

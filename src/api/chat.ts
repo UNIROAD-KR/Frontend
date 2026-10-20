@@ -9,6 +9,8 @@ export interface ChatRoomResponse {
   roomId: number;
   referenceType: ChatReferenceType;
   referenceId: number;
+  referenceTitle?: string;
+  referenceImageUrl?: string;
   opponentMemberId?: number;
   opponentName?: string;
   opponentNickname?: string;
