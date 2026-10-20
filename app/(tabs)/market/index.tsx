@@ -42,8 +42,7 @@ import {
   searchUsedItems,
   UsedItem,
 } from "../../../src/api/usedItems";
-import { getMemberMe } from "@/src/api/auth";
-import { getMyVerifications } from "@/src/api/verification";
+import { getMarketAccess } from "@/src/utils/verification";
 import {
   clearMarketDraft,
   getMarketDraft,
@@ -482,17 +481,6 @@ export default function MarketPage() {
     }
   };
 
-  const getMarketAccess = useCallback(async () => {
-    const member = (await getMemberMe()).data.data;
-    if (member.role === "VERIFIED" || member.role === "ADMIN") return "allowed";
-    const verifications = (await getMyVerifications()).data.data;
-    return verifications.some(
-      (verification) => verification.status === "PENDING",
-    )
-      ? "verificationPending"
-      : "verification";
-  }, []);
-
   const checkVerificationStatus = useCallback(
     async (isActive: () => boolean) => {
       const showVerificationModal = () =>
@@ -500,10 +488,8 @@ export default function MarketPage() {
 
       try {
         const access = await getMarketAccess();
-        if (!isActive() || access === "allowed") {
-          return;
-        }
-        setMarketModal({ type: access, visible: true });
+        if (access === "allowed") return true;
+        if (isActive()) setMarketModal({ type: access, visible: true });
       } catch (error: any) {
         console.log(
           "내 정보 조회 실패:",
@@ -511,24 +497,25 @@ export default function MarketPage() {
         );
         if (isActive()) showVerificationModal();
       }
+      return false;
     },
-    [getMarketAccess],
+    [],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      const { keyword, country } = latestMarketQueryRef.current;
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     const { keyword, country } = latestMarketQueryRef.current;
 
-      loadStoredMarketInteractions();
-      fetchUsedItems(keyword, country);
-      fetchTickets(undefined, keyword, country);
-      let active = true;
-      void checkVerificationStatus(() => active);
-      return () => {
-        active = false;
-      };
-    }, [fetchTickets, fetchUsedItems, checkVerificationStatus]),
-  );
+  //     loadStoredMarketInteractions();
+  //     fetchUsedItems(keyword, country);
+  //     fetchTickets(undefined, keyword, country);
+  //     let active = true;
+  //     void checkVerificationStatus(() => active);
+  //     return () => {
+  //       active = false;
+  //     };
+  //   }, [fetchTickets, fetchUsedItems, checkVerificationStatus]),
+  // );
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -651,24 +638,14 @@ export default function MarketPage() {
     path: string,
     onAllowed?: () => void | Promise<void>,
   ) => {
-    try {
-      const access = await getMarketAccess();
+    const allowed = await checkVerificationStatus(() => true);
+    if (!allowed) return;
 
-      if (access === "allowed") {
-        if (onAllowed) {
-          await onAllowed();
-        } else {
-          router.push(path as any);
-        }
-        return;
-      }
-      setMarketModal({ type: access, visible: true });
-      return;
-    } catch (error: any) {
-      console.log("내 정보 조회 실패:", error.response?.data || error.message);
+    if (onAllowed) {
+      await onAllowed();
+    } else {
+      router.push(path as any);
     }
-
-    setMarketModal({ type: "verification", visible: true });
   };
 
   const closeMarketModal = () => {
@@ -1060,7 +1037,6 @@ export default function MarketPage() {
                   label: "취소",
                   onPress: () => {
                     closeMarketModal();
-                    router.push("/home" as any);
                   },
                 }
               : {
@@ -1077,7 +1053,6 @@ export default function MarketPage() {
                 label: "확인",
                 onPress: () => {
                   closeMarketModal();
-                  router.push("/home" as any);
                 },
               }
             : marketModal?.type === "verification"

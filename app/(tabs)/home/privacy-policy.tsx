@@ -1,15 +1,14 @@
-import { Text } from '@/components/ui/app-text';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from "@/components/ui/app-text";
+import { ScrollView, StyleSheet, View } from "react-native";
 
-import { AppBackButton } from '@/components/ui/app-back-button';
-import { PRIVACY_CONSENT } from '../../../constants/legal';
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
+import { PRIVACY_CONSENT } from "../../../constants/legal";
+import { fonts, Colors } from "@/constants/theme";
 
-const NAVY = '#18202B';
-const MUTED = '#7A8491';
-const LINE = '#E3E7EC';
+const LINE = "#E3E7EC";
 
 function renderLegalText(content: string) {
-  return content.split('\n').map((line, index) => {
+  return content.split("\n").map((line, index) => {
     const trimmedLine = line.trim();
 
     if (!trimmedLine) {
@@ -17,7 +16,7 @@ function renderLegalText(content: string) {
     }
 
     const isSectionHeading =
-      trimmedLine.startsWith('■') || /^제\d+조/.test(trimmedLine);
+      trimmedLine.startsWith("■") || /^제\d+조/.test(trimmedLine);
 
     return (
       <Text
@@ -36,19 +35,26 @@ function renderLegalText(content: string) {
 export default function PrivacyPolicyScreen() {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <AppBackButton style={styles.iconBtn} />
-        <Text style={styles.headerTitle}>개인정보 처리방침</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+      <ProfileScreenHeader title="개인정보 처리방침" />
+      <Text
+        style={{
+          marginLeft: 16,
+          marginTop: 16,
+          marginBottom: 12,
+          ...fonts.title3_b_24,
+          color: Colors.common.black,
+        }}
+      >
+        개인정보 처리방침
+      </Text>
 
       <ScrollView
+        style={styles.section}
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator
+        persistentScrollbar
       >
-        <View style={styles.section}>
-          {renderLegalText(PRIVACY_CONSENT)}
-        </View>
+        {renderLegalText(PRIVACY_CONSENT)}
       </ScrollView>
     </View>
   );
@@ -57,62 +63,29 @@ export default function PrivacyPolicyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F6F7F9',
-  },
-  header: {
-    height: 118,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingHorizontal: 16,
-    paddingTop: 44,
-    paddingBottom: 12,
-    backgroundColor: '#F6F7F9',
-    position: 'relative',
-  },
-  iconBtn: {
-    backgroundColor: 'transparent',
-    zIndex: 1,
-  },
-  headerTitle: {
-    position: 'absolute',
-    top: 57,
-    left: 0,
-    right: 0,
-    height: 34,
-    lineHeight: 34,
-    fontSize: 16,
-    fontWeight: '900',
-    color: NAVY,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 38,
-    height: 38,
+    backgroundColor: "#FFFFFF",
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 104,
+    padding: 15,
   },
   section: {
+    flex: 1,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
-    padding: 15,
-    marginBottom: 14,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 24,
   },
   sectionBody: {
-    fontSize: 12,
-    lineHeight: 20,
-    fontWeight: '700',
-    color: MUTED,
+    ...fonts.body4_r_14,
+    color: Colors.gray[9],
   },
   legalSectionHeading: {
     marginTop: 8,
-    marginBottom: 4,
-    fontWeight: '900',
-    color: NAVY,
+    marginBottom: 6,
+    ...fonts.sub4_sb_14,
+    color: Colors.common.black,
   },
   textGap: {
     height: 10,
