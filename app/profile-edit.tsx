@@ -25,6 +25,8 @@ import {
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { useAppAlert } from "@/hooks/use-app-alert";
 import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
+import CalanderFillIcon from "@/assets/icon/calendar-fill.svg";
+import CalendarModal from "@/components/ui/calendar";
 import DropdownArrowIcon from "@/assets/icon/Property 1=arrow2, Property 2=down.svg";
 import ProfileEditAvatarActionIcon from "@/assets/icon/profile/profile-edit-avatar-action.svg";
 import ProfileEditAvatarBackground from "@/assets/icon/profile/profile-edit-avatar-background.svg";
@@ -77,7 +79,6 @@ type DateFieldKey =
   | "departureDate"
   | "dispatchStartDate"
   | "returnDate";
-type DatePart = "year" | "month" | "day";
 type EditSnapshot = {
   avatarUri: string;
   nickname: string;
@@ -93,8 +94,6 @@ type EditSnapshot = {
   dispatchSemester: string;
 };
 
-const createDate = (year: number, month: number, day: number) =>
-  new Date(year, month - 1, day);
 const toDateValue = (value: string | null) => {
   if (!value) return null;
 
@@ -147,10 +146,7 @@ export default function ProfileEditScreen() {
   const [semesterYearPickerVisible, setSemesterYearPickerVisible] =
     useState(false);
   const [customCountryMode, setCustomCountryMode] = useState(false);
-  const [openDateDropdown, setOpenDateDropdown] = useState<{
-    field: DateFieldKey;
-    part: DatePart;
-  } | null>(null);
+  const [calendarField, setCalendarField] = useState<DateFieldKey | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const [initialSnapshot, setInitialSnapshot] = useState<EditSnapshot | null>(
     null,
@@ -403,38 +399,6 @@ export default function ProfileEditScreen() {
     return returnDate;
   };
 
-  const toggleDateDropdown = (field: DateFieldKey, part: DatePart) => {
-    setOpenDateDropdown((current) =>
-      current?.field === field && current.part === part
-        ? null
-        : { field, part },
-    );
-
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollToEnd({ animated: true });
-    });
-  };
-
-  const selectDatePart = (
-    field: DateFieldKey,
-    part: DatePart,
-    value: string,
-  ) => {
-    const currentDate = getDateByField(field) || new Date();
-    const nextYear =
-      part === "year" ? Number(value) : currentDate.getFullYear();
-    const nextMonth =
-      part === "month" ? Number(value) : currentDate.getMonth() + 1;
-    const maxDay = new Date(nextYear, nextMonth, 0).getDate();
-    const nextDay = Math.min(
-      part === "day" ? Number(value) : currentDate.getDate(),
-      maxDay,
-    );
-
-    setDateForField(field, createDate(nextYear, nextMonth, nextDay));
-    setOpenDateDropdown(null);
-  };
-
   const saveProfile = async () => {
     if (!canSave) {
       return;
@@ -608,7 +572,6 @@ export default function ProfileEditScreen() {
             accessibilityState={{ selected: selectedTab === tab }}
             onPress={() => {
               Keyboard.dismiss();
-              setOpenDateDropdown(null);
               setSemesterYearPickerVisible(false);
               setSelectedTab(tab);
               scrollRef.current?.scrollTo({ y: 0, animated: false });
@@ -674,7 +637,6 @@ export default function ProfileEditScreen() {
                       ]}
                       onPress={() => {
                         setStatus(option);
-                        setOpenDateDropdown(null);
                       }}
                     >
                       <Text
@@ -697,25 +659,13 @@ export default function ProfileEditScreen() {
                   field="dispatchStartDate"
                   label="파견 시작일"
                   value={dispatchStartDate}
-                  openPart={
-                    openDateDropdown?.field === "dispatchStartDate"
-                      ? openDateDropdown.part
-                      : null
-                  }
-                  onToggle={toggleDateDropdown}
-                  onSelect={selectDatePart}
+                  onPress={setCalendarField}
                 />
                 <DateField
                   field="returnDate"
                   label="귀국일"
                   value={returnDate}
-                  openPart={
-                    openDateDropdown?.field === "returnDate"
-                      ? openDateDropdown.part
-                      : null
-                  }
-                  onToggle={toggleDateDropdown}
-                  onSelect={selectDatePart}
+                  onPress={setCalendarField}
                   optional
                 />
               </>
@@ -736,18 +686,7 @@ export default function ProfileEditScreen() {
                       ? departureDate
                       : returnDate
                 }
-                openPart={
-                  openDateDropdown?.field ===
-                  (status === "지원 준비 중"
-                    ? "applicationDeadline"
-                    : status === "출국 준비 중"
-                      ? "departureDate"
-                      : "returnDate")
-                    ? openDateDropdown.part
-                    : null
-                }
-                onToggle={toggleDateDropdown}
-                onSelect={selectDatePart}
+                onPress={setCalendarField}
                 optional={status === "귀국"}
               />
             )}
@@ -818,6 +757,19 @@ export default function ProfileEditScreen() {
         searchPlaceholder="국가명으로 찾아보세요"
         onClose={() => setCountryPickerVisible(false)}
         onSelect={selectCountry}
+      />
+      <CalendarModal
+        visible={calendarField !== null}
+        value={
+          calendarField
+            ? (getDateByField(calendarField) ?? undefined)
+            : undefined
+        }
+        onSelect={(date) => {
+          if (calendarField) setDateForField(calendarField, date);
+          setCalendarField(null);
+        }}
+        onClose={() => setCalendarField(null)}
       />
       {alertElement}
     </KeyboardAvoidingView>
@@ -1112,40 +1064,15 @@ function DateField({
   field,
   label,
   value,
-  openPart,
-  onToggle,
-  onSelect,
+  onPress,
   optional = false,
 }: {
   field: DateFieldKey;
   label: string;
   value: Date | null;
-  openPart: DatePart | null;
-  onToggle: (field: DateFieldKey, part: DatePart) => void;
-  onSelect: (field: DateFieldKey, part: DatePart, value: string) => void;
+  onPress: (field: DateFieldKey) => void;
   optional?: boolean;
 }) {
-  const referenceDate = value || new Date();
-  const year = value ? String(value.getFullYear()) : "";
-  const month = value ? String(value.getMonth() + 1).padStart(2, "0") : "";
-  const day = value ? String(value.getDate()).padStart(2, "0") : "";
-  const yearOptions = Array.from({ length: 12 }, (_, index) =>
-    String(new Date().getFullYear() - 3 + index),
-  );
-  const monthOptions = Array.from({ length: 12 }, (_, index) =>
-    String(index + 1).padStart(2, "0"),
-  );
-  const dayOptions = Array.from(
-    {
-      length: new Date(
-        referenceDate.getFullYear(),
-        referenceDate.getMonth() + 1,
-        0,
-      ).getDate(),
-    },
-    (_, index) => String(index + 1).padStart(2, "0"),
-  );
-
   return (
     <View style={styles.dateField}>
       <View style={styles.dateLabelRow}>
@@ -1153,105 +1080,24 @@ function DateField({
           {label}
           {!optional && <Text style={styles.required}> *</Text>}
         </Text>
-        {optional && <Text style={styles.optionalText}>선택</Text>}
       </View>
 
-      <View style={styles.dateSelectRow}>
-        <CompactInlineDropdown
-          value={year}
-          placeholder="연도"
-          suffix="년"
-          open={openPart === "year"}
-          options={yearOptions}
-          onPress={() => onToggle(field, "year")}
-          onSelect={(nextValue) => onSelect(field, "year", nextValue)}
-        />
-        <CompactInlineDropdown
-          value={month}
-          placeholder="월"
-          suffix="월"
-          open={openPart === "month"}
-          options={monthOptions}
-          onPress={() => onToggle(field, "month")}
-          onSelect={(nextValue) => onSelect(field, "month", nextValue)}
-        />
-        <CompactInlineDropdown
-          value={day}
-          placeholder="일"
-          suffix="일"
-          open={openPart === "day"}
-          options={dayOptions}
-          onPress={() => onToggle(field, "day")}
-          onSelect={(nextValue) => onSelect(field, "day", nextValue)}
-        />
-      </View>
-    </View>
-  );
-}
-
-function CompactInlineDropdown({
-  value,
-  placeholder,
-  suffix,
-  open,
-  options,
-  onPress,
-  onSelect,
-}: {
-  value: string;
-  placeholder: string;
-  suffix: string;
-  open: boolean;
-  options: string[];
-  onPress: () => void;
-  onSelect: (value: string) => void;
-}) {
-  return (
-    <View
-      style={[
-        styles.compactDropdownAnchor,
-        open && styles.compactDropdownAnchorOpen,
-      ]}
-    >
-      <Pressable style={styles.dateSelect} onPress={onPress}>
+      <Pressable
+        style={styles.dateSelect}
+        onPress={() => onPress(field)}
+        accessibilityRole="button"
+        accessibilityLabel={`${label} ${value ? toStorageDate(value) : "선택"}`}
+      >
         <Text
           style={[
             styles.dateSelectText,
             !value && styles.dateSelectPlaceholder,
           ]}
         >
-          {value ? `${value}${suffix}` : placeholder}
+          {value ? toStorageDate(value).replaceAll("-", ". ") : "0000. 00. 00"}
         </Text>
-        <DropdownArrowIcon width={16} height={16} />
+        <CalanderFillIcon width={20} height={20} color={Colors.gray[5]} />
       </Pressable>
-      {open ? (
-        <View style={styles.compactDropdownMenu}>
-          <ScrollView
-            style={styles.inlineDropdownScroll}
-            showsVerticalScrollIndicator
-            persistentScrollbar
-            nestedScrollEnabled
-          >
-            {options.map((option) => (
-              <Pressable
-                key={option}
-                style={styles.inlineDropdownOption}
-                onPress={() => onSelect(option)}
-              >
-                <Text
-                  style={[
-                    styles.inlineDropdownOptionText,
-                    value === option && styles.inlineDropdownOptionTextSelected,
-                  ]}
-                >
-                  {option}
-                  {suffix}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -1455,31 +1301,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 6,
   },
-  compactDropdownAnchor: {
-    flex: 1,
-    position: "relative",
-    zIndex: 1,
-  },
-  compactDropdownAnchorOpen: {
-    zIndex: 30,
-  },
-  compactDropdownMenu: {
-    position: "absolute",
-    top: 51,
-    right: 0,
-    left: 0,
-    height: 156,
-    borderWidth: 1,
-    borderColor: "#E1E4E9",
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-    shadowColor: "#141416",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
-  },
   inlineDropdownScroll: {
     flex: 1,
   },
@@ -1539,10 +1360,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: MUTED,
   },
-  dateSelectRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
   dateSelect: {
     height: 52,
     borderRadius: 10,
@@ -1555,9 +1372,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   dateSelectText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: INK,
+    ...fonts.body1_m_16,
+    color: Colors.common.black,
   },
   dateSelectPlaceholder: {
     color: "#B1B8C1",

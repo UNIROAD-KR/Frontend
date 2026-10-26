@@ -4,12 +4,16 @@ import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import FlagIcon from "@/assets/icon/flag.svg";
 import EditIcon from "@/assets/icon/edit.svg";
 import { router, useLocalSearchParams } from "expo-router";
+import TrashIcon from "@/assets/icon/delete.svg";
+import MoreIcon from "@/assets/icon/detail.svg";
+import { useAppAlert } from "@/hooks/use-app-alert";
+import { Modal as AppModal } from "@/components/ui/modal";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Image,
   Modal,
@@ -417,6 +421,8 @@ export default function MarketDetailPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const { checkVerified, verificationModal } = useMarketVerification();
   const [reporting, setReporting] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
+  const { showAlert, alertElement } = useAppAlert();
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -530,7 +536,7 @@ export default function MarketDetailPage() {
     if (!post || chatLoading) return;
 
     if (post.source !== "api" || typeof post.id !== "number") {
-      Alert.alert(
+      showAlert(
         "채팅을 시작할 수 없어요",
         "서버에 등록된 거래글만 채팅을 시작할 수 있어요.",
       );
@@ -538,7 +544,7 @@ export default function MarketDetailPage() {
     }
 
     if (!post.targetMemberId) {
-      Alert.alert(
+      showAlert(
         "판매자 정보를 확인할 수 없어요",
         "백엔드 상세 응답에 판매자 ID가 없어 채팅방을 만들 수 없습니다.",
       );
@@ -574,7 +580,7 @@ export default function MarketDetailPage() {
       } as any);
     } catch (error: any) {
       console.log("채팅방 생성 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "채팅방 생성 실패",
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
@@ -625,7 +631,7 @@ export default function MarketDetailPage() {
         error.response?.data || error.message,
       );
       setLiked(wasSaved);
-      Alert.alert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
+      showAlert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
     }
   };
 
@@ -641,7 +647,7 @@ export default function MarketDetailPage() {
 
       await saveUsedItemStatus(post.id, nextStatus);
       setPost((prev) => (prev ? { ...prev, status: nextStatus } : prev));
-      Alert.alert(
+      showAlert(
         "상태 변경 완료",
         nextStatus === "COMPLETED"
           ? "거래완료로 변경했어요."
@@ -652,7 +658,7 @@ export default function MarketDetailPage() {
         "중고거래 상태 변경 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert(
+      showAlert(
         "상태 변경 실패",
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
@@ -670,10 +676,10 @@ export default function MarketDetailPage() {
         reason,
         detail: `중고거래 게시글 #${post.id} 신고`,
       });
-      Alert.alert("신고 접수", "운영팀이 게시글을 확인할게요.");
+      showAlert("신고 접수", "운영팀이 게시글을 확인할게요.");
     } catch (error: any) {
       console.log("중고거래 신고 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "신고 실패",
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
@@ -684,20 +690,14 @@ export default function MarketDetailPage() {
 
   const handleReportPost = () => {
     if (!post || typeof post.id !== "number") {
-      Alert.alert(
+      showAlert(
         "신고할 수 없어요",
         "서버에 등록된 게시글만 신고할 수 있어요.",
       );
       return;
     }
 
-    Alert.alert("신고하기", "신고 사유를 선택해주세요.", [
-      ...REPORT_OPTIONS.map((option) => ({
-        text: option.label,
-        onPress: () => submitReportPost(option.reason),
-      })),
-      { text: "취소", style: "cancel" as const },
-    ]);
+    setReportVisible(true);
   };
 
   const handleEditPost = () => {
@@ -734,7 +734,7 @@ export default function MarketDetailPage() {
   const handleDeletePost = () => {
     if (!post) return;
 
-    Alert.alert("판매글 삭제", "이 게시글을 삭제할까요?", [
+    showAlert("판매글 삭제", "이 게시글을 삭제할까요?", [
       { text: "취소", style: "cancel" },
       {
         text: "삭제",
@@ -747,14 +747,18 @@ export default function MarketDetailPage() {
 
             await deleteLocalMarketPost(String(post.id));
 
-            Alert.alert("삭제 완료", "판매글이 삭제되었어요.");
-            router.replace("/market" as any);
+            showAlert("삭제 완료", "판매글이 삭제되었어요.", [
+              {
+                text: "확인",
+                onPress: () => router.replace("/market" as any),
+              },
+            ]);
           } catch (error: any) {
             console.log(
               "중고거래 삭제 실패:",
               error.response?.data || error.message,
             );
-            Alert.alert(
+            showAlert(
               "삭제 실패",
               error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
             );
@@ -868,11 +872,11 @@ export default function MarketDetailPage() {
             <Text style={fonts.title3_b_24} numberOfLines={3}>
               {post.title}
             </Text>
-            {post.status === "COMPLETED" ? (
+            {/* {post.status === "COMPLETED" ? (
               <View style={styles.completedBadge}>
                 <Text style={styles.completedBadgeText}>거래완료</Text>
               </View>
-            ) : null}
+            ) : null} */}
           </View>
           <Text
             style={[
@@ -975,6 +979,31 @@ export default function MarketDetailPage() {
         onClose={() => setExpandedPhoto(null)}
       />
       {verificationModal}
+      <AppModal
+        isOpen={reportVisible}
+        onClose={() => setReportVisible(false)}
+        title="신고하기"
+        description="신고 사유를 선택해주세요."
+        secondaryButton={{
+          label: "취소",
+          onPress: () => setReportVisible(false),
+        }}
+      >
+        {REPORT_OPTIONS.map((option) => (
+          <Pressable
+            key={option.reason}
+            accessibilityRole="button"
+            style={{ paddingVertical: 12 }}
+            onPress={() => {
+              setReportVisible(false);
+              submitReportPost(option.reason);
+            }}
+          >
+            <Text style={fonts.body1_m_16}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </AppModal>
+      {alertElement}
     </View>
   );
 }
@@ -1087,7 +1116,7 @@ function HeaderBack({
         style={styles.moreButton}
         onPress={() => setMenuVisible((prev) => !prev)}
       >
-        <Ionicons name="ellipsis-horizontal" size={22} color="#111111" />
+        <MoreIcon />
       </Pressable>
 
       <PopoverMenu
@@ -1116,8 +1145,8 @@ function HeaderBack({
                           ? "refresh-outline"
                           : "checkmark-circle-outline"
                       }
-                      size={16}
-                      color="#111111"
+                      size={24}
+                      color={Colors.gray[10]}
                     />
                   ),
                   onPress: () =>
@@ -1127,13 +1156,7 @@ function HeaderBack({
                 },
                 {
                   label: "삭제",
-                  icon: (
-                    <Ionicons
-                      name="trash-outline"
-                      size={16}
-                      color="#E5484D"
-                    />
-                  ),
+                  icon: <TrashIcon color="#E5484D" width={24} height={24} />,
                   onPress: () => onDelete?.(),
                   tone: "danger",
                 },
@@ -1141,13 +1164,7 @@ function HeaderBack({
             : [
                 {
                   label: reporting ? "신고 접수 중..." : "신고하기",
-                  icon: (
-                    <Ionicons
-                      name="flag-outline"
-                      size={16}
-                      color="#E5484D"
-                    />
-                  ),
+                  icon: <FlagIcon color="#E5484D" width={24} height={24} />,
                   onPress: () => onReport?.(),
                   tone: "danger",
                 },
@@ -1464,8 +1481,6 @@ const styles = StyleSheet.create({
   moreButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F6F8FC",
     alignItems: "center",
     justifyContent: "center",
   },

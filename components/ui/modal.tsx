@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { Modal as RNModal, Pressable, View } from "react-native";
 
 import { Text } from "@/components/ui/app-text";
@@ -13,11 +13,13 @@ interface ModalButton {
 interface ModalProps {
   isOpen: boolean;
   onClose?: () => void;
-  title: string;
+  title?: string;
   description?: string;
+  children?: ReactNode;
   primaryButton?: ModalButton;
   secondaryButton?: ModalButton;
   tertiaryButton?: ModalButton;
+  paddingHorizontal?: number;
 }
 
 export function Modal({
@@ -25,9 +27,11 @@ export function Modal({
   onClose,
   title,
   description,
+  children,
   primaryButton,
   secondaryButton,
   tertiaryButton,
+  paddingHorizontal,
 }: ModalProps) {
   return (
     <RNModal
@@ -52,20 +56,23 @@ export function Modal({
             width: "100%",
             maxWidth: 340,
             gap: 8,
-            paddingHorizontal: 20,
+            paddingHorizontal: paddingHorizontal ?? 20,
             paddingVertical: 24,
             borderRadius: 16,
             backgroundColor: "#FFFFFF",
           }}
         >
-          <Text style={[fonts.title5_b_20, { color: Colors.common.black }]}>
-            {title}
-          </Text>
+          {title ? (
+            <Text style={[fonts.title5_b_20, { color: Colors.common.black }]}>
+              {title}
+            </Text>
+          ) : null}
           {description ? (
             <Text style={[fonts.body4_r_14, { color: Colors.gray[7] }]}>
               {description}
             </Text>
           ) : null}
+          {children}
           {primaryButton || secondaryButton || tertiaryButton ? (
             <View
               style={{

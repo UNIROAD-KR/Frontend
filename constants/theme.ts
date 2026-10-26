@@ -4,6 +4,8 @@
  */
 
 import { Platform, StyleSheet } from "react-native";
+import { View, Text } from "react-native";
+import AsteriskIcon from "@/assets/icon/asterisk.svg";
 
 const tintColorLight = "#0a7ea4";
 const tintColorDark = "#fff";
@@ -69,6 +71,9 @@ export const Colors = {
     icon: "#9BA1A6",
     tabIconDefault: "#9BA1A6",
     tabIconSelected: tintColorDark,
+  },
+  error: {
+    normal: "#FF3636",
   },
 };
 
@@ -189,6 +194,12 @@ export const fonts = StyleSheet.create({
     lineHeight: 24,
     letterSpacing: -0.64,
   },
+  long_body1_m_16: {
+    fontSize: 16,
+    fontWeight: "500",
+    lineHeight: 25.6,
+    letterSpacing: -0.64,
+  },
   body2_m_14: {
     fontSize: 14,
     fontWeight: "500",
@@ -292,6 +303,7 @@ export const commonStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 20,
     ...fonts.sub3_sb_16,
+    backgroundColor: Colors.common.white,
   },
   headerSpacer: {
     width: 38,

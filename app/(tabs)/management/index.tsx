@@ -1,19 +1,11 @@
 import { Text, TextInput } from "@/components/ui/app-text";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
 import AccountBookScreen from "../../mypage";
 import { CalendarTab } from "@/components/management/calendar-tab";
 import { getMemberMe } from "../../../src/api/auth";
-import { commonStyles } from "@/constants/theme";
+import { commonStyles, fonts, Colors } from "@/constants/theme";
 
 export default function ExploreScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
@@ -33,26 +25,22 @@ export default function ExploreScreen() {
             const isSelected = selectedTab === tab;
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={tab}
                 style={[styles.homeTab, isSelected && styles.selectedHomeTab]}
                 onPress={() => setSelectedTab(tab)}
-                activeOpacity={0.8}
               >
                 <Text
                   style={[
                     {
-                      fontSize: 22,
-                      fontWeight: "600",
-                      lineHeight: 26.4,
-                      letterSpacing: -0.88,
-                      color: isSelected ? "#000000" : "#8B95A1",
+                      ...fonts.sub3_sb_16,
+                      color: isSelected ? "#000000" : Colors.gray[6],
                     },
                   ]}
                 >
                   {tab}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             );
           })}
         </View>
@@ -200,16 +188,16 @@ const styles = StyleSheet.create({
   homeTabs: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: 14,
-    marginTop: 8,
     marginBottom: 24,
   },
   homeTab: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingBottom: 6,
-    borderBottomWidth: 3,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
   selectedHomeTab: {

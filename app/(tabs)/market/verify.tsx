@@ -1,7 +1,14 @@
-import { Text } from '@/components/ui/app-text';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Text } from "@/components/ui/app-text";
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Pressable,
+} from "react-native";
 
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton } from "@/components/ui/app-back-button";
+import { fonts, commonStyles, Colors } from "@/constants/theme";
 
 export default function MarketVerifyScreen() {
   return (
@@ -18,7 +25,7 @@ export default function MarketVerifyScreen() {
         <View style={styles.intro}>
           <Text style={styles.title}>교환학생 판매자 인증</Text>
           <Text style={styles.desc}>
-            허위 매물 방지를 위해 공식 서류를 제출해주세요.{'\n'}
+            허위 매물 방지를 위해 공식 서류를 제출해주세요.{"\n"}
             제출된 정보는 인증 목적으로만 사용됩니다.
           </Text>
         </View>
@@ -54,9 +61,9 @@ export default function MarketVerifyScreen() {
       </ScrollView>
 
       <View style={styles.bottomArea}>
-        <TouchableOpacity style={styles.submitBtn}>
+        <Pressable style={[commonStyles.button]}>
           <Text style={styles.submitText}>제출하기 ›</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.bottomNotice}>
           서류 검토는 영업일 기준 최대 24시간이 소요될 수 있습니다.
@@ -67,7 +74,7 @@ export default function MarketVerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
 
   content: {
     paddingHorizontal: 32,
@@ -76,21 +83,21 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   iconBtn: {
     width: 44,
     height: 44,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
 
   headerTitle: {
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: "800",
   },
 
   headerSpacer: {
@@ -103,13 +110,13 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: 24,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   desc: {
     marginTop: 14,
     fontSize: 16,
-    color: '#333',
+    color: "#333",
     lineHeight: 26,
   },
 
@@ -117,18 +124,18 @@ const styles = StyleSheet.create({
     marginTop: 54,
     marginBottom: 22,
     fontSize: 21,
-    fontWeight: '900',
+    fontWeight: "900",
   },
 
   methodCard: {
     height: 116,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     paddingHorizontal: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 22,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
@@ -140,68 +147,53 @@ const styles = StyleSheet.create({
   },
 
   methodTitle: {
-    fontSize: 19,
-    fontWeight: '900',
+    ...fonts.sub1_sb_18,
   },
 
   methodSub: {
-    marginTop: 8,
-    fontSize: 15,
-    color: '#333',
+    ...fonts.body4_r_14,
+    color: Colors.gray[7],
   },
 
   arrow: {
     fontSize: 44,
-    color: '#D0D0D0',
+    color: "#D0D0D0",
   },
 
   noticeBox: {
     marginTop: 24,
     borderWidth: 1,
-    borderColor: '#D0D0D0',
+    borderColor: Colors.gray[3],
     borderRadius: 6,
     padding: 22,
   },
 
   noticeTitle: {
-    fontSize: 16,
-    marginBottom: 12,
+    ...fonts.sub4_sb_14,
+    color: Colors.gray[11],
+    marginBottom: 8,
   },
 
   noticeText: {
-    fontSize: 14,
-    lineHeight: 26,
+    ...fonts.caption3_m_13,
+    color: Colors.gray[8],
   },
 
   bottomArea: {
-    position: 'absolute',
+    position: "absolute",
     left: 32,
     right: 32,
     bottom: 28,
   },
 
-  submitBtn: {
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: '#0A20E8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
   submitText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '900',
+    color: "#FFFFFF",
+    ...fonts.sub3_sb_16,
   },
 
   bottomNotice: {
-    marginTop: 18,
-    textAlign: 'center',
-    color: '#999',
-    fontSize: 13,
+    marginTop: 12,
+    ...fonts.caption3_m_13,
+    color: Colors.gray[6],
   },
 });

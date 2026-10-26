@@ -869,24 +869,7 @@ export default function MarketPage() {
           </Text>
         </TouchableOpacity>
       </View>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content]}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onScroll={handleMarketScroll}
-      >
-        {/* <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>⌕</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="제목, 내용 검색"
-            placeholderTextColor="#777777"
-            value={searchKeyword}
-            onChangeText={setSearchKeyword}
-          />
-        </View> */}
-
+      <View style={styles.fixedFilter}>
         <MarketFilterBar
           selectedCountry={selectedCountry}
           filterActive={filtersAreActive}
@@ -898,7 +881,14 @@ export default function MarketPage() {
           onSelectFilter={() => setFilterSheetVisible(true)}
           onSelectSort={() => setSortSheetVisible(true)}
         />
-
+      </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content]}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleMarketScroll}
+      >
         {selectedTab === "bulk" ? (
           <UsedMarketScreen
             items={filteredItems}
@@ -1096,8 +1086,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  content: {
+  fixedFilter: {
     marginTop: 8,
+    paddingHorizontal: 16,
+  },
+
+  content: {
     paddingHorizontal: 16,
   },
 

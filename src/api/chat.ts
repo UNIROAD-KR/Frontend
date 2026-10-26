@@ -74,6 +74,10 @@ export const readChatRoom = async (roomId: number) => {
   return response;
 };
 
+export const leaveChatRoom = (roomId: number) => {
+  return api.delete<void>(`/api/v1/chat/rooms/${roomId}/members/me`);
+};
+
 export const sendChatMessage = (roomId: number, message: string) => {
   return api.post<ChatMessageResponse>(
     `/api/v1/chat/rooms/${roomId}/messages`,

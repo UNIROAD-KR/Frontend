@@ -8,9 +8,10 @@ import { Text } from "@/components/ui/app-text";
 import { CalendarEventDetailSheet } from "@/components/management/calendar-event-detail-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import { deleteCalendarEvent, type CalendarEvent } from "@/src/api/calendar";
+import { useAppAlert } from "@/hooks/use-app-alert";
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import { Alert, Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 import TrashIcon from "@/assets/icon/delete.svg";
 import PenIcon from "@/assets/icon/pen.svg";
 
@@ -35,9 +36,10 @@ export function CalendarEventList({
   const [detailId, setDetailId] = useState<number | null>(null);
   const insets = useSafeAreaInsets();
   const [deleting, setDeleting] = useState<number | null>(null);
+  const { showAlert, alertElement } = useAppAlert();
   const pendingAction = useRef<(() => void) | null>(null);
   const confirmDelete = (event: CalendarEvent) => {
-    Alert.alert(
+    showAlert(
       "일정 삭제",
       `‘${event.title || "일정"}’을 삭제할까요?${event.repeatType !== "NONE" ? " 반복 일정 전체가 삭제됩니다." : ""}`,
       [
@@ -51,7 +53,7 @@ export function CalendarEventList({
               await deleteCalendarEvent(event.id);
               onChanged();
             } catch (error: any) {
-              Alert.alert(
+              showAlert(
                 "삭제 실패",
                 error.response?.data?.message || "잠시 후 다시 시도해주세요.",
               );
@@ -155,7 +157,7 @@ export function CalendarEventList({
           <BottomSheetView
             style={[
               styles.menu,
-              { paddingBottom: Math.max(insets.bottom, 24) },
+              { paddingBottom: Math.max(insets.bottom, 28) },
             ]}
           >
             <View style={styles.handle} />
@@ -164,7 +166,7 @@ export function CalendarEventList({
               accessibilityRole="button"
               onPress={edit}
             >
-              <PenIcon />
+              <PenIcon width={24} height={24} color={Colors.gray[10]} />
               <Text style={styles.menuText}>수정하기</Text>
             </Pressable>
             <Pressable
@@ -172,7 +174,7 @@ export function CalendarEventList({
               accessibilityRole="button"
               onPress={remove}
             >
-              <TrashIcon />
+              <TrashIcon width={24} height={24} color={Colors.gray[10]} />
               <Text style={styles.menuText}>삭제하기</Text>
             </Pressable>
           </BottomSheetView>
@@ -182,6 +184,7 @@ export function CalendarEventList({
         eventId={detailId}
         onClose={() => setDetailId(null)}
       />
+      {alertElement}
     </View>
   );
 }
@@ -193,18 +196,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginBottom: 6,
+    marginBottom: 4,
   },
   badge: {
-    backgroundColor: Colors.normal.default,
+    backgroundColor: "#EAF3FF",
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 3,
     maxWidth: 100,
   },
   badgeText: { ...fonts.caption4_m_12, color: Colors.primary.default },
-  title: { ...fonts.sub4_sb_14, color: Colors.common.black, flex: 1 },
-  period: { ...fonts.caption5_r_13, color: Colors.gray[7] },
+  title: { ...fonts.body1_m_16, color: Colors.common.black, flex: 1 },
+  period: { ...fonts.caption3_m_13, color: Colors.gray[7] },
   thumbnail: {
     width: 44,
     height: 44,
@@ -223,23 +226,23 @@ const styles = StyleSheet.create({
   menu: {
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    paddingTop: 30,
-    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingHorizontal: 16,
   },
   handle: {
     position: "absolute",
     top: 8,
     alignSelf: "center",
-    width: 72,
-    height: 4,
+    width: 80,
+    height: 5,
     borderRadius: 2,
     backgroundColor: Colors.gray[4],
   },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
-    paddingVertical: 16,
+    gap: 12,
+    paddingVertical: 10,
   },
   menuText: { ...fonts.body1_m_16, color: Colors.gray[10] },
 });

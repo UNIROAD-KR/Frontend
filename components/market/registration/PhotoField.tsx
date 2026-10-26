@@ -1,15 +1,11 @@
 import { Text } from "@/components/ui/app-text";
+import InfoCircleIcon from "@/assets/icon/info-circle.svg";
+import PhotoIcon from "@/assets/icon/photo.svg";
 import { PhotoPickerSheet } from "@/components/ui/photo-picker-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 export function PhotoField({
   photos,
@@ -35,7 +31,7 @@ export function PhotoField({
             style={styles.add}
             onPress={() => setVisible(true)}
           >
-            <Ionicons name="image" size={21} color={Colors.gray[5]} />
+            <PhotoIcon />
             <Text style={[fonts.caption2_sb_12, { color: Colors.gray[6] }]}>
               이미지 등록
             </Text>
@@ -56,16 +52,18 @@ export function PhotoField({
         ))}
       </ScrollView>
       <View style={styles.hint}>
-        <Ionicons name="information-circle" size={13} color={Colors.gray[5]} />
-        <Text style={[fonts.caption4_m_12, { color: Colors.gray[6] }]}>
-          최대 {limit}장까지 등록할 수 있어요.
+        <InfoCircleIcon width={16} height={16} color={Colors.gray[5]} />
+        <Text style={[fonts.caption3_m_13, { color: Colors.gray[6] }]}>
+          최대 {limit}장까지 등록 가능합니다
         </Text>
       </View>
       <PhotoPickerSheet
         visible={visible}
         onClose={() => setVisible(false)}
         remaining={limit - photos.length}
-        onSelect={(selected) => onChange([...photos, ...selected].slice(0, limit))}
+        onSelect={(selected) =>
+          onChange([...photos, ...selected].slice(0, limit))
+        }
       />
     </View>
   );
@@ -83,7 +81,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gray[1],
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: 6,
   },
   remove: {
     position: "absolute",

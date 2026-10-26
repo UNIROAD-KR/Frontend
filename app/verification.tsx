@@ -1,16 +1,13 @@
 import { Text } from "@/components/ui/app-text";
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import PlusIcon from "@/assets/icon/plus-round.svg";
 import { useFocusEffect } from "@react-navigation/native";
-import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import BulletIcon from "@/assets/icon/bullet.svg";
 import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -23,8 +20,8 @@ import {
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
 import ArrowDownIcon from "@/assets/icon/Property 1=arrow2, Property 2=down.svg";
-import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-approved-card.svg";
-import LatestReviewIcon from "@/assets/icon/verification/latest-review-icon.svg";
+import ApprovedIcon from "@/assets/icon/approved.svg";
+import PendingIcon from "@/assets/icon/pending.svg";
 import { getMemberMe } from "../src/api/auth";
 import { getUploadUrl, uploadFileToStorage } from "../src/api/upload";
 import {
@@ -33,6 +30,9 @@ import {
   VerificationResponse,
 } from "../src/api/verification";
 import { Modal } from "@/components/ui/modal";
+import { SortSheet } from "@/components/ui/sort-sheet";
+import { PhotoPickerSheet } from "@/components/ui/photo-picker-sheet";
+import { useAppAlert } from "@/hooks/use-app-alert";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
 
 type FormMode = "history" | "form";
@@ -69,22 +69,6 @@ const statusMeta: Record<
     color: "#D92D20",
     backgroundColor: "#FFF1F0",
   },
-};
-
-const getImageContentType = (asset: ImagePicker.ImagePickerAsset) => {
-  if (asset.mimeType) {
-    return asset.mimeType;
-  }
-
-  const lowerUri = asset.uri.toLowerCase();
-  if (lowerUri.endsWith(".png")) {
-    return "image/png";
-  }
-  if (lowerUri.endsWith(".webp")) {
-    return "image/webp";
-  }
-
-  return "image/jpeg";
 };
 
 const getFileExtension = (contentType: string) => {
@@ -126,6 +110,9 @@ const getVerificationFileName = (imageUrl: string, fallbackId: number) => {
 
 export default function VerificationPage() {
   const { mode: requestedMode } = useLocalSearchParams<{ mode?: string }>();
+  const { showAlert, alertElement } = useAppAlert();
+  const [isImageSourceSheetVisible, setIsImageSourceSheetVisible] =
+    useState(false);
   const [mode, setMode] = useState<FormMode>("history");
   const [verifications, setVerifications] = useState<VerificationResponse[]>(
     [],
@@ -182,12 +169,12 @@ export default function VerificationPage() {
         "인증 내역 조회 실패:",
         error.response?.data || error.message,
       );
-      Alert.alert("조회 실패", "인증 신청 내역을 불러오지 못했습니다.");
+      showAlert("조회 실패", "인증 신청 내역을 불러오지 못했습니다.");
       setMode("history");
     } finally {
       setIsLoading(false);
     }
-  }, [requestedMode]);
+  }, [requestedMode, showAlert]);
 
   useFocusEffect(
     useCallback(() => {
@@ -219,63 +206,25 @@ export default function VerificationPage() {
     goBackOrReplace("/profile-card");
   };
 
-  const buildPickedImage = (
-    asset: ImagePicker.ImagePickerAsset,
-  ): PickedImage => {
-    const contentType = getImageContentType(asset);
-    const extension = getFileExtension(contentType);
+  const handlePhotoSelect = (photos: string[]) => {
+    const uri = photos[0];
+    if (!uri) return;
 
-    return {
-      uri: asset.uri,
-      fileName: asset.fileName || `verification_${Date.now()}.${extension}`,
+    const lowerUri = uri.toLowerCase();
+    const contentType = lowerUri.endsWith(".png")
+      ? "image/png"
+      : lowerUri.endsWith(".webp")
+        ? "image/webp"
+        : "image/jpeg";
+
+    setPickedImage({
+      uri,
+      fileName: `verification_${Date.now()}.${getFileExtension(contentType)}`,
       contentType,
-    };
-  };
-
-  const pickFromCamera = async () => {
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert("권한 필요", "카메라 접근 권한이 필요합니다.");
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.9,
     });
-
-    if (!result.canceled && result.assets[0]) {
-      setPickedImage(buildPickedImage(result.assets[0]));
-    }
   };
 
-  const pickFromLibrary = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permission.granted) {
-      Alert.alert("권한 필요", "사진첩 접근 권한이 필요합니다.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.9,
-      allowsMultipleSelection: false,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      setPickedImage(buildPickedImage(result.assets[0]));
-    }
-  };
-
-  const openImagePicker = () => {
-    Alert.alert("인증 사진 추가", "인증에 사용할 사진을 선택해주세요.", [
-      { text: "촬영하기", onPress: () => void pickFromCamera() },
-      { text: "사진 선택", onPress: () => void pickFromLibrary() },
-      { text: "취소", style: "cancel" },
-    ]);
-  };
+  const openImagePicker = () => setIsImageSourceSheetVisible(true);
 
   const getProfilePayload = async () => {
     const [savedUniversity, savedCountry, savedRegion] = await Promise.all([
@@ -322,7 +271,7 @@ export default function VerificationPage() {
 
   const handleSubmit = async () => {
     if (!pickedImage) {
-      Alert.alert(
+      showAlert(
         "이미지 선택",
         "인증에 사용할 사진을 촬영하거나 선택해주세요.",
       );
@@ -349,7 +298,7 @@ export default function VerificationPage() {
       setIsSubmitCompleteVisible(true);
     } catch (error: any) {
       console.log("인증 요청 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "제출 실패",
         "인증 요청을 제출하지 못했습니다. 다시 시도해주세요.",
       );
@@ -360,9 +309,7 @@ export default function VerificationPage() {
 
   const renderHistory = () => {
     const isLatestApproved = latestVerification?.status === "APPROVED";
-    const SummaryIcon = isLatestApproved
-      ? VerificationApprovedCardIcon
-      : LatestReviewIcon;
+    const SummaryIcon = isLatestApproved ? ApprovedIcon : PendingIcon;
     const summaryTitle = isLatestApproved
       ? "최신 인증 승인 완료"
       : "최신 인증 검토 중";
@@ -373,7 +320,9 @@ export default function VerificationPage() {
     return (
       <>
         <View style={styles.summaryCard}>
-          <SummaryIcon width={40} height={40} style={styles.summaryIcon} />
+          <View style={styles.summaryIcon}>
+            <SummaryIcon width={24} height={24} />
+          </View>
           <View style={styles.summaryTextBox}>
             <Text style={styles.summaryTitle}>{summaryTitle}</Text>
             <Text style={styles.summaryDesc}>
@@ -387,7 +336,7 @@ export default function VerificationPage() {
           <View style={styles.sortControl}>
             <Pressable
               style={styles.sortLabel}
-              onPress={() => setIsSortMenuOpen((current) => !current)}
+              onPress={() => setIsSortMenuOpen(true)}
             >
               <Text style={[fonts.body2_m_14, { color: Colors.gray[8] }]}>
                 {sortOrder === "latest" ? "최신순" : "오래된순"}
@@ -395,37 +344,6 @@ export default function VerificationPage() {
               <ArrowDownIcon width={16} height={16} color={MUTED} />
             </Pressable>
 
-            {isSortMenuOpen ? (
-              <View style={styles.sortMenu}>
-                {(
-                  [
-                    ["latest", "최신순"],
-                    ["oldest", "오래된순"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <Pressable
-                    key={value}
-                    style={styles.sortMenuItem}
-                    onPress={() => {
-                      setSortOrder(value);
-                      setIsSortMenuOpen(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.sortMenuText,
-                        sortOrder === value && styles.sortMenuTextActive,
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                    {sortOrder === value ? (
-                      <Ionicons name="checkmark" size={16} color={BLUE} />
-                    ) : null}
-                  </Pressable>
-                ))}
-              </View>
-            ) : null}
           </View>
         </View>
 
@@ -635,6 +553,26 @@ export default function VerificationPage() {
         </View>
       ) : null}
 
+      {alertElement}
+      <SortSheet
+        visible={isSortMenuOpen}
+        value={sortOrder}
+        onClose={() => setIsSortMenuOpen(false)}
+        onSelect={(value) => {
+          setSortOrder(value);
+          setIsSortMenuOpen(false);
+        }}
+        options={[
+          { value: "latest", label: "최신순" },
+          { value: "oldest", label: "오래된순" },
+        ]}
+      />
+      <PhotoPickerSheet
+        visible={isImageSourceSheetVisible}
+        onClose={() => setIsImageSourceSheetVisible(false)}
+        onSelect={handlePhotoSelect}
+        remaining={1}
+      />
       <Modal
         isOpen={isSubmitCompleteVisible}
         title="인증 요청이 제출되었습니다"
@@ -738,63 +676,36 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingLeft: 8,
   },
-  sortMenu: {
-    position: "absolute",
-    top: 32,
-    right: 0,
-    width: 104,
-    borderWidth: 1,
-    borderColor: "#E1E6EC",
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 4,
-    shadowColor: "#18202B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  sortMenuItem: {
-    minHeight: 38,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-  },
-  sortMenuText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#576273",
-  },
-  sortMenuTextActive: {
-    color: BLUE,
-    fontWeight: "900",
-  },
   summaryCard: {
-    height: 76,
-    borderRadius: 10,
-    backgroundColor: "#18202B",
-    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.gray[3],
   },
   summaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary.default,
   },
   summaryTextBox: {
     flex: 1,
     minWidth: 0,
   },
   summaryTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#FFFFFF",
+    ...fonts.sub3_sb_16,
+    color: Colors.common.black,
+    marginBottom: 4,
   },
   summaryDesc: {
-    marginTop: 3,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#ABB4C0",
+    ...fonts.caption5_r_13,
+    color: Colors.gray[7],
   },
   historyCard: {
     height: 92,
@@ -890,7 +801,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryButtonDisabled: {
-    backgroundColor: "#B1B8C1",
+    backgroundColor: Colors.primary.light,
   },
   historyFooter: {
     position: "absolute",
@@ -910,6 +821,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 30,
-    backgroundColor: "#F6F8FA",
+    backgroundColor: "#FFFFFF",
   },
 });

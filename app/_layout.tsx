@@ -113,7 +113,7 @@ export default function RootLayout() {
           name="notifications"
           options={{ animation: "slide_from_right" }}
         />
-        <Stack.Screen name="more-menu" options={{ animation: "none" }} />
+        <Stack.Screen name="more-menu" />
         <Stack.Screen name="modal" options={{ presentation: "modal" }} />
         <Stack.Screen
           name="sns-signup"

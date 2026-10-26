@@ -32,10 +32,8 @@ import EditIcon from "@/assets/icon/edit.svg";
 import DeleteIcon from "@/assets/icon/delete.svg";
 import { createOrGetChatRoom } from "../src/api/chat";
 import { getMemberMe } from "../src/api/auth";
-import {
-  AppBackButton,
-  goBackOrReplace,
-} from "@/components/ui/app-back-button";
+import { goBackOrReplace } from "@/components/ui/app-back-button";
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { PopoverMenu } from "@/components/ui/popover-menu";
 import {
   CompanionPostResponse,
@@ -47,6 +45,7 @@ import {
 } from "../src/api/companion";
 import {
   FreePostCommentResponse,
+  FreePostCategoryMap,
   FreePostDetailResponse,
   createFreePostComment,
   deleteFreePost,
@@ -235,8 +234,7 @@ export default function CommunityDetailScreen() {
   }>();
   const postId = Number(id);
   const detailType: DetailType = type === "companion" ? "companion" : "free";
-  const headerPaddingTop = insets.top + 8;
-  const headerHeight = headerPaddingTop + 56;
+  const headerHeight = Math.max(50, insets.top + 10) + 8 + 42;
   const [post, setPost] = useState<DetailPost | null>(null);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
@@ -380,6 +378,10 @@ export default function CommunityDetailScreen() {
       authorNickname:
         boardPost.authorNickname || boardPost.authorName || "익명",
       title: boardPost.title,
+      category:
+        Object.entries(FreePostCategoryMap).find(
+          ([, code]) => code === boardPost.category,
+        )?.[0] ?? boardPost.category,
       content: boardPost.content,
       country: boardPost.country,
       status: boardPost.status,
@@ -761,48 +763,39 @@ export default function CommunityDetailScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View
-        style={[
-          styles.header,
-          { height: headerHeight, paddingTop: headerPaddingTop },
-        ]}
-      >
-        <AppBackButton
-          onPress={() => {
-            if (
-              fromProfileList === "liked" ||
-              fromProfileList === "free" ||
-              fromProfileList === "companion" ||
-              fromProfileList === "saved" ||
-              fromProfileList === "written"
-            ) {
-              router.replace({
-                pathname:
-                  fromProfileList === "liked"
-                    ? "/liked-posts"
-                    : fromProfileList === "free" ||
-                        fromProfileList === "written"
-                      ? "/profile-posts"
-                      : "/home/profile-list",
-                params: { type: fromProfileList },
-              } as never);
-              return;
-            }
+      <ProfileScreenHeader
+        title={detailType === "companion" ? "동행 모집" : "자유 게시판"}
+        onBack={() => {
+          if (
+            fromProfileList === "liked" ||
+            fromProfileList === "free" ||
+            fromProfileList === "companion" ||
+            fromProfileList === "saved" ||
+            fromProfileList === "written"
+          ) {
+            router.replace({
+              pathname:
+                fromProfileList === "liked"
+                  ? "/liked-posts"
+                  : fromProfileList === "free" || fromProfileList === "written"
+                    ? "/profile-posts"
+                    : "/home/profile-list",
+              params: { type: fromProfileList },
+            } as never);
+            return;
+          }
 
-            goBackOrReplace("/community");
-          }}
-          style={styles.headerIconButton}
-        />
-        <Text style={styles.headerTitle}>
-          {detailType === "companion" ? "동행 모집" : "자유 게시판"}
-        </Text>
-        <Pressable
-          style={styles.headerIconButton}
-          onPress={() => setMenuVisible(true)}
-        >
-          <MoreIcon />
-        </Pressable>
-      </View>
+          goBackOrReplace("/community");
+        }}
+        rightAction={
+          <Pressable
+            style={styles.headerIconButton}
+            onPress={() => setMenuVisible(true)}
+          >
+            <MoreIcon />
+          </Pressable>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -861,7 +854,6 @@ export default function CommunityDetailScreen() {
                   {viewModel.country} · {viewModel.region}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color="#191F28" />
             </View>
 
             {/* {!!viewModel.chatLink && (
@@ -907,21 +899,49 @@ export default function CommunityDetailScreen() {
           </>
         ) : (
           <>
-            <View style={styles.freeTitleBlock}>
-              <Text style={styles.freeTitle}>{viewModel.title}</Text>
-              <Text style={styles.freeCreatedAt}>{viewModel.createdAt}</Text>
+            <View style={styles.companionTitleBlock}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: viewModel.statusColor },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: viewModel.statusTextColor },
+                  ]}
+                >
+                  {viewModel.category}
+                </Text>
+              </View>
+              <View style={styles.companionTitleRow}>
+                <Text style={styles.title}>{viewModel.title}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="자유게시판 공유"
+                  onPress={handleShareCompanionPost}
+                  style={styles.shareButton}
+                >
+                  <Ionicons
+                    name="share-social-outline"
+                    size={22}
+                    color="#191F28"
+                  />
+                </Pressable>
+              </View>
+              <Text style={styles.companionCreatedAt}>
+                {viewModel.createdAt}
+              </Text>
             </View>
             <View style={styles.freeAuthorCard}>
               <View style={styles.freeAuthorAvatar} />
               <View style={styles.authorCardText}>
-                <Text style={styles.freeAuthorName}>
-                  {viewModel.authorNickname}
-                </Text>
+                <Text style={styles.freeAuthorName}>{viewModel.author}</Text>
                 <Text style={styles.freeAuthorMeta} numberOfLines={1}>
                   {viewModel.country}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color="#111111" />
             </View>
 
             {(viewModel.imageUrls ?? []).length > 0 && (
@@ -1132,7 +1152,7 @@ export default function CommunityDetailScreen() {
       <PopoverMenu
         visible={menuVisible}
         position={{ top: headerHeight - 4, right: 18 }}
-        width={198}
+        width={120}
         accessibilityLabel="게시글 메뉴 닫기"
         onClose={() => setMenuVisible(false)}
         items={[
@@ -1140,19 +1160,29 @@ export default function CommunityDetailScreen() {
             ? [
                 {
                   label: "수정하기",
-                  icon: <EditIcon />,
+                  icon: (
+                    <EditIcon color={Colors.gray[8]} width={16} height={16} />
+                  ),
                   onPress: handleEdit,
                 },
                 {
                   label: "삭제하기",
-                  icon: <DeleteIcon />,
+                  icon: (
+                    <DeleteIcon color={Colors.gray[8]} width={16} height={16} />
+                  ),
                   onPress: handleDeletePost,
                 },
                 ...(detailType === "companion"
                   ? [
                       {
                         label: "모집 완료",
-                        icon: <CompleteIcon />,
+                        icon: (
+                          <CompleteIcon
+                            color={Colors.gray[8]}
+                            width={16}
+                            height={16}
+                          />
+                        ),
                         onPress: handleCompleteRecruitment,
                       },
                     ]
@@ -1259,35 +1289,18 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#FFFFFF",
   },
-  header: {
-    paddingHorizontal: 22,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.common.white,
-    zIndex: 10,
-    flexShrink: 0,
-  },
   headerIconButton: {
-    width: 42,
-    height: 42,
     alignItems: "center",
     justifyContent: "center",
-  },
-  headerTitle: {
-    ...fonts.sub3_sb_16,
-    color: "#111111",
   },
   scroll: {
     flex: 1,
   },
   content: {
     width: "100%",
-    maxWidth: 760,
     alignSelf: "center",
-    paddingHorizontal: 23,
-    paddingTop: 24,
     paddingBottom: 54,
+    paddingHorizontal: 16,
   },
   companionTitleBlock: {
     paddingBottom: 20,
@@ -1469,12 +1482,10 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   freeTitleBlock: { paddingBottom: 24 },
-  freeTitle: { ...fonts.title3_b_24, color: "#090B0D", lineHeight: 36 },
+  freeTitle: { ...fonts.title3_b_24, color: "#070A0D" },
   freeCreatedAt: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#737F90",
-    marginTop: 16,
+    ...fonts.body4_r_14,
+    color: Colors.gray[7],
   },
   freeAuthorCard: {
     flexDirection: "row",
@@ -1498,12 +1509,12 @@ const styles = StyleSheet.create({
   freeContent: { paddingHorizontal: 16, paddingBottom: 0 },
   freeReactionBar: {
     marginTop: 28,
-    paddingBottom: 20,
+    paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
+    gap: 16,
   },
-  freeReactionText: { fontSize: 16, color: "#374151" },
+  freeReactionText: { ...fonts.long_body1_m_16, color: Colors.gray[9] },
   freeSaveButton: { marginLeft: "auto", padding: 10 },
   commentSecondaryText: { ...fonts.body2_m_14, color: Colors.gray[6] },
   commentSection: {
@@ -1587,7 +1598,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: BLUE,
+    backgroundColor: Colors.primary.default,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,5 +1,5 @@
 import { Text } from "@/components/ui/app-text";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors } from "@/constants/theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -7,7 +7,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -34,14 +33,23 @@ import {
   getMyTickets,
   getScrappedTickets,
   TicketTransferResponse,
-  type TicketType,
 } from "../../../src/api/ticket";
 import {
   getMyUsedItems,
   getScrappedUsedItems,
   UsedItemSummaryResponse,
 } from "../../../src/api/usedItems";
-import LikedPostsEmptyInfoIcon from "@/assets/icon/profile/liked-posts-empty-info.svg";
+import { LikedPostsContent } from "@/components/profile/liked-posts-content";
+import {
+  formatDate,
+  formatPrice,
+  type ListCard,
+  type PostCommunityTab,
+  type PostSortMode,
+  type PostTicketTab,
+  type ProfileListCategory,
+} from "@/components/profile/profile-post-types";
+import { WrittenPostsContent } from "@/components/profile/written-posts-content";
 
 const NAVY = "#18202B";
 const BLUE = "#3568DA";
@@ -63,7 +71,6 @@ type ProfileListType =
   | "market"
   | "companion"
   | "written";
-type ProfileListCategory = "free" | "used" | "ticket" | "companion";
 type ProfileListGroup = "community" | "market";
 
 type SavedTicket = {
@@ -98,44 +105,6 @@ type RecentPost = {
   type?: string;
   route?: string;
 };
-
-type ListCard = {
-  id: string;
-  title: string;
-  subtitle: string;
-  meta: string;
-  badge?: string;
-  category?: ProfileListCategory;
-  icon: keyof typeof Ionicons.glyphMap;
-  route?: unknown;
-  imageUrl?: string;
-  authorName?: string;
-  country?: string;
-  region?: string;
-  postStatus?: string;
-  commentCount?: number;
-  likeCount?: number;
-  postCategory?: string;
-  price?: number | string;
-  originalPrice?: number;
-  eventDate?: string;
-  eventTime?: string;
-  ticketType?: TicketType | string;
-  createdAt?: string;
-  status?: "AVAILABLE" | "COMPLETED";
-};
-
-type LikedCommunityTab = "free" | "companion";
-type LikedTicketTab = "all" | TicketType;
-type LikedSortMode = "latest" | "oldest" | "title";
-
-const likedTicketTabs: { key: LikedTicketTab; label: string }[] = [
-  { key: "all", label: "전체" },
-  { key: "TOUR", label: "관광 티켓" },
-  { key: "CONCERT", label: "콘서트·공연" },
-  { key: "TRAIN", label: "기차표" },
-  { key: "FLIGHT", label: "항공권" },
-];
 
 const screenConfig: Record<
   ProfileListType,
@@ -263,14 +232,6 @@ const extractItems = <T,>(payload: unknown): T[] => {
   return extractItems<T>(data.data ?? data.result);
 };
 
-const formatDate = (value?: string) => {
-  if (!value) {
-    return "";
-  }
-
-  return value.slice(0, 10).replaceAll("-", ".");
-};
-
 const formatRelativeTime = (value?: string) => {
   if (!value) {
     return "";
@@ -297,14 +258,6 @@ const formatRelativeTime = (value?: string) => {
   if (diffDays < 7) return `${diffDays}일 전`;
 
   return formatDate(value);
-};
-
-const formatPrice = (value?: number) => {
-  if (!value) {
-    return "가격 미정";
-  }
-
-  return `${value.toLocaleString()}원`;
 };
 
 const makeCardId = (prefix: string, id?: number | string) =>
@@ -428,8 +381,11 @@ const toLikedMarketCard = (item: LikedMarketPost): ListCard => ({
     : "/market",
 });
 
-const toLikedUsedItemCard = (item: UsedItemSummaryResponse): ListCard => ({
-  id: makeCardId("liked-used", item.id),
+const toUsedItemCard = (
+  item: UsedItemSummaryResponse,
+  from: "liked" | "written",
+): ListCard => ({
+  id: makeCardId(`${from}-used`, item.id),
   title: item.title,
   subtitle: `${item.country || "거래"} · ${item.region}`,
   meta: [
@@ -445,16 +401,19 @@ const toLikedUsedItemCard = (item: UsedItemSummaryResponse): ListCard => ({
   country: item.country,
   region: item.region,
   price: item.price,
-  createdAt: item.updatedAt || item.createdAt,
+  createdAt: item.createdAt || item.updatedAt,
   // status: item.status,
   route: {
     pathname: "/market/[id]",
-    params: { id: String(item.id), fromProfileList: "liked" },
+    params: { id: String(item.id), fromProfileList: from },
   },
 });
 
-const toLikedCompanionCard = (post: CompanionPostResponse): ListCard => ({
-  id: makeCardId("liked-companion", post.id),
+const toCompanionCard = (
+  post: CompanionPostResponse,
+  from: "liked" | "written",
+): ListCard => ({
+  id: makeCardId(`${from}-companion`, post.id),
   title: post.title,
   subtitle: post.content,
   meta: `${post.memberName} · ${post.country} ${post.region} · ${post.currentParticipants}/${post.capacity}명`,
@@ -470,7 +429,7 @@ const toLikedCompanionCard = (post: CompanionPostResponse): ListCard => ({
     params: {
       type: "companion",
       id: String(post.id),
-      fromProfileList: "liked",
+      fromProfileList: from,
     },
   },
 });
@@ -528,9 +487,8 @@ const categoryTabsByType: Partial<
     { key: "ticket", label: "티켓양도" },
   ],
   written: [
-    { key: "free", label: "자유게시판" },
-    { key: "companion", label: "동행구하기" },
-    { key: "used", label: "귀국 전 일괄거래" },
+    { key: "free", label: "커뮤니티" },
+    { key: "used", label: "중고거래" },
     { key: "ticket", label: "티켓양도" },
   ],
 };
@@ -571,7 +529,8 @@ export default function ProfileListScreen() {
   const categoryTabs = categoryTabsByType[listType];
   const defaultCategory = categoryTabs?.[0]?.key ?? "free";
   const routeCategory = asListCategory(category, defaultCategory);
-  const usesGroupedTabs = listType === "saved" || listType === "written";
+  const usesGroupedTabs = listType === "saved";
+  const usesPostListLayout = listType === "liked" || listType === "written";
   const [items, setItems] = useState<ListCard[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<ProfileListGroup>(
     categoryGroupMap[routeCategory] ?? "community",
@@ -579,9 +538,9 @@ export default function ProfileListScreen() {
   const [selectedCategory, setSelectedCategory] =
     useState<ProfileListCategory>(routeCategory);
   const [likedCommunityTab, setLikedCommunityTab] =
-    useState<LikedCommunityTab>("free");
-  const [likedTicketTab, setLikedTicketTab] = useState<LikedTicketTab>("all");
-  const [likedSortMode, setLikedSortMode] = useState<LikedSortMode>("latest");
+    useState<PostCommunityTab>("free");
+  const [likedTicketTab, setLikedTicketTab] = useState<PostTicketTab>("all");
+  const [likedSortMode, setLikedSortMode] = useState<PostSortMode>("latest");
   const [likedSortOpen, setLikedSortOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
@@ -597,6 +556,9 @@ export default function ProfileListScreen() {
     );
 
     setSelectedCategory(hasRouteCategory ? routeCategory : defaultCategory);
+    if (listType === "written" && routeCategory === "companion") {
+      setLikedCommunityTab("companion");
+    }
     setSelectedGroup(
       categoryGroupMap[hasRouteCategory ? routeCategory : defaultCategory] ??
         "community",
@@ -791,9 +753,9 @@ export default function ProfileListScreen() {
 
         setItems([
           ...posts.map((post) => toFreePostCard(post, "liked", "자유게시판")),
-          ...companionPosts.map(toLikedCompanionCard),
+          ...companionPosts.map((post) => toCompanionCard(post, "liked")),
           ...(usedItems.length > 0
-            ? usedItems.map(toLikedUsedItemCard)
+            ? usedItems.map((item) => toUsedItemCard(item, "liked"))
             : likedMarketPosts.map(toLikedMarketCard)),
           ...(ticketPosts.length > 0
             ? ticketPosts.map((item) => toTicketCard(item, "liked-ticket"))
@@ -878,57 +840,9 @@ export default function ProfileListScreen() {
           ...freePosts.map((post) =>
             toFreePostCard(post, "written-free", "자유게시판"),
           ),
-          ...companionPosts.map((post) => ({
-            id: makeCardId("written-companion", post.id),
-            title: post.title,
-            subtitle: `${post.country} ${post.region}`,
-            meta: `${formatDate(post.startDate)} - ${formatDate(post.endDate)} · ${post.currentParticipants}/${post.capacity}명`,
-            badge: post.status === "RECRUITING" ? "모집중" : "모집완료",
-            category: "companion" as ProfileListCategory,
-            icon: "people-circle-outline" as keyof typeof Ionicons.glyphMap,
-            route: {
-              pathname: "/community-detail",
-              params: {
-                type: "companion",
-                id: String(post.id),
-                fromProfileList: "written",
-              },
-            },
-          })),
-          ...usedItems.map((item) => ({
-            id: makeCardId("written-used", item.id),
-            title: item.title,
-            subtitle: `${item.region} · ${item.semester}`,
-            meta: [formatPrice(item.price), formatRelativeTime(item.createdAt)]
-              .filter(Boolean)
-              .join(" · "),
-            badge: "중고거래",
-            category: "used" as ProfileListCategory,
-            icon: "cube-outline" as keyof typeof Ionicons.glyphMap,
-            route: {
-              pathname: "/market/[id]",
-              params: { id: String(item.id), fromProfileList: "written" },
-            },
-          })),
-          ...tickets.map((item) => ({
-            id: makeCardId("written-ticket", item.id),
-            title: item.title,
-            subtitle: `${item.location} · ${formatDate(item.eventDate)}`,
-            meta: [
-              `${item.quantity}매`,
-              formatPrice(item.transferPrice),
-              formatRelativeTime(item.createdAt ?? item.updatedAt),
-            ]
-              .filter(Boolean)
-              .join(" · "),
-            badge: item.status === "COMPLETED" ? "양도 완료" : "티켓 양도",
-            category: "ticket" as ProfileListCategory,
-            icon: "ticket-outline" as keyof typeof Ionicons.glyphMap,
-            route: {
-              pathname: "/market/ticket-preview",
-              params: { id: String(item.id), fromProfileList: "written" },
-            },
-          })),
+          ...companionPosts.map((post) => toCompanionCard(post, "written")),
+          ...usedItems.map((item) => toUsedItemCard(item, "written")),
+          ...tickets.map((item) => toTicketCard(item, "written-ticket")),
         ]);
         return;
       }
@@ -975,7 +889,7 @@ export default function ProfileListScreen() {
   const visibleItems = useMemo(() => {
     if (!categoryTabs) return items;
 
-    if (listType === "liked") {
+    if (listType === "liked" || listType === "written") {
       const filteredItems =
         selectedCategory === "free"
           ? items.filter((item) => item.category === likedCommunityTab)
@@ -983,22 +897,20 @@ export default function ProfileListScreen() {
             ? items.filter((item) => item.ticketType === likedTicketTab)
             : items.filter((item) => item.category === selectedCategory);
 
-      return [...filteredItems].sort((first, second) => {
-        const firstTime = first.createdAt
-          ? new Date(first.createdAt).getTime()
-          : 0;
-        const secondTime = second.createdAt
-          ? new Date(second.createdAt).getTime()
-          : 0;
+      // createdAt이 없는 응답은 id(높을수록 최신)로 대체해 정렬한다.
+      const sortValue = (item: ListCard) => {
+        const time = item.createdAt ? new Date(item.createdAt).getTime() : NaN;
 
-        if (likedSortMode === "title") {
-          return first.title.localeCompare(second.title, "ko");
-        }
+        return Number.isNaN(time)
+          ? Number(item.id.split("-").pop()) || 0
+          : time;
+      };
 
-        return likedSortMode === "oldest"
-          ? firstTime - secondTime
-          : secondTime - firstTime;
-      });
+      return [...filteredItems].sort((first, second) =>
+        likedSortMode === "oldest"
+          ? sortValue(first) - sortValue(second)
+          : sortValue(second) - sortValue(first),
+      );
     }
 
     return items.filter((item) => item.category === selectedCategory);
@@ -1028,11 +940,29 @@ export default function ProfileListScreen() {
   const usesProfileHeader =
     listType === "liked" || listType === "free" || listType === "written";
 
+  const postListProps = {
+    selectedCategory,
+    onSelectCategory: setSelectedCategory,
+    communityTab: likedCommunityTab,
+    onSelectCommunityTab: setLikedCommunityTab,
+    ticketTab: likedTicketTab,
+    onSelectTicketTab: setLikedTicketTab,
+    sortMode: likedSortMode,
+    sortOpen: likedSortOpen,
+    onToggleSort: () => setLikedSortOpen((value) => !value),
+    onSelectSort: (mode: PostSortMode) => {
+      setLikedSortMode(mode);
+      setLikedSortOpen(false);
+    },
+    items: visibleItems,
+    loading,
+  };
+
   return (
     <View
       style={[
         styles.container,
-        listType === "liked" && { backgroundColor: Colors.common.white },
+        usesPostListLayout && { backgroundColor: Colors.common.white },
       ]}
     >
       {usesProfileHeader ? (
@@ -1052,29 +982,15 @@ export default function ProfileListScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
-          listType === "liked" ? styles.likedContent : styles.content,
+          usesPostListLayout ? styles.postListContent : styles.content,
           { paddingBottom: Math.max(130, insets.bottom + 110) },
         ]}
         showsVerticalScrollIndicator={false}
       >
         {listType === "liked" ? (
-          <LikedPostsContent
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            communityTab={likedCommunityTab}
-            onSelectCommunityTab={setLikedCommunityTab}
-            ticketTab={likedTicketTab}
-            onSelectTicketTab={setLikedTicketTab}
-            sortMode={likedSortMode}
-            sortOpen={likedSortOpen}
-            onToggleSort={() => setLikedSortOpen((value) => !value)}
-            onSelectSort={(mode) => {
-              setLikedSortMode(mode);
-              setLikedSortOpen(false);
-            }}
-            items={visibleItems}
-            loading={loading}
-          />
+          <LikedPostsContent {...postListProps} />
+        ) : listType === "written" ? (
+          <WrittenPostsContent {...postListProps} />
         ) : (
           <>
             {compactSummary ? (
@@ -1226,394 +1142,6 @@ export default function ProfileListScreen() {
   );
 }
 
-function LikedPostsContent({
-  selectedCategory,
-  onSelectCategory,
-  communityTab,
-  onSelectCommunityTab,
-  ticketTab,
-  onSelectTicketTab,
-  sortMode,
-  sortOpen,
-  onToggleSort,
-  onSelectSort,
-  items,
-  loading,
-}: {
-  selectedCategory: ProfileListCategory;
-  onSelectCategory: (category: ProfileListCategory) => void;
-  communityTab: LikedCommunityTab;
-  onSelectCommunityTab: (tab: LikedCommunityTab) => void;
-  ticketTab: LikedTicketTab;
-  onSelectTicketTab: (tab: LikedTicketTab) => void;
-  sortMode: LikedSortMode;
-  sortOpen: boolean;
-  onToggleSort: () => void;
-  onSelectSort: (mode: LikedSortMode) => void;
-  items: ListCard[];
-  loading: boolean;
-}) {
-  const categoryTabs: { key: ProfileListCategory; label: string }[] = [
-    { key: "free", label: "커뮤니티" },
-    { key: "used", label: "중고거래" },
-    { key: "ticket", label: "티켓양도" },
-  ];
-
-  return (
-    <>
-      <View style={styles.likedPrimaryTabs}>
-        {categoryTabs.map((tab) => {
-          const active = selectedCategory === tab.key;
-
-          return (
-            <Pressable
-              key={tab.key}
-              style={[
-                styles.likedPrimaryTab,
-                active && styles.likedPrimaryTabActive,
-              ]}
-              onPress={() => onSelectCategory(tab.key)}
-            >
-              <Text
-                style={[
-                  styles.likedPrimaryTabText,
-                  active && styles.likedPrimaryTabTextActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.likedToolbar}>
-        <Text style={styles.likedCountText}>
-          전체 <Text style={styles.likedCountNumber}>{items.length}</Text>개
-        </Text>
-        <View style={styles.likedSortAnchor}>
-          <Pressable style={styles.likedSortButton} onPress={onToggleSort}>
-            <Text style={styles.likedSortText}>{likedSortLabel(sortMode)}</Text>
-            <Ionicons
-              name={sortOpen ? "chevron-up" : "chevron-down"}
-              size={16}
-              color="#7A8491"
-            />
-          </Pressable>
-          {sortOpen ? (
-            <View style={styles.likedSortMenu}>
-              {(
-                [
-                  { key: "latest", label: "최신순" },
-                  { key: "oldest", label: "오래된순" },
-                  { key: "title", label: "가나다순" },
-                ] as { key: LikedSortMode; label: string }[]
-              ).map((option) => {
-                const selected = sortMode === option.key;
-
-                return (
-                  <Pressable
-                    key={option.key}
-                    style={styles.likedSortOption}
-                    onPress={() => onSelectSort(option.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.likedSortOptionText,
-                        selected && styles.likedSortOptionTextSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    {selected ? (
-                      <Ionicons name="checkmark" size={16} color="#1677FF" />
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-        </View>
-      </View>
-
-      {selectedCategory === "free" ? (
-        <View style={styles.likedFilterRow}>
-          {[
-            { key: "free" as const, label: "자유게시판" },
-            { key: "companion" as const, label: "동행 모집" },
-          ].map((tab) => {
-            const active = communityTab === tab.key;
-
-            return (
-              <Pressable
-                key={tab.key}
-                style={[
-                  styles.likedFilterChip,
-                  active && styles.likedFilterChipActive,
-                ]}
-                onPress={() => onSelectCommunityTab(tab.key)}
-              >
-                <Text
-                  style={[
-                    styles.likedFilterChipText,
-                    active && styles.likedFilterChipTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : null}
-
-      {selectedCategory === "ticket" ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.likedTicketFilters}
-        >
-          {likedTicketTabs.map((tab) => {
-            const active = ticketTab === tab.key;
-
-            return (
-              <Pressable
-                key={tab.key}
-                style={[
-                  styles.likedFilterChip,
-                  active && styles.likedFilterChipActive,
-                ]}
-                onPress={() => onSelectTicketTab(tab.key)}
-              >
-                <Text
-                  style={[
-                    styles.likedFilterChipText,
-                    active && styles.likedFilterChipTextActive,
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : null}
-
-      {loading ? (
-        <View style={styles.likedLoadingBox}>
-          <ActivityIndicator color={NAVY} />
-        </View>
-      ) : items.length === 0 ? (
-        <LikedPostsEmpty />
-      ) : (
-        <View style={styles.likedList}>
-          {items.map((item) => (
-            <Pressable
-              key={item.id}
-              style={
-                selectedCategory === "free"
-                  ? styles.likedCommunityRow
-                  : selectedCategory === "used"
-                    ? styles.likedUsedRow
-                    : styles.likedTicketRow
-              }
-              onPress={() => item.route && router.push(item.route as any)}
-            >
-              {selectedCategory === "free" ? (
-                <LikedCommunityPostCard item={item} />
-              ) : selectedCategory === "used" ? (
-                <LikedUsedPostCard item={item} />
-              ) : (
-                <LikedTicketPostCard item={item} />
-              )}
-            </Pressable>
-          ))}
-        </View>
-      )}
-    </>
-  );
-}
-
-function LikedCommunityPostCard({ item }: { item: ListCard }) {
-  const categoryLabel = item.postCategory
-    ? ({ WORRY: "고민글", CHAT: "사담글", QUESTION: "질문글" } as Record<string, string>)[item.postCategory] ?? item.postCategory
-    : undefined;
-  const metadata = [
-    item.authorName,
-    [item.country, item.postStatus].filter(Boolean).join(" "),
-    typeof item.commentCount === "number"
-      ? `댓글 ${item.commentCount}`
-      : undefined,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-
-  return (
-    <>
-      <View style={styles.likedCommunityCopy}>
-        <Text style={styles.likedCommunityTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.likedCommunityPreview} numberOfLines={1}>
-          {item.subtitle || "게시글 본문입니다."}
-        </Text>
-        {item.category === "free" ? (
-          <View style={styles.likedCommunityFooter}>
-            {categoryLabel && (
-              <View style={styles.likedCategoryTag}>
-                <Text style={[fonts.caption4_m_12, { color: Colors.primary.default, letterSpacing: 0 }]}>{categoryLabel}</Text>
-              </View>
-            )}
-            <Text style={styles.likedCommunityMeta} numberOfLines={1}>
-              좋아요 {item.likeCount ?? 0} · 댓글 {item.commentCount ?? 0}
-            </Text>
-          </View>
-        ) : (
-          <Text style={[styles.likedCommunityMeta, { marginTop: 8 }]} numberOfLines={1}>
-            {metadata || item.meta}
-          </Text>
-        )}
-      </View>
-      <LikedPostThumbnail
-        uri={item.imageUrl}
-        style={styles.likedCommunityThumbnail}
-      />
-    </>
-  );
-}
-
-function LikedUsedPostCard({ item }: { item: ListCard }) {
-  const price =
-    typeof item.price === "number"
-      ? formatPrice(item.price)
-      : item.price || item.meta.split(" · ")[0] || "가격 미정";
-
-  return (
-    <>
-      <View style={styles.likedUsedThumbnailWrap}>
-        <LikedPostThumbnail
-          uri={item.imageUrl}
-          style={styles.likedUsedThumbnail}
-        />
-        {item.status === "COMPLETED" ? (
-          <View style={styles.likedCompletedBadge}>
-            <Text style={styles.likedCompletedBadgeText}>거래 완료</Text>
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.likedUsedCopy}>
-        <Text style={styles.likedUsedTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.likedUsedMeta} numberOfLines={1}>
-          거래 {item.country || "정보 없음"}
-        </Text>
-        <Text style={styles.likedUsedMeta} numberOfLines={1}>
-          장소 {item.region || item.subtitle || "정보 없음"}
-        </Text>
-        <Text style={styles.likedUsedPrice}>{price}</Text>
-      </View>
-    </>
-  );
-}
-
-function LikedTicketPostCard({ item }: { item: ListCard }) {
-  const transferPrice =
-    typeof item.price === "number"
-      ? formatPrice(item.price)
-      : item.price || item.meta.split(" · ")[1] || "가격 미정";
-  const ticketType = ticketTypeLabel(item.ticketType);
-
-  return (
-    <>
-      <View style={styles.likedFlagBox}>
-        <Text style={styles.likedFlag}>{countryFlag(item.country)}</Text>
-        <Text style={styles.likedCountryName} numberOfLines={1}>
-          {item.country || "국가"}
-        </Text>
-      </View>
-      <View style={styles.likedTicketCopy}>
-        <Text style={styles.likedTicketTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        <Text style={styles.likedTicketMeta} numberOfLines={1}>
-          일시{" "}
-          {[formatDate(item.eventDate), item.eventTime]
-            .filter(Boolean)
-            .join(" ")}
-        </Text>
-        <Text style={styles.likedTicketMeta} numberOfLines={1}>
-          유형 {ticketType}
-        </Text>
-        <View style={styles.likedTicketPriceRow}>
-          <Text style={styles.likedTicketPrice}>{transferPrice}</Text>
-          {item.originalPrice ? (
-            <Text style={styles.likedTicketOriginalPrice}>
-              {formatPrice(item.originalPrice)}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-    </>
-  );
-}
-
-function LikedPostThumbnail({ uri, style }: { uri?: string; style: object }) {
-  return uri ? (
-    <Image source={{ uri }} style={style} resizeMode="cover" />
-  ) : (
-    <View style={[style, styles.likedThumbnailPlaceholder]} />
-  );
-}
-
-function LikedPostsEmpty() {
-  return (
-    <View style={styles.likedEmptyBox}>
-      <LikedPostsEmptyInfoIcon width={24} height={24} />
-      <Text style={styles.likedEmptyTitle}>좋아요 누른 글이 없습니다</Text>
-      <Text style={styles.likedEmptyText}>
-        좋아요를 눌러 관심있는 글을{`\n`}저장하고 표현해보세요
-      </Text>
-    </View>
-  );
-}
-
-function likedSortLabel(mode: LikedSortMode) {
-  if (mode === "oldest") return "오래된순";
-  if (mode === "title") return "가나다순";
-
-  return "최신순";
-}
-
-function ticketTypeLabel(type?: string) {
-  const labels: Record<string, string> = {
-    TOUR: "관광 티켓",
-    CONCERT: "콘서트·공연",
-    TRAIN: "기차표",
-    FLIGHT: "항공권",
-    ACCOMMODATION: "숙박",
-  };
-
-  return (type && labels[type]) || type || "티켓 양도";
-}
-
-function countryFlag(country?: string) {
-  const flags: Record<string, string> = {
-    대한민국: "🇰🇷",
-    한국: "🇰🇷",
-    일본: "🇯🇵",
-    터키: "🇹🇷",
-    독일: "🇩🇪",
-    프랑스: "🇫🇷",
-    스페인: "🇪🇸",
-    이탈리아: "🇮🇹",
-    미국: "🇺🇸",
-    영국: "🇬🇧",
-  };
-
-  return flags[country || ""] || "🌐";
-}
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -1648,231 +1176,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 14,
   },
-  likedContent: {
+  postListContent: {
     paddingHorizontal: 16,
     paddingTop: 2,
   },
-  likedPrimaryTabs: { height: 48, flexDirection: "row", alignItems: "stretch" },
-  likedPrimaryTab: { paddingHorizontal: 12, justifyContent: "center", borderBottomWidth: 2, borderBottomColor: "transparent" },
-  likedPrimaryTabActive: {
-    borderBottomColor: Colors.gray[11],
-  },
-  likedPrimaryTabText: { ...fonts.sub3_sb_16, letterSpacing: 0, color: Colors.gray[6] },
-  likedPrimaryTabTextActive: {
-    color: Colors.gray[11],
-  },
-  likedToolbar: { minHeight: 52, marginTop: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 20 },
-  likedCountText: { ...fonts.title6_sb_20, letterSpacing: 0, color: Colors.gray[11] },
-  likedCountNumber: {
-    color: Colors.primary.default,
-  },
-  likedSortButton: {
-    minHeight: 36,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    paddingLeft: 8,
-  },
-  likedSortAnchor: {
-    position: "relative",
-    zIndex: 10,
-  },
-  likedSortText: {
-    ...fonts.body2_m_14,
-    letterSpacing: 0,
-    color: Colors.gray[7],
-  },
-  likedSortMenu: {
-    position: "absolute",
-    top: 38,
-    right: 0,
-    width: 112,
-    borderRadius: 8,
-    backgroundColor: Colors.common.white,
-    borderWidth: 1,
-    borderColor: Colors.gray[3],
-    paddingVertical: 4,
-    shadowColor: Colors.gray[11],
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
-  },
-  likedSortOption: {
-    height: 38,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-  },
-  likedSortOptionText: {
-    ...fonts.body2_m_14,
-    letterSpacing: 0,
-    color: Colors.gray[8],
-  },
-  likedSortOptionTextSelected: {
-    color: Colors.primary.default,
-  },
-  likedFilterRow: { flexDirection: "row", gap: 6, marginBottom: 8 },
-  likedTicketFilters: {
-    gap: 8,
-    paddingBottom: 12,
-    paddingRight: 16,
-  },
-  likedFilterChip: { minHeight: 38, borderRadius: 20, backgroundColor: Colors.gray[1], paddingHorizontal: 12, paddingVertical: 8, alignItems: "center", justifyContent: "center" },
-  likedFilterChipActive: {
-    backgroundColor: Colors.gray[11],
-  },
-  likedFilterChipText: {
-    ...fonts.body2_m_14,
-    letterSpacing: 0,
-    color: Colors.gray[7],
-  },
-  likedFilterChipTextActive: {
-    color: Colors.common.white,
-  },
-  likedLoadingBox: {
-    minHeight: 250,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  likedEmptyBox: {
-    minHeight: 300,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingBottom: 58,
-  },
-  likedEmptyTitle: {
-    marginTop: 12,
-    ...fonts.sub1_sb_18,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedEmptyText: {
-    marginTop: 8,
-    ...fonts.body2_m_14,
-    letterSpacing: 0,
-    color: Colors.gray[6],
-    textAlign: "center",
-  },
-  likedList: { gap: 0 },
-  likedCommunityRow: { minHeight: 104, paddingVertical: 14, flexDirection: "row", alignItems: "center", gap: 14 },
-  likedCommunityCopy: { flex: 1, minWidth: 0 },
-  likedCommunityTitle: {
-    ...fonts.sub3_sb_16,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedCommunityPreview: { ...fonts.body4_r_14, letterSpacing: 0, color: Colors.gray[6], marginTop: 4 },
-  likedCommunityMeta: { ...fonts.caption3_m_13, letterSpacing: 0, color: Colors.gray[8], flexShrink: 1 },
-  likedCommunityThumbnail: { width: 76, height: 76, borderRadius: 8 },
-  likedThumbnailPlaceholder: {
-    backgroundColor: Colors.gray[3],
-  },
-  likedUsedRow: {
-    minHeight: 100,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  likedUsedThumbnailWrap: {
-    width: 96,
-    height: 96,
-  },
-  likedUsedThumbnail: {
-    width: 96,
-    height: 96,
-    borderRadius: 6,
-  },
-  likedCompletedBadge: {
-    position: "absolute",
-    left: 12,
-    bottom: 12,
-    borderRadius: 4,
-    backgroundColor: Colors.gray[11],
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  likedCompletedBadgeText: {
-    ...fonts.caption4_m_12,
-    letterSpacing: 0,
-    color: Colors.common.white,
-  },
-  likedUsedCopy: {
-    flex: 1,
-    minWidth: 0,
-    justifyContent: "center",
-  },
-  likedUsedTitle: {
-    ...fonts.sub3_sb_16,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedUsedMeta: {
-    marginTop: 5,
-    ...fonts.caption4_m_12,
-    letterSpacing: 0,
-    color: Colors.gray[7],
-  },
-  likedUsedPrice: {
-    marginTop: 6,
-    ...fonts.sub3_sb_16,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedTicketRow: {
-    minHeight: 94,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  likedFlagBox: {
-    width: 46,
-    alignItems: "center",
-  },
-  likedFlag: {
-    fontSize: 26,
-  },
-  likedCountryName: {
-    marginTop: 4,
-    ...fonts.caption4_m_12,
-    letterSpacing: 0,
-    color: Colors.gray[8],
-  },
-  likedTicketCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  likedTicketTitle: {
-    ...fonts.sub3_sb_16,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedTicketMeta: {
-    marginTop: 4,
-    ...fonts.caption4_m_12,
-    letterSpacing: 0,
-    color: Colors.gray[7],
-  },
-  likedTicketPriceRow: {
-    marginTop: 7,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-  likedTicketPrice: {
-    ...fonts.sub3_sb_16,
-    letterSpacing: 0,
-    color: Colors.gray[11],
-  },
-  likedTicketOriginalPrice: {
-    ...fonts.caption4_m_12,
-    letterSpacing: 0,
-    color: Colors.gray[5],
-    textDecorationLine: "line-through",
-  },
-  likedCommunityFooter: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 14 },
-  likedCategoryTag: { paddingHorizontal: 4, paddingVertical: 2, borderRadius: 3, backgroundColor: `${Colors.primary.default}14` },
   heroCard: {
     minHeight: 82,
     borderRadius: 8,

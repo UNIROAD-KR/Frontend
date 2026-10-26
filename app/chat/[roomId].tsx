@@ -11,7 +11,6 @@ import SendIcon from "@/assets/icon/send.svg";
 import MenuIcon from "@/assets/icon/menu.svg";
 import PlusCircleIcon from "@/assets/icon/plus-circle.svg";
 import {
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -24,6 +23,7 @@ import {
 
 import { AppBackButton } from "@/components/ui/app-back-button";
 import { Modal as AppModal } from "@/components/ui/modal";
+import { useAppAlert } from "@/hooks/use-app-alert";
 import { PhotoPickerSheet } from "@/components/ui/photo-picker-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import { getCompanionPostDetail } from "../../src/api/companion";
@@ -35,6 +35,7 @@ import {
   getChatMessages,
   getChatRooms,
   readChatRoom,
+  leaveChatRoom,
   sendChatMessage,
   subscribeChatRoom,
 } from "../../src/api/chat";
@@ -203,6 +204,8 @@ export default function ChatRoomPage() {
   }>();
 
   const scrollRef = useRef<ScrollView>(null);
+  const { showAlert, alertElement } = useAppAlert();
+  const [reportVisible, setReportVisible] = useState(false);
   const numericRoomId = Number(roomId);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -469,7 +472,7 @@ export default function ChatRoomPage() {
       setTimeout(fetchMessages, 250);
     } catch (error: any) {
       console.log("메시지 전송 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "메시지 전송 실패",
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
@@ -502,7 +505,7 @@ export default function ChatRoomPage() {
             : null;
 
     if (!target) {
-      Alert.alert(
+      showAlert(
         "신고할 수 없어요",
         "신고 대상 정보를 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
       );
@@ -516,10 +519,10 @@ export default function ChatRoomPage() {
         reason,
         detail: `채팅방 #${roomId}에서 신고된 대화입니다.`,
       });
-      Alert.alert("신고 접수", "운영팀이 대화 내용을 확인할게요.");
+      showAlert("신고 접수", "운영팀이 대화 내용을 확인할게요.");
     } catch (error: any) {
       console.log("신고 접수 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "신고 실패",
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
@@ -531,13 +534,7 @@ export default function ChatRoomPage() {
   const handleReport = () => {
     setMenuVisible(false);
 
-    Alert.alert("신고하기", "신고 사유를 선택해주세요.", [
-      ...REPORT_OPTIONS.map((option) => ({
-        text: option.label,
-        onPress: () => submitReport(option.reason),
-      })),
-      { text: "취소", style: "cancel" as const },
-    ]);
+    setReportVisible(true);
   };
 
   const handleGoToContent = () => {
@@ -607,7 +604,7 @@ export default function ChatRoomPage() {
               title="채팅 알림 끄기"
               onPress={() => {
                 setMenuVisible(false);
-                Alert.alert("알림 설정", "이 채팅방 알림을 껐어요.");
+                showAlert("알림 설정", "이 채팅방 알림을 껐어요.");
               }}
             /> */}
             {/* <ChatMenuRow
@@ -845,7 +842,7 @@ export default function ChatRoomPage() {
               accessibilityLabel="이미지 첨부"
               onPress={() => {
                 if (attachedPhotos.length >= 10) {
-                  Alert.alert(
+                  showAlert(
                     "이미지 첨부",
                     "이미지는 최대 10장까지 첨부할 수 있어요.",
                   );
@@ -902,12 +899,49 @@ export default function ChatRoomPage() {
         }}
         primaryButton={{
           label: "확인했어요",
-          onPress: () => {
+          onPress: async () => {
             setLeaveRoomConfirmationVisible(false);
-            router.back();
+            try {
+              await leaveChatRoom(numericRoomId);
+              router.back();
+            } catch (error: any) {
+              console.log(
+                "채팅방 나가기 실패:",
+                error.response?.data || error.message,
+              );
+              showAlert(
+                "채팅방을 나가지 못했어요",
+                error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
+              );
+            }
           },
         }}
       />
+      <AppModal
+        isOpen={reportVisible}
+        onClose={() => setReportVisible(false)}
+        title="신고하기"
+        description="신고 사유를 선택해주세요."
+        secondaryButton={{
+          label: "취소",
+          onPress: () => setReportVisible(false),
+        }}
+      >
+        {REPORT_OPTIONS.map((option) => (
+          <Pressable
+            key={option.reason}
+            accessibilityRole="button"
+            style={{ paddingVertical: 12 }}
+            onPress={() => {
+              setReportVisible(false);
+              submitReport(option.reason);
+            }}
+          >
+            <Text style={fonts.body1_m_16}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </AppModal>
+      {alertElement}
     </SafeAreaView>
   );
 }
