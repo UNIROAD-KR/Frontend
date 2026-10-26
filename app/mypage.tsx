@@ -18,11 +18,9 @@ import {
   ActivityIndicator,
   Dimensions,
   Keyboard,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -108,9 +106,6 @@ export default function MyPageScreen({
     fromHome?: string | string[];
     fromService?: string | string[];
   }>();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const isTabletDatePicker =
-    Platform.OS === "ios" && Math.min(windowWidth, windowHeight) >= 768;
   const showBackButton =
     (Array.isArray(fromHome) ? fromHome[0] : fromHome) === "true" ||
     (Array.isArray(fromService) ? fromService[0] : fromService) === "true";
@@ -157,20 +152,9 @@ export default function MyPageScreen({
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth(); // 0-indexed
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS !== "ios") {
-      setShowDatePicker(false);
-    }
-    if (event?.type === "dismissed") {
-      return;
-    }
-    if (selectedDate) {
-      setExpenseDateValue(selectedDate);
-      setExpenseDate(formatDate(selectedDate));
-      if (isTabletDatePicker) {
-        setShowDatePicker(false);
-      }
-    }
+  const onDateChange = (selectedDate: Date) => {
+    setExpenseDateValue(selectedDate);
+    setExpenseDate(formatDate(selectedDate));
   };
 
   const openDatePicker = () => {
@@ -274,9 +258,7 @@ export default function MyPageScreen({
 
   const dismissKeyboardAndTabletPicker = () => {
     Keyboard.dismiss();
-    if (isTabletDatePicker) {
-      setShowDatePicker(false);
-    }
+    setShowDatePicker(false);
   };
 
   const openTransactionModal = (type: "INCOME" | "EXPENSE") => {
@@ -746,7 +728,6 @@ export default function MyPageScreen({
         transactionDate={expenseDate}
         dateValue={expenseDateValue}
         showDatePicker={showDatePicker}
-        isTabletDatePicker={isTabletDatePicker}
         onChangeType={setTransactionType}
         onChangeAmount={
           transactionType === "INCOME" ? setChargeAmount : setExpenseAmount

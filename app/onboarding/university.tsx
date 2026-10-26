@@ -1,8 +1,8 @@
 import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/app-text';
+import CalendarModal from '@/components/ui/calendar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -142,7 +142,6 @@ export default function UniversityPage() {
   const [status, setStatus] = useState<ExchangeStatus | ''>('');
   const [statusDates, setStatusDates] =
     useState<Record<ExchangeStatus, string>>(emptyStatusDates);
-  const [draftDate, setDraftDate] = useState(startOfToday);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [universityModalVisible, setUniversityModalVisible] = useState(false);
   const [dispatchSemesterYear, setDispatchSemesterYear] = useState('');
@@ -233,7 +232,6 @@ export default function UniversityPage() {
       return;
     }
 
-    setDraftDate(parseStorageDate(statusDates[status]) ?? startOfToday());
     setShowDatePicker(true);
   };
 
@@ -249,11 +247,6 @@ export default function UniversityPage() {
       [status]: nextDate,
     }));
     await AsyncStorage.setItem(selectedStatusOption.storageKey, nextDate);
-  };
-
-  const handleConfirmDate = async () => {
-    await saveDateForStatus(draftDate);
-    setShowDatePicker(false);
   };
 
   const persistDispatchSemester = async (
@@ -394,23 +387,23 @@ export default function UniversityPage() {
 
         {selectedStatusOption && (
           <View style={styles.dateSection}>
-            <Text style={styles.dateLabel}>{selectedStatusOption.dateLabel}</Text>
+            <Text style={styles.dateLabel}>
+              {selectedStatusOption.dateLabel}
+              <Text style={styles.dateRequired}> *</Text>
+            </Text>
 
-            <Pressable style={styles.dateField} onPress={openDatePicker}>
-              <View style={styles.dateIconBox}>
-                <Ionicons name="calendar-outline" size={19} color={BLUE} />
-              </View>
+            <Pressable style={styles.statusDateField} onPress={openDatePicker}>
               <Text
                 style={[
-                  styles.dateText,
-                  !selectedStatusDate && styles.datePlaceholderText,
+                  styles.statusDateText,
+                  !selectedStatusDate && styles.statusDatePlaceholder,
                 ]}
               >
                 {selectedStatusDate
-                  ? formatDisplayDate(selectedStatusDate)
-                  : selectedStatusOption.datePlaceholder}
+                  ? formatDisplayDate(selectedStatusDate).replaceAll('.', '. ')
+                  : '날짜를 입력해주세요'}
               </Text>
-              <Ionicons name="chevron-down" size={18} color="#777777" />
+              <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
             </Pressable>
           </View>
         )}
@@ -479,68 +472,16 @@ export default function UniversityPage() {
         onSelect={handleSelectUniversity}
       />
 
-      <BottomSheetModal
+      <CalendarModal
         visible={showDatePicker}
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={[styles.datePickerOverlay, bottomSheetStyles.transparent]}>
-          <Pressable
-            style={[styles.datePickerBackdrop, bottomSheetStyles.transparent]}
-            onPress={() => setShowDatePicker(false)}
-          />
-
-          <BottomSheetView style={styles.datePickerSheet}>
-            <View style={styles.sheetHandle} />
-
-            <View style={styles.datePickerHeader}>
-              <Pressable onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.datePickerCancel}>취소</Text>
-              </Pressable>
-
-              <Text style={styles.datePickerTitle}>
-                {selectedStatusOption?.dateLabel ?? '날짜'} 선택
-              </Text>
-
-              <Pressable onPress={handleConfirmDate}>
-                <Text style={styles.datePickerDone}>완료</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.datePickerFrame}>
-              <DateTimePicker
-                value={draftDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'calendar'}
-                locale="ko-KR"
-                minimumDate={startOfToday()}
-                themeVariant="light"
-                textColor="#111111"
-                accentColor={BLUE}
-                style={styles.datePicker}
-                onChange={(_, selectedDate) => {
-                  if (!selectedDate) {
-                    if (Platform.OS !== 'ios') {
-                      setShowDatePicker(false);
-                    }
-                    return;
-                  }
-
-                  const nextDate = clampToToday(selectedDate);
-
-                  if (Platform.OS === 'ios') {
-                    setDraftDate(nextDate);
-                    return;
-                  }
-
-                  setDraftDate(nextDate);
-                  saveDateForStatus(nextDate);
-                  setShowDatePicker(false);
-                }}
-              />
-            </View>
-          </BottomSheetView>
-        </View>
-      </BottomSheetModal>
+        value={parseStorageDate(selectedStatusDate) ?? undefined}
+        minDate={startOfToday()}
+        onSelect={(date) => {
+          void saveDateForStatus(date);
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
 
       <BottomSheetModal
         visible={showSemesterYearPicker}
@@ -745,6 +686,32 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
+  dateRequired: {
+    color: '#F04438',
+  },
+
+  statusDateField: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: '#E1E4E9',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+  },
+
+  statusDateText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#191F28',
+  },
+
+  statusDatePlaceholder: {
+    color: '#B3BDC9',
+  },
+
   dateIconBox: {
     width: 34,
     height: 34,
@@ -831,7 +798,6 @@ const styles = StyleSheet.create({
   datePickerOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(17, 24, 39, 0.24)',
   },
 
   datePickerBackdrop: {
@@ -839,21 +805,12 @@ const styles = StyleSheet.create({
   },
 
   datePickerSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 24,
-  },
-
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 42,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D9DEE8',
-    marginBottom: 16,
+    paddingBottom: 28,
   },
 
   datePickerHeader: {
@@ -864,34 +821,24 @@ const styles = StyleSheet.create({
   },
 
   datePickerCancel: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#8A8A8A',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#777777',
   },
 
   datePickerTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '800',
     color: '#111111',
   },
 
-  datePickerDone: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: BLUE,
-  },
-
-  datePickerFrame: {
-    minHeight: 322,
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-
-  datePicker: {
-    width: '100%',
-    minHeight: 320,
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D9DEE8',
+    marginBottom: 16,
   },
 
   sheetHeaderSpacer: {

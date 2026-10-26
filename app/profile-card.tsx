@@ -120,7 +120,7 @@ const guideItems: MenuItem[] = [
   {
     title: "공지사항",
     icon: NoticesIcon,
-    route: "/home/notices",
+    route: "/notices",
   },
   {
     title: "서비스 이용약관",

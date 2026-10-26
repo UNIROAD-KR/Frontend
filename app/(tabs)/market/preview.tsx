@@ -1,8 +1,8 @@
 import { commonStyles } from "@/constants/theme";
-import { BottomSheetModal, useBottomSheetMotion, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
+import { BottomSheetModal, useBottomSheetMotion, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import CalendarModal from '@/components/ui/calendar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -388,9 +388,6 @@ export default function MarketPreviewPage() {
   );
   const [region, setRegion] = useState(params.region || '');
   const [returnDate, setReturnDate] = useState(params.returnDate || '');
-  const [selectedDate, setSelectedDate] = useState(() =>
-    parseDateValue(params.returnDate),
-  );
   const [itemsByCategory, setItemsByCategory] = useState(
     makeInitialEditableItems,
   );
@@ -553,11 +550,6 @@ export default function MarketPreviewPage() {
     if (countryName !== CUSTOM_COUNTRY_OPTION) {
       setCustomCountry('');
     }
-  };
-
-  const handleConfirmDate = () => {
-    setReturnDate(formatDateValue(selectedDate));
-    setShowDatePicker(false);
   };
 
   const changeItemQuantity = (
@@ -1705,46 +1697,15 @@ export default function MarketPreviewPage() {
         </KeyboardAvoidingView>
       </BottomSheetModal>
 
-      <BottomSheetModal
+      <CalendarModal
         visible={showDatePicker}
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
-          <Pressable
-            style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
-            onPress={() => setShowDatePicker(false)}
-          />
-
-          <BottomSheetView style={styles.pickerSheet}>
-            <View style={styles.pickerHeader}>
-              <Pressable onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.pickerCancel}>취소</Text>
-              </Pressable>
-
-              <Text style={styles.pickerTitle}>귀국일 선택</Text>
-
-              <Pressable onPress={handleConfirmDate}>
-                <Text style={styles.pickerDone}>완료</Text>
-              </Pressable>
-            </View>
-
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display="spinner"
-              locale="ko-KR"
-              textColor="#111111"
-              themeVariant="light"
-              style={styles.iosPicker}
-              onChange={(event, date) => {
-                if (date) {
-                  setSelectedDate(date);
-                }
-              }}
-            />
-          </BottomSheetView>
-        </View>
-      </BottomSheetModal>
+        value={returnDate ? parseDateValue(returnDate) : undefined}
+        onSelect={(date) => {
+          setReturnDate(formatDateValue(date));
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
 
       <OnboardingSelectModal
         visible={countryModalVisible}

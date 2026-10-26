@@ -1,7 +1,7 @@
 import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import CalendarModal from '@/components/ui/calendar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -159,7 +159,6 @@ export default function DepartureChecklistScreen() {
   const [prepDueDates, setPrepDueDates] = useState<Record<string, string>>({});
   const [prepDatesHydrated, setPrepDatesHydrated] = useState(false);
   const [datePickerItemId, setDatePickerItemId] = useState<string | null>(null);
-  const [datePickerValue, setDatePickerValue] = useState(new Date());
   const [packingCategories, setPackingCategories] = useState(DEFAULT_PACKING_CATEGORIES);
   const [packingDone, setPackingDone] = useState<Record<string, boolean>>({});
   const [openPackingCategories, setOpenPackingCategories] = useState(defaultOpenCategories);
@@ -305,20 +304,11 @@ export default function DepartureChecklistScreen() {
   };
 
   const openDatePicker = (itemId: string) => {
-    setDatePickerValue(parseDueDate(prepDueDates[itemId]));
     setDatePickerItemId(itemId);
   };
 
   const closeDatePicker = () => {
     setDatePickerItemId(null);
-  };
-
-  const confirmDatePicker = () => {
-    if (datePickerItemId) {
-      updatePrepDueDate(datePickerItemId, datePickerValue);
-    }
-
-    closeDatePicker();
   };
 
   const togglePackingCategory = (id: string) => {
@@ -645,64 +635,19 @@ export default function DepartureChecklistScreen() {
         </KeyboardAvoidingView>
       </BottomSheetModal>
 
-      <BottomSheetModal
+      <CalendarModal
         visible={datePickerItemId !== null}
-        
-        onRequestClose={closeDatePicker}
-      >
-        <View style={[styles.datePickerOverlay, bottomSheetStyles.transparent]}>
-          <TouchableOpacity
-            style={[styles.datePickerBackdrop, bottomSheetStyles.transparent]}
-            activeOpacity={1}
-            onPress={closeDatePicker}
-          />
-          <BottomSheetView style={styles.datePickerSheet}>
-            <View style={styles.datePickerHeader}>
-              <Text style={styles.datePickerTitle}>날짜 설정</Text>
-              <TouchableOpacity onPress={closeDatePicker} activeOpacity={0.78}>
-                <Ionicons name="close" size={18} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.datePickerFrame}>
-              <DateTimePicker
-                value={datePickerValue}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                style={styles.datePicker}
-                textColor={NAVY}
-                accentColor={NAVY}
-                themeVariant="light"
-                onChange={(event, selectedDate) => {
-                  if (event.type === 'dismissed') {
-                    closeDatePicker();
-                    return;
-                  }
-
-                  if (selectedDate) {
-                    setDatePickerValue(selectedDate);
-                  }
-                }}
-              />
-            </View>
-            <View style={styles.datePickerActions}>
-              <TouchableOpacity
-                style={styles.datePickerCancelButton}
-                onPress={closeDatePicker}
-                activeOpacity={0.82}
-              >
-                <Text style={styles.datePickerCancelText}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.datePickerConfirmButton}
-                onPress={confirmDatePicker}
-                activeOpacity={0.86}
-              >
-                <Text style={styles.datePickerConfirmText}>확인</Text>
-              </TouchableOpacity>
-            </View>
-          </BottomSheetView>
-        </View>
-      </BottomSheetModal>
+        value={
+          datePickerItemId && prepDueDates[datePickerItemId]
+            ? parseDueDate(prepDueDates[datePickerItemId])
+            : undefined
+        }
+        onSelect={(date) => {
+          if (datePickerItemId) updatePrepDueDate(datePickerItemId, date);
+          closeDatePicker();
+        }}
+        onClose={closeDatePicker}
+      />
     </View>
   );
 }
