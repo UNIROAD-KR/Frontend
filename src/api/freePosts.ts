@@ -37,6 +37,9 @@ export interface FreePostCommentResponse {
   content: string;
   createdAt: string;
   mine?: boolean;
+  parentId?: number | null;
+  deleted?: boolean;
+  replies?: FreePostCommentResponse[];
 }
 
 export interface FreePostDetailResponse {
@@ -148,10 +151,14 @@ export const toggleFreePostScrap = (postId: number) => {
   );
 };
 
-export const createFreePostComment = (postId: number, content: string) => {
+export const createFreePostComment = (
+  postId: number,
+  content: string,
+  parentId?: number,
+) => {
   return api.post<BaseResponse<FreePostCommentResponse>>(
     `/api/community/free-posts/${postId}/comments`,
-    { content },
+    parentId ? { content, parentId } : { content },
   );
 };
 

@@ -1,5 +1,4 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { BottomSheetModal, BottomSheetView } from "@/components/ui/bottom-sheet";
+import CalendarModal from "@/components/ui/calendar";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
@@ -86,11 +85,6 @@ const toStorageDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const getStoredDateParts = (value: string) => {
-  const [year = "", month = "", day = ""] = value.split("-");
-  return { year, month, day };
-};
-
 const resolveCountrySelection = (savedCountry: string | null) => {
   if (!savedCountry) return { selectedCountry: "", customCountry: "" };
   if (countryOptions.includes(savedCountry)) {
@@ -174,17 +168,8 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [returnDate, setReturnDate] = useState("");
   const [dateTarget, setDateTarget] = useState<"status" | "return" | null>(null);
-  const [pickerDate, setPickerDate] = useState(new Date());
   const [onboardingSaved, setOnboardingSaved] = useState(false);
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
-  const [openDatePart, setOpenDatePart] = useState<
-    "year" | "month" | "day" | null
-  >(null);
-  const [dateDraftParts, setDateDraftParts] = useState({
-    year: "",
-    month: "",
-    day: "",
-  });
   const [submitting, setSubmitting] = useState(false);
 
   const nicknameError = useMemo(() => getNicknameError(nickname), [nickname]);
@@ -207,33 +192,6 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
       ),
     [],
   );
-  const dateYearOptions = useMemo(
-    () =>
-      Array.from({ length: 21 }, (_, index) => {
-        const year = String(new Date().getFullYear() - 10 + index);
-        return { value: year, label: `${year}년` };
-      }),
-    [],
-  );
-  const dateMonthOptions = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, index) => {
-        const month = String(index + 1).padStart(2, "0");
-        return { value: month, label: `${month}월` };
-      }),
-    [],
-  );
-  const dateDayOptions = useMemo(() => {
-    const year = Number(dateDraftParts.year) || new Date().getFullYear();
-    const month = Number(dateDraftParts.month) || 1;
-    const daysInMonth = new Date(year, month, 0).getDate();
-
-    return Array.from({ length: daysInMonth }, (_, index) => {
-      const day = String(index + 1).padStart(2, "0");
-      return { value: day, label: `${day}일` };
-    });
-  }, [dateDraftParts.month, dateDraftParts.year]);
-
   useEffect(() => {
     const loadDraft = async () => {
       const entries = await AsyncStorage.multiGet([
@@ -288,21 +246,6 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
         accepted: saved.departureDate ?? "",
         dispatched: saved.dispatchStartDate ?? "",
       });
-      const savedStatus =
-        saved.onboardingSituation === "preparing" ||
-        saved.onboardingSituation === "accepted" ||
-        saved.onboardingSituation === "dispatched"
-          ? saved.onboardingSituation
-          : "";
-      if (savedStatus) {
-        const savedDate =
-          savedStatus === "preparing"
-            ? (saved.applicationDeadline ?? "")
-            : savedStatus === "accepted"
-              ? (saved.departureDate ?? "")
-              : (saved.dispatchStartDate ?? "");
-        setDateDraftParts(getStoredDateParts(savedDate));
-      }
     };
 
     void loadDraft();
@@ -334,43 +277,7 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
   const selectStatus = (nextStatus: ExchangeStatus) => {
     setStatus(nextStatus);
     setDateTarget(null);
-    setDateDraftParts(getStoredDateParts(statusDates[nextStatus]));
-    setOpenDatePart(null);
     void AsyncStorage.setItem("onboardingSituation", nextStatus);
-  };
-
-  const selectDatePart = (part: "year" | "month" | "day", value: string) => {
-    if (!status) return;
-
-    const nextParts = { ...dateDraftParts, [part]: value };
-    setDateDraftParts(nextParts);
-    setOpenDatePart(null);
-
-    if (!nextParts.year || !nextParts.month || !nextParts.day) {
-      commitDate("");
-      return;
-    }
-
-    const selectedDate = new Date(
-      Number(nextParts.year),
-      Number(nextParts.month) - 1,
-      Number(nextParts.day),
-    );
-    const isRealDate =
-      selectedDate.getFullYear() === Number(nextParts.year) &&
-      selectedDate.getMonth() === Number(nextParts.month) - 1 &&
-      selectedDate.getDate() === Number(nextParts.day);
-
-    if (!isRealDate) {
-      commitDate("");
-      Alert.alert(
-        "날짜를 확인해주세요",
-        "실제 존재하는 날짜를 선택해주세요.",
-      );
-      return;
-    }
-
-    commitDate(toStorageDate(selectedDate));
   };
 
   const commitDate = (value: string) => {
@@ -385,10 +292,6 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
 
   const openDatePicker = (target: "status" | "return") => {
     Keyboard.dismiss();
-    const value = target === "return" ? returnDate : statusDate;
-    setPickerDate(value ? new Date(value + "T12:00:00") : new Date());
-    setDateDraftParts(getStoredDateParts(value));
-    setOpenDatePart(null);
     setDateTarget(target);
   };
 
@@ -621,7 +524,7 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>{selectedStatus.dateLabel}<Text style={styles.required}> *</Text></Text>
             <Pressable style={styles.selectField} onPress={() => openDatePicker("status")} accessibilityRole="button" accessibilityLabel={selectedStatus.dateLabel}>
-              <Text style={[styles.selectValue, !statusDate && styles.placeholder]}>{statusDate || "날짜를 입력해주세요"}</Text>
+              <Text style={[styles.selectValue, !statusDate && styles.placeholder]}>{statusDate ? statusDate.replaceAll("-", ". ") : "날짜를 입력해주세요"}</Text>
               <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
             </Pressable>
           </View>
@@ -630,7 +533,7 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>귀국일</Text>
             <Pressable style={styles.selectField} onPress={() => openDatePicker("return")} accessibilityRole="button" accessibilityLabel="귀국일">
-              <Text style={[styles.selectValue, !returnDate && styles.placeholder]}>{returnDate || "날짜를 입력해주세요"}</Text>
+              <Text style={[styles.selectValue, !returnDate && styles.placeholder]}>{returnDate ? returnDate.replaceAll("-", ". ") : "날짜를 입력해주세요"}</Text>
               <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
             </Pressable>
             {returnDateError ? <Text style={styles.errorText}>{returnDateError}</Text> : null}
@@ -750,36 +653,26 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
         </Pressable>
       </ScrollView>
 
-      <BottomSheetModal visible={dateTarget !== null} onRequestClose={() => setDateTarget(null)}>
-        <View style={{ flex: 1, justifyContent: "flex-end" }}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDateTarget(null)} accessibilityLabel="날짜 선택 닫기" />
-          <BottomSheetView style={{ backgroundColor: Colors.common.white, padding: 20 }}>
-            <Text style={styles.label}>{dateTarget === "return" ? "귀국일" : selectedStatus?.dateLabel}</Text>
-            {Platform.OS === "web" ? (
-              <View style={styles.dateRow}>
-                {(["year", "month", "day"] as const).map((part) => (
-                  <InlineDropdown key={part} value={dateDraftParts[part]} placeholder={{ year: "연도", month: "월", day: "일" }[part]} compact
-                    open={openDatePart === part} options={part === "year" ? dateYearOptions : part === "month" ? dateMonthOptions : dateDayOptions}
-                    onPress={() => setOpenDatePart(openDatePart === part ? null : part)}
-                    onSelect={(value) => selectDatePart(part, value)} />
-                ))}
-              </View>
-            ) : dateTarget !== null && (
-              <DateTimePicker value={pickerDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"} locale="ko-KR"
-                onChange={(event, value) => {
-                  if (Platform.OS === "android") setDateTarget(null);
-                  if (event.type === "dismissed" || !value) return;
-                  setPickerDate(value);
-                  if (Platform.OS === "android") commitDate(toStorageDate(value));
-                }} />
-            )}
-            <Pressable style={[styles.startButton, styles.startButtonActive]} onPress={() => {
-              if (Platform.OS !== "web") commitDate(toStorageDate(pickerDate));
-              setDateTarget(null);
-            }}><Text style={styles.startButtonText}>확인</Text></Pressable>
-          </BottomSheetView>
-        </View>
-      </BottomSheetModal>
+      <CalendarModal
+        visible={dateTarget !== null}
+        value={
+          (dateTarget === "return" ? returnDate : statusDate)
+            ? new Date(
+                `${dateTarget === "return" ? returnDate : statusDate}T12:00:00`,
+              )
+            : undefined
+        }
+        minDate={
+          dateTarget === "return" && statusDate
+            ? new Date(`${statusDate}T12:00:00`)
+            : undefined
+        }
+        onSelect={(date) => {
+          commitDate(toStorageDate(date));
+          setDateTarget(null);
+        }}
+        onClose={() => setDateTarget(null)}
+      />
 
       <OnboardingSelectModal
         visible={universityPickerVisible}
@@ -961,7 +854,6 @@ const styles = StyleSheet.create({
   },
   statusText: { color: Colors.gray[7], ...fonts.body1_m_16 },
   statusTextSelected: { color: Colors.primary.default },
-  dateRow: { flexDirection: "row", gap: 5 },
   startButton: {
     height: 52,
     borderRadius: 8,

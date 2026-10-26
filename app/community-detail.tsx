@@ -73,6 +73,8 @@ type FreeComment = {
   content: string;
   time: string;
   mine?: boolean;
+  deleted?: boolean;
+  replies: FreeComment[];
 };
 
 const isCompanionApiPost = (post: DetailPost): post is CompanionPostResponse =>
@@ -139,6 +141,8 @@ const mapFreeComment = (comment: FreePostCommentResponse): FreeComment => ({
   content: comment.content,
   time: formatCompanionCreatedAt(comment.createdAt),
   mine: comment.mine,
+  deleted: comment.deleted,
+  replies: (comment.replies ?? []).map(mapFreeComment),
 });
 
 const syncLikedFreePostStorage = async (
@@ -246,6 +250,7 @@ export default function CommunityDetailScreen() {
   const commentInputRef = useRef<TextInput>(null);
   const [commentSort, setCommentSort] = useState<"oldest" | "newest">("oldest");
   const [commentText, setCommentText] = useState("");
+  const [replyTarget, setReplyTarget] = useState<FreeComment | null>(null);
   const [scrapped, setScrapped] = useState(false);
   const [scrapCount, setScrapCount] = useState(0);
 
@@ -592,15 +597,27 @@ export default function CommunityDetailScreen() {
     }
 
     try {
-      const response = await createFreePostComment(postId, trimmedComment);
+      const response = await createFreePostComment(
+        postId,
+        trimmedComment,
+        replyTarget?.id,
+      );
+      const created = response.data.data;
       const boardPost = post as FreePostDetailResponse;
 
       setPost({
         ...boardPost,
         commentCount: boardPost.commentCount + 1,
-        comments: [...(boardPost.comments ?? []), response.data.data],
+        comments: replyTarget
+          ? (boardPost.comments ?? []).map((comment) =>
+              comment.id === replyTarget.id
+                ? { ...comment, replies: [...(comment.replies ?? []), created] }
+                : comment,
+            )
+          : [...(boardPost.comments ?? []), created],
       });
       setCommentText("");
+      setReplyTarget(null);
     } catch (error: any) {
       console.log(
         "자유게시판 댓글 작성 실패:",
@@ -648,8 +665,22 @@ export default function CommunityDetailScreen() {
       setPost({
         ...boardPost,
         commentCount: Math.max(0, boardPost.commentCount - 1),
-        comments: (boardPost.comments ?? []).filter(
-          (comment) => comment.id !== commentId,
+        comments: (boardPost.comments ?? []).flatMap<FreePostCommentResponse>(
+          (comment) => {
+            if (comment.id === commentId) {
+              return comment.replies?.length
+                ? [{ ...comment, deleted: true }]
+                : [];
+            }
+            return [
+              {
+                ...comment,
+                replies: (comment.replies ?? []).filter(
+                  (reply) => reply.id !== commentId,
+                ),
+              },
+            ];
+          },
         ),
       });
     } catch (error: any) {
@@ -660,6 +691,33 @@ export default function CommunityDetailScreen() {
       showAlert("삭제 실패", "댓글을 삭제하지 못했어요.");
     }
   };
+
+  const renderCommentMeta = (comment: FreeComment) => (
+    <View style={styles.commentMetaRow}>
+      <View style={styles.commentAuthorBlock}>
+        <Text style={styles.commentAuthor}>{comment.author}</Text>
+        <Text style={styles.commentTime}>{comment.time}</Text>
+      </View>
+      {comment.mine && (
+        <Pressable
+          hitSlop={8}
+          accessibilityLabel="댓글 메뉴"
+          onPress={() =>
+            showAlert("댓글 삭제", "댓글을 삭제하시겠어요?", [
+              { text: "취소", style: "cancel" },
+              {
+                text: "삭제",
+                style: "destructive",
+                onPress: () => handleDeleteComment(comment.id),
+              },
+            ])
+          }
+        >
+          <Ionicons name="ellipsis-vertical" size={20} color="#536071" />
+        </Pressable>
+      )}
+    </View>
+  );
 
   const handleDeletePost = () => {
     if (!postId) {
@@ -1050,41 +1108,44 @@ export default function CommunityDetailScreen() {
                 ))}
               </View>
               {freeCommentItems.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <View style={styles.commentAvatar} />
-                  <View style={styles.commentMain}>
-                    <View style={styles.commentMetaRow}>
-                      <View style={styles.commentAuthorBlock}>
-                        <Text style={styles.commentAuthor}>
-                          {comment.author}
+                <View key={comment.id}>
+                  <View style={styles.commentItem}>
+                    <View style={styles.commentAvatar} />
+                    <View style={styles.commentMain}>
+                      {comment.deleted ? (
+                        <Text style={styles.commentDeleted}>
+                          삭제된 댓글입니다
                         </Text>
-                        <Text style={styles.commentTime}>{comment.time}</Text>
-                      </View>
-                      {comment.mine && (
-                        <Pressable
-                          hitSlop={8}
-                          accessibilityLabel="댓글 메뉴"
-                          onPress={() =>
-                            showAlert("댓글 삭제", "댓글을 삭제하시겠어요?", [
-                              { text: "취소", style: "cancel" },
-                              {
-                                text: "삭제",
-                                style: "destructive",
-                                onPress: () => handleDeleteComment(comment.id),
-                              },
-                            ])
-                          }
-                        >
-                          <Ionicons
-                            name="ellipsis-vertical"
-                            size={20}
-                            color="#536071"
-                          />
-                        </Pressable>
+                      ) : (
+                        <>
+                          {renderCommentMeta(comment)}
+                          <Text style={styles.commentContent}>
+                            {comment.content}
+                          </Text>
+                          <Pressable
+                            style={styles.replyButton}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            onPress={() => {
+                              setReplyTarget(comment);
+                              commentInputRef.current?.focus();
+                            }}
+                          >
+                            <Text style={styles.replyButtonText}>답글 달기</Text>
+                          </Pressable>
+                        </>
                       )}
                     </View>
-                    <Text style={styles.commentContent}>{comment.content}</Text>
                   </View>
+                  {comment.replies.map((reply) => (
+                    <View key={reply.id} style={styles.replyItem}>
+                      <View style={styles.commentAvatar} />
+                      <View style={styles.commentMain}>
+                        {renderCommentMeta(reply)}
+                        <Text style={styles.replyContent}>{reply.content}</Text>
+                      </View>
+                    </View>
+                  ))}
                 </View>
               ))}
             </View>
@@ -1099,6 +1160,20 @@ export default function CommunityDetailScreen() {
             { paddingBottom: Math.max(insets.bottom, 12) },
           ]}
         >
+          {replyTarget && (
+            <View style={styles.replyBanner}>
+              <Text style={styles.replyBannerText} numberOfLines={1}>
+                {replyTarget.author}님에게 답글 남기는 중
+              </Text>
+              <Pressable
+                hitSlop={8}
+                accessibilityLabel="답글 취소"
+                onPress={() => setReplyTarget(null)}
+              >
+                <Ionicons name="close" size={16} color={Colors.gray[6]} />
+              </Pressable>
+            </View>
+          )}
           <View style={styles.commentInputBox}>
             <TextInput
               ref={commentInputRef}
@@ -1567,6 +1642,36 @@ const styles = StyleSheet.create({
     color: "#293140",
     marginTop: 16,
   },
+  commentDeleted: {
+    ...fonts.body2_m_14,
+    color: Colors.gray[6],
+    paddingVertical: 8,
+  },
+  replyButton: { alignSelf: "flex-start", marginTop: 8 },
+  replyButtonText: { ...fonts.caption3_m_13, color: Colors.gray[7] },
+  replyItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingLeft: 62,
+    paddingRight: 16,
+    backgroundColor: Colors.gray[1],
+  },
+  replyContent: {
+    ...fonts.body1_m_16,
+    color: Colors.gray[11],
+    marginTop: 16,
+  },
+  replyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  replyBannerText: { ...fonts.caption3_m_13, color: Colors.gray[7], flex: 1 },
   commentComposer: {
     paddingHorizontal: 16,
     paddingTop: 8,

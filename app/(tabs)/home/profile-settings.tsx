@@ -77,7 +77,7 @@ const guideItems: SettingItem[] = [
     title: "공지사항",
     description: "서비스 업데이트와 운영 안내",
     icon: "megaphone-outline",
-    route: "/home/notices",
+    route: "/notices",
   },
   {
     title: "서비스 이용약관",

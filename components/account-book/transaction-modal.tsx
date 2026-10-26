@@ -10,11 +10,11 @@ import {
 } from "@/components/ui/bottom-sheet";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import CalanderFillIcon from "@/assets/icon/calendar-fill.svg";
+import CalendarModal from "@/components/ui/calendar";
 import { useEffect, useRef, useState } from "react";
 import {
   Keyboard,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -48,11 +48,10 @@ type TransactionModalProps = {
   transactionDate: string;
   dateValue: Date;
   showDatePicker: boolean;
-  isTabletDatePicker: boolean;
   onChangeType: (type: TransactionType) => void;
   onChangeAmount: (value: string) => void;
   onChangeTitle: (value: string) => void;
-  onChangeDate: (event: any, date?: Date) => void;
+  onChangeDate: (date: Date) => void;
   onOpenDatePicker: () => void;
   onCloseDatePicker: () => void;
   onDismissKeyboardAndPicker: () => void;
@@ -71,7 +70,6 @@ export function TransactionModal({
   transactionDate,
   dateValue,
   showDatePicker,
-  isTabletDatePicker,
   onChangeType,
   onChangeAmount,
   onChangeTitle,
@@ -150,13 +148,6 @@ export function TransactionModal({
               pointerEvents="none"
               accessible={false}
             />
-            {showDatePicker && isTabletDatePicker && (
-              <Pressable
-                style={styles.dismissLayer}
-                onPress={onCloseDatePicker}
-              />
-            )}
-
             <ScrollView
               ref={scrollRef}
               style={{ maxHeight: windowHeight * 0.75 }}
@@ -166,250 +157,201 @@ export function TransactionModal({
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
-            <View style={styles.header}>
-              <Text style={fonts.title3_b_24}>
-                {isEditing ? "입출금 수정하기" : "입출금 등록하기"}
-              </Text>
-              <Pressable onPress={handleClose} accessibilityLabel="모달 닫기">
-                <XIcon />
-              </Pressable>
-            </View>
-
-            <View style={styles.tabs}>
-              <Pressable
-                style={[styles.tab, isIncome && styles.activeTab]}
-                disabled={isEditing}
-                onPress={() => onChangeType("INCOME")}
-              >
-                <Text
-                  style={[styles.tabText, isIncome && styles.activeTabText]}
-                >
-                  입금 등록
+              <View style={styles.header}>
+                <Text style={fonts.title3_b_24}>
+                  {isEditing ? "입출금 수정하기" : "입출금 등록하기"}
                 </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tab, !isIncome && styles.activeTab]}
-                disabled={isEditing}
-                onPress={() => onChangeType("EXPENSE")}
-              >
-                <Text
-                  style={[styles.tabText, !isIncome && styles.activeTabText]}
-                >
-                  출금 등록
-                </Text>
-              </Pressable>
-            </View>
-
-            <View
-              style={[styles.tagRow, isIncome && styles.hiddenTagRow]}
-              onLayout={(event) =>
-                setTagRowHeight(event.nativeEvent.layout.height)
-              }
-              pointerEvents={isIncome ? "none" : "auto"}
-              accessibilityElementsHidden={isIncome}
-              importantForAccessibility={
-                isIncome ? "no-hide-descendants" : "auto"
-              }
-              aria-hidden={isIncome}
-            >
-              {expenseTags.map((tag) => {
-                const selected = category
-                  ? tagCategory[tag] === category
-                  : selectedTag === tag;
-                return (
-                  <Pressable
-                    key={tag}
-                    accessibilityRole="radio"
-                    accessibilityLabel={tag}
-                    accessibilityState={{ checked: selected }}
-                    disabled={isIncome}
-                    onPress={() => {
-                      setSelectedTag(tag);
-                      onChangeCategory?.(tagCategory[tag]);
-                    }}
-                    style={[styles.tag, selected && styles.selectedTag]}
-                  >
-                    <Text
-                      style={[
-                        styles.tagText,
-                        selected && styles.selectedTagText,
-                      ]}
-                    >
-                      {tag}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View
-              style={{ gap: 24 }}
-              onLayout={(e) => {
-                fieldsY.current = e.nativeEvent.layout.y;
-              }}
-            >
-              <View>
-                <Text style={styles.label}>
-                  {isIncome ? "입금 일자" : "출금 일자"}
-                </Text>
-                <Pressable
-                  style={styles.decoratedField}
-                  onPress={onOpenDatePicker}
-                  accessibilityRole="button"
-                  accessibilityLabel={`거래 일자 선택, ${transactionDate || "미선택"}`}
-                >
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.dateText,
-                      !transactionDate && styles.placeholder,
-                    ]}
-                  >
-                    {transactionDate || "날짜를 입력해주세요"}
-                  </Text>
-                  <View style={styles.fieldAccessory} pointerEvents="none">
-                    <Ionicons
-                      name="calendar-outline"
-                      size={24}
-                      color="#B1B8C1"
-                    />
-                  </View>
+                <Pressable onPress={handleClose} accessibilityLabel="모달 닫기">
+                  <XIcon />
                 </Pressable>
               </View>
 
-              {showDatePicker && isTabletDatePicker && (
-                <View style={styles.tabletPicker}>
-                  <View style={styles.pickerHeader}>
-                    <Text style={styles.pickerTitle}>거래 일자 선택</Text>
-                    <Pressable onPress={onCloseDatePicker}>
-                      <Ionicons name="close" size={18} color="#8E8E93" />
-                    </Pressable>
-                  </View>
-                  <DateTimePicker
-                    value={dateValue}
-                    mode="date"
-                    display="inline"
-                    locale="ko-KR"
-                    textColor="#111111"
-                    accentColor="#506AFF"
-                    themeVariant="light"
-                    style={styles.iosPicker}
-                    onChange={onChangeDate}
-                  />
-                </View>
-              )}
-              <View
-                onLayout={(e) => {
-                  amountY.current = e.nativeEvent.layout.y;
-                }}
-              >
-                <Text style={styles.label}>
-                  {isIncome ? "입금 금액" : "출금 금액"}
-                </Text>
-                <View style={styles.amountField}>
-                  <TextInput
-                    onFocus={() => scrollFieldToTop(amountY.current)}
-                    style={styles.decoratedField}
-                    placeholder={
-                      isIncome
-                        ? "입금 금액을 입력해주세요"
-                        : "출금 금액을 입력해주세요"
-                    }
-                    placeholderTextColor="#B1B8C1"
-                    keyboardType="decimal-pad"
-                    value={amount}
-                    onChangeText={onChangeAmount}
-                    selectionColor={Colors.primary.default}
-                    accessibilityLabel={isIncome ? "입금 금액" : "출금 금액"}
-                  />
-                  <View style={styles.fieldAccessory} pointerEvents="none">
-                    <Text style={fonts.body1_m_16}>원</Text>
-                  </View>
-                </View>
-                {amountError && (
-                  <View style={styles.amountError}>
-                    <ErrorIcon />
-                    <Text style={styles.amountErrorText}>{amountError}</Text>
-                  </View>
-                )}
+              <View style={styles.tabs}>
+                <Pressable
+                  style={[styles.tab, isIncome && styles.activeTab]}
+                  disabled={isEditing}
+                  onPress={() => onChangeType("INCOME")}
+                >
+                  <Text
+                    style={[styles.tabText, isIncome && styles.activeTabText]}
+                  >
+                    입금 등록
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.tab, !isIncome && styles.activeTab]}
+                  disabled={isEditing}
+                  onPress={() => onChangeType("EXPENSE")}
+                >
+                  <Text
+                    style={[styles.tabText, !isIncome && styles.activeTabText]}
+                  >
+                    출금 등록
+                  </Text>
+                </Pressable>
               </View>
+
               <View
+                style={[styles.tagRow, isIncome && styles.hiddenTagRow]}
+                onLayout={(event) =>
+                  setTagRowHeight(event.nativeEvent.layout.height)
+                }
+                pointerEvents={isIncome ? "none" : "auto"}
+                accessibilityElementsHidden={isIncome}
+                importantForAccessibility={
+                  isIncome ? "no-hide-descendants" : "auto"
+                }
+                aria-hidden={isIncome}
+              >
+                {expenseTags.map((tag) => {
+                  const selected = category
+                    ? tagCategory[tag] === category
+                    : selectedTag === tag;
+                  return (
+                    <Pressable
+                      key={tag}
+                      accessibilityRole="radio"
+                      accessibilityLabel={tag}
+                      accessibilityState={{ checked: selected }}
+                      disabled={isIncome}
+                      onPress={() => {
+                        setSelectedTag(tag);
+                        onChangeCategory?.(tagCategory[tag]);
+                      }}
+                      style={[styles.tag, selected && styles.selectedTag]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagText,
+                          selected && styles.selectedTagText,
+                        ]}
+                      >
+                        {tag}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View
+                style={{ gap: 24 }}
                 onLayout={(e) => {
-                  titleY.current = e.nativeEvent.layout.y;
+                  fieldsY.current = e.nativeEvent.layout.y;
                 }}
               >
-                <Text style={styles.label}>내역 이름</Text>
-                <InputField
-                  onFocus={() => scrollFieldToTop(titleY.current)}
-                  style={styles.input}
-                  placeholder="내역 이름을 입력해주세요"
-                  placeholderTextColor="#B1B8C1"
-                  value={title}
-                  onChangeText={onChangeTitle}
-                  error={titleError}
+                <View>
+                  <Text style={styles.label}>
+                    {isIncome ? "입금 일자" : "출금 일자"}
+                  </Text>
+                  <Pressable
+                    style={styles.decoratedField}
+                    onPress={onOpenDatePicker}
+                    accessibilityRole="button"
+                    accessibilityLabel={`거래 일자 선택, ${transactionDate || "미선택"}`}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.dateText,
+                        !transactionDate && styles.placeholder,
+                      ]}
+                    >
+                      {transactionDate
+                        ? transactionDate.replaceAll("-", ". ")
+                        : "날짜를 입력해주세요"}
+                    </Text>
+                    <View style={styles.fieldAccessory} pointerEvents="none">
+                      <CalanderFillIcon
+                        width={20}
+                        height={20}
+                        color={Colors.gray[5]}
+                      />
+                    </View>
+                  </Pressable>
+                </View>
+
+                <View
+                  onLayout={(e) => {
+                    amountY.current = e.nativeEvent.layout.y;
+                  }}
+                >
+                  <Text style={styles.label}>
+                    {isIncome ? "입금 금액" : "출금 금액"}
+                  </Text>
+                  <View style={styles.amountField}>
+                    <TextInput
+                      onFocus={() => scrollFieldToTop(amountY.current)}
+                      style={styles.decoratedField}
+                      placeholder={
+                        isIncome
+                          ? "입금 금액을 입력해주세요"
+                          : "출금 금액을 입력해주세요"
+                      }
+                      placeholderTextColor="#B1B8C1"
+                      keyboardType="decimal-pad"
+                      value={amount}
+                      onChangeText={onChangeAmount}
+                      selectionColor={Colors.primary.default}
+                      accessibilityLabel={isIncome ? "입금 금액" : "출금 금액"}
+                    />
+                    <View style={styles.fieldAccessory} pointerEvents="none">
+                      <Text style={fonts.body1_m_16}>원</Text>
+                    </View>
+                  </View>
+                  {amountError && (
+                    <View style={styles.amountError}>
+                      <ErrorIcon />
+                      <Text style={styles.amountErrorText}>{amountError}</Text>
+                    </View>
+                  )}
+                </View>
+                <View
+                  onLayout={(e) => {
+                    titleY.current = e.nativeEvent.layout.y;
+                  }}
+                >
+                  <Text style={styles.label}>내역 이름</Text>
+                  <InputField
+                    onFocus={() => scrollFieldToTop(titleY.current)}
+                    style={styles.input}
+                    placeholder="내역 이름을 입력해주세요"
+                    placeholderTextColor="#B1B8C1"
+                    value={title}
+                    onChangeText={onChangeTitle}
+                    error={titleError}
+                  />
+                </View>
+              </View>
+
+              {isIncome && (
+                <View
+                  pointerEvents="none"
+                  style={{ height: tagRowHeight + styles.tagRow.marginBottom }}
+                />
+              )}
+              <View style={{ flexDirection: "row", marginTop: 30 }}>
+                <Button
+                  title={isEditing ? "수정하기" : "등록하기"}
+                  onPress={() => {
+                    if (isValid) onSubmit();
+                  }}
+                  disabled={!isValid}
                 />
               </View>
-            </View>
-
-            {isIncome && (
-              <View
-                pointerEvents="none"
-                style={{ height: tagRowHeight + styles.tagRow.marginBottom }}
-              />
-            )}
-            <View style={{ flexDirection: "row", marginTop: 30 }}>
-              <Button
-                title={isEditing ? "수정하기" : "등록하기"}
-                onPress={() => {
-                  if (isValid) onSubmit();
-                }}
-                disabled={!isValid}
-              />
-            </View>
             </ScrollView>
           </BottomSheetView>
-
-          {showDatePicker && Platform.OS === "ios" && !isTabletDatePicker && (
-            <View style={[styles.pickerOverlay, bottomSheetStyles.transparent]}>
-              <Pressable
-                style={[styles.pickerBackdrop, bottomSheetStyles.transparent]}
-                onPress={onCloseDatePicker}
-              />
-              <View style={styles.pickerSheet}>
-                <View style={styles.pickerHeader}>
-                  <Pressable onPress={onCloseDatePicker}>
-                    <Text style={styles.cancelText}>취소</Text>
-                  </Pressable>
-                  <Text style={styles.pickerTitle}>거래 일자 선택</Text>
-                  <Pressable onPress={onCloseDatePicker}>
-                    <Text style={styles.doneText}>완료</Text>
-                  </Pressable>
-                </View>
-                <DateTimePicker
-                  value={dateValue}
-                  mode="date"
-                  display="inline"
-                  locale="ko-KR"
-                  textColor="#111111"
-                  accentColor="#506AFF"
-                  themeVariant="light"
-                  style={styles.iosPicker}
-                  onChange={onChangeDate}
-                />
-              </View>
-            </View>
-          )}
         </View>
       </TouchableWithoutFeedback>
 
-      {showDatePicker && Platform.OS === "android" && (
-        <DateTimePicker
-          value={dateValue}
-          mode="date"
-          display="calendar"
-          onChange={onChangeDate}
-        />
-      )}
+      <CalendarModal
+        visible={showDatePicker}
+        value={dateValue}
+        onSelect={(date) => {
+          onChangeDate(date);
+          onCloseDatePicker();
+        }}
+        onClose={onCloseDatePicker}
+      />
     </BottomSheetModal>
   );
 }
