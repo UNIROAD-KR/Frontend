@@ -38,7 +38,7 @@ import {
 } from "../../../src/api/freePosts";
 import { Colors, fonts } from "@/constants/theme";
 import { BLUE } from "../../../src/data/community";
-import FreePostList from "@/components/community/FreePostList";
+import FreePostList from "@/components/profile/FreePostList";
 import {
   CompanionFilterSheet,
   emptyCompanionFilters,
@@ -372,11 +372,7 @@ export default function CommunityScreen() {
         ) : null}
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, isWide && styles.contentWide]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={[styles.fixedHeader, isWide && styles.contentWide]}>
         <View style={styles.tradeTypeBox}>
           {communityTabs.map((tab) => {
             const active = activeTab === tab;
@@ -405,7 +401,7 @@ export default function CommunityScreen() {
         </View>
 
         {activeTab === "자유 게시판" ? (
-          <View>
+          <>
             <View style={styles.boardSearchRow}>
               <View style={styles.searchBox}>
                 <TextInput
@@ -431,30 +427,9 @@ export default function CommunityScreen() {
               selectedStatus={selectedBoardStatus}
               onSelect={setSelectedBoardStatus}
             />
-
-            <FreePostList
-              data={filteredBoardPosts}
-              boardKeyword={boardKeyword}
-              boardLoadError={boardLoadError}
-              onRetry={() => loadFreePosts(undefined, false, boardKeyword)}
-            />
-
-            {boardHasNext && (
-              <Pressable
-                style={styles.loadMoreButton}
-                onPress={handleLoadMoreBoard}
-                disabled={loadingMoreBoard}
-              >
-                {loadingMoreBoard ? (
-                  <ActivityIndicator color={BLUE} />
-                ) : (
-                  <Text style={styles.loadMoreText}>더보기</Text>
-                )}
-              </Pressable>
-            )}
-          </View>
+          </>
         ) : (
-          <View>
+          <>
             <View style={styles.boardSearchRow}>
               <View style={styles.searchBox}>
                 <TextInput
@@ -501,7 +476,40 @@ export default function CommunityScreen() {
                 <Ionicons name="swap-vertical" size={22} color="#17191D" />
               </Pressable>
             </View>
+          </>
+        )}
+      </View>
 
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, isWide && styles.contentWide]}
+        showsVerticalScrollIndicator={false}
+      >
+        {activeTab === "자유 게시판" ? (
+          <View>
+            <FreePostList
+              data={filteredBoardPosts}
+              boardKeyword={boardKeyword}
+              boardLoadError={boardLoadError}
+              onRetry={() => loadFreePosts(undefined, false, boardKeyword)}
+            />
+
+            {boardHasNext && (
+              <Pressable
+                style={styles.loadMoreButton}
+                onPress={handleLoadMoreBoard}
+                disabled={loadingMoreBoard}
+              >
+                {loadingMoreBoard ? (
+                  <ActivityIndicator color={BLUE} />
+                ) : (
+                  <Text style={styles.loadMoreText}>더보기</Text>
+                )}
+              </Pressable>
+            )}
+          </View>
+        ) : (
+          <View>
             <View style={[styles.companionList, isWide && styles.gridList]}>
               {filteredCompanions.length === 0 && (
                 <View style={styles.companionEmpty}>
@@ -529,7 +537,12 @@ export default function CommunityScreen() {
                   key={post.id}
                   post={post}
                   style={isWide && styles.gridCard}
-                  onPress={() => router.push({ pathname: "/community-detail", params: { type: "companion", id: String(post.id) } } as never)}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/community-detail",
+                      params: { type: "companion", id: String(post.id) },
+                    } as never)
+                  }
                 />
               ))}
             </View>
@@ -693,6 +706,9 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     resizeMode: "contain",
+  },
+  fixedHeader: {
+    paddingHorizontal: 23,
   },
   scroll: {
     flex: 1,

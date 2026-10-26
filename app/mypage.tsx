@@ -46,6 +46,7 @@ import {
 } from "../src/api/accountBook";
 import { getMemberMe } from "../src/api/auth";
 import { validateTransactionInput } from "@/components/account-book/transaction-validation";
+import EmptyState from "@/components/ui/empty-state";
 
 const { width } = Dimensions.get("window");
 
@@ -678,9 +679,10 @@ export default function MyPageScreen({
                 style={{ marginVertical: 20 }}
               />
             ) : dailyDetails.length === 0 ? (
-              <Text style={styles.emptyDetailsText}>
-                거래 내역이 없는 날입니다.
-              </Text>
+              <EmptyState
+                title="거래 내역이 없는 날입니다"
+                description="새로운 거래 내역을 등록해보세요."
+              />
             ) : (
               dailyDetails.map((item) => {
                 const isIncome = item.type === "INCOME";

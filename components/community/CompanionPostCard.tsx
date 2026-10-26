@@ -3,7 +3,13 @@ import { flags as countryFlags } from "@/components/market/MarketCountrySheet";
 import { Colors, fonts } from "@/constants/theme";
 import type { CompanionPostResponse } from "@/src/api/companion";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
 const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
   const formatDate = (value?: string) =>
@@ -21,78 +27,71 @@ const formatCompanionPeriod = (startDate?: string, endDate?: string) => {
 const getCompanionStatusText = (status: CompanionPostResponse["status"]) =>
   status === "RECRUITING" ? "모집 중" : "모집완료";
 
-export function CompanionPostCard({ post, onPress, style }: {
+export function CompanionPostCard({
+  post,
+  onPress,
+  style,
+}: {
   post: CompanionPostResponse;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-                <Pressable
-                  style={[styles.companionCard, style]}
-                  onPress={onPress}
-                >
-                  <View style={styles.companionCountry}>
-                    <View style={styles.companionFlagBox}>
-                      {countryFlags[post.country] ? (
-                        <Text style={styles.companionFlag}>
-                          {countryFlags[post.country]}
-                        </Text>
-                      ) : (
-                        <Ionicons
-                          name="globe-outline"
-                          size={30}
-                          color="#8B95A1"
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.companionCountryName} numberOfLines={2}>
-                      {post.country}
-                    </Text>
-                  </View>
+    <Pressable style={[styles.companionCard, style]} onPress={onPress}>
+      <View style={styles.companionCountry}>
+        <View style={styles.companionFlagBox}>
+          {countryFlags[post.country] ? (
+            <Text style={styles.companionFlag}>
+              {countryFlags[post.country]}
+            </Text>
+          ) : (
+            <Ionicons name="globe-outline" size={30} color="#8B95A1" />
+          )}
+        </View>
+        <Text style={styles.companionCountryName} numberOfLines={2}>
+          {post.country}
+        </Text>
+      </View>
 
-                  <View style={styles.companionBody}>
-                    <Text style={styles.companionTitle} numberOfLines={1}>
-                      {post.title}
-                    </Text>
-                    <View style={{ flexDirection: "column", gap: 4 }}>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>일정</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {formatCompanionPeriod(post.startDate, post.endDate)}
-                        </Text>
-                      </View>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>성별</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {post.genderRatio}
-                        </Text>
-                      </View>
-                      <View style={styles.companionInfoRow}>
-                        <Text style={styles.companionInfoLabel}>인원</Text>
-                        <Text style={styles.companionInfoValue}>
-                          {post.currentParticipants}/{post.capacity}명
-                        </Text>
-                        <View
-                          style={[
-                            styles.smallStatus,
-                            post.status === "COMPLETED" &&
-                              styles.smallStatusDone,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.smallStatusText,
-                              post.status === "COMPLETED" &&
-                                styles.smallStatusDoneText,
-                            ]}
-                          >
-                            {getCompanionStatusText(post.status)}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </Pressable>
+      <View style={styles.companionBody}>
+        <Text style={styles.companionTitle} numberOfLines={1}>
+          {post.title}
+        </Text>
+        <View style={{ flexDirection: "column", gap: 4 }}>
+          <View style={styles.companionInfoRow}>
+            <Text style={styles.companionInfoLabel}>일정</Text>
+            <Text style={styles.companionInfoValue}>
+              {formatCompanionPeriod(post.startDate, post.endDate)}
+            </Text>
+          </View>
+          <View style={styles.companionInfoRow}>
+            <Text style={styles.companionInfoLabel}>성별</Text>
+            <Text style={styles.companionInfoValue}>{post.genderRatio}</Text>
+          </View>
+          <View style={styles.companionInfoRow}>
+            <Text style={styles.companionInfoLabel}>인원</Text>
+            <Text style={styles.companionInfoValue}>
+              {post.currentParticipants}/{post.capacity}명
+            </Text>
+            <View
+              style={[
+                styles.smallStatus,
+                post.status === "COMPLETED" && styles.smallStatusDone,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.smallStatusText,
+                  post.status === "COMPLETED" && styles.smallStatusDoneText,
+                ]}
+              >
+                {getCompanionStatusText(post.status)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Pressable>
   );
 }
 const styles = StyleSheet.create({
@@ -132,7 +131,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   companionTitle: {
-    ...fonts.sub1_sb_18,
+    ...fonts.sub3_sb_16,
     color: Colors.gray[10],
     marginBottom: 4,
   },

@@ -2,8 +2,8 @@ import { Text } from "@/components/ui/app-text";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { MarketEmptyState } from "./MarketEmptyState";
 import { Colors, fonts } from "@/constants/theme";
+import EmptyState from "../ui/empty-state";
 
 export type UsedMarketListing = {
   id: number;
@@ -32,10 +32,9 @@ export function UsedMarketScreen({
   onRetry,
   hasActiveFilters = false,
 }: Props) {
-  if (error) return <MarketEmptyState error={error} onRetry={onRetry} />;
   if (!items.length)
     return (
-      <MarketEmptyState
+      <EmptyState
         title={
           hasActiveFilters
             ? "조건에 맞는 거래글이 없어요"

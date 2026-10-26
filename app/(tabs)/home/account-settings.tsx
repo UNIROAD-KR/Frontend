@@ -1,12 +1,17 @@
-import { commonStyles } from "@/constants/theme";
-import { Text, TextInput } from "@/components/ui/app-text";
+import { commonStyles, fonts, Colors } from "@/constants/theme";
+import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
+import CompleteIcon from "@/assets/icon/complete.svg";
+import InfoIcon from "@/assets/icon/info-circle.svg";
+import { FieldLabel } from "@/components/ui/field-label";
+import InputField from "@/components/ui/input-field";
+import { useAppAlert } from "@/hooks/use-app-alert";
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { getMemberMe, updatePassword } from "../../../src/api/auth";
 
@@ -14,8 +19,6 @@ const NAVY = "#0F2042";
 const BLUE = "#2F66D0";
 const INK = "#111111";
 const MUTED = "#64748B";
-const LINE = "#E2E8F0";
-const SOFT = "#F6F8FC";
 
 const getPasswordError = (value: string) => {
   if (!value) return "";
@@ -36,7 +39,9 @@ const getPasswordError = (value: string) => {
 };
 
 export default function AccountSettingsScreen() {
+  const { showAlert, alertElement } = useAppAlert();
   const [username, setUsername] = useState("로그인 계정");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -74,17 +79,17 @@ export default function AccountSettingsScreen() {
 
   const handleSubmit = async () => {
     if (!newPassword || !confirmPassword) {
-      Alert.alert("입력 필요", "새 비밀번호를 입력해주세요.");
+      showAlert("입력 필요", "새 비밀번호를 입력해주세요.");
       return;
     }
 
     if (newPasswordError) {
-      Alert.alert("입력 오류", newPasswordError);
+      showAlert("입력 오류", newPasswordError);
       return;
     }
 
     if (confirmPasswordError) {
-      Alert.alert("입력 오류", confirmPasswordError);
+      showAlert("입력 오류", confirmPasswordError);
       return;
     }
 
@@ -92,7 +97,7 @@ export default function AccountSettingsScreen() {
 
     try {
       await updatePassword({ newPassword });
-      Alert.alert("변경 완료", "비밀번호가 변경되었습니다.", [
+      showAlert("비밀번호를 변경했어요", undefined, [
         {
           text: "확인",
           onPress: () => {
@@ -104,7 +109,7 @@ export default function AccountSettingsScreen() {
       ]);
     } catch (error: any) {
       console.log("비밀번호 변경 실패:", error.response?.data || error.message);
-      Alert.alert(
+      showAlert(
         "변경 실패",
         error.response?.data?.message || "비밀번호 변경에 실패했어요.",
       );
@@ -123,7 +128,7 @@ export default function AccountSettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.readOnlyCard}>
+        {/* <View style={styles.readOnlyCard}>
           <View style={styles.readOnlyIconBox}>
             <Ionicons name="person-circle-outline" size={26} color={BLUE} />
           </View>
@@ -137,42 +142,54 @@ export default function AccountSettingsScreen() {
             <Ionicons name="lock-closed" size={12} color={MUTED} />
             <Text style={styles.lockText}>확인만 가능</Text>
           </View>
-        </View>
+        </View> */}
 
-        <View style={styles.formCard}>
-          <Text style={styles.sectionTitle}>비밀번호 수정</Text>
-          <PasswordField
-            label="새 비밀번호"
-            value={newPassword}
-            placeholder="영문과 숫자 포함 8~20자"
-            onChangeText={setNewPassword}
-            error={newPasswordError}
-            helper="8~20자 / 영문과 숫자 포함"
-          />
-          <PasswordField
-            label="새 비밀번호 확인"
-            value={confirmPassword}
-            placeholder="새 비밀번호 다시 입력"
-            onChangeText={setConfirmPassword}
-            error={confirmPasswordError}
-            success={
-              confirmPassword.length > 0 && !confirmPasswordError
-                ? "비밀번호가 일치합니다."
-                : ""
-            }
-          />
+        <Text
+          style={{
+            ...fonts.title3_b_24,
+            color: Colors.common.black,
+            marginBottom: 6,
+          }}
+        >
+          비밀번호 변경
+        </Text>
+        <Text
+          style={{
+            ...fonts.body4_r_14,
+            color: Colors.gray[7],
+            marginBottom: 40,
+          }}
+        >
+          개인정보 보호를 위해 비밀번호를 변경해주세요.
+        </Text>
 
-          <View style={styles.ruleBox}>
-            <Ionicons
-              name="information-circle-outline"
-              size={18}
-              color={BLUE}
-            />
-            <Text style={styles.ruleText}>
-              아이디는 보안을 위해 수정할 수 없고, 비밀번호만 변경할 수 있어요.
-            </Text>
-          </View>
-        </View>
+        <PasswordField
+          label="기존 비밀번호"
+          value={currentPassword}
+          placeholder="영문과 숫자 포함 8-20자"
+          onChangeText={setCurrentPassword}
+        />
+        <PasswordField
+          label="신규 비밀번호"
+          value={newPassword}
+          placeholder="영문과 숫자 포함 8-20자"
+          onChangeText={setNewPassword}
+          error={
+            newPasswordError
+              ? "영문과 숫자를 포함하여 8-20자로 구성해주세요"
+              : ""
+          }
+          helper="영문과 숫자를 포함하여 8-20자로 구성해주세요"
+          valid={newPassword.length > 0 && !newPasswordError}
+        />
+        <PasswordField
+          label="신규 비밀번호 확인"
+          value={confirmPassword}
+          placeholder="신규 비밀번호를 다시 입력해주세요"
+          onChangeText={setConfirmPassword}
+          error={confirmPasswordError}
+          valid={confirmPassword.length > 0 && !confirmPasswordError}
+        />
 
         <Pressable
           style={[
@@ -182,11 +199,10 @@ export default function AccountSettingsScreen() {
           onPress={handleSubmit}
           disabled={submitDisabled}
         >
-          <Text style={styles.submitText}>
-            {submitting ? "변경 중..." : "변경하기"}
-          </Text>
+          <Text style={styles.submitText}>비밀번호 변경하기</Text>
         </Pressable>
       </ScrollView>
+      {alertElement}
     </View>
   );
 }
@@ -198,7 +214,7 @@ function PasswordField({
   onChangeText,
   error,
   helper,
-  success,
+  valid,
 }: {
   label: string;
   value: string;
@@ -206,29 +222,37 @@ function PasswordField({
   onChangeText: (text: string) => void;
   error?: string;
   helper?: string;
-  success?: string;
+  valid?: boolean;
 }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9AA4B2"
-        secureTextEntry
-        autoCapitalize="none"
-        style={[styles.input, error ? styles.inputError : null]}
-      />
-      {error ? (
-        <View style={styles.feedbackRow}>
-          <Text style={styles.errorBadge}>!</Text>
-          <Text style={styles.errorText}>{error}</Text>
+      <FieldLabel title={label} marginBottom={8} />
+      <View>
+        <InputField
+          size="sm"
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          secureTextEntry
+          autoCapitalize="none"
+          style={[error ? styles.inputError : null, valid && styles.inputValid]}
+          error={error}
+        />
+        {valid ? (
+          <View pointerEvents="none" style={styles.validIcon}>
+            <CompleteIcon
+              width={24}
+              height={24}
+              color={Colors.primary.default}
+            />
+          </View>
+        ) : null}
+      </View>
+      {!error && helper ? (
+        <View style={styles.helperRow}>
+          <InfoIcon width={16} height={16} />
+          <Text style={styles.helpText}>{helper}</Text>
         </View>
-      ) : success ? (
-        <Text style={styles.successText}>{success}</Text>
-      ) : helper ? (
-        <Text style={styles.helpText}>{helper}</Text>
       ) : null}
     </View>
   );
@@ -237,7 +261,7 @@ function PasswordField({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: "#FFFFFF",
   },
   scroll: {
     flex: 1,
@@ -296,14 +320,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: MUTED,
   },
-  formCard: {
-    marginTop: 18,
-    borderRadius: 9,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E9EE",
-    padding: 16,
-  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: "900",
@@ -311,64 +327,28 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   field: {
-    marginBottom: 16,
-  },
-  label: {
-    ...commonStyles.inputLabel,
-    marginBottom: 8,
-  },
-  input: {
-    height: 50,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: "#E3E7EC",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 14,
-    fontSize: 14,
-    fontWeight: "800",
-    color: INK,
+    marginBottom: 24,
   },
   inputError: {
-    borderColor: "#E53935",
-    backgroundColor: "#FFFFFF",
+    borderColor: Colors.error.normal,
   },
-  feedbackRow: {
-    marginTop: 7,
+  inputValid: {
+    paddingRight: 46,
+  },
+  validIcon: {
+    position: "absolute",
+    right: 16,
+    top: 17,
+  },
+  helperRow: {
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-  },
-  errorBadge: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#D94A45",
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "800",
-    lineHeight: 14,
-    textAlign: "center",
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: "#D94A45",
+    gap: 4,
   },
   helpText: {
-    marginTop: 7,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: MUTED,
-  },
-  successText: {
-    marginTop: 7,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: BLUE,
+    ...fonts.caption3_m_13,
+    color: Colors.gray[7],
   },
   ruleBox: {
     borderRadius: 7,
@@ -388,19 +368,13 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   submitButton: {
-    marginTop: 18,
-    height: 50,
-    borderRadius: 7,
-    backgroundColor: "#3568DA",
-    alignItems: "center",
-    justifyContent: "center",
+    ...commonStyles.button,
   },
   submitButtonDisabled: {
-    backgroundColor: "#B7C0CD",
+    backgroundColor: Colors.primary.light,
   },
   submitText: {
-    fontSize: 14,
-    fontWeight: "900",
+    ...fonts.sub3_sb_16,
     color: "#FFFFFF",
   },
 });

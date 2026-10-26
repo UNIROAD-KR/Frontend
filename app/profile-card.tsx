@@ -29,9 +29,9 @@ import NoticesIcon from "@/assets/icon/profile/notices.svg";
 import NotificationsIcon from "@/assets/icon/profile/notifications.svg";
 import PrivacyIcon from "@/assets/icon/profile/privacy.svg";
 import TermsIcon from "@/assets/icon/profile/terms.svg";
-import VerificationApprovedCardIcon from "@/assets/icon/profile/verification-approved-card.svg";
+import ApprovedIcon from "@/assets/icon/approved.svg";
 import VerificationIcon from "@/assets/icon/profile/verification.svg";
-import VerificationPendingIcon from "@/assets/icon/profile/verification-pending.svg";
+import PendingIcon from "@/assets/icon/pending.svg";
 import WrittenPostsIcon from "@/assets/icon/profile/written-posts.svg";
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { getMemberMe, logout } from "../src/api/auth";
@@ -66,14 +66,6 @@ const activityItems: MenuItem[] = [
     },
   },
   {
-    title: "자유게시판 작성글",
-    icon: FreePostsIcon,
-    route: {
-      pathname: "/profile-posts",
-      params: { type: "free" },
-    },
-  },
-  {
     title: "내가 쓴 글",
     icon: WrittenPostsIcon,
     route: {
@@ -85,7 +77,7 @@ const activityItems: MenuItem[] = [
 
 const accountItems: MenuItem[] = [
   {
-    title: "비밀번호 변경",
+    title: "계정 설정",
     icon: AccountSettingsIcon,
     route: "/account-settings",
   },
@@ -359,8 +351,8 @@ export default function ProfileCardScreen() {
 
   const isVerificationApproved = isVerified;
   const VerificationStatusIcon = isVerificationApproved
-    ? VerificationApprovedCardIcon
-    : VerificationPendingIcon;
+    ? ApprovedIcon
+    : PendingIcon;
   const verificationTitle = isVerificationApproved
     ? "교환학생 인증 완료"
     : isVerificationPending
@@ -433,11 +425,14 @@ export default function ProfileCardScreen() {
           onPress={() => router.push("/verification" as any)}
           activeOpacity={0.86}
         >
-          <VerificationStatusIcon
-            width={40}
-            height={40}
-            style={styles.verificationIcon}
-          />
+          <View
+            style={[
+              styles.verificationIcon,
+              isVerificationApproved && styles.verificationIconApproved,
+            ]}
+          >
+            <VerificationStatusIcon width={24} height={24} />
+          </View>
 
           <View style={styles.verificationTextBox}>
             <Text
@@ -644,24 +639,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 16,
     marginHorizontal: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#DFE4EA",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   verificationCardApproved: {
-    borderColor: "#18202B",
-    backgroundColor: "#18202B",
+    borderColor: Colors.gray[11],
+    backgroundColor: Colors.gray[11],
   },
   verificationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary.default,
+  },
+  verificationIconApproved: {
+    backgroundColor: Colors.gray[9],
   },
   verificationTextBox: {
     flex: 1,
     minWidth: 0,
     paddingRight: 8,
+    gap: 4,
   },
   verificationTitle: {
     ...fonts.sub3_sb_16,

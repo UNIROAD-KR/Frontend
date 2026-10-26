@@ -10,7 +10,7 @@ import {
 import { Colors, fonts } from "@/constants/theme";
 import { useRouter } from "expo-router";
 import { FreePostSummaryResponse } from "@/src/api/freePosts";
-import { Ionicons } from "@expo/vector-icons";
+import EmptyState from "../ui/empty-state";
 
 const CATEGORY_MAP: Record<string, string> = {
   QUESTION: "질문글",
@@ -82,38 +82,54 @@ export default function FreePostList({
           </Pressable>
         ))
       ) : (
-        <View style={styles.boardEmptyState}>
-          <Ionicons
-            name={
-              boardLoadError ? "cloud-offline-outline" : "chatbubbles-outline"
-            }
-            size={30}
-            color="#B1B8C1"
-          />
-          <Text style={styles.boardEmptyTitle}>
-            {boardLoadError
+        <EmptyState
+          title={
+            boardLoadError
               ? "게시글을 불러오지 못했어요"
               : boardKeyword.trim()
                 ? "검색 결과가 없어요"
-                : "아직 게시글이 없어요"}
-          </Text>
-          <Text style={styles.boardEmptyDescription}>
-            {boardLoadError
+                : "아직 게시글이 없어요"
+          }
+          description={
+            boardLoadError
               ? "잠시 후 다시 시도해주세요."
               : boardKeyword.trim()
                 ? "다른 키워드로 검색해보세요."
-                : "자유 게시판의 첫 글을 기다리고 있어요."}
-          </Text>
-          {boardLoadError && (
-            <Pressable
-              accessibilityRole="button"
-              style={styles.boardEmptyRetry}
-              onPress={() => onRetry()}
-            >
-              <Text style={styles.boardEmptyRetryText}>다시 시도</Text>
-            </Pressable>
-          )}
-        </View>
+                : "자유 게시판의 첫 글을 기다리고 있어요."
+          }
+        />
+        // <View style={styles.boardEmptyState}>
+        //   <Ionicons
+        //     name={
+        //       boardLoadError ? "cloud-offline-outline" : "chatbubbles-outline"
+        //     }
+        //     size={30}
+        //     color="#B1B8C1"
+        //   />
+        //   <Text style={styles.boardEmptyTitle}>
+        //     {boardLoadError
+        //       ? "게시글을 불러오지 못했어요"
+        //       : boardKeyword.trim()
+        //         ? "검색 결과가 없어요"
+        //         : "아직 게시글이 없어요"}
+        //   </Text>
+        //   <Text style={styles.boardEmptyDescription}>
+        //     {boardLoadError
+        //       ? "잠시 후 다시 시도해주세요."
+        //       : boardKeyword.trim()
+        //         ? "다른 키워드로 검색해보세요."
+        //         : "자유 게시판의 첫 글을 기다리고 있어요."}
+        //   </Text>
+        //   {boardLoadError && (
+        //     <Pressable
+        //       accessibilityRole="button"
+        //       style={styles.boardEmptyRetry}
+        //       onPress={() => onRetry()}
+        //     >
+        //       <Text style={styles.boardEmptyRetryText}>다시 시도</Text>
+        //     </Pressable>
+        //   )}
+        // </View>
       )}
     </View>
   );

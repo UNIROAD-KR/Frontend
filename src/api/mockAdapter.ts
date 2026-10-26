@@ -818,6 +818,11 @@ export const mockApiAdapter: AxiosAdapter = async (config) => {
       if (room) Object.assign(room, { lastMessage: message.message, lastMessageCreatedAt: message.createdAt });
       return response(requestConfig, message);
     }
+    if (roomId != null && method === 'delete' && path.endsWith('/members/me')) {
+      const index = chatRooms.findIndex((item) => Number(item.roomId) === roomId);
+      if (index >= 0) chatRooms.splice(index, 1);
+      return response(requestConfig, null);
+    }
     if (roomId != null && path.endsWith('/read')) {
       return response(requestConfig, { roomId, lastReadAt: now() });
     }

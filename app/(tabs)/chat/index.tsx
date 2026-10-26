@@ -17,6 +17,7 @@ import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
 import { Colors, fonts } from "@/constants/theme";
 import { useChatListSettings } from "@/components/chat/chat-list-settings";
 import { sortChatRooms } from "@/src/utils/chatSort";
+import EmptyState from "@/components/ui/empty-state";
 
 const BLUE = "#102BE0";
 
@@ -283,17 +284,14 @@ export default function ChatListPage() {
             })}
           </View>
         ) : (
-          <View style={styles.centerState}>
-            <Ionicons name="chatbubbles-outline" size={38} color="#BBBBBB" />
-            <Text style={styles.emptyTitle}>
-              {selectedFilter === "ALL"
+          <EmptyState
+            title={
+              selectedFilter === "ALL"
                 ? "아직 열린 채팅방이 없어요"
-                : "해당 카테고리의 채팅방이 없어요"}
-            </Text>
-            <Text style={styles.centerText}>
-              거래글이나 동행 모집글에서 시작한 채팅이 여기에 모여요.
-            </Text>
-          </View>
+                : "해당 카테고리의 채팅방이 없어요"
+            }
+            description="거래글이나 동행 모집글에서 시작한 채팅이 여기에 모여요."
+          />
         )}
       </ScrollView>
     </View>

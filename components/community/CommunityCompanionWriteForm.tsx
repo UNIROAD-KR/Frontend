@@ -1,6 +1,8 @@
-import { CalendarPickerSheet } from "@/components/ui/calendar-picker-sheet";
+import CalendarModal from "@/components/ui/calendar";
+import CalanderFillIcon from "@/assets/icon/calendar-fill.svg";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Modal } from "@/components/ui/modal";
+import { FieldLabel } from "@/components/ui/field-label";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -293,7 +295,7 @@ export function CommunityCompanionWriteForm() {
       >
         <Text style={styles.sectionTitle}>모집 조건</Text>
         <View style={styles.field}>
-          <Text style={styles.label}>국가 및 지역</Text>
+          <FieldLabel title="국가 및 지역" marginBottom={4} />
           <Pressable
             style={styles.select}
             onPress={() => setCountrySheetVisible(true)}
@@ -321,7 +323,7 @@ export function CommunityCompanionWriteForm() {
           )}
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>성별 조건</Text>
+          <FieldLabel title="성별 조건" marginBottom={4} />
           <View style={styles.genderRow}>
             {GENDER_OPTIONS.map((option) => {
               const selected = gender === option;
@@ -334,10 +336,7 @@ export function CommunityCompanionWriteForm() {
                   accessibilityState={{ checked: selected }}
                 >
                   <Text
-                    style={[
-                      styles.genderText,
-                      selected && styles.genderTextOn,
-                    ]}
+                    style={[styles.genderText, selected && styles.genderTextOn]}
                   >
                     {option}
                   </Text>
@@ -351,32 +350,31 @@ export function CommunityCompanionWriteForm() {
             const value = target === "start" ? startDate : endDate;
             return (
               <View key={target} style={{ flex: 1 }}>
-                <Text style={styles.label}>
-                  일정 {target === "start" ? "시작" : "종료"}
-                </Text>
+                <FieldLabel
+                  title={`일정 ${target === "start" ? "시작" : "종료"}`}
+                  marginBottom={4}
+                />
                 <Pressable
-                  style={styles.dateParts}
+                  style={styles.dateField}
                   onPress={() => openDatePicker(target)}
                   accessibilityRole="button"
                   accessibilityLabel={`${target === "start" ? "시작일" : "종료일"} ${value || "선택"}`}
                 >
-                  <View style={styles.datePart}>
-                    <Text style={[styles.value, !value && styles.placeholder]}>
-                      {value ? value.slice(0, 4) : "년"}
-                    </Text>
-                  </View>
-                  <View style={styles.datePart}>
-                    <Text style={[styles.value, !value && styles.placeholder]}>
-                      {value ? value.slice(5).replace("-", ".") : "월 / 일"}
-                    </Text>
-                  </View>
+                  <Text style={[styles.value, !value && styles.placeholder]}>
+                    {value ? value.replaceAll("-", ". ") : "0000. 00. 00"}
+                  </Text>
+                  <CalanderFillIcon
+                    width={20}
+                    height={20}
+                    color={Colors.gray[5]}
+                  />
                 </Pressable>
               </View>
             );
           })}
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>모집 인원</Text>
+          <FieldLabel title="모집 인원" marginBottom={4} />
           <View style={styles.stepper}>
             <Pressable
               style={styles.stepButton}
@@ -438,7 +436,7 @@ export function CommunityCompanionWriteForm() {
         <View style={styles.divider} />
         <Text style={styles.sectionTitle}>게시글 작성</Text>
         <View style={styles.field}>
-          <Text style={styles.label}>제목</Text>
+          <FieldLabel title="게시글 제목" marginBottom={4} />
           <TextInput
             style={styles.input}
             value={title}
@@ -448,7 +446,7 @@ export function CommunityCompanionWriteForm() {
           />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>내용</Text>
+          <FieldLabel title="상세 내용" marginBottom={4} />
           <View style={styles.bodyBox}>
             <TextInput
               style={styles.bodyInput}
@@ -477,15 +475,16 @@ export function CommunityCompanionWriteForm() {
         }}
       />
 
-      <CalendarPickerSheet
+      <CalendarModal
         visible={dateTarget !== null}
-        title={dateTarget === "start" ? "시작일 선택" : "종료일 선택"}
         value={
           (dateTarget === "start" ? startDate : endDate)
             ? parseDate(dateTarget === "start" ? startDate : endDate)
             : undefined
         }
-        minDate={dateTarget === "end" && startDate ? parseDate(startDate) : undefined}
+        minDate={
+          dateTarget === "end" && startDate ? parseDate(startDate) : undefined
+        }
         onClose={() => setDateTarget(null)}
         onSelect={handleSelectDate}
       />
@@ -532,11 +531,11 @@ const styles = StyleSheet.create({
   headerSubmit: { alignItems: "flex-end" },
   headerTitle: {
     ...fonts.sub3_sb_16,
-    color: Colors.gray[11],
+    color: Colors.common.black,
     flex: 1,
     textAlign: "center",
   },
-  writeText: { ...fonts.body2_m_14, color: Colors.gray[6] },
+  writeText: { ...fonts.body1_m_16, color: Colors.gray[7] },
   scroll: { flex: 1 },
   content: {
     width: "100%",
@@ -546,9 +545,9 @@ const styles = StyleSheet.create({
     paddingTop: 22,
   },
   sectionTitle: {
-    ...fonts.sub1_sb_18,
-    color: Colors.gray[11],
-    marginBottom: 22,
+    ...fonts.title5_b_20,
+    color: Colors.common.black,
+    marginBottom: 16,
   },
   field: { marginBottom: 28 },
   label: {
@@ -556,50 +555,51 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    ...fonts.body3_r_16,
+    ...fonts.body1_m_16,
     minHeight: 52,
     borderWidth: 1,
-    borderColor: Colors.gray[3],
+    borderColor: "#E6E8EB",
     borderRadius: 10,
     paddingHorizontal: 16,
-    color: Colors.gray[11],
+    color: Colors.common.black,
   },
   select: {
     minHeight: 52,
     borderWidth: 1,
-    borderColor: Colors.gray[3],
+    borderColor: "#E6E8EB",
     borderRadius: 10,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 7,
   },
   value: {
-    ...fonts.body3_r_16,
+    ...fonts.body1_m_16,
     color: Colors.gray[11],
     flexShrink: 1,
   },
-  placeholder: { color: Colors.gray[5] },
+  placeholder: { color: "#B1B8C1" },
   dateRow: { flexDirection: "row", gap: 8, marginBottom: 28 },
-  genderRow: { flexDirection: "row", gap: 8 },
+  genderRow: { flexDirection: "row", gap: 6 },
   genderChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: Colors.gray[2],
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 100,
+    backgroundColor: Colors.gray[1],
   },
   genderChipOn: { backgroundColor: Colors.gray[11] },
-  genderText: { ...fonts.body2_m_14, color: Colors.gray[8] },
+  genderText: { ...fonts.body2_m_14, color: Colors.gray[7] },
   genderTextOn: { color: "#FFFFFF" },
-  dateParts: { flexDirection: "row", gap: 4 },
-  datePart: {
-    flex: 1,
+  dateField: {
     minHeight: 52,
     borderWidth: 1,
     borderColor: Colors.gray[3],
     borderRadius: 10,
-    paddingHorizontal: 10,
-    justifyContent: "center",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
   },
   stepper: {
     alignSelf: "flex-start",
