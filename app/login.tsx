@@ -426,14 +426,14 @@ export default function LoginPage() {
                   intent="login"
                   onSocialLogin={handleSocialLogin}
                 />
-                <TouchableOpacity
+                {/* <TouchableOpacity
                   style={styles.idButton}
                   onPress={handleIdLogin}
                 >
                   <Text style={[fonts.sub3_sb_16, { color: "#252C37" }]}>
                     아이디로 로그인
                   </Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </>
             )}
 

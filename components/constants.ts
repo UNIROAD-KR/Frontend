@@ -9,7 +9,7 @@ import PeopleGreenIcon from "../assets/icon/actions/people-green.svg";
 import SchoolIcon from "../assets/icon/actions/school.svg";
 import TicketIcon from "../assets/icon/actions/ticket.svg";
 import TrophyIcon from "../assets/icon/actions/trophy.svg";
-import WalletIcon from "../assets/icon/actions/wallet.svg";
+import MoneyIcon from "../assets/icon/actions/money.svg";
 import CalendarIcon from "../assets/icon/actions/calendar.svg";
 import BookIcon from "../assets/icon/actions/book.svg";
 
@@ -76,10 +76,10 @@ export const quickActionsByStatus = [
   },
   {
     title: "지출 관리",
-    icon: WalletIcon,
+    icon: MoneyIcon,
     route: {
       pathname: "/management",
-      params: { fromHome: "true" },
+      params: { fromHome: "true", tab: "expense" },
     },
   },
   {
@@ -109,7 +109,10 @@ export const quickActionsByStatus = [
   {
     title: "출국 준비",
     icon: DocumentIcon,
-    route: "/home/departure-checklist",
+    route: {
+      pathname: "/management",
+      params: { fromHome: "true", tab: "departure" },
+    },
   },
   {
     title: "교환 정보",

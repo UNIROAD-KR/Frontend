@@ -3,6 +3,8 @@ import { useHomeDashboard } from "@/components/home/use-home-dashboard";
 import { flags } from "@/components/market/MarketCountrySheet";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import ApprovedIcon from "@/assets/icon/approved.svg";
+import PendingIcon from "@/assets/icon/pending.svg";
 import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 
@@ -55,11 +57,7 @@ export function HomeStatusTab() {
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.content}
     >
-      <Pressable
-        style={styles.summary}
-        onPress={() => router.push("/profile-card")}
-        accessibilityRole="button"
-      >
+      <View style={styles.summary}>
         <Text style={styles.eyebrow}>{data.lifecycleStatus}</Text>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryTitle}>
@@ -76,7 +74,7 @@ export function HomeStatusTab() {
             {dateLabel} {formatDate(targetDate)}
           </Text>
         )}
-      </Pressable>
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>교환학생 인증</Text>
@@ -91,17 +89,11 @@ export function HomeStatusTab() {
               data.verified && styles.verifiedIcon,
             ]}
           >
-            <Ionicons
-              name={
-                data.verified
-                  ? "checkmark-circle-outline"
-                  : data.pending
-                    ? "timer-outline"
-                    : "shield-checkmark-outline"
-              }
-              size={24}
-              color="#FFFFFF"
-            />
+            {data.verified ? (
+              <ApprovedIcon width={24} height={24} />
+            ) : (
+              <PendingIcon width={24} height={24} />
+            )}
           </View>
           <View style={styles.body}>
             <Text style={[styles.cardTitle, data.verified && styles.white]}>
@@ -149,7 +141,12 @@ export function HomeStatusTab() {
         <Pressable
           style={styles.preparation}
           accessibilityRole="button"
-          onPress={() => router.push("/home/departure-checklist")}
+          onPress={() =>
+            router.push({
+              pathname: "/management",
+              params: { fromHome: "true", tab: "departure" },
+            })
+          }
         >
           <View style={styles.preparationIcon}>
             {data.departureDate && flags[data.country] ? (
