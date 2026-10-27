@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
 import AccountBookScreen from "../../mypage";
+import { DepartureTab } from "@/components/management/departure-tab";
 import { CalendarTab } from "@/components/management/calendar-tab";
 import { getMemberMe } from "../../../src/api/auth";
 import { commonStyles, fonts, Colors } from "@/constants/theme";
@@ -14,7 +15,9 @@ export default function ExploreScreen() {
   >("지출 관리");
 
   useEffect(() => {
+    if (tab === "expense") setSelectedTab("지출 관리");
     if (tab === "calendar") setSelectedTab("캘린더");
+    if (tab === "departure") setSelectedTab("출국 준비");
   }, [tab]);
 
   return (
@@ -47,6 +50,7 @@ export default function ExploreScreen() {
       </View>
       {selectedTab === "지출 관리" && <AccountBookScreen embedded />}
       {selectedTab === "캘린더" && <CalendarTab />}
+      {selectedTab === "출국 준비" && <DepartureTab />}
     </View>
   );
 

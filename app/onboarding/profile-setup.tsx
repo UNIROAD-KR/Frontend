@@ -3,6 +3,7 @@ import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
+import CalendarIcon from "@/assets/icon/calendar-fill.svg";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +21,11 @@ import {
 import { AppBackButton } from "@/components/ui/app-back-button";
 import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
 import { useResetScrollOnFocus } from "@/hooks/use-reset-scroll-on-focus";
-import { onboarding, updateMemberProfile, type OnboardingRequest } from "@/src/api/auth";
+import {
+  onboarding,
+  updateMemberProfile,
+  type OnboardingRequest,
+} from "@/src/api/auth";
 import {
   countryOptions,
   CUSTOM_COUNTRY_OPTION,
@@ -147,7 +152,11 @@ function SelectField({ value, placeholder, onPress }: SelectFieldProps) {
   );
 }
 
-export default function ProfileSetupPage({ dispatchStep = false }: { dispatchStep?: boolean }) {
+export default function ProfileSetupPage({
+  dispatchStep = false,
+}: {
+  dispatchStep?: boolean;
+}) {
   const scrollRef = useResetScrollOnFocus();
   const [nickname, setNickname] = useState("");
   const [gender, setGender] = useState<"female" | "male" | "">("");
@@ -167,7 +176,9 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
   const [universityPickerVisible, setUniversityPickerVisible] = useState(false);
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
   const [returnDate, setReturnDate] = useState("");
-  const [dateTarget, setDateTarget] = useState<"status" | "return" | null>(null);
+  const [dateTarget, setDateTarget] = useState<"status" | "return" | null>(
+    null,
+  );
   const [onboardingSaved, setOnboardingSaved] = useState(false);
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -180,10 +191,23 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
   const statusDate = status ? statusDates[status] : "";
   const isCustomCountry = selectedCountry === CUSTOM_COUNTRY_OPTION;
   const finalCountry = isCustomCountry ? customCountry.trim() : selectedCountry;
-  const returnDateError = status === "dispatched" && returnDate && statusDate && returnDate < statusDate
-    ? "귀국일은 파견 시작일 이후로 선택해주세요." : "";
-  const isProfileValid = Boolean(nickname.trim() && !nicknameError && university && status && statusDate && !returnDateError);
-  const isValid = isProfileValid && Boolean(finalCountry && semesterYear && semesterTerm);
+  const returnDateError =
+    status === "dispatched" &&
+    returnDate &&
+    statusDate &&
+    returnDate < statusDate
+      ? "귀국일은 파견 시작일 이후로 선택해주세요."
+      : "";
+  const isProfileValid = Boolean(
+    nickname.trim() &&
+    !nicknameError &&
+    university &&
+    status &&
+    statusDate &&
+    !returnDateError,
+  );
+  const isValid =
+    isProfileValid && Boolean(finalCountry && semesterYear && semesterTerm);
 
   const semesterYears = useMemo(
     () =>
@@ -337,7 +361,9 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
         ...(requestAge ? { age: requestAge } : {}),
         currentSituation: mapCurrentSituation(status),
         domesticUniversity: university,
-        ...(dispatchedUniversity.trim() ? { dispatchedUniversity: dispatchedUniversity.trim() } : {}),
+        ...(dispatchedUniversity.trim()
+          ? { dispatchedUniversity: dispatchedUniversity.trim() }
+          : {}),
         dispatchedCountry: finalCountry,
         ...(region.trim() ? { dispatchedRegion: region.trim() } : {}),
         dispatchSemester,
@@ -403,7 +429,10 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
       if (status === "dispatched" && returnDate) {
         await updateMemberProfile({ returnDate });
       }
-      await AsyncStorage.setItem("returnDate", status === "dispatched" ? returnDate : "");
+      await AsyncStorage.setItem(
+        "returnDate",
+        status === "dispatched" ? returnDate : "",
+      );
       await AsyncStorage.setItem("nickname", nickname.trim());
       await clearOnboardingDraft();
       router.replace("/home");
@@ -436,7 +465,9 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
       >
         <View style={styles.header}>
           <AppBackButton
-            fallbackHref={dispatchStep ? "/onboarding/profile-setup" : "/onboarding/consent"}
+            fallbackHref={
+              dispatchStep ? "/onboarding/profile-setup" : "/onboarding/consent"
+            }
             style={styles.backButton}
           />
           <Text style={[fonts.sub3_sb_16, { textAlign: "center" }]}>
@@ -455,200 +486,265 @@ export default function ProfileSetupPage({ dispatchStep = false }: { dispatchSte
             {dispatchStep ? "파견 정보 설정하기" : "프로필 설정하기"}
           </Text>
           <Text style={[fonts.body4_r_14, { color: Colors.gray[7] }]}>
-            {dispatchStep ? "파견 학기와 국가, 지역 정보를 설정해 주세요." : "프로필을 설정하고 나만의 서비스를 시작해 보세요."}
+            {dispatchStep
+              ? "파견 학기와 국가, 지역 정보를 설정해 주세요."
+              : "프로필을 설정하고 나만의 서비스를 시작해 보세요."}
           </Text>
         </View>
 
-        {!dispatchStep ? (<>
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>닉네임<Text style={styles.required}> *</Text></Text>
-          <View
-            style={[styles.textField, nicknameError && styles.textFieldError]}
-          >
-            <TextInput
-              value={nickname}
-              onChangeText={saveNickname}
-              placeholder="닉네임을 입력해주세요"
-              placeholderTextColor="#B3BDC9"
-              style={styles.textInput}
-              maxLength={12}
-              returnKeyType="next"
-            />
-            <Text style={[fonts.body1_m_16, { color: "#191F28" }]}>
-              {nickname.length}/12
-            </Text>
-          </View>
-          {nicknameError ? (
-            <Text style={styles.errorText}>{nicknameError}</Text>
-          ) : null}
-        </View>
+        {!dispatchStep ? (
+          <>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>
+                닉네임<Text style={styles.required}> *</Text>
+              </Text>
+              <View
+                style={[
+                  styles.textField,
+                  nicknameError && styles.textFieldError,
+                ]}
+              >
+                <TextInput
+                  value={nickname}
+                  onChangeText={saveNickname}
+                  placeholder="닉네임을 입력해주세요"
+                  placeholderTextColor="#B3BDC9"
+                  style={styles.textInput}
+                  maxLength={12}
+                  returnKeyType="next"
+                />
+                <Text style={[fonts.body1_m_16, { color: "#191F28" }]}>
+                  {nickname.length}/12
+                </Text>
+              </View>
+              {nicknameError ? (
+                <Text style={styles.errorText}>{nicknameError}</Text>
+              ) : null}
+            </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>소속 대학<Text style={styles.required}> *</Text></Text>
-          <SelectField
-            value={university}
-            placeholder="소속 대학을 선택해주세요"
-            onPress={() => setUniversityPickerVisible(true)}
-          />
-        </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>
+                소속 대학<Text style={styles.required}> *</Text>
+              </Text>
+              <SelectField
+                value={university}
+                placeholder="소속 대학을 선택해주세요"
+                onPress={() => setUniversityPickerVisible(true)}
+              />
+            </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 상태<Text style={styles.required}> *</Text></Text>
-          <View style={styles.statusRow}>
-            {statusOptions.map((option) => {
-              const selected = status === option.value;
-              return (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>
+                파견 상태<Text style={styles.required}> *</Text>
+              </Text>
+              <View style={styles.statusRow}>
+                {statusOptions.map((option) => {
+                  const selected = status === option.value;
+                  return (
+                    <Pressable
+                      key={option.value}
+                      style={[
+                        styles.statusButton,
+                        selected && styles.statusButtonSelected,
+                      ]}
+                      onPress={() => selectStatus(option.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.statusText,
+                          selected && styles.statusTextSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            {selectedStatus && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>
+                  {selectedStatus.dateLabel}
+                  <Text style={styles.required}> *</Text>
+                </Text>
                 <Pressable
-                  key={option.value}
-                  style={[
-                    styles.statusButton,
-                    selected && styles.statusButtonSelected,
-                  ]}
-                  onPress={() => selectStatus(option.value)}
+                  style={styles.selectField}
+                  onPress={() => openDatePicker("status")}
+                  accessibilityRole="button"
+                  accessibilityLabel={selectedStatus.dateLabel}
                 >
                   <Text
                     style={[
-                      styles.statusText,
-                      selected && styles.statusTextSelected,
+                      styles.selectValue,
+                      !statusDate && styles.placeholder,
                     ]}
                   >
-                    {option.label}
+                    {statusDate
+                      ? statusDate.replaceAll("-", ". ")
+                      : "날짜를 입력해주세요"}
                   </Text>
+                  <CalendarIcon />
                 </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {selectedStatus && (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>{selectedStatus.dateLabel}<Text style={styles.required}> *</Text></Text>
-            <Pressable style={styles.selectField} onPress={() => openDatePicker("status")} accessibilityRole="button" accessibilityLabel={selectedStatus.dateLabel}>
-              <Text style={[styles.selectValue, !statusDate && styles.placeholder]}>{statusDate ? statusDate.replaceAll("-", ". ") : "날짜를 입력해주세요"}</Text>
-              <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
-            </Pressable>
-          </View>
-        )}
-        {status === "dispatched" && (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>귀국일</Text>
-            <Pressable style={styles.selectField} onPress={() => openDatePicker("return")} accessibilityRole="button" accessibilityLabel="귀국일">
-              <Text style={[styles.selectValue, !returnDate && styles.placeholder]}>{returnDate ? returnDate.replaceAll("-", ". ") : "날짜를 입력해주세요"}</Text>
-              <Ionicons name="calendar-outline" size={22} color="#B3BDC9" />
-            </Pressable>
-            {returnDateError ? <Text style={styles.errorText}>{returnDateError}</Text> : null}
-          </View>
-        )}
-        </>) : (<>
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 학기<Text style={styles.required}> *</Text></Text>
-          <InlineDropdown
-            value={semesterYear}
-            displayValue={semesterYear ? `${semesterYear}년` : ""}
-            placeholder="0000년"
-            open={yearPickerVisible}
-            options={semesterYears.map((year) => ({
-              value: year,
-              label: `${year}년`,
-            }))}
-            onPress={() => setYearPickerVisible((visible) => !visible)}
-            onSelect={selectSemesterYear}
-          />
-          <View style={styles.termRow}>
-            {dispatchSemesterTerms.map((term) => {
-              const selected = semesterTerm === term;
-              return (
+              </View>
+            )}
+            {status === "dispatched" && (
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>귀국일</Text>
                 <Pressable
-                  key={term}
-                  style={[
-                    styles.termButton,
-                    selected && styles.termButtonSelected,
-                  ]}
-                  onPress={() => {
-                    setSemesterTerm(term);
-                    void AsyncStorage.setItem("dispatchSemesterTerm", term);
+                  style={styles.selectField}
+                  onPress={() => openDatePicker("return")}
+                  accessibilityRole="button"
+                  accessibilityLabel="귀국일"
+                >
+                  <Text
+                    style={[
+                      styles.selectValue,
+                      !returnDate && styles.placeholder,
+                    ]}
+                  >
+                    {returnDate
+                      ? returnDate.replaceAll("-", ". ")
+                      : "날짜를 입력해주세요"}
+                  </Text>
+                  <CalendarIcon />
+                </Pressable>
+                {returnDateError ? (
+                  <Text style={styles.errorText}>{returnDateError}</Text>
+                ) : null}
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>
+                파견 학기<Text style={styles.required}> *</Text>
+              </Text>
+              <InlineDropdown
+                value={semesterYear}
+                displayValue={semesterYear ? `${semesterYear}년` : ""}
+                placeholder="0000년"
+                open={yearPickerVisible}
+                options={semesterYears.map((year) => ({
+                  value: year,
+                  label: `${year}년`,
+                }))}
+                onPress={() => setYearPickerVisible((visible) => !visible)}
+                onSelect={selectSemesterYear}
+              />
+              <View style={styles.termRow}>
+                {dispatchSemesterTerms.map((term) => {
+                  const selected = semesterTerm === term;
+                  return (
+                    <Pressable
+                      key={term}
+                      style={[
+                        styles.termButton,
+                        selected && styles.termButtonSelected,
+                      ]}
+                      onPress={() => {
+                        setSemesterTerm(term);
+                        void AsyncStorage.setItem("dispatchSemesterTerm", term);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.termText,
+                          selected && styles.termTextSelected,
+                        ]}
+                      >
+                        {term}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>
+                파견 국가<Text style={styles.required}> *</Text>
+              </Text>
+              <SelectField
+                value={
+                  selectedCountry === CUSTOM_COUNTRY_OPTION
+                    ? customCountry
+                    : selectedCountry
+                }
+                placeholder="파견 국가를 선택해주세요"
+                onPress={() => setCountryPickerVisible(true)}
+              />
+              {isCustomCountry ? (
+                <TextInput
+                  value={customCountry}
+                  onChangeText={(value) => {
+                    setCustomCountry(value);
+                    void AsyncStorage.setItem(
+                      "dispatchedCountry",
+                      value.trim(),
+                    );
                   }}
-                >
-                  <Text
-                    style={[
-                      styles.termText,
-                      selected && styles.termTextSelected,
-                    ]}
-                  >
-                    {term}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+                  placeholder="파견 국가를 입력해주세요"
+                  placeholderTextColor="#B3BDC9"
+                  style={[
+                    styles.textField,
+                    styles.followingField,
+                    styles.textInput,
+                  ]}
+                />
+              ) : null}
+            </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견 국가<Text style={styles.required}> *</Text></Text>
-          <SelectField
-            value={
-              selectedCountry === CUSTOM_COUNTRY_OPTION
-                ? customCountry
-                : selectedCountry
-            }
-            placeholder="파견 국가를 선택해주세요"
-            onPress={() => setCountryPickerVisible(true)}
-          />
-          {isCustomCountry ? (
-            <TextInput
-              value={customCountry}
-              onChangeText={(value) => {
-                setCustomCountry(value);
-                void AsyncStorage.setItem("dispatchedCountry", value.trim());
-              }}
-              placeholder="파견 국가를 입력해주세요"
-              placeholderTextColor="#B3BDC9"
-              style={[
-                styles.textField,
-                styles.followingField,
-                styles.textInput,
-              ]}
-            />
-          ) : null}
-        </View>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>상세 지역</Text>
+              <TextInput
+                value={region}
+                onChangeText={(value) => {
+                  setRegion(value);
+                  void AsyncStorage.setItem("dispatchedRegion", value.trim());
+                }}
+                placeholder="상세 지역을 입력해주세요"
+                placeholderTextColor="#B3BDC9"
+                style={[styles.textField, styles.textInput]}
+              />
+            </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>상세 지역</Text>
-          <TextInput
-            value={region}
-            onChangeText={(value) => {
-              setRegion(value);
-              void AsyncStorage.setItem("dispatchedRegion", value.trim());
-            }}
-            placeholder="상세 지역을 입력해주세요"
-            placeholderTextColor="#B3BDC9"
-            style={[styles.textField, styles.textInput]}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>파견교</Text>
-          <TextInput
-            value={dispatchedUniversity}
-            onChangeText={(value) => {
-              setDispatchedUniversity(value);
-              void AsyncStorage.setItem("dispatchedUniversity", value.trim());
-            }}
-            placeholder="파견 대학을 입력해주세요"
-            placeholderTextColor="#B3BDC9"
-            style={[styles.textField, styles.textInput]}
-          />
-        </View>
-
-        </>)}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>파견교</Text>
+              <TextInput
+                value={dispatchedUniversity}
+                onChangeText={(value) => {
+                  setDispatchedUniversity(value);
+                  void AsyncStorage.setItem(
+                    "dispatchedUniversity",
+                    value.trim(),
+                  );
+                }}
+                placeholder="파견 대학을 입력해주세요"
+                placeholderTextColor="#B3BDC9"
+                style={[styles.textField, styles.textInput]}
+              />
+            </View>
+          </>
+        )}
 
         <Pressable
-          style={[styles.startButton, (dispatchStep ? isValid : isProfileValid) && styles.startButtonActive]}
+          style={[
+            styles.startButton,
+            (dispatchStep ? isValid : isProfileValid) &&
+              styles.startButtonActive,
+          ]}
           onPress={dispatchStep ? handleStart : handleNext}
           disabled={!(dispatchStep ? isValid : isProfileValid) || submitting}
         >
           <Text style={styles.startButtonText}>
-            {submitting ? "저장 중..." : dispatchStep ? "UNIROAD 시작하기" : "다음 단계로"}
+            {submitting
+              ? "저장 중..."
+              : dispatchStep
+                ? "UNIROAD 시작하기"
+                : "다음 단계로"}
           </Text>
         </Pressable>
       </ScrollView>

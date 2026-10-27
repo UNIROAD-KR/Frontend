@@ -42,7 +42,20 @@ export default function MoreMenuScreen() {
                 const service = quickActionsByStatus.find((action) => action.title === item.key);
                 if (!service) return null;
                 return (
-                  <Pressable key={item.key} accessibilityRole="button" accessibilityLabel={item.title} onPress={() => router.push(service.route)} style={styles.row}>
+                  <Pressable
+                    key={item.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.title}
+                    onPress={() =>
+                      item.key === "출국 준비"
+                        ? router.push({
+                            pathname: "/management",
+                            params: { tab: "departure" },
+                          })
+                        : router.push(service.route)
+                    }
+                    style={styles.row}
+                  >
                     <SoftServiceIcon Icon={service.icon} size={44} borderRadius={10} />
                     <View style={styles.body}>
                       <Text style={styles.title}>{item.title}</Text>

@@ -391,6 +391,7 @@ const syncLikedMarketPost = async (
 export default function MarketDetailPage() {
   const {
     id,
+    fromHome,
     fromProfileList,
     fromEditComplete,
     fromChatRoom,
@@ -403,6 +404,7 @@ export default function MarketDetailPage() {
     chatReferenceId,
   } = useLocalSearchParams<{
     id?: string;
+    fromHome?: string;
     fromProfileList?: string;
     fromEditComplete?: string;
     fromChatRoom?: string;
@@ -772,6 +774,7 @@ export default function MarketDetailPage() {
     return (
       <View style={styles.container}>
         <HeaderBack
+          fromHome={fromHome}
           fromProfileList={fromProfileList}
           fromEditComplete={fromEditComplete}
           fromChatRoom={fromChatRoom}
@@ -795,6 +798,7 @@ export default function MarketDetailPage() {
     return (
       <View style={styles.container}>
         <HeaderBack
+          fromHome={fromHome}
           fromProfileList={fromProfileList}
           fromEditComplete={fromEditComplete}
           fromChatRoom={fromChatRoom}
@@ -827,6 +831,7 @@ export default function MarketDetailPage() {
   return (
     <View style={styles.container}>
       <HeaderBack
+        fromHome={fromHome}
         fromProfileList={fromProfileList}
         fromEditComplete={fromEditComplete}
         canManagePost={canManagePost}
@@ -1018,6 +1023,7 @@ function HeaderBack({
   tradeStatus = "AVAILABLE",
   onReport,
   reporting = false,
+  fromHome,
   fromChatRoom,
   chatRoomId,
   chatTitle,
@@ -1027,6 +1033,7 @@ function HeaderBack({
   chatReferenceType,
   chatReferenceId,
 }: {
+  fromHome?: string;
   fromProfileList?: string;
   fromEditComplete?: string;
   canManagePost?: boolean;
@@ -1061,6 +1068,16 @@ function HeaderBack({
         onPress={() => {
           if (fromEditComplete === "true") {
             router.replace("/market" as any);
+            return;
+          }
+
+          if (fromHome === "true") {
+            if (router.canGoBack()) {
+              router.back();
+              return;
+            }
+
+            router.replace("/home" as any);
             return;
           }
 

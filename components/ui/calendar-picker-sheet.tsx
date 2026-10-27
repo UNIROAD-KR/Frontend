@@ -16,6 +16,7 @@ type Props = {
   value?: Date;
   minDate?: Date;
   onClose: () => void;
+  onAfterClose?: () => void;
   onSelect: (date: Date) => void;
 };
 
@@ -35,6 +36,7 @@ export function CalendarPickerSheet({
   value,
   minDate,
   onClose,
+  onAfterClose,
   onSelect,
 }: Props) {
   const insets = useSafeAreaInsets();
@@ -61,7 +63,7 @@ export function CalendarPickerSheet({
   const min = minDate ? startOfDay(minDate) : null;
 
   return (
-    <BottomSheetModal visible={visible} onRequestClose={onClose}>
+    <BottomSheetModal visible={visible} onRequestClose={onClose} onAfterClose={onAfterClose}>
       <View style={[styles.overlay, bottomSheetStyles.transparent]}>
         <Pressable
           style={[styles.backdrop, bottomSheetStyles.transparent]}

@@ -97,8 +97,8 @@ export function BulkTradeSection({ items, isReturned }: BulkTradeSectionProps) {
             ]}
             onPress={() =>
               router.push({
-                pathname: "/market",
-                params: { fromHome: "true", openItemId: String(item.id) },
+                pathname: "/market/[id]",
+                params: { id: String(item.id), fromHome: "true" },
               } as any)
             }
             activeOpacity={0.84}
