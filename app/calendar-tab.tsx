@@ -1,6 +1,6 @@
 import { Text } from "@/components/ui/app-text";
 import EmptyState from "@/components/ui/empty-state";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, commonStyles, fonts } from "@/constants/theme";
 import { weekdays, weekdayNames, monthCells } from "@/components/ui/calendar";
 import { router } from "expo-router";
 import {
@@ -111,7 +111,7 @@ export function CalendarTab({ onAddEvent }: Props) {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={commonStyles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
@@ -162,13 +162,20 @@ export function CalendarTab({ onAddEvent }: Props) {
                     <View
                       key={`${range.start}-${range.end}`}
                       style={[
-                        styles.range,
+                        styles.rangeSlot,
                         {
                           left: `${(range.start / 7) * 100}%`,
                           right: `${((6 - range.end) / 7) * 100}%`,
                         },
                       ]}
-                    />
+                    >
+                      <View
+                        style={[
+                          styles.range,
+                          range.start === range.end && styles.singleRange,
+                        ]}
+                      />
+                    </View>
                   ))}
                 </View>
                 {week.map((day, index) => {
@@ -183,6 +190,7 @@ export function CalendarTab({ onAddEvent }: Props) {
                   const eventCount = visibleMonthEvents.filter((event) =>
                     occurrenceCoversDate(event, key),
                   ).length;
+                  const selectedWithoutEvents = selected && eventCount === 0;
                   return (
                     <Pressable
                       key={day}
@@ -195,18 +203,26 @@ export function CalendarTab({ onAddEvent }: Props) {
                       <View
                         style={[
                           styles.dayCircle,
-                          selected && styles.selectedCircle,
+                          selectedWithoutEvents && styles.selectedCircle,
+                          isToday && !selected && styles.todayCircle,
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.dayText,
-                            isToday && styles.todayText,
-                            selected && styles.selectedText,
-                          ]}
-                        >
-                          {day}
-                        </Text>
+                        {isToday && selectedWithoutEvents ? (
+                          <View style={styles.todayCircle}>
+                            <Text style={[styles.dayText, styles.todayText]}>
+                              {day}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text
+                            style={[
+                              styles.dayText,
+                              isToday && eventCount === 0 && styles.todayText,
+                            ]}
+                          >
+                            {day}
+                          </Text>
+                        )}
                       </View>
                     </Pressable>
                   );
@@ -216,14 +232,10 @@ export function CalendarTab({ onAddEvent }: Props) {
           })}
         </View>
         {monthError && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setRetry((value) => value + 1)}
-          >
-            <Text style={styles.monthError}>
-              월 일정을 불러오지 못했어요. 다시 시도해주세요
-            </Text>
-          </Pressable>
+          <EmptyState
+            title="월 일정을 불러오지 못했어요"
+            description="잠시 후 다시 시도해주세요"
+          />
         )}
       </View>
 
@@ -254,12 +266,10 @@ export function CalendarTab({ onAddEvent }: Props) {
           color={Colors.primary.default}
         />
       ) : error ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>일정을 불러오지 못했어요</Text>
-          <Pressable onPress={() => setRetry((value) => value + 1)}>
-            <Text style={styles.addText}>다시 시도</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          title="일정을 불러오지 못했어요"
+          description="잠시 후 다시 시도해주세요"
+        />
       ) : selectedEvents.length > 0 ? (
         <CalendarEventList
           events={selectedEvents}
@@ -276,7 +286,6 @@ export function CalendarTab({ onAddEvent }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.common.white },
   content: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28 },
   calendar: {
     borderWidth: 1,
@@ -322,16 +331,23 @@ const styles = StyleSheet.create({
   },
   grid: { gap: 0 },
   weekRow: { flexDirection: "row", position: "relative" },
-  range: {
+  rangeSlot: {
     position: "absolute",
     top: 4,
+    height: 40,
+    marginHorizontal: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  range: {
+    width: "100%",
     height: 40,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.primary.default,
     backgroundColor: Colors.primary.light,
-    marginHorizontal: 2,
   },
+  singleRange: { width: 40 },
   monthError: {
     ...fonts.caption5_r_13,
     color: Colors.gray[7],
@@ -345,16 +361,30 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   dayCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedCircle: {
+    borderWidth: 1,
+    borderColor: Colors.primary.default,
+  },
+  todayCircle: {
     width: 28,
     height: 28,
     borderRadius: 1000,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: Colors.primary.default,
   },
-  selectedCircle: { backgroundColor: Colors.primary.default },
-  dayText: { ...fonts.body1_m_16, color: Colors.common.black },
-  todayText: { color: Colors.primary.default },
-  selectedText: { color: Colors.common.white },
+  dayText: {
+    ...fonts.body1_m_16,
+    color: Colors.common.black,
+    textAlign: "center",
+  },
+  todayText: { color: Colors.common.white },
   scheduleHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -373,16 +403,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 28,
-  },
-  emptyTitle: {
-    ...fonts.sub1_sb_18,
-    color: Colors.common.black,
-    marginTop: 12,
-  },
-  emptyDescription: {
-    ...fonts.body4_r_14,
-    color: Colors.gray[7],
-    textAlign: "center",
-    marginTop: 8,
   },
 });

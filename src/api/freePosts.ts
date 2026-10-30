@@ -34,6 +34,8 @@ export interface FreePostSummaryResponse {
 export interface FreePostCommentResponse {
   id: number;
   authorName: string;
+  authorId?: number;
+  memberId?: number;
   content: string;
   createdAt: string;
   mine?: boolean;

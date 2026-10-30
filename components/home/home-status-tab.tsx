@@ -1,6 +1,6 @@
 import { Text } from "@/components/ui/app-text";
 import { useHomeDashboard } from "@/components/home/use-home-dashboard";
-import { flags } from "@/components/market/MarketCountrySheet";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import ApprovedIcon from "@/assets/icon/approved.svg";
@@ -149,8 +149,8 @@ export function HomeStatusTab() {
           }
         >
           <View style={styles.preparationIcon}>
-            {data.departureDate && flags[data.country] ? (
-              <Text style={styles.flag}>{flags[data.country]}</Text>
+            {data.departureDate ? (
+              <CountryFlag country={data.country} width={28} height={22} />
             ) : (
               <Ionicons
                 name="information-circle"

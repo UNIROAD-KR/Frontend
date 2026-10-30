@@ -14,12 +14,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, commonStyles, fonts } from "@/constants/theme";
 import { useChatListSettings } from "@/components/chat/chat-list-settings";
 import { sortChatRooms } from "@/src/utils/chatSort";
 import EmptyState from "@/components/ui/empty-state";
-
-const BLUE = "#102BE0";
+import defaultChatImage from "../../../assets/images/simbol.png";
 
 const categoryLabels = {
   TRADE: "중고거래",
@@ -127,7 +126,7 @@ export default function ChatListPage() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={commonStyles.container}>
       <View>
         <ScrollView
           horizontal
@@ -222,19 +221,20 @@ export default function ChatListPage() {
                     style={{
                       width: 60,
                       height: 60,
-                      backgroundColor: Colors.gray[3],
                       marginRight: 12,
                       borderRadius: 12,
                       overflow: "hidden",
                     }}
                   >
-                    {room.referenceImageUrl ? (
-                      <Image
-                        source={{ uri: room.referenceImageUrl }}
-                        style={{ width: "100%", height: "100%" }}
-                        resizeMode="cover"
-                      />
-                    ) : null}
+                    <Image
+                      source={
+                        room.referenceImageUrl
+                          ? { uri: room.referenceImageUrl }
+                          : defaultChatImage
+                      }
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
                   </View>
 
                   <View style={styles.roomTextBox}>
@@ -299,10 +299,6 @@ export default function ChatListPage() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
   filterRow: {
     flexDirection: "row",
     gap: 8,
@@ -350,13 +346,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#777777",
     textAlign: "center",
-  },
-
-  emptyTitle: {
-    marginTop: 4,
-    fontSize: 16,
-    fontWeight: "900",
-    color: "#111111",
   },
 
   roomList: {

@@ -5,10 +5,10 @@ import {
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import {
   countryInitialFilters,
-  flags,
   initialOf,
   sortedCountries,
 } from "@/components/market/MarketCountrySheet";
@@ -520,7 +520,7 @@ export function CompanionFilterSheet({
                     }}
                     style={styles.countryRow}
                   >
-                    <Text style={styles.flag}>{flags[country]}</Text>
+                    <CountryFlag country={country} width={32} height={24} />
                     <Text
                       style={[
                         fonts.body1_m_16,
