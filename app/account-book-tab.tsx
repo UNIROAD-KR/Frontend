@@ -82,22 +82,18 @@ const parseDateInput = (dateText: string) => {
 const CATEGORIES: {
   key: AccountBookCategory;
   label: string;
-  icon: keyof typeof Ionicons.prototype.styles | string;
-  color: string;
 }[] = [
-  { key: "FOOD", label: "식비", icon: "fast-food", color: "#FF7A00" },
-  { key: "TRANSPORT", label: "교통비", icon: "bus", color: "#00C2FF" },
-  { key: "SHOPPING", label: "쇼핑", icon: "cart", color: "#FF007A" },
-  { key: "TRAVEL", label: "여행", icon: "airplane", color: "#00E575" },
+  { key: "FOOD", label: "식비" },
+  { key: "TRANSPORT", label: "교통비" },
+  { key: "SHOPPING", label: "쇼핑" },
+  { key: "TRAVEL", label: "여행" },
   {
     key: "ETC",
     label: "기타 지출",
-    icon: "ellipsis-horizontal-circle",
-    color: "#8E8E93",
   },
 ];
 
-export default function MyPageScreen({
+export default function AccountBookTab({
   embedded = false,
 }: {
   embedded?: boolean;
@@ -109,7 +105,6 @@ export default function MyPageScreen({
   const showBackButton =
     (Array.isArray(fromHome) ? fromHome[0] : fromHome) === "true" ||
     (Array.isArray(fromService) ? fromService[0] : fromService) === "true";
-  const [userName, setUserName] = useState<string>("사용자");
   const [balance, setBalance] = useState<number>(0);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [monthlySummary, setMonthlySummary] = useState<{
@@ -276,11 +271,9 @@ export default function MyPageScreen({
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. 내 정보 가져오기
       try {
         const memberRes = await getMemberMe();
         if (memberRes.data?.data) {
-          setUserName(memberRes.data.data.name || "사용자");
           setBalance(memberRes.data.data.balance || 0);
         } else {
           const balanceRes = await getAccountBookBalance();
@@ -570,27 +563,6 @@ export default function MyPageScreen({
             }}
           />
 
-          {/* 5대 카테고리 퀵 지출 등록 버튼 */}
-          {/* <View style={styles.categoryContainer}>
-            {CATEGORIES.map((cat) => (
-              <Pressable
-                key={cat.key}
-                style={styles.categoryItem}
-                onPress={() => openExpenseModal(cat.key)}
-              >
-                <View
-                  style={[
-                    styles.categoryIconCircle,
-                    { backgroundColor: "#F2F2F7" },
-                  ]}
-                >
-                  <Ionicons name={cat.icon as any} size={28} color={cat.color} />
-                </View>
-                <Text style={styles.categoryLabel}>{cat.label}</Text>
-              </Pressable>
-            ))}
-          </View> */}
-
           {/* 월간 수입/지출 체크 표시 (캘린더 상단 요약) */}
           <MonthlySummary
             month={currentMonth + 1}
@@ -658,7 +630,12 @@ export default function MyPageScreen({
               <ActivityIndicator
                 size="small"
                 color="#123F9F"
-                style={{ marginVertical: 20 }}
+                style={{
+                  minHeight: 210,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 28,
+                }}
               />
             ) : dailyDetails.length === 0 ? (
               <EmptyState
@@ -711,6 +688,7 @@ export default function MyPageScreen({
             <Button
               onPress={() => openTransactionModal("EXPENSE")}
               title="입출금 등록하기"
+              style={{ marginTop: 20 }}
             />
           </View>
         )}

@@ -1,5 +1,6 @@
 import LikedPostsEmptyInfoIcon from "@/assets/icon/profile/liked-posts-empty-info.svg";
 import { Text } from "@/components/ui/app-text";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { SortSheet } from "@/components/ui/sort-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -302,7 +303,7 @@ function TicketPostCard({ item }: { item: ListCard }) {
   return (
     <>
       <View style={styles.flagBox}>
-        <Text style={styles.flag}>{countryFlag(item.country)}</Text>
+        <CountryFlag country={item.country} width={36} height={28} />
         <Text style={styles.countryName} numberOfLines={1}>
           {item.country || "국가"}
         </Text>
@@ -355,23 +356,6 @@ function ticketTypeLabel(type?: string) {
   };
 
   return (type && labels[type]) || type || "티켓 양도";
-}
-
-function countryFlag(country?: string) {
-  const flags: Record<string, string> = {
-    대한민국: "🇰🇷",
-    한국: "🇰🇷",
-    일본: "🇯🇵",
-    터키: "🇹🇷",
-    독일: "🇩🇪",
-    프랑스: "🇫🇷",
-    스페인: "🇪🇸",
-    이탈리아: "🇮🇹",
-    미국: "🇺🇸",
-    영국: "🇬🇧",
-  };
-
-  return flags[country || ""] || "🌐";
 }
 
 const styles = StyleSheet.create({
