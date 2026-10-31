@@ -2,6 +2,9 @@ import { Text, TextInput } from "@/components/ui/app-text";
 import { FilterResetButton } from "@/components/ui/filter-reset-button";
 import type { FreePostStatusFilter } from "../../../src/api/freePosts";
 import PlusLineIcon from "@/assets/icon/plus-line.svg";
+import SearchIcon from "@/assets/icon/search.svg";
+import SortIcon from "@/assets/icon/sort.svg";
+import FilterIcon from "@/assets/icon/filter.svg";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -29,7 +32,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 
-import { AppBackButton } from "@/components/ui/app-back-button";
 import {
   CompanionPostResponse,
   getCompanionPosts,
@@ -372,11 +374,11 @@ export default function CommunityScreen() {
       edges={["left", "right", "bottom"]}
       style={commonStyles.container}
     >
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         {!openedFromTab ? (
           <AppBackButton fallbackHref="/home" style={styles.headerBackButton} />
         ) : null}
-      </View>
+      </View> */}
 
       <View style={[styles.fixedHeader, isWide && styles.contentWide]}>
         <View style={styles.tradeTypeBox}>
@@ -417,7 +419,7 @@ export default function CommunityScreen() {
                   value={boardKeyword}
                   onChangeText={setBoardKeyword}
                 />
-                <Ionicons name="search" size={23} color="#17191D" />
+                <SearchIcon />
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -425,7 +427,7 @@ export default function CommunityScreen() {
                 onPress={() => setBoardSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
-                <Ionicons name="swap-vertical" size={22} color="#17191D" />
+                <SortIcon />
               </Pressable>
             </View>
 
@@ -445,7 +447,7 @@ export default function CommunityScreen() {
                   value={companionKeyword}
                   onChangeText={setCompanionKeyword}
                 />
-                <Ionicons name="search" size={23} color="#17191D" />
+                <SearchIcon />
               </View>
               <View style={styles.filterButtonWrap}>
                 <Pressable
@@ -459,9 +461,7 @@ export default function CommunityScreen() {
                     },
                   ]}
                 >
-                  <Ionicons
-                    name="options-outline"
-                    size={22}
+                  <FilterIcon
                     color={
                       hasCompanionFilters ? Colors.primary.default : "#17191D"
                     }
@@ -479,7 +479,7 @@ export default function CommunityScreen() {
                 onPress={() => setCompanionSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
-                <Ionicons name="swap-vertical" size={22} color="#17191D" />
+                <SortIcon />
               </Pressable>
             </View>
           </>
@@ -538,19 +538,21 @@ export default function CommunityScreen() {
                   </Text>
                 </View>
               )}
-              {filteredCompanions.map((post) => (
-                <CompanionPostCard
-                  key={post.id}
-                  post={post}
-                  style={isWide && styles.gridCard}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/community-detail",
-                      params: { type: "companion", id: String(post.id) },
-                    } as never)
-                  }
-                />
-              ))}
+              <View style={{ marginLeft: 2, gap: 14 }}>
+                {filteredCompanions.map((post) => (
+                  <CompanionPostCard
+                    key={post.id}
+                    post={post}
+                    style={isWide && styles.gridCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/community-detail",
+                        params: { type: "companion", id: String(post.id) },
+                      } as never)
+                    }
+                  />
+                ))}
+              </View>
             </View>
 
             {companionHasNext && (

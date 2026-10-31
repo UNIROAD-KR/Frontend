@@ -45,7 +45,7 @@ export function BulkTradeSection({ items, isReturned }: BulkTradeSectionProps) {
           onPress={() =>
             router.push({
               pathname: "/market",
-              params: { fromHome: "true" },
+              params: { tab: "bulk-trade" },
             } as any)
           }
         >

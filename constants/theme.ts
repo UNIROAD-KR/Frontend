@@ -56,6 +56,9 @@ export const Colors = {
     10: "#171717",
     5: "#0F0F0F",
   },
+  cool_neutral: {
+    5: "#B1B8C1",
+  },
   light: {
     text: "#11181C",
     background: "#fff",

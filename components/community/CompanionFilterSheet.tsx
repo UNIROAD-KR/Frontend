@@ -6,7 +6,8 @@ import {
 } from "@/components/ui/bottom-sheet";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { CountryFlag } from "@/components/ui/country-flag";
-import { Colors, fonts, commonStyles } from "@/constants/theme";
+import { Colors, fonts } from "@/constants/theme";
+import XIcon from "@/assets/icon/x-icon.svg";
 import {
   countryInitialFilters,
   initialOf,
@@ -245,11 +246,7 @@ export function CompanionFilterSheet({
                   accessibilityRole="button"
                   accessibilityLabel="필터 닫기"
                 >
-                  <Ionicons
-                    name="close"
-                    size={26}
-                    color={Colors.common.black}
-                  />
+                  <XIcon />
                 </Pressable>
               </View>
               <ScrollView
@@ -586,31 +583,31 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   section: { gap: 12 },
   label: {
-    ...commonStyles.inputLabel,
+    ...fonts.sub3_sb_16,
     marginBottom: 0,
   },
   locationRow: {
-    height: 60,
     borderWidth: 1,
     borderColor: "#E2E5E9",
     borderRadius: 12,
     paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
   locationText: {
-    ...fonts.body2_m_14,
+    ...fonts.body1_m_16,
     flex: 1,
     color: Colors.common.black,
   },
-  placeholder: { color: Colors.gray[5] },
+  placeholder: { color: Colors.cool_neutral[5] },
   regionInput: {
-    height: 52,
     borderWidth: 1,
     borderColor: "#E2E5E9",
     borderRadius: 12,
     paddingHorizontal: 16,
+    paddingVertical: 14,
     ...fonts.body2_m_14,
     color: Colors.common.black,
   },
@@ -656,7 +653,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     borderRadius: 12,
-    backgroundColor: Colors.gray[1],
+    backgroundColor: "#F3F4F6",
     padding: 4,
   },
   stepButton: {

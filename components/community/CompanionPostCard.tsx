@@ -39,7 +39,7 @@ export function CompanionPostCard({
     <Pressable style={[styles.companionCard, style]} onPress={onPress}>
       <View style={styles.companionCountry}>
         <View style={styles.companionFlagBox}>
-          <CountryFlag country={post.country} width={40} height={30} />
+          <CountryFlag country={post.country} width={50} height={40} />
         </View>
         <Text style={styles.companionCountryName} numberOfLines={2}>
           {post.country}
@@ -94,16 +94,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   companionCountry: {
-    width: 70,
     alignItems: "center",
     marginRight: 14,
     paddingTop: 3,
   },
   companionFlagBox: {
     width: 40,
-    height: 32,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 6,
+    overflow: "hidden",
   },
   companionCountryName: {
     marginTop: 6,
