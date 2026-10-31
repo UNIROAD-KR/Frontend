@@ -62,7 +62,9 @@ export function useAppAlert() {
       title={state.title}
       description={state.description}
       primaryButton={mapped[mapped.length - 1]}
-      secondaryButton={mapped.length > 1 ? mapped[mapped.length - 2] : undefined}
+      secondaryButton={
+        mapped.length > 1 ? mapped[mapped.length - 2] : undefined
+      }
       tertiaryButton={mapped.length > 2 ? mapped[mapped.length - 3] : undefined}
     />
   );

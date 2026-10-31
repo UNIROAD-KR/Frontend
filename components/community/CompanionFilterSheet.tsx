@@ -5,14 +5,9 @@ import {
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
-import { CountryFlag } from "@/components/ui/country-flag";
+import { CountrySelectionList } from "@/components/ui/country-selection-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import XIcon from "@/assets/icon/x-icon.svg";
-import {
-  countryInitialFilters,
-  initialOf,
-  sortedCountries,
-} from "@/components/market/MarketCountrySheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -137,11 +132,9 @@ export function CompanionFilterSheet({
 }) {
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(value);
-  const [countrySheetVisible, setCountrySheetVisible] = useState(false);
   const { width } = useWindowDimensions();
   const [openPart, setOpenPart] = useState<DatePart | null>(null);
   const [countryPageOpen, setCountryPageOpen] = useState(false);
-  const [initial, setInitial] = useState("전체");
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -149,8 +142,7 @@ export function CompanionFilterSheet({
       setDraft(value);
       setOpenPart(null);
       setCountryPageOpen(false);
-      setInitial("전체");
-      progress.setValue(0);
+        progress.setValue(0);
     }
   }, [visible, value, progress]);
 
@@ -187,10 +179,7 @@ export function CompanionFilterSheet({
     setDraft(merged);
     setOpenPart(null);
   };
-  const displayedCountries =
-    initial === "전체"
-      ? sortedCountries
-      : sortedCountries.filter((country) => initialOf(country) === initial);
+
   const filterPageX = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -width],
@@ -472,74 +461,10 @@ export function CompanionFilterSheet({
                 </Pressable>
                 <Text style={styles.title}>국가 및 지역 선택</Text>
               </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipScroll}
-                contentContainerStyle={styles.chips}
-              >
-                {countryInitialFilters.map((chip) => (
-                  <Pressable
-                    key={chip}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: chip === initial }}
-                    onPress={() => setInitial(chip)}
-                    style={[styles.chip, chip === initial && styles.chipActive]}
-                  >
-                    <Text
-                      style={[
-                        fonts.body1_m_16,
-                        {
-                          color:
-                            chip === initial
-                              ? Colors.common.white
-                              : Colors.gray[7],
-                        },
-                      ]}
-                    >
-                      {chip}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <ScrollView key={initial} showsVerticalScrollIndicator={false}>
-                {displayedCountries.map((country) => (
-                  <Pressable
-                    key={country}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: draft.country === country }}
-                    onPress={() => {
-                      patch({
-                        country,
-                        region: country === draft.country ? draft.region : "",
-                      });
-                      showCountryPage(false);
-                    }}
-                    style={styles.countryRow}
-                  >
-                    <CountryFlag country={country} width={32} height={24} />
-                    <Text
-                      style={[
-                        fonts.body1_m_16,
-                        styles.countryName,
-                        draft.country === country && {
-                          color: Colors.primary.default,
-                        },
-                      ]}
-                    >
-                      {country}
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={Colors.gray[5]}
-                    />
-                  </Pressable>
-                ))}
-                {!displayedCountries.length && (
-                  <Text style={styles.empty}>해당 초성의 국가가 없어요.</Text>
-                )}
-              </ScrollView>
+              <CountrySelectionList selectedCountry={draft.country} onSelect={(country) => {
+                patch({ country, region: country === draft.country ? draft.region : "" });
+                showCountryPage(false);
+              }} />
             </Animated.View>
           </View>
         </BottomSheetView>

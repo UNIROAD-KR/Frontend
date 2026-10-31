@@ -150,6 +150,7 @@ const statusDisplayMap: Record<string, string> = {
 };
 
 export default function ProfileCardScreen() {
+  const [failedAvatarUri, setFailedAvatarUri] = useState<string | null>(null);
   const { preview } = useLocalSearchParams<{ preview?: string }>();
   const isPreview = preview === "true";
   const [isVerified, setIsVerified] = useState(false);
@@ -379,12 +380,17 @@ export default function ProfileCardScreen() {
         >
           <View style={styles.profileMain}>
             <View style={styles.avatarWrap}>
-              {profile.avatarUri ? (
-                <Image
-                  source={{ uri: profile.avatarUri }}
-                  style={styles.avatar}
-                />
-              ) : null}
+              <Image
+                source={
+                  profile.avatarUri && profile.avatarUri !== failedAvatarUri
+                    ? { uri: profile.avatarUri }
+                    : require("@/assets/images/simbol.png")
+                }
+                style={styles.avatar}
+                onError={() => {
+                  if (profile.avatarUri) setFailedAvatarUri(profile.avatarUri);
+                }}
+              />
             </View>
 
             <View style={styles.profileInfo}>

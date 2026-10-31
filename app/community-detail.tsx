@@ -1,3 +1,4 @@
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Modal as AppModal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -5,6 +6,10 @@ import { Ionicons } from "@expo/vector-icons";
 import ChatIcon from "@/assets/icon/chat.svg";
 import MoreIcon from "@/assets/icon/menu.svg";
 import SendIcon from "@/assets/icon/send.svg";
+import FlagIcon from "@/assets/icon/flag.svg";
+import CalendarIcon from "@/assets/icon/calendar.svg";
+import PersonIcon from "@/assets/icon/person.svg";
+import CheckmarkCircleIcon from "@/assets/icon/complete.svg";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Toast } from "@/components/ui/fade-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -910,9 +915,7 @@ export default function CommunityDetailScreen() {
             </View>
 
             <View style={styles.authorCard}>
-              <View style={styles.authorAvatar}>
-                <Ionicons name="person" size={24} color="#FFFFFF" />
-              </View>
+              <DefaultProfileImage style={styles.authorAvatar} />
               <View style={styles.authorCardText}>
                 <Text style={styles.authorCardName}>{viewModel.author}</Text>
                 <Text style={styles.authorCardMeta} numberOfLines={1}>
@@ -941,22 +944,35 @@ export default function CommunityDetailScreen() {
 
             <View style={styles.companionInfoPanel}>
               <CompanionInfoItem
-                icon="flag-outline"
+                icon={
+                  <FlagIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="국가 및 지역"
                 value={`${viewModel.country} ${viewModel.region}`}
               />
               <CompanionInfoItem
-                icon="calendar-outline"
+                icon={
+                  <CalendarIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="일정"
-                value={viewModel.period || "-"}
+                alignTop
+                value={viewModel.period?.replace(" - ", "\n- ") || "-"}
               />
               <CompanionInfoItem
-                icon="person-outline"
+                icon={
+                  <PersonIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="모집 인원"
                 value={`${viewModel.total}명`}
               />
               <CompanionInfoItem
-                icon="checkmark-circle-outline"
+                icon={
+                  <CheckmarkCircleIcon
+                    width={16}
+                    height={16}
+                    color={Colors.gray[7]}
+                  />
+                }
                 label="참여 조건"
                 value={viewModel.genderRatio!}
               />
@@ -1274,14 +1290,16 @@ function CompanionInfoItem({
   icon,
   label,
   value,
+  alignTop = false,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: React.ReactNode;
   label: string;
   value: string;
+  alignTop?: boolean;
 }) {
   return (
-    <View style={styles.companionInfoRow}>
-      <Ionicons name={icon} size={17} color="#6B7684" />
+    <View style={[styles.companionInfoRow, alignTop && { alignItems: "flex-start" }]}>
+      {icon}
       <Text style={styles.companionInfoLabel}>{label}</Text>
       <Text style={styles.companionInfoValue}>{value}</Text>
     </View>

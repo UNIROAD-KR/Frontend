@@ -1,3 +1,4 @@
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import CalendarModal from "@/components/ui/calendar";
 import { InlineDropdown } from "@/components/ui/inline-dropdown";
 import { Text, TextInput } from "@/components/ui/app-text";
@@ -785,11 +786,12 @@ export default function ProfileSetupPage({
         }}
       />
 
-      <OnboardingSelectModal
+      <CountrySelectionSheet
+        allowAll={false}
         visible={countryPickerVisible}
         title="파견 국가 선택하기"
         options={countryOptions}
-        selectedValue={selectedCountry}
+        selectedCountry={selectedCountry}
         selectionMode="confirm"
         searchPlaceholder="국가명으로 찾아보세요"
         onClose={() => setCountryPickerVisible(false)}

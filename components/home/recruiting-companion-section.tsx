@@ -1,6 +1,6 @@
 import ArrowGrayIcon from "@/assets/icon/arrow-gray.svg";
 import { CompanionPostCard } from "@/components/community/CompanionPostCard";
-import { sortedCountries } from "@/components/market/MarketCountrySheet";
+import { sortedCountries } from "@/src/constants/countries";
 import { Text } from "@/components/ui/app-text";
 import { Colors, fonts } from "@/constants/theme";
 import {
@@ -17,6 +17,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import EmptyState from "../ui/empty-state";
 
 export function RecruitingCompanionSection() {
   const [country, setCountry] = useState("전체");
@@ -137,9 +138,10 @@ export function RecruitingCompanionSection() {
           </Pressable>
         </View>
       ) : visiblePosts.length === 0 ? (
-        <Text style={[styles.state, styles.stateText]}>
-          해당 국가에서 모집 중인 동행이 없어요.
-        </Text>
+        <EmptyState
+          title="해당 국가에서 모집 중인 동행이 없어요."
+          description="다른 국가를 선택해보세요."
+        />
       ) : (
         <View style={styles.cards}>
           {visiblePosts.map((post) => (

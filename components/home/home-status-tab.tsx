@@ -76,104 +76,123 @@ export function HomeStatusTab() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>교환학생 인증</Text>
-        <Pressable
-          style={[styles.verification, data.verified && styles.verified]}
-          accessibilityRole="button"
-          onPress={() => router.push("/verification")}
-        >
-          <View
-            style={[
-              styles.verificationIcon,
-              data.verified && styles.verifiedIcon,
-            ]}
+      <View style={{ gap: 32, marginTop: 24 }}>
+        <View>
+          <Text style={styles.sectionTitle}>교환학생 인증</Text>
+          <Pressable
+            style={[styles.verification, data.verified && styles.verified]}
+            accessibilityRole="button"
+            onPress={() => router.push("/verification")}
           >
-            {data.verified ? (
-              <ApprovedIcon width={24} height={24} />
-            ) : (
-              <PendingIcon width={24} height={24} />
-            )}
-          </View>
-          <View style={styles.body}>
-            <Text style={[styles.cardTitle, data.verified && styles.white]}>
-              {verificationTitle}
-            </Text>
-            <Text
-              style={[styles.caption, data.verified && styles.verifiedCaption]}
+            <View
+              style={[
+                styles.verificationIcon,
+                data.verified && styles.verifiedIcon,
+              ]}
             >
-              {verificationDescription}
-            </Text>
-          </View>
-          <Ionicons
-            name="chevron-forward"
-            size={18}
-            color={data.verified ? "#FFFFFF" : Colors.gray[7]}
-          />
-        </Pressable>
-      </View>
+              {data.verified ? (
+                <ApprovedIcon width={24} height={24} />
+              ) : (
+                <PendingIcon width={24} height={24} />
+              )}
+            </View>
+            <View style={styles.body}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  data.verified && { color: "#FFFFFF" },
+                ]}
+              >
+                {verificationTitle}
+              </Text>
+              <Text
+                style={[
+                  styles.caption,
+                  data.verified && styles.verifiedCaption,
+                ]}
+              >
+                {verificationDescription}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={data.verified ? "#FFFFFF" : Colors.gray[7]}
+            />
+          </Pressable>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>파견교 설정</Text>
-        <Pressable
-          style={[styles.school, !data.university && styles.unsetSchool]}
-          accessibilityRole="button"
-          onPress={() => router.push("/profile-edit")}
-        >
-          <Text
-            numberOfLines={1}
-            style={[styles.cardTitle, !data.university && styles.muted]}
+        <View>
+          <Text style={styles.sectionTitle}>파견교 설정</Text>
+          <Pressable
+            style={[styles.school, !data.university && styles.unsetSchool]}
+            accessibilityRole="button"
+            onPress={() => router.push("/profile-edit")}
           >
-            {data.university || "파견교를 설정해주세요"}
-          </Text>
-          <View style={[styles.badge, !data.university && styles.unsetBadge]}>
-            <Text style={[styles.badgeText, !data.university && styles.muted]}>
-              {data.university ? "설정됨" : "미설정"}
+            <Text
+              numberOfLines={1}
+              style={[styles.cardTitle, !data.university && styles.muted]}
+            >
+              {data.university || "파견교를 설정해주세요"}
             </Text>
-          </View>
-          <View style={styles.spacer} />
-          <Ionicons name="chevron-forward" size={18} color={Colors.gray[7]} />
-        </Pressable>
-      </View>
+            <View
+              style={[styles.smallBadge, !data.university && styles.unsetBadge]}
+            >
+              <Text
+                style={[
+                  styles.smallBadgeText,
+                  !data.university && styles.muted,
+                ]}
+              >
+                {data.university ? "설정됨" : "미설정"}
+              </Text>
+            </View>
+            <View style={styles.spacer} />
+            <Ionicons name="chevron-forward" size={18} color={Colors.gray[7]} />
+          </Pressable>
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>출국 준비</Text>
-        <Pressable
-          style={styles.preparation}
-          accessibilityRole="button"
-          onPress={() =>
-            router.push({
-              pathname: "/management",
-              params: { fromHome: "true", tab: "departure" },
-            })
-          }
-        >
-          <View style={styles.preparationIcon}>
-            {data.departureDate ? (
-              <CountryFlag country={data.country} width={28} height={22} />
-            ) : (
-              <Ionicons
-                name="information-circle"
-                size={24}
-                color={Colors.gray[5]}
-              />
-            )}
-          </View>
-          <View style={styles.body}>
-            <Text style={styles.eyebrow}>준비 중인 일정</Text>
-            <Text style={styles.cardTitle}>
-              {data.departureDate
-                ? `${data.country ? `${data.country} ` : ""}출국 준비`
-                : "준비 중인 일정이 없습니다"}
-            </Text>
-            <Text style={styles.caption}>
-              {data.departureDate
-                ? `출국일 ${formatDate(data.departureDate)}`
-                : "유니로드와 출국 준비 해봐요!"}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.gray[8]} />
-        </Pressable>
+        <View>
+          <Text style={styles.sectionTitle}>출국 준비</Text>
+          <Pressable
+            style={styles.preparation}
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: "/management",
+                params: { tab: "departure" },
+              })
+            }
+          >
+            <View style={styles.preparationIcon}>
+              {data.departureDate ? (
+                <CountryFlag country={data.country} width={28} height={22} />
+              ) : (
+                <Ionicons
+                  name="information-circle"
+                  size={24}
+                  color={Colors.gray[5]}
+                />
+              )}
+            </View>
+            <View style={styles.body}>
+              <Text style={[styles.eyebrow, { marginBottom: 2 }]}>
+                준비 중 일정
+              </Text>
+              <Text style={{ ...fonts.sub1_sb_18, marginBottom: 2 }}>
+                {data.departureDate
+                  ? `${data.country ? `${data.country} ` : ""}출국 준비`
+                  : "준비 중인 일정이 없습니다"}
+              </Text>
+              <Text style={styles.caption}>
+                {data.departureDate
+                  ? `출국일 ${formatDate(data.departureDate)}`
+                  : "유니로드와 출국 준비 해봐요!"}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.gray[8]} />
+          </Pressable>
+        </View>
       </View>
     </ScrollView>
   );
@@ -182,8 +201,7 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
   summary: {
     padding: 20,
-    minHeight: 122,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     shadowColor: "#0F2042",
     shadowOffset: { width: 0, height: 3 },
@@ -199,18 +217,28 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 8,
   },
-  summaryTitle: { ...fonts.sub3_sb_16, color: Colors.common.black, flex: 1 },
-  description: { ...fonts.caption5_r_13, color: Colors.gray[7] },
+  summaryTitle: { ...fonts.title5_b_20, color: Colors.common.black, flex: 1 },
+  description: { ...fonts.body2_m_14, color: Colors.gray[7] },
   badge: {
-    paddingHorizontal: 5,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: "#EAF3FF",
+  },
+  smallBadge: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
     borderRadius: 3,
     backgroundColor: "#EAF3FF",
   },
-  badgeText: { ...fonts.caption4_m_12, color: Colors.primary.default },
+  badgeText: { ...fonts.caption1_sb_13, color: Colors.primary.default },
+  smallBadgeText: {
+    ...fonts.caption4_m_12,
+    color: Colors.primary.default,
+  },
   section: { marginTop: 32 },
   sectionTitle: {
     ...fonts.sub1_sb_18,
@@ -218,8 +246,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   verification: {
-    padding: 14,
-    minHeight: 78,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -240,13 +267,10 @@ const styles = StyleSheet.create({
   verifiedIcon: { backgroundColor: Colors.gray[9] },
   body: { flex: 1, minWidth: 0 },
   cardTitle: { ...fonts.sub3_sb_16, color: Colors.common.black, flexShrink: 1 },
-  caption: { ...fonts.caption6_r_12, color: Colors.gray[7], marginTop: 5 },
-  white: { color: "#FFFFFF" },
-  verifiedCaption: { color: Colors.gray[5] },
+  caption: { ...fonts.caption5_r_13, color: Colors.gray[7] },
+  verifiedCaption: { color: Colors.gray[7] },
   school: {
-    minHeight: 56,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -259,9 +283,9 @@ const styles = StyleSheet.create({
   muted: { color: Colors.gray[6] },
   spacer: { flex: 1 },
   preparation: {
-    padding: 16,
-    minHeight: 100,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -278,7 +302,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.gray[2],
+    backgroundColor: Colors.gray[1],
   },
-  flag: { fontSize: 28 },
 });

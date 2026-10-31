@@ -1,3 +1,5 @@
+import { CountryFlag } from "@/components/ui/country-flag";
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { Colors, fonts } from "@/constants/theme";
 import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,6 +14,8 @@ import FlagIcon from "@/assets/icon/flag.svg";
 import LocationIcon from "@/assets/icon/location.svg";
 import CalendarIcon from "@/assets/icon/calendar.svg";
 import EditIcon from "@/assets/icon/edit.svg";
+import MoreIcon from "@/assets/icon/detail.svg";
+import TrashIcon from "@/assets/icon/delete.svg";
 import {
   ActivityIndicator,
   Alert,
@@ -798,7 +802,7 @@ export default function TicketPreviewPage() {
           style={styles.moreButton}
           onPress={() => setMenuVisible((prev) => !prev)}
         >
-          <Ionicons name="ellipsis-horizontal" size={22} color="#111111" />
+          <MoreIcon />
         </Pressable>
       </View>
 
@@ -830,7 +834,7 @@ export default function TicketPreviewPage() {
                     handleDeleteTicket();
                   }}
                 >
-                  <Ionicons name="trash-outline" size={18} color="#E5484D" />
+                  <TrashIcon color="#E5484D" width={24} height={24} />
                   <Text
                     style={[styles.postMenuText, styles.postMenuDangerText]}
                   >
@@ -846,7 +850,7 @@ export default function TicketPreviewPage() {
                   handleReportTicket();
                 }}
               >
-                <Ionicons name="flag-outline" size={18} color="#E5484D" />
+                <FlagIcon color="#E5484D" width={24} height={24} />
                 <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
                   {reporting ? "신고 접수 중..." : "신고하기"}
                 </Text>
@@ -981,7 +985,7 @@ export default function TicketPreviewPage() {
         <View style={detailStyles.card}>
           {tab === "seller" && (
             <View style={detailStyles.profile}>
-              <View style={detailStyles.avatar} />
+              <DefaultProfileImage style={detailStyles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={detailStyles.nameRow}>
                   <Text style={fonts.sub3_sb_16}>{sellerNickname}</Text>
@@ -1075,13 +1079,7 @@ export default function TicketPreviewPage() {
                 </Text>
               </View>
               <View style={detailStyles.value}>
-                {row.country && countryFlags[row.country] ? (
-                  <View style={detailStyles.flagBox}>
-                    <Text style={detailStyles.flag}>
-                      {countryFlags[row.country]}
-                    </Text>
-                  </View>
-                ) : null}
+                <CountryFlag country={row.country?.trim()} width={24} height={24} />
                 <Text
                   style={[
                     fonts.body1_m_16,
@@ -1174,7 +1172,7 @@ const styles = StyleSheet.create({
   },
   detailHeader: {
     height: 56,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1196,16 +1194,12 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#F6F8FC",
+    width: 40,
+    height: 40,
   },
   moreButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F6F8FC",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1523,19 +1517,6 @@ const styles = StyleSheet.create({
   chatText: { ...fonts.sub3_sb_16, color: Colors.common.white },
 });
 
-const countryFlags: Record<string, string> = {
-  독일: "🇩🇪",
-  프랑스: "🇫🇷",
-  일본: "🇯🇵",
-  미국: "🇺🇸",
-  영국: "🇬🇧",
-  스페인: "🇪🇸",
-  이탈리아: "🇮🇹",
-  네덜란드: "🇳🇱",
-  체코: "🇨🇿",
-  캐나다: "🇨🇦",
-  호주: "🇦🇺",
-};
 const detailStyles = StyleSheet.create({
   card: {
     marginTop: 16,
@@ -1556,18 +1537,6 @@ const detailStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 8,
-  },
-  flagBox: {
-    width: 28,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  flag: {
-    fontSize: 20,
-    lineHeight: 24,
-    includeFontPadding: false,
-    textAlign: "center",
   },
   profile: {
     flexDirection: "row",

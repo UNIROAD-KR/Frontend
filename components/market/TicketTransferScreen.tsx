@@ -36,7 +36,6 @@ export function TicketTransferScreen({
   hasMore,
   hasActiveFilters = false,
   onLoadMore,
-  onRetry,
 }: Props) {
   return (
     <View>
@@ -61,7 +60,7 @@ export function TicketTransferScreen({
             >
               <View style={styles.country}>
                 <View style={styles.flagBox}>
-                  <CountryFlag country={item.region} width={40} height={30} />
+                  <CountryFlag country={item.region} width={24} height={24} />
                 </View>
                 <Text
                   style={[fonts.caption4_m_12, styles.countryName]}
@@ -87,11 +86,17 @@ export function TicketTransferScreen({
                 </View>
                 <View style={styles.prices}>
                   <Text style={[fonts.sub3_sb_16, { color: Colors.gray[11] }]}>
-                    {item.price}원
+                    {Number(item.price.replace(/[^0-9]/g, "")).toLocaleString(
+                      "ko-KR",
+                    )}
+                    원
                   </Text>
                   {!!item.originalPrice && (
                     <Text style={[fonts.caption3_m_13, styles.originalPrice]}>
-                      {item.originalPrice}원
+                      {Number(
+                        item.originalPrice.replace(/[^0-9]/g, ""),
+                      ).toLocaleString("ko-KR")}
+                      원
                     </Text>
                   )}
                 </View>

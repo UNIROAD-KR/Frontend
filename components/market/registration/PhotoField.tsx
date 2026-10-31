@@ -6,6 +6,7 @@ import { Colors, fonts } from "@/constants/theme";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import DeleteIcon from "@/assets/icon/delete.svg";
 
 export function PhotoField({
   photos,
@@ -46,7 +47,7 @@ export function PhotoField({
               style={styles.remove}
               onPress={() => onChange(photos.filter((_, i) => i !== index))}
             >
-              <Ionicons name="trash-outline" size={18} color="white" />
+              <DeleteIcon width={18} height={18} color="white" />
             </Pressable>
           </View>
         ))}
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     right: 4,
     width: 30,
     height: 30,
-    backgroundColor: "#00000088",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
     borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",

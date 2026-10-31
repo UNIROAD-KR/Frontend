@@ -89,10 +89,7 @@ export function CalendarDateTimeField({
         />
       )}
       {Platform.OS !== "android" && mode === "time" && (
-        <BottomSheetModal
-          visible
-          onRequestClose={() => setMode(null)}
-        >
+        <BottomSheetModal visible onRequestClose={() => setMode(null)}>
           <View style={styles.overlay}>
             <Pressable
               style={StyleSheet.absoluteFill}

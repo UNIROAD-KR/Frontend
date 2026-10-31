@@ -3,7 +3,7 @@ import {
   compareMarketDates,
   type MarketSortOrder,
 } from "@/src/utils/marketSort";
-import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { MarketFilterBar } from "@/components/market/MarketFilterBar";
 import {
   emptyMarketFilters,
@@ -906,7 +906,7 @@ export default function MarketPage() {
           setSortSheetVisible(false);
         }}
       />
-      <MarketCountrySheet
+      <CountrySelectionSheet
         visible={countrySheetVisible}
         selectedCountry={selectedCountry}
         onClose={() => setCountrySheetVisible(false)}

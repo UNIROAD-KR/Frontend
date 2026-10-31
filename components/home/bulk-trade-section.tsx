@@ -1,6 +1,6 @@
 import { Text } from "@/components/ui/app-text";
 import ArrowGrayIcon from "@/assets/icon/arrow-gray.svg";
-import { sortedCountries } from "@/components/market/MarketCountrySheet";
+import { sortedCountries } from "@/src/constants/countries";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
 
 import { Colors, fonts } from "../../constants/theme";
 import type { UsedItem } from "../../src/api/usedItems";
+import EmptyState from "../ui/empty-state";
 
 const formatTradePrice = (price: number) =>
   `${price.toLocaleString("ko-KR")}원`;
@@ -132,7 +133,10 @@ export function BulkTradeSection({ items, isReturned }: BulkTradeSectionProps) {
           </TouchableOpacity>
         ))}
         {filteredItems.length === 0 && (
-          <Text style={styles.emptyText}>해당 국가의 거래 상품이 없어요.</Text>
+          <EmptyState
+            title="해당 국가의 거래 상품이 없어요."
+            description="다른 국가를 선택해보세요."
+          />
         )}
       </View>
     </View>

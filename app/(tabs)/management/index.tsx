@@ -1,6 +1,5 @@
 import { Text } from "@/components/ui/app-text";
-import { useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import AccountBookTab from "../../account-book-tab";
 import { DepartureTab } from "@/components/management/departure-tab";
@@ -9,15 +8,12 @@ import { commonStyles, fonts, Colors } from "@/constants/theme";
 
 export default function ExploreScreen() {
   const { tab } = useLocalSearchParams<{ tab?: string }>();
-  const [selectedTab, setSelectedTab] = useState<
-    "지출 관리" | "캘린더" | "출국 준비"
-  >("지출 관리");
-
-  useEffect(() => {
-    if (tab === "expense") setSelectedTab("지출 관리");
-    if (tab === "calendar") setSelectedTab("캘린더");
-    if (tab === "departure") setSelectedTab("출국 준비");
-  }, [tab]);
+  const selectedTab =
+    tab === "departure"
+      ? "출국 준비"
+      : tab === "calendar"
+        ? "캘린더"
+        : "지출 관리";
 
   return (
     <View style={{ ...commonStyles.container }}>
@@ -30,7 +26,16 @@ export default function ExploreScreen() {
               <Pressable
                 key={tab}
                 style={[styles.homeTab, isSelected && styles.selectedHomeTab]}
-                onPress={() => setSelectedTab(tab)}
+                onPress={() =>
+                  router.setParams({
+                    tab:
+                      tab === "출국 준비"
+                        ? "departure"
+                        : tab === "캘린더"
+                          ? "calendar"
+                          : "expense",
+                  })
+                }
               >
                 <Text
                   style={[

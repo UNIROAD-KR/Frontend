@@ -33,6 +33,13 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "채팅 이미지를 사진첩에 저장할 수 있도록 허용해주세요.",
+          "granularPermissions": ["photo"]
+        }
+      ],
       "expo-router",
       "./plugins/with-ios-modular-headers",
       "@react-native-firebase/app",

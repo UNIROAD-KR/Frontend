@@ -27,6 +27,7 @@ export interface ChatMessageResponse {
   senderId: number;
   message?: string;
   content?: string;
+  imageUrl?: string | null;
   type?: string;
   createdAt: string;
   unreadCount?: number;
@@ -78,12 +79,13 @@ export const leaveChatRoom = (roomId: number) => {
   return api.delete<void>(`/api/v1/chat/rooms/${roomId}/members/me`);
 };
 
-export const sendChatMessage = (roomId: number, message: string) => {
+export const sendChatMessage = (roomId: number, message: string, imageUrl?: string) => {
   return api.post<ChatMessageResponse>(
     `/api/v1/chat/rooms/${roomId}/messages`,
     {
       message,
-      type: "TALK",
+      type: imageUrl ? "IMAGE" : "TALK",
+      ...(imageUrl ? { imageUrl } : {}),
     },
   );
 };

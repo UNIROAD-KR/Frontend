@@ -1,3 +1,6 @@
+import SchoolIcon from "@/assets/icon/school.svg";
+import { CountryFlag } from "@/components/ui/country-flag";
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MarketItemList } from "@/components/market/MarketItemList";
 import { Text } from "@/components/ui/app-text";
@@ -6,11 +9,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import FlagIcon from "@/assets/icon/flag.svg";
 import EditIcon from "@/assets/icon/edit.svg";
+import CalendarIcon from "@/assets/icon/calendar.svg";
+import LocationIcon from "@/assets/icon/location.svg";
+import PersonIcon from "@/assets/icon/person.svg";
 import { router, useLocalSearchParams } from "expo-router";
 import TrashIcon from "@/assets/icon/delete.svg";
 import MoreIcon from "@/assets/icon/detail.svg";
 import { useAppAlert } from "@/hooks/use-app-alert";
 import { Modal as AppModal } from "@/components/ui/modal";
+import CompleteIcon from "@/assets/icon/complete.svg";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -692,10 +699,7 @@ export default function MarketDetailPage() {
 
   const handleReportPost = () => {
     if (!post || typeof post.id !== "number") {
-      showAlert(
-        "신고할 수 없어요",
-        "서버에 등록된 게시글만 신고할 수 있어요.",
-      );
+      showAlert("신고할 수 없어요", "서버에 등록된 게시글만 신고할 수 있어요.");
       return;
     }
 
@@ -751,7 +755,7 @@ export default function MarketDetailPage() {
 
             showAlert("삭제 완료", "판매글이 삭제되었어요.", [
               {
-                text: "확인",
+                text: "확인했어요",
                 onPress: () => router.replace("/market" as any),
               },
             ]);
@@ -1155,17 +1159,20 @@ function HeaderBack({
                     tradeStatus === "COMPLETED"
                       ? "판매중으로 변경"
                       : "거래완료로 변경",
-                  icon: (
-                    <Ionicons
-                      name={
-                        tradeStatus === "COMPLETED"
-                          ? "refresh-outline"
-                          : "checkmark-circle-outline"
-                      }
-                      size={24}
-                      color={Colors.gray[10]}
-                    />
-                  ),
+                  icon:
+                    tradeStatus === "COMPLETED" ? (
+                      <Ionicons
+                        name="refresh-outline"
+                        size={24}
+                        color={Colors.gray[9]}
+                      />
+                    ) : (
+                      <CompleteIcon
+                        width={24}
+                        height={24}
+                        color={Colors.gray[9]}
+                      />
+                    ),
                   onPress: () =>
                     onChangeStatus?.(
                       tradeStatus === "COMPLETED" ? "AVAILABLE" : "COMPLETED",
@@ -1310,18 +1317,6 @@ function FullImageModal({
   );
 }
 
-const countryFlagImages: Record<
-  string,
-  import("react-native").ImageSourcePropType
-> = {
-  독일: require("../../assets/images/flag_germany.png"),
-  프랑스: require("../../assets/images/flag_france.png"),
-  스페인: require("../../assets/images/flag_spain.png"),
-  영국: require("../../assets/images/flag_england.png"),
-  네덜란드: require("../../assets/images/flag_Neth.png"),
-  미국: require("../../assets/images/flag_USA.png"),
-};
-
 function TradeInfo({ post }: { post: MarketDetailPost }) {
   const sellerCountry = post.sellerCountry || post.authorDispatchedCountry;
   const rows = [
@@ -1354,26 +1349,25 @@ function TradeInfo({ post }: { post: MarketDetailPost }) {
       <Text style={fonts.title5_b_20}>거래 정보</Text>
       <View style={styles.conditionCard}>
         {rows.map((row) => {
-          const flag =
-            "country" in row && row.country
-              ? countryFlagImages[row.country.trim()]
-              : undefined;
+          const country = "country" in row ? row.country?.trim() : undefined;
           return (
             <View key={row.label} style={styles.conditionRow}>
               <View style={styles.conditionLabelRow}>
-                <Ionicons name={row.icon} size={18} color="#738092" />
+                {row.label === "판매자 국가" ? (
+                  <PersonIcon width={18} height={18} color={Colors.gray[7]} />
+                ) : row.label === "거래 국가" ? (
+                  <FlagIcon width={18} height={18} color={Colors.gray[7]} />
+                ) : row.label === "거래 장소" ? (
+                  <LocationIcon width={18} height={18} color={Colors.gray[7]} />
+                ) : row.label === "판매자 귀국일" ? (
+                  <CalendarIcon width={18} height={18} />
+                ) : null}
                 <Text style={[fonts.body1_m_16, { color: Colors.gray[8] }]}>
                   {row.label}
                 </Text>
               </View>
               <View style={styles.conditionValueRow}>
-                {flag && (
-                  <Image
-                    source={flag}
-                    style={styles.conditionFlag}
-                    accessibilityIgnoresInvertColors
-                  />
-                )}
+                <CountryFlag country={country} width={24} height={24} />
                 <Text style={[fonts.body1_m_16, { color: Colors.gray[11] }]}>
                   {row.value}
                 </Text>
@@ -1402,15 +1396,15 @@ function SellerInfo({ post }: { post: MarketDetailPost }) {
   const location =
     [sellerCountry, sellerRegion].filter(Boolean).join(" ") || "미정";
   const rows = [
-    { label: "소속 대학", icon: "school-outline", value: domesticUniversity },
+    { label: "소속 대학", Icon: SchoolIcon, value: domesticUniversity },
     {
       label: "파견 국가 및 지역",
-      icon: "flag-outline",
+      Icon: FlagIcon,
       value: location,
       country: sellerCountry,
     },
-    { label: "파견교", icon: "school-outline", value: dispatchedUniversity },
-    { label: "파견 학기", icon: "calendar-outline", value: dispatchSemester },
+    { label: "파견교", Icon: SchoolIcon, value: dispatchedUniversity },
+    { label: "파견 학기", Icon: CalendarIcon, value: dispatchSemester },
   ] as const;
 
   return (
@@ -1418,7 +1412,7 @@ function SellerInfo({ post }: { post: MarketDetailPost }) {
       <Text style={fonts.title5_b_20}>판매자 정보</Text>
       <View style={styles.conditionCard}>
         <View style={styles.profileCard}>
-          <View style={styles.profileImage} />
+          <DefaultProfileImage style={styles.profileImage} />
           <View style={{ flex: 1 }}>
             <View style={styles.profileNameRow}>
               <Text
@@ -1449,26 +1443,17 @@ function SellerInfo({ post }: { post: MarketDetailPost }) {
         </View>
         <View style={styles.sellerInfoList}>
           {rows.map((row) => {
-            const flag =
-              "country" in row && row.country
-                ? countryFlagImages[row.country.trim()]
-                : undefined;
+            const country = "country" in row ? row.country?.trim() : undefined;
             return (
               <View key={row.label} style={styles.conditionRow}>
                 <View style={styles.conditionLabelRow}>
-                  <Ionicons name={row.icon} size={18} color={Colors.gray[7]} />
+                  <row.Icon width={18} height={18} color={Colors.gray[7]} />
                   <Text style={[fonts.body1_m_16, { color: Colors.gray[8] }]}>
                     {row.label}
                   </Text>
                 </View>
                 <View style={styles.conditionValueRow}>
-                  {flag && (
-                    <Image
-                      source={flag}
-                      style={styles.conditionFlag}
-                      accessibilityIgnoresInvertColors
-                    />
-                  )}
+                  <CountryFlag country={country} width={24} height={24} />
                   <Text style={[fonts.body1_m_16, styles.sellerInfoValue]}>
                     {row.value}
                   </Text>
@@ -1705,37 +1690,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.common.black,
   },
 
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#111111",
-    marginBottom: 7,
-  },
-
-  sectionDesc: {
-    fontSize: 11,
-    color: "#777777",
-    marginBottom: 24,
-  },
-
-  subTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111111",
-    marginBottom: 12,
-    marginTop: 8,
-  },
-
   conditionCard: {
     marginTop: 16,
     marginBottom: 24,
     paddingHorizontal: 16,
     paddingVertical: 18,
     gap: 20,
-    backgroundColor: "#F8F9FB",
+    backgroundColor: Colors.gray[1],
     borderWidth: 1,
-    borderColor: "#DFE3E9",
-    borderRadius: 10,
+    borderColor: Colors.gray[3],
+    borderRadius: 8,
   },
   conditionRow: {
     flexDirection: "row",
@@ -1745,14 +1709,8 @@ const styles = StyleSheet.create({
   conditionLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 8,
     paddingTop: 1,
-  },
-  conditionLabel: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#556173",
-    fontWeight: "500",
   },
   conditionValueRow: {
     flex: 1,
@@ -1762,41 +1720,12 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 9,
   },
-  conditionFlag: {
-    width: 25,
-    height: 18,
-    borderRadius: 3,
-    resizeMode: "cover",
-  },
-  conditionValue: {
-    flexShrink: 1,
-    fontSize: 15,
-    lineHeight: 24,
-    color: "#252B35",
-    fontWeight: "500",
-    textAlign: "right",
-  },
-
   descriptionBox: {
     backgroundColor: "#FAFAFA",
     borderRadius: 4,
     paddingHorizontal: 22,
     paddingVertical: 24,
   },
-
-  descriptionText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#111111",
-    fontWeight: "600",
-  },
-
-  nickname: {
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 16,
-  },
-
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1827,7 +1756,7 @@ const styles = StyleSheet.create({
     color: Colors.gray[8],
   },
   sellerInfoList: {
-    gap: 22,
+    gap: 16,
   },
   sellerInfoValue: {
     flexShrink: 1,
