@@ -1,3 +1,4 @@
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { commonStyles, fonts, Colors } from "@/constants/theme";
 import { PhotoPickerSheet } from "@/components/ui/photo-picker-sheet";
 import { Text, TextInput } from "@/components/ui/app-text";
@@ -123,6 +124,7 @@ export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const { showAlert, alertElement } = useAppAlert();
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  const [failedAvatarUri, setFailedAvatarUri] = useState<string | null>(null);
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [selectedTab, setSelectedTab] = useState<"프로필 정보" | "파견 정보">(
     "프로필 정보",
@@ -553,9 +555,17 @@ export default function ProfileEditScreen() {
             onPress={() => setAvatarPickerVisible(true)}
           >
             <ProfileEditAvatarBackground width={80} height={80} />
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
-            ) : null}
+            <Image
+              source={
+                avatarUri && avatarUri !== failedAvatarUri
+                  ? { uri: avatarUri }
+                  : require("@/assets/images/simbol.png")
+              }
+              style={styles.avatar}
+              onError={() => {
+                if (avatarUri) setFailedAvatarUri(avatarUri);
+              }}
+            />
             <ProfileEditAvatarActionIcon
               width={24}
               height={24}
@@ -748,11 +758,12 @@ export default function ProfileEditScreen() {
         onSelect={selectUniversity}
       />
 
-      <OnboardingSelectModal
+      <CountrySelectionSheet
+        allowAll={false}
         visible={countryPickerVisible}
         title="파견 국가 선택하기"
         options={countryOptions}
-        selectedValue={customCountryMode ? CUSTOM_COUNTRY_OPTION : country}
+        selectedCountry={customCountryMode ? CUSTOM_COUNTRY_OPTION : country}
         selectionMode="confirm"
         searchPlaceholder="국가명으로 찾아보세요"
         onClose={() => setCountryPickerVisible(false)}

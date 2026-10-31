@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import XIcon from "@/assets/icon/x-icon.svg";
 
 type Props = { groups: LocalMarketItemGroup[] };
 
@@ -86,20 +87,6 @@ export function MarketItemList({ groups }: Props) {
             onPress={() => setSelectedId(item.id)}
             style={styles.card}
           >
-            {item.photos[0] ? (
-              <Image
-                source={{ uri: item.photos[0] }}
-                style={styles.thumbnail}
-              />
-            ) : (
-              <View style={[styles.thumbnail, styles.placeholder]}>
-                <Ionicons
-                  name="image-outline"
-                  size={24}
-                  color={Colors.gray[5]}
-                />
-              </View>
-            )}
             <View style={styles.itemInfo}>
               <Text numberOfLines={1} style={fonts.sub3_sb_16}>
                 {item.name} {item.quantity}개
@@ -172,33 +159,13 @@ export function MarketItemList({ groups }: Props) {
                 accessibilityLabel="닫기"
                 style={styles.close}
               >
-                <Ionicons name="close" size={24} color={Colors.common.black} />
+                <XIcon />
               </Pressable>
             </View>
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.sheetContent}
             >
-              {selected?.photos.length ? (
-                selected.photos.map((photo, index) => (
-                  <Image
-                    key={`${photo}-${index}`}
-                    source={{ uri: photo }}
-                    style={styles.detailPhoto}
-                  />
-                ))
-              ) : (
-                <View style={[styles.detailPhoto, styles.placeholder]}>
-                  <Ionicons
-                    name="image-outline"
-                    size={36}
-                    color={Colors.gray[5]}
-                  />
-                  <Text style={[fonts.body2_m_14, { color: Colors.gray[6] }]}>
-                    등록된 사진이 없어요
-                  </Text>
-                </View>
-              )}
               <Text style={[fonts.body2_m_14, { color: Colors.gray[7] }]}>
                 {selected?.description}
               </Text>
@@ -224,9 +191,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 8,
-    paddingLeft: 8,
-    paddingRight: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: Colors.gray[3],
     borderRadius: 10,
@@ -258,8 +223,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   handle: {
-    width: 44,
-    height: 4,
+    width: 80,
+    height: 5,
     borderRadius: 2,
     backgroundColor: Colors.gray[4],
     alignSelf: "center",

@@ -9,7 +9,6 @@ import {
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
-import { Ionicons } from "@expo/vector-icons";
 import CalanderFillIcon from "@/assets/icon/calendar-fill.svg";
 import CalendarModal from "@/components/ui/calendar";
 import { useEffect, useRef, useState } from "react";

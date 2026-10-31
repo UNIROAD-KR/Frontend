@@ -1,3 +1,5 @@
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, useBottomSheetMotion, BottomSheetView } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
@@ -12,7 +14,6 @@ import { ActivityIndicator, Alert, Animated, Dimensions, Image, Keyboard, Keyboa
 import type { StyleProp, ViewStyle } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import {
   CUSTOM_COUNTRY_OPTION,
   countryOptions,
@@ -396,7 +397,6 @@ export default function MarketPreviewPage() {
   const regionText = region.trim();
   const semesterText = params.semester || '26-2학기';
   const sellerName = sellerProfile?.nickname || savedNickname || '나';
-  const sellerInitial = sellerName.trim().charAt(0) || '나';
   const sellerDomesticUniversity =
     sellerProfile?.domesticUniversity || sellerProfile?.homeUniversity || '소속대학 미정';
   const sellerCountry = sellerProfile?.dispatchedCountry || countryText;
@@ -1334,11 +1334,7 @@ export default function MarketPreviewPage() {
               <Text style={styles.desc}>거래 상대에게 보일 내 프로필 정보예요</Text>
 
               <View style={styles.sellerProfileCard}>
-                <View style={styles.sellerProfileImage}>
-                  <Text style={styles.sellerProfileInitial}>
-                    {sellerInitial}
-                  </Text>
-                </View>
+                <DefaultProfileImage style={styles.sellerProfileImage} />
 
                 <View style={styles.sellerProfileTextBox}>
                   <View style={styles.sellerNameRow}>
@@ -1707,11 +1703,12 @@ export default function MarketPreviewPage() {
         onClose={() => setShowDatePicker(false)}
       />
 
-      <OnboardingSelectModal
+      <CountrySelectionSheet
+        allowAll={false}
         visible={countryModalVisible}
         title="국가 선택"
         options={countryOptions}
-        selectedValue={selectedCountry}
+        selectedCountry={selectedCountry}
         onClose={() => setCountryModalVisible(false)}
         onSelect={handleSelectCountry}
       />

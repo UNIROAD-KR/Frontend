@@ -15,7 +15,7 @@ import DeleteIcon from "@/assets/icon/delete.svg";
 import XIcon from "@/assets/icon/x-icon.svg";
 import { FieldLabel } from "@/components/ui/field-label";
 import Svg, { Circle } from "react-native-svg";
-import { flags } from "@/components/market/MarketCountrySheet";
+import { flags } from "@/src/constants/countries";
 import EmptyState from "@/components/ui/empty-state";
 import InfoCircleIcon from "@/assets/icon/info-circle.svg";
 import { Text, TextInput } from "@/components/ui/app-text";

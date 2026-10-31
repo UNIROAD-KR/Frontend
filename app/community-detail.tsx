@@ -1,9 +1,15 @@
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Modal as AppModal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import ChatIcon from "@/assets/icon/chat.svg";
 import MoreIcon from "@/assets/icon/menu.svg";
+import SendIcon from "@/assets/icon/send.svg";
+import FlagIcon from "@/assets/icon/flag.svg";
+import CalendarIcon from "@/assets/icon/calendar.svg";
+import PersonIcon from "@/assets/icon/person.svg";
+import CheckmarkCircleIcon from "@/assets/icon/complete.svg";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Toast } from "@/components/ui/fade-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +33,7 @@ import {
   View,
 } from "react-native";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
+import ReplyIcon from "@/assets/icon/reply.svg";
 import CompleteIcon from "@/assets/icon/complete.svg";
 import EditIcon from "@/assets/icon/edit.svg";
 import DeleteIcon from "@/assets/icon/delete.svg";
@@ -135,15 +142,44 @@ const getBoardStatusColors = (status: string) => {
   return { backgroundColor: "#FFF1DF", color: "#F28A2E" };
 };
 
-const mapFreeComment = (comment: FreePostCommentResponse): FreeComment => ({
-  id: comment.id,
-  author: comment.authorName || "익명",
-  content: comment.content,
-  time: formatCompanionCreatedAt(comment.createdAt),
-  mine: comment.mine,
-  deleted: comment.deleted,
-  replies: (comment.replies ?? []).map(mapFreeComment),
-});
+const mapFreeComments = (comments: FreePostCommentResponse[]) => {
+  const anonymousNumbers = new Map<string, number>();
+  let nextAnonymousNumber = 1;
+
+  const getAuthorKey = (comment: FreePostCommentResponse) => {
+    const memberId = comment.memberId ?? comment.authorId;
+    if (memberId !== undefined && memberId !== null) {
+      return `member:${memberId}`;
+    }
+
+    if (comment.mine) {
+      return "member:me";
+    }
+
+    return `name:${comment.authorName.trim() || `commenter:${comment.id}`}`;
+  };
+
+  const mapComment = (comment: FreePostCommentResponse): FreeComment => {
+    const authorKey = getAuthorKey(comment);
+    let anonymousNumber = anonymousNumbers.get(authorKey);
+    if (anonymousNumber === undefined) {
+      anonymousNumber = nextAnonymousNumber++;
+      anonymousNumbers.set(authorKey, anonymousNumber);
+    }
+
+    return {
+      id: comment.id,
+      author: `익명 ${anonymousNumber}`,
+      content: comment.content,
+      time: formatCompanionCreatedAt(comment.createdAt),
+      mine: comment.mine,
+      deleted: comment.deleted,
+      replies: (comment.replies ?? []).map(mapComment),
+    };
+  };
+
+  return [...comments].sort((a, b) => a.id - b.id).map(mapComment);
+};
 
 const syncLikedFreePostStorage = async (
   post: FreePostDetailResponse,
@@ -357,6 +393,7 @@ export default function CommunityDetailScreen() {
       if (isCompanionApiPost(post)) {
         return {
           author: post.memberName,
+          authorName: post.memberName,
           title: post.title,
           content: post.content,
           country: post.country,
@@ -379,9 +416,8 @@ export default function CommunityDetailScreen() {
     const statusColors = getBoardStatusColors(boardPost.status);
 
     return {
-      author: boardPost.authorName || "익명",
-      authorNickname:
-        boardPost.authorNickname || boardPost.authorName || "익명",
+      author: "작성자",
+      authorName: boardPost.authorName || "익명",
       title: boardPost.title,
       category:
         Object.entries(FreePostCategoryMap).find(
@@ -397,7 +433,7 @@ export default function CommunityDetailScreen() {
       comments: boardPost.commentCount,
       liked: boardPost.liked,
       imageUrls: boardPost.imageUrls ?? [],
-      commentItems: (boardPost.comments ?? []).map(mapFreeComment),
+      commentItems: mapFreeComments(boardPost.comments ?? []),
       isMine: boardPost.mine,
     };
   }, [detailType, post]);
@@ -407,7 +443,7 @@ export default function CommunityDetailScreen() {
       ? currentMemberId !== null && currentMemberId === post.memberId
       : !!viewModel &&
         (viewModel.isMine ||
-          (!!currentMemberName && currentMemberName === viewModel.author));
+          (!!currentMemberName && currentMemberName === viewModel.authorName));
 
   const handleStartCompanionChat = async () => {
     if (!post || !isCompanionApiPost(post) || chatPending.current || isAuthor)
@@ -459,30 +495,6 @@ export default function CommunityDetailScreen() {
     } catch (error) {
       console.log("동행 모집글 공유 실패:", error);
     }
-  };
-
-  const handleOpenCompanionChatLink = async () => {
-    if (!viewModel?.chatLink) return;
-    try {
-      // 네이티브 모듈이 빌드에 없어도 화면 로딩이 깨지지 않도록 지연 로드
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const Clipboard = require("expo-clipboard");
-      await Clipboard.setStringAsync(viewModel.chatLink);
-      showAlert(
-        "오픈채팅 링크 복사 완료",
-        "클립보드에 오픈채팅 링크가 복사되었어요.",
-      );
-    } catch (error) {
-      console.log("오픈채팅 링크 복사 실패:", error);
-    }
-  };
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await loadPost();
-    setRefreshing(false);
-    setMenuVisible(false);
-    showAlert("새로고침 완료", "게시글 내용을 다시 불러왔어요.");
   };
 
   const handleEdit = () => {
@@ -903,9 +915,7 @@ export default function CommunityDetailScreen() {
             </View>
 
             <View style={styles.authorCard}>
-              <View style={styles.authorAvatar}>
-                <Ionicons name="person" size={24} color="#FFFFFF" />
-              </View>
+              <DefaultProfileImage style={styles.authorAvatar} />
               <View style={styles.authorCardText}>
                 <Text style={styles.authorCardName}>{viewModel.author}</Text>
                 <Text style={styles.authorCardMeta} numberOfLines={1}>
@@ -934,22 +944,35 @@ export default function CommunityDetailScreen() {
 
             <View style={styles.companionInfoPanel}>
               <CompanionInfoItem
-                icon="flag-outline"
+                icon={
+                  <FlagIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="국가 및 지역"
                 value={`${viewModel.country} ${viewModel.region}`}
               />
               <CompanionInfoItem
-                icon="calendar-outline"
+                icon={
+                  <CalendarIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="일정"
-                value={viewModel.period || "-"}
+                alignTop
+                value={viewModel.period?.replace(" - ", "\n- ") || "-"}
               />
               <CompanionInfoItem
-                icon="person-outline"
+                icon={
+                  <PersonIcon width={16} height={16} color={Colors.gray[7]} />
+                }
                 label="모집 인원"
                 value={`${viewModel.total}명`}
               />
               <CompanionInfoItem
-                icon="checkmark-circle-outline"
+                icon={
+                  <CheckmarkCircleIcon
+                    width={16}
+                    height={16}
+                    color={Colors.gray[7]}
+                  />
+                }
                 label="참여 조건"
                 value={viewModel.genderRatio!}
               />
@@ -992,15 +1015,6 @@ export default function CommunityDetailScreen() {
                 {viewModel.createdAt}
               </Text>
             </View>
-            <View style={styles.freeAuthorCard}>
-              <View style={styles.freeAuthorAvatar} />
-              <View style={styles.authorCardText}>
-                <Text style={styles.freeAuthorName}>{viewModel.author}</Text>
-                <Text style={styles.freeAuthorMeta} numberOfLines={1}>
-                  {viewModel.country}
-                </Text>
-              </View>
-            </View>
 
             {(viewModel.imageUrls ?? []).length > 0 && (
               <View style={styles.imageSection}>
@@ -1016,31 +1030,11 @@ export default function CommunityDetailScreen() {
               </View>
             )}
 
-            <View style={styles.bodyBlock}>
+            <View>
               <Text style={styles.bodyText}>{viewModel.content}</Text>
             </View>
           </>
         )}
-
-        {/* {detailType === "companion" && (
-          <View style={styles.reactionBar}>
-            <Pressable style={styles.reactionButton} onPress={handleScrapPress}>
-              <Ionicons
-                name={scrapped ? "bookmark" : "bookmark-outline"}
-                size={17}
-                color={scrapped ? BLUE : "#777777"}
-              />
-              <Text
-                style={[
-                  styles.reactionText,
-                  scrapped && styles.reactionTextActive,
-                ]}
-              >
-                {scrapCount}
-              </Text>
-            </Pressable>
-          </View>
-        )} */}
 
         {detailType === "free" && (
           <View style={styles.freeSection}>
@@ -1110,7 +1104,6 @@ export default function CommunityDetailScreen() {
               {freeCommentItems.map((comment) => (
                 <View key={comment.id}>
                   <View style={styles.commentItem}>
-                    <View style={styles.commentAvatar} />
                     <View style={styles.commentMain}>
                       {comment.deleted ? (
                         <Text style={styles.commentDeleted}>
@@ -1131,7 +1124,9 @@ export default function CommunityDetailScreen() {
                               commentInputRef.current?.focus();
                             }}
                           >
-                            <Text style={styles.replyButtonText}>답글 달기</Text>
+                            <Text style={styles.replyButtonText}>
+                              답글 달기
+                            </Text>
                           </Pressable>
                         </>
                       )}
@@ -1139,10 +1134,12 @@ export default function CommunityDetailScreen() {
                   </View>
                   {comment.replies.map((reply) => (
                     <View key={reply.id} style={styles.replyItem}>
-                      <View style={styles.commentAvatar} />
+                      <ReplyIcon />
                       <View style={styles.commentMain}>
                         {renderCommentMeta(reply)}
-                        <Text style={styles.replyContent}>{reply.content}</Text>
+                        <Text style={styles.commentContent}>
+                          {reply.content}
+                        </Text>
                       </View>
                     </View>
                   ))}
@@ -1190,7 +1187,7 @@ export default function CommunityDetailScreen() {
                 onPress={handleSubmitComment}
                 accessibilityLabel="댓글 등록"
               >
-                <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
+                <SendIcon />
               </Pressable>
             )}
           </View>
@@ -1293,14 +1290,16 @@ function CompanionInfoItem({
   icon,
   label,
   value,
+  alignTop = false,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: React.ReactNode;
   label: string;
   value: string;
+  alignTop?: boolean;
 }) {
   return (
-    <View style={styles.companionInfoRow}>
-      <Ionicons name={icon} size={17} color="#6B7684" />
+    <View style={[styles.companionInfoRow, alignTop && { alignItems: "flex-start" }]}>
+      {icon}
       <Text style={styles.companionInfoLabel}>{label}</Text>
       <Text style={styles.companionInfoValue}>{value}</Text>
     </View>
@@ -1378,7 +1377,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   companionTitleBlock: {
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   titleBlock: {
     marginBottom: 8,
@@ -1512,9 +1511,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: "#C8C8C8",
   },
-  bodyBlock: {
-    paddingTop: 24,
-  },
+  bodyBlock: {},
   imageSection: {
     paddingTop: 20,
     gap: 10,
@@ -1634,16 +1631,15 @@ const styles = StyleSheet.create({
   commentMain: { flex: 1 },
   commentAuthorBlock: { gap: 3, flex: 1 },
   commentMetaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  commentAuthor: { fontSize: 14, fontWeight: "600", color: "#111111" },
-  commentTime: { fontSize: 12, color: "#8B97A8" },
+  commentAuthor: { ...fonts.sub4_sb_14, color: Colors.common.black },
+  commentTime: { ...fonts.caption6_r_12, color: Colors.gray[6] },
   commentContent: {
-    fontSize: 16,
-    lineHeight: 27,
-    color: "#293140",
-    marginTop: 16,
+    ...fonts.long_body2_r_16,
+    color: Colors.gray[10],
+    marginTop: 12,
   },
   commentDeleted: {
-    ...fonts.body2_m_14,
+    ...fonts.body1_m_16,
     color: Colors.gray[6],
     paddingVertical: 8,
   },
@@ -1653,16 +1649,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingLeft: 62,
-    paddingRight: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
     backgroundColor: Colors.gray[1],
-  },
-  replyContent: {
-    ...fonts.body1_m_16,
-    color: Colors.gray[11],
-    marginTop: 16,
   },
   replyBanner: {
     flexDirection: "row",
@@ -1700,10 +1689,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   commentSubmitButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: Colors.primary.default,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,3 +1,4 @@
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { Text } from "@/components/ui/app-text";
 import { SessionExpiredError } from "@/src/api/client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -241,9 +242,7 @@ export default function ProfileSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.profileCard}>
-          <View style={styles.avatarBox}>
-            <Ionicons name="person" size={28} color={NAVY} />
-          </View>
+          <DefaultProfileImage style={styles.avatarBox} />
           <View style={styles.profileTextBox}>
             <Text style={styles.nickname}>{nickname}</Text>
             <Text style={styles.email} numberOfLines={1}>

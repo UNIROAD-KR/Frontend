@@ -1,4 +1,4 @@
-import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { styles as registrationStyles } from "@/components/market/registration/styles";
 import { TicketDateField } from "@/components/market/registration/TicketDateField";
@@ -1484,7 +1484,7 @@ export default function TicketWritePage() {
         </View>
       </BottomSheetModal>
 
-      <MarketCountrySheet
+      <CountrySelectionSheet
         visible={countryPickerVisible}
         allowAll={false}
         selectedCountry={country}

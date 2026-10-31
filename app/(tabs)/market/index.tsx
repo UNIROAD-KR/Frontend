@@ -3,7 +3,7 @@ import {
   compareMarketDates,
   type MarketSortOrder,
 } from "@/src/utils/marketSort";
-import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { MarketFilterBar } from "@/components/market/MarketFilterBar";
 import {
   emptyMarketFilters,
@@ -12,15 +12,13 @@ import {
 } from "@/components/market/MarketFilterSheet";
 import { UsedMarketScreen } from "@/components/market/UsedMarketScreen";
 import { TicketTransferScreen } from "@/components/market/TicketTransferScreen";
-import { Text, TextInput } from "@/components/ui/app-text";
+import { Text } from "@/components/ui/app-text";
+import PlusLineIcon from "@/assets/icon/plus-line.svg";
 import { Modal } from "@/components/ui/modal";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -30,7 +28,6 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import {
   getTickets,
   searchTickets,
@@ -192,7 +189,6 @@ export default function MarketPage() {
   const [ticketFilters, setTicketFilters] =
     useState<MarketFilters>(emptyMarketFilters);
   const [sortOrder, setSortOrder] = useState<MarketSortOrder>("newest");
-  const [isFabOpen, setIsFabOpen] = useState(false);
   const [marketModal, setMarketModal] = useState<MarketModalState>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const openedEditDetailRef = useRef<string | null>(null);
@@ -502,21 +498,6 @@ export default function MarketPage() {
     [],
   );
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     const { keyword, country } = latestMarketQueryRef.current;
-
-  //     loadStoredMarketInteractions();
-  //     fetchUsedItems(keyword, country);
-  //     fetchTickets(undefined, keyword, country);
-  //     let active = true;
-  //     void checkVerificationStatus(() => active);
-  //     return () => {
-  //       active = false;
-  //     };
-  //   }, [fetchTickets, fetchUsedItems, checkVerificationStatus]),
-  // );
-
   useEffect(() => {
     const timer = setTimeout(() => {
       if (selectedType === "ticket") {
@@ -625,12 +606,9 @@ export default function MarketPage() {
 
   const handleFabPress = () => {
     if (selectedType === "ticket") {
-      setIsFabOpen(false);
       requireVerificationBefore("/market/ticket-write", openTicketWrite);
       return;
     }
-
-    setIsFabOpen(false);
     requireVerificationBefore("/market/write?type=all", openBulkWrite);
   };
 
@@ -826,13 +804,12 @@ export default function MarketPage() {
         <TouchableOpacity
           activeOpacity={1}
           style={[
-            styles.tradeTypeButton,
-            selectedTab === "bulk" && styles.tradeTypeButtonActive,
+            commonStyles.smallTabButton,
+            selectedTab === "bulk" && commonStyles.smallTabButtonActive,
           ]}
           onPress={() => {
             setSelectedTab("bulk");
             setSelectedType("bulk");
-            setIsFabOpen(false);
           }}
         >
           <Text
@@ -849,13 +826,12 @@ export default function MarketPage() {
         <TouchableOpacity
           activeOpacity={1}
           style={[
-            styles.tradeTypeButton,
-            selectedTab === "ticket" && styles.tradeTypeButtonActive,
+            commonStyles.smallTabButton,
+            selectedTab === "ticket" && commonStyles.smallTabButtonActive,
           ]}
           onPress={() => {
             setSelectedTab("ticket");
             setSelectedType("ticket");
-            setIsFabOpen(false);
           }}
         >
           <Text
@@ -911,55 +887,15 @@ export default function MarketPage() {
         )}
       </ScrollView>
 
-      {isFabOpen && selectedType === "bulk" && (
-        <View style={styles.fabMenu}>
-          <Pressable
-            style={styles.fabMenuItem}
-            onPress={() =>
-              requireVerificationBefore("/market/write?type=all", openBulkWrite)
-            }
-          >
-            <Image
-              source={require("../../../assets/images/used_all.png")}
-              style={styles.fabMenuImage}
-            />
-            <Text style={styles.fabMenuText}>
-              다음 교환학생에게 일괄 판매하기
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.fabMenuItem}
-            onPress={() => {
-              setIsFabOpen(false);
-              requireVerificationBefore(
-                "/market/ticket-write",
-                openTicketWrite,
-              );
-            }}
-          >
-            <Image
-              source={require("../../../assets/images/used_each.png")}
-              style={styles.fabMenuImage}
-            />
-            <Text style={styles.fabMenuText}>티켓 양도하기</Text>
-          </Pressable>
-        </View>
-      )}
-
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={
           selectedTab === "bulk" ? "중고거래 글쓰기" : "티켓 양도 글쓰기"
         }
-        style={[styles.fabButton, isFabOpen && styles.fabButtonOpen]}
+        style={[commonStyles.fab]}
         onPress={handleFabPress}
       >
-        <Ionicons
-          name={isFabOpen ? "remove" : "add"}
-          size={32}
-          color="#FFFFFF"
-        />
+        <PlusLineIcon />
       </Pressable>
       <MarketSortSheet
         visible={sortSheetVisible}
@@ -970,7 +906,7 @@ export default function MarketPage() {
           setSortSheetVisible(false);
         }}
       />
-      <MarketCountrySheet
+      <CountrySelectionSheet
         visible={countrySheetVisible}
         selectedCountry={selectedCountry}
         onClose={() => setCountrySheetVisible(false)}
@@ -1117,22 +1053,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#111111",
-  },
-
-  fabButton: {
-    position: "absolute",
-    right: 16,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#252B35",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  fabButtonOpen: {
-    backgroundColor: "#303030",
   },
 
   fabMenu: {

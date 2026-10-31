@@ -1,3 +1,4 @@
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { commonStyles } from "@/constants/theme";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetTouchable } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
@@ -7,7 +8,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import { AppBackButton } from '@/components/ui/app-back-button';
 import {
   CUSTOM_COUNTRY_OPTION,
@@ -390,11 +390,12 @@ export default function ProfileFieldEditScreen() {
         </TouchableOpacity>
       </View>
 
-      <OnboardingSelectModal
+      <CountrySelectionSheet
+        allowAll={false}
         visible={countrySheetVisible}
         title="파견 국가 선택"
         options={countryOptions}
-        selectedValue={selectedCountry}
+        selectedCountry={selectedCountry}
         onClose={() => setCountrySheetVisible(false)}
         onSelect={selectCountry}
       />

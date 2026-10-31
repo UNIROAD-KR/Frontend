@@ -22,7 +22,7 @@ import {
 } from "../../src/api/companion";
 import { canUseMarketWithoutVerification } from "../../src/utils/verification";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
-import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AppBackButton,
@@ -463,7 +463,7 @@ export function CommunityCompanionWriteForm() {
         </View>
       </ScrollView>
 
-      <MarketCountrySheet
+      <CountrySelectionSheet
         visible={countrySheetVisible}
         allowAll={false}
         selectedCountry={country}

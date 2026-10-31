@@ -1,15 +1,9 @@
 import { Text } from "@/components/ui/app-text";
 import { Colors, fonts } from "@/constants/theme";
-import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-} from "react-native";
-import { MarketEmptyState } from "./MarketEmptyState";
-import { flags as countryFlags } from "./MarketCountrySheet";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { CountryFlag } from "@/components/ui/country-flag";
+import EmptyState from "../ui/empty-state";
 
 export type TicketListing = {
   id: number;
@@ -42,12 +36,14 @@ export function TicketTransferScreen({
   hasMore,
   hasActiveFilters = false,
   onLoadMore,
-  onRetry,
 }: Props) {
   return (
     <View>
       {error ? (
-        <MarketEmptyState error={error} onRetry={onRetry} />
+        <EmptyState
+          title="목록을 불러오지 못했어요"
+          description="잠시 후 다시 시도해주세요"
+        />
       ) : (
         <>
           {items.map((item) => (
@@ -64,15 +60,7 @@ export function TicketTransferScreen({
             >
               <View style={styles.country}>
                 <View style={styles.flagBox}>
-                  {countryFlags[item.region] ? (
-                    <Text style={styles.flag}>{countryFlags[item.region]}</Text>
-                  ) : (
-                    <Ionicons
-                      name="globe-outline"
-                      size={30}
-                      color={Colors.gray[6]}
-                    />
-                  )}
+                  <CountryFlag country={item.region} width={24} height={24} />
                 </View>
                 <Text
                   style={[fonts.caption4_m_12, styles.countryName]}
@@ -94,17 +82,21 @@ export function TicketTransferScreen({
                 </View>
                 <View style={styles.metaRow}>
                   <Text style={styles.metaLabel}>유형</Text>
-                  <Text style={styles.metaValue}>
-                    {item.category}
-                  </Text>
+                  <Text style={styles.metaValue}>{item.category}</Text>
                 </View>
                 <View style={styles.prices}>
                   <Text style={[fonts.sub3_sb_16, { color: Colors.gray[11] }]}>
-                    {item.price}원
+                    {Number(item.price.replace(/[^0-9]/g, "")).toLocaleString(
+                      "ko-KR",
+                    )}
+                    원
                   </Text>
                   {!!item.originalPrice && (
                     <Text style={[fonts.caption3_m_13, styles.originalPrice]}>
-                      {item.originalPrice}원
+                      {Number(
+                        item.originalPrice.replace(/[^0-9]/g, ""),
+                      ).toLocaleString("ko-KR")}
+                      원
                     </Text>
                   )}
                 </View>
@@ -112,8 +104,12 @@ export function TicketTransferScreen({
             </Pressable>
           ))}
           {!items.length && !loadingMore && (
-            <MarketEmptyState
-              title={hasActiveFilters ? "조건에 맞는 티켓이 없어요" : "등록한 티켓이 아직 없어요"}
+            <EmptyState
+              title={
+                hasActiveFilters
+                  ? "조건에 맞는 티켓이 없어요"
+                  : "등록한 티켓이 아직 없어요"
+              }
               description={
                 hasActiveFilters
                   ? "필터 조건을 변경해보세요."

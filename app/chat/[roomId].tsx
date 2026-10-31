@@ -1,3 +1,4 @@
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { Text, TextInput } from "@/components/ui/app-text";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -10,6 +11,7 @@ import SendGrayIcon from "@/assets/icon/send-gray.svg";
 import SendIcon from "@/assets/icon/send.svg";
 import MenuIcon from "@/assets/icon/menu.svg";
 import PlusCircleIcon from "@/assets/icon/plus-circle.svg";
+import ChatIcon from "@/assets/icon/chat.svg";
 import {
   Image,
   Keyboard,
@@ -25,6 +27,8 @@ import { AppBackButton } from "@/components/ui/app-back-button";
 import { Modal as AppModal } from "@/components/ui/modal";
 import { useAppAlert } from "@/hooks/use-app-alert";
 import { PhotoPickerSheet } from "@/components/ui/photo-picker-sheet";
+import { ChatImageGrid } from "@/components/chat-image-grid";
+import { getUploadUrl, uploadFileToStorage } from "@/src/api/upload";
 import { Colors, fonts } from "@/constants/theme";
 import { getCompanionPostDetail } from "../../src/api/companion";
 import { getMemberMe } from "../../src/api/auth";
@@ -49,6 +53,8 @@ type ChatMessage = {
   roomId: number;
   senderId: number | "me" | "other";
   message: string;
+  imageUrl?: string | null;
+  imageUrls?: string[];
   type?: string;
   createdAt: string;
   unreadCount?: number;
@@ -97,6 +103,7 @@ const normalizeMessage = (item: ChatMessageResponse): ChatMessage => ({
   roomId: item.roomId,
   senderId: item.senderId,
   message: item.message ?? item.content ?? "",
+  imageUrl: item.imageUrl,
   type: item.type,
   createdAt: item.createdAt,
   unreadCount: item.unreadCount,
@@ -161,9 +168,13 @@ const formatMessageDate = (value: string) => {
 
 const isSameMessageGroup = (first?: ChatMessage, second?: ChatMessage) => {
   if (!first || !second || first.senderId !== second.senderId) return false;
-  const gap = new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
-  return messageDateKey(first.createdAt) === messageDateKey(second.createdAt)
-    && gap >= 0 && gap < 60000;
+  const gap =
+    new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+  return (
+    messageDateKey(first.createdAt) === messageDateKey(second.createdAt) &&
+    gap >= 0 &&
+    gap < 60000
+  );
 };
 
 const getReadStatus = (item: ChatMessage) => {
@@ -216,6 +227,29 @@ export default function ChatRoomPage() {
   const [leaveRoomConfirmationVisible, setLeaveRoomConfirmationVisible] =
     useState(false);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const uploadedChatPhotos = useRef(new Map<string, string>());
+  const displayMessages = messages.reduce<ChatMessage[]>((result, item) => {
+    const previous = result[result.length - 1];
+    if (
+      item.imageUrl &&
+      !item.message &&
+      previous?.imageUrls &&
+      !previous.message &&
+      isSameMessageGroup(previous, item)
+    ) {
+      result[result.length - 1] = {
+        ...item,
+        imageUrls: [...previous.imageUrls, item.imageUrl],
+      };
+    } else {
+      result.push({
+        ...item,
+        ...(item.imageUrl ? { imageUrls: [item.imageUrl] } : {}),
+      });
+    }
+    return result;
+  }, []);
   const [reporting, setReporting] = useState(false);
   const [currentMemberId, setCurrentMemberId] = useState<number | null>(null);
   const [roomInfo, setRoomInfo] = useState<ChatRoomResponse | null>(null);
@@ -260,7 +294,8 @@ export default function ChatRoomPage() {
   }, [messages]);
 
   useEffect(() => {
-    const event = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const event =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const sub = Keyboard.addListener(event, () => {
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
     });
@@ -459,16 +494,54 @@ export default function ChatRoomPage() {
   const handleSend = async () => {
     const text = message.trim();
 
-    if (!text || sending || !Number.isFinite(numericRoomId)) return;
+    if (
+      (!text && attachedPhotos.length === 0) ||
+      sendingRef.current ||
+      !Number.isFinite(numericRoomId)
+    )
+      return;
 
+    sendingRef.current = true;
     try {
       setSending(true);
-      const response = await sendChatMessage(numericRoomId, text);
-
-      setMessages((prev) =>
-        mergeMessagesById(prev, [normalizeMessage(response.data)]),
-      );
-      setMessage("");
+      for (const uri of attachedPhotos) {
+        let imageUrl = uploadedChatPhotos.current.get(uri);
+        if (!imageUrl) {
+          const file = await fetch(uri);
+          if (!file.ok) throw new Error("이미지를 불러오지 못했어요.");
+          const blob = await file.blob();
+          const contentType = blob.type || "image/jpeg";
+          const extension =
+            contentType.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+          const grant = await getUploadUrl({
+            fileName: `chat_${Date.now()}.${extension}`,
+            contentType,
+            fileType: "IMAGE",
+          });
+          await uploadFileToStorage(
+            grant.data.data.uploadUrl,
+            uri,
+            contentType,
+          );
+          imageUrl = grant.data.data.fileUrl;
+          uploadedChatPhotos.current.set(uri, imageUrl);
+        }
+        const response = await sendChatMessage(numericRoomId, "", imageUrl);
+        setMessages((prev) =>
+          mergeMessagesById(prev, [normalizeMessage(response.data)]),
+        );
+        setAttachedPhotos((current) => {
+          const index = current.indexOf(uri);
+          return index < 0 ? current : current.filter((_, i) => i !== index);
+        });
+      }
+      if (text) {
+        const response = await sendChatMessage(numericRoomId, text);
+        setMessages((prev) =>
+          mergeMessagesById(prev, [normalizeMessage(response.data)]),
+        );
+        setMessage((current) => (current.trim() === text ? "" : current));
+      }
       setTimeout(fetchMessages, 250);
     } catch (error: any) {
       console.log("메시지 전송 실패:", error.response?.data || error.message);
@@ -477,6 +550,7 @@ export default function ChatRoomPage() {
         error.response?.data?.message ?? "잠시 후 다시 시도해주세요.",
       );
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -695,48 +769,52 @@ export default function ChatRoomPage() {
           </Text>
         </View> */}
       {/* </Pressable> */}
-
-      <ScrollView
-        ref={scrollRef}
-        style={styles.chatScroll}
-        contentContainerStyle={styles.chatContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() =>
-          scrollRef.current?.scrollToEnd({ animated: false })
-        }
-        onLayout={() => scrollRef.current?.scrollToEnd({ animated: false })}
-      >
-        {messages.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Image
-              source={require("../../assets/images/school_icon.png")}
-              style={styles.logo}
-            />
-            <Text style={styles.emptyText}>
-              대화는 유니로드 채팅방에서 하는 것이 안전해요.{"\n"}
-              {effectiveReferenceType === "COMPANION"
-                ? "동행할 분에게 인사로 대화를 시작해보세요."
-                : "교환학생 선배에게 인사로 대화를 시작해보세요."}
+      {messages.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <ChatIcon width={40} height={40} color={Colors.gray[5]} />
+          <View>
+            <Text style={styles.emptyText}>채팅을 시작해보세요</Text>
+            <Text style={styles.emptyDescription}>
+              상대방과 채팅을 시작해볼까요?{"\n"}따뜻한 말로 대화를 시작해보세요
             </Text>
           </View>
-        ) : (
+        </View>
+      ) : (
+        <ScrollView
+          ref={scrollRef}
+          style={styles.chatScroll}
+          contentContainerStyle={styles.chatContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: false })
+          }
+          onLayout={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        >
           <View style={styles.messageList}>
-            {messages.map((item, index) => {
+            {displayMessages.map((item, index) => {
               const isMine =
                 item.senderId === "me" || item.senderId === currentMemberId;
-              const previous = messages[index - 1];
+              const previous = displayMessages[index - 1];
               const startsGroup = !isSameMessageGroup(previous, item);
-              const endsGroup = !isSameMessageGroup(item, messages[index + 1]);
-              const showDate = !!messageDateKey(item.createdAt) &&
-                (!previous || messageDateKey(previous.createdAt) !== messageDateKey(item.createdAt));
+              const endsGroup = !isSameMessageGroup(
+                item,
+                displayMessages[index + 1],
+              );
+              const showDate =
+                !!messageDateKey(item.createdAt) &&
+                (!previous ||
+                  messageDateKey(previous.createdAt) !==
+                    messageDateKey(item.createdAt));
 
               return (
                 <View key={item.id}>
                   {showDate && (
                     <View style={styles.dateRow}>
                       <View style={styles.dateChip}>
-                        <Text style={styles.dateText}>{formatMessageDate(item.createdAt)}</Text>
+                        <Text style={styles.dateText}>
+                          {formatMessageDate(item.createdAt)}
+                        </Text>
                       </View>
                     </View>
                   )}
@@ -744,32 +822,75 @@ export default function ChatRoomPage() {
                     style={[
                       styles.messageRow,
                       isMine ? styles.myMessageRow : styles.otherMessageRow,
-                      index > 0 && !showDate && { marginTop: startsGroup ? 20 : 6 },
+                      index > 0 &&
+                        !showDate && { marginTop: startsGroup ? 20 : 6 },
                     ]}
                   >
                     {!isMine && (
                       <View style={styles.avatarSlot}>
-                        {startsGroup && <View style={styles.opponentAvatar} />}
+                        {startsGroup && <DefaultProfileImage style={styles.opponentAvatar} />}
                       </View>
                     )}
-                    <View style={isMine ? styles.myMessageContent : styles.otherMessageContent}>
+                    <View
+                      style={
+                        isMine
+                          ? styles.myMessageContent
+                          : styles.otherMessageContent
+                      }
+                    >
                       {!isMine && startsGroup && (
-                        <Text style={styles.opponentName}>{displaySellerName}</Text>
+                        <Text style={styles.opponentName}>
+                          {displaySellerName}
+                        </Text>
                       )}
-                      <View style={[styles.bubbleRow, isMine && styles.myMessageRow]}>
+                      <View
+                        style={[
+                          styles.bubbleRow,
+                          isMine && styles.myMessageRow,
+                        ]}
+                      >
                         {isMine && (
                           <View style={styles.messageMetaBox}>
-                            <Text style={styles.readStatus}>{getReadStatus(item)}</Text>
+                            <Text style={styles.readStatus}>
+                              {getReadStatus(item)}
+                            </Text>
                             {endsGroup && (
-                              <Text style={styles.messageTime}>{formatMessageTime(item.createdAt)}</Text>
+                              <Text style={styles.messageTime}>
+                                {formatMessageTime(item.createdAt)}
+                              </Text>
                             )}
                           </View>
                         )}
-                        <View style={[styles.messageBubble, isMine ? styles.myBubble : styles.otherBubble]}>
-                          <Text style={styles.messageText}>{item.message}</Text>
+                        <View
+                          style={{
+                            flexShrink: 1,
+                            gap: 6,
+                            alignItems: isMine ? "flex-end" : "flex-start",
+                          }}
+                        >
+                          {!!item.imageUrls?.length && (
+                            <ChatImageGrid
+                              urls={item.imageUrls}
+                              isMine={isMine}
+                            />
+                          )}
+                          {(!item.imageUrls?.length || !!item.message) && (
+                            <View
+                              style={[
+                                styles.messageBubble,
+                                isMine ? styles.myBubble : styles.otherBubble,
+                              ]}
+                            >
+                              <Text style={styles.messageText}>
+                                {item.message}
+                              </Text>
+                            </View>
+                          )}
                         </View>
                         {!isMine && endsGroup && (
-                          <Text style={styles.messageTime}>{formatMessageTime(item.createdAt)}</Text>
+                          <Text style={styles.messageTime}>
+                            {formatMessageTime(item.createdAt)}
+                          </Text>
                         )}
                       </View>
                     </View>
@@ -778,13 +899,10 @@ export default function ChatRoomPage() {
               );
             })}
           </View>
-        )}
-      </ScrollView>
+        </ScrollView>
+      )}
 
-      <KeyboardAvoidingView
-        behavior="padding"
-        keyboardVerticalOffset={0}
-      >
+      <KeyboardAvoidingView behavior="padding" keyboardVerticalOffset={0}>
         <View style={styles.bottomArea}>
           {attachedPhotos.length > 0 && (
             <ScrollView
@@ -864,7 +982,11 @@ export default function ChatRoomPage() {
               returnKeyType="send"
               onSubmitEditing={handleSend}
             />
-            <Pressable style={styles.sendButton} onPress={handleSend}>
+            <Pressable
+              style={styles.sendButton}
+              onPress={handleSend}
+              disabled={sending}
+            >
               <SendIcon />
             </Pressable>
           </View>
@@ -1143,7 +1265,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 70,
+    gap: 16,
+  },
+
+  emptyDescription: {
+    ...fonts.body4_r_14,
+    color: Colors.gray[7],
+    textAlign: "center",
+    marginTop: 12,
   },
 
   logo: {
@@ -1154,10 +1283,8 @@ const styles = StyleSheet.create({
   },
 
   emptyText: {
-    fontSize: 18,
-    lineHeight: 34,
-    color: "#666666",
-    fontWeight: "700",
+    ...fonts.title5_b_20,
+    color: Colors.common.black,
     textAlign: "center",
   },
 

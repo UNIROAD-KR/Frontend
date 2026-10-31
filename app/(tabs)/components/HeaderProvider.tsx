@@ -26,7 +26,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fonts } from "@/constants/theme";
+import { Colors, fonts } from "@/constants/theme";
 import { SortSheet } from "@/components/ui/sort-sheet";
 import { PopoverMenu } from "@/components/ui/popover-menu";
 import { useChatListSettings } from "@/components/chat/chat-list-settings";
@@ -182,7 +182,7 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
               <SearchIcon />
             </TouchableOpacity> */}
             <Pressable onPress={() => router.push("/profile-card" as any)}>
-              <PersonIcon />
+              <PersonIcon width={24} height={24} color={Colors.common.black} />
             </Pressable>
           </View>
         )}

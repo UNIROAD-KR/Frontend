@@ -1,8 +1,7 @@
 import { Text } from "@/components/ui/app-text";
-import { flags as countryFlags } from "@/components/market/MarketCountrySheet";
+import { CountryFlag } from "@/components/ui/country-flag";
 import { Colors, fonts } from "@/constants/theme";
 import type { CompanionPostResponse } from "@/src/api/companion";
-import { Ionicons } from "@expo/vector-icons";
 import {
   Pressable,
   StyleSheet,
@@ -40,13 +39,7 @@ export function CompanionPostCard({
     <Pressable style={[styles.companionCard, style]} onPress={onPress}>
       <View style={styles.companionCountry}>
         <View style={styles.companionFlagBox}>
-          {countryFlags[post.country] ? (
-            <Text style={styles.companionFlag}>
-              {countryFlags[post.country]}
-            </Text>
-          ) : (
-            <Ionicons name="globe-outline" size={30} color="#8B95A1" />
-          )}
+          <CountryFlag country={post.country} width={50} height={40} />
         </View>
         <Text style={styles.companionCountryName} numberOfLines={2}>
           {post.country}
@@ -101,23 +94,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   companionCountry: {
-    width: 70,
     alignItems: "center",
     marginRight: 14,
     paddingTop: 3,
   },
   companionFlagBox: {
-    width: 56,
-    height: 48,
-    borderRadius: 8,
+    width: 40,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F0F2F6",
-  },
-  companionFlag: {
-    fontSize: 42,
-    lineHeight: 48,
-    includeFontPadding: false,
+    borderRadius: 6,
+    overflow: "hidden",
   },
   companionCountryName: {
     marginTop: 6,

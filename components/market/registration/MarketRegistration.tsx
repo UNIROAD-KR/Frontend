@@ -4,7 +4,7 @@ import {
   AppBackButton,
   goBackOrReplace,
 } from "@/components/ui/app-back-button";
-import { MarketCountrySheet } from "@/components/market/MarketCountrySheet";
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
 import { countryOptions } from "@/src/constants/onboarding";
 import {
@@ -245,7 +245,7 @@ export default function MarketRegistration() {
     try {
       if (!(await canUseMarketWithoutVerification())) {
         showAlert("교환학생 인증", "신원 인증 후 등록할 수 있어요.", [
-          { text: "확인" },
+          { text: "확인했어요" },
           {
             text: "인증하기",
             onPress: () => router.push("/verification-consent"),
@@ -263,7 +263,7 @@ export default function MarketRegistration() {
         isEditing
           ? "중고거래 게시글이 수정되었습니다."
           : "중고거래 게시글이 등록되었습니다.",
-        [{ text: "확인", onPress: () => router.replace("/market") }],
+        [{ text: "확인했어요", onPress: () => router.replace("/market") }],
       );
     } catch (error) {
       console.warn("중고거래 등록 실패", error);
@@ -558,7 +558,7 @@ export default function MarketRegistration() {
                   accessibilityLabel={`${item.name} 편집`}
                   onPress={() => setEditor(item)}
                 >
-                  <PenIcon />
+                  <PenIcon width={20} height={20} color={Colors.gray[6]} />
                 </Pressable>
               </View>
             ))}
@@ -611,7 +611,7 @@ export default function MarketRegistration() {
           onPress={() =>
             setEditor({
               id: `${Date.now()}`,
-              category: "",
+              category: "주방 용품",
               name: "",
               quantity: 0,
               photos: [],
@@ -622,7 +622,7 @@ export default function MarketRegistration() {
           <Ionicons name="add" size={32} color={Colors.common.white} />
         </Pressable>
       )}
-      <MarketCountrySheet
+      <CountrySelectionSheet
         visible={selector === "country"}
         allowAll={false}
         selectedCountry={form.country}

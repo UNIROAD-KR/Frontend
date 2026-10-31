@@ -1,3 +1,4 @@
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { commonStyles } from "@/constants/theme";
 import { Text, TextInput } from '@/components/ui/app-text';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppBackButton } from '@/components/ui/app-back-button';
-import { OnboardingSelectModal } from '@/components/ui/onboarding-select-modal';
 import { useResetScrollOnFocus } from '@/hooks/use-reset-scroll-on-focus';
 import {
   countryOptions,
@@ -246,11 +246,12 @@ export default function CountryPage() {
         </Pressable>
       </ScrollView>
 
-      <OnboardingSelectModal
+      <CountrySelectionSheet
+        allowAll={false}
         visible={countryModalVisible}
         title="파견 국가 선택"
         options={countryOptions}
-        selectedValue={selectedCountry}
+        selectedCountry={selectedCountry}
         onClose={() => setCountryModalVisible(false)}
         onSelect={handleSelectCountry}
       />

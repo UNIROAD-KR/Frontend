@@ -124,9 +124,9 @@ export function CalendarEventForm() {
           ),
         );
         setStartDate(event.startAt.slice(0, 10));
-        setStartTime(event.startAt.slice(11, 16));
+        setStartTime(event.allDay ? "" : event.startAt.slice(11, 16));
         setEndDate(event.endAt.slice(0, 10));
-        setEndTime(event.endAt.slice(11, 16));
+        setEndTime(event.allDay ? "" : event.endAt.slice(11, 16));
         setRepeat(event.repeatType || "NONE");
       })
       .catch(() => {
@@ -141,8 +141,10 @@ export function CalendarEventForm() {
   }, [isEdit, eventId, editAttempt]);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const submitted = useRef(false);
-  const start = Date.parse(`${startDate}T${startTime}:00`);
-  const end = Date.parse(`${endDate}T${endTime}:00`);
+  const startDateTime = `${startDate}T${startTime || "00:00"}`;
+  const endDateTime = `${endDate}T${endTime || "23:59"}`;
+  const start = Date.parse(`${startDateTime}:00`);
+  const end = Date.parse(`${endDateTime}:00`);
   const invalidRange =
     Number.isFinite(start) && Number.isFinite(end) && end < start;
   const canSubmit =
@@ -153,7 +155,6 @@ export function CalendarEventForm() {
     (category !== null || (isEdit && original?.categoryId === null)) &&
     !!title.trim() &&
     !!description.trim() &&
-    photos.length > 0 &&
     Number.isFinite(start) &&
     Number.isFinite(end) &&
     !invalidRange;
@@ -179,15 +180,15 @@ export function CalendarEventForm() {
         categoryId: category,
         title: title.trim(),
         memo: description.trim(),
-        allDay: original?.allDay ?? false,
+        allDay: !startTime && !endTime,
         startAt:
-          original?.startAt.slice(0, 16) === `${startDate}T${startTime}`
+          original?.startAt.slice(0, 16) === startDateTime
             ? original.startAt
-            : `${startDate}T${startTime}:00`,
+            : `${startDateTime}:00`,
         endAt:
-          original?.endAt.slice(0, 16) === `${endDate}T${endTime}`
+          original?.endAt.slice(0, 16) === endDateTime
             ? original.endAt
-            : `${endDate}T${endTime}:00`,
+            : `${endDateTime}:00`,
         reminder: original?.reminder ?? ("NONE" as const),
         repeatType: repeat,
         ...(isEdit && repeat === original?.repeatType
@@ -348,14 +349,7 @@ export function CalendarEventForm() {
                 </Text>
               </View>
             </View>
-            <View style={styles.fieldGroup}>
-              <FieldLabel title="이미지" />
-              <PhotoField
-                photos={photos}
-                onChange={setPhotos}
-                limit={Math.max(1, original?.photos?.length || 0)}
-              />
-            </View>
+
             <View style={styles.fieldGroup}>
               <FieldLabel title="일정 시작" />
               <CalendarDateTimeField
@@ -380,6 +374,14 @@ export function CalendarEventForm() {
               )}
             </View>
             <View style={styles.fieldGroup}>
+              <FieldLabel title="이미지" required={false} />
+              <PhotoField
+                photos={photos}
+                onChange={setPhotos}
+                limit={Math.max(10, original?.photos?.length || 0)}
+              />
+            </View>
+            {/* <View style={styles.fieldGroup}>
               <FieldLabel title="반복 설정" />
               <InlineDropdown
                 value={repeat}
@@ -398,7 +400,7 @@ export function CalendarEventForm() {
                   setRepeatOpen(false);
                 }}
               />
-            </View>
+            </View> */}
           </ScrollView>
         )}
       </KeyboardAvoidingView>

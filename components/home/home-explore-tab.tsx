@@ -1,3 +1,4 @@
+import { DefaultProfileImage } from "@/components/ui/default-profile-image";
 import { BottomSheetModal, bottomSheetStyles, BottomSheetTouchable } from '@/components/ui/bottom-sheet';
 import { Text, TextInput } from '@/components/ui/app-text';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -1206,11 +1207,7 @@ export default function HomeExploreTab({ embedded = false }: { embedded?: boolea
                 </Text>
 
                 <View style={styles.modalMetaRow}>
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>
-                      {selectedReview.author[0]}
-                    </Text>
-                  </View>
+                  <DefaultProfileImage style={styles.avatarPlaceholder} />
                   <View>
                     <Text style={styles.modalAuthorName}>
                       {selectedReview.author}

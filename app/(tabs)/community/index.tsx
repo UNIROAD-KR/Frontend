@@ -1,6 +1,10 @@
 import { Text, TextInput } from "@/components/ui/app-text";
 import { FilterResetButton } from "@/components/ui/filter-reset-button";
 import type { FreePostStatusFilter } from "../../../src/api/freePosts";
+import PlusLineIcon from "@/assets/icon/plus-line.svg";
+import SearchIcon from "@/assets/icon/search.svg";
+import SortIcon from "@/assets/icon/sort.svg";
+import FilterIcon from "@/assets/icon/filter.svg";
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -17,16 +21,17 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
-import { AppBackButton } from "@/components/ui/app-back-button";
 import {
   CompanionPostResponse,
   getCompanionPosts,
@@ -36,7 +41,7 @@ import {
   FreePostSummaryResponse,
   getFreePosts,
 } from "../../../src/api/freePosts";
-import { Colors, fonts } from "@/constants/theme";
+import { Colors, commonStyles, fonts } from "@/constants/theme";
 import { BLUE } from "../../../src/data/community";
 import FreePostList from "@/components/profile/FreePostList";
 import {
@@ -365,12 +370,15 @@ export default function CommunityScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView
+      edges={["left", "right", "bottom"]}
+      style={commonStyles.container}
+    >
+      {/* <View style={styles.header}>
         {!openedFromTab ? (
           <AppBackButton fallbackHref="/home" style={styles.headerBackButton} />
         ) : null}
-      </View>
+      </View> */}
 
       <View style={[styles.fixedHeader, isWide && styles.contentWide]}>
         <View style={styles.tradeTypeBox}>
@@ -381,8 +389,8 @@ export default function CommunityScreen() {
               <Pressable
                 key={tab}
                 style={[
-                  styles.tradeTypeButton,
-                  active && styles.tradeTypeActive,
+                  commonStyles.smallTabButton,
+                  active && commonStyles.smallTabButtonActive,
                 ]}
                 onPress={() => setActiveTab(tab)}
               >
@@ -411,7 +419,7 @@ export default function CommunityScreen() {
                   value={boardKeyword}
                   onChangeText={setBoardKeyword}
                 />
-                <Ionicons name="search" size={23} color="#17191D" />
+                <SearchIcon />
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -419,7 +427,7 @@ export default function CommunityScreen() {
                 onPress={() => setBoardSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
-                <Ionicons name="swap-vertical" size={22} color="#17191D" />
+                <SortIcon />
               </Pressable>
             </View>
 
@@ -439,7 +447,7 @@ export default function CommunityScreen() {
                   value={companionKeyword}
                   onChangeText={setCompanionKeyword}
                 />
-                <Ionicons name="search" size={23} color="#17191D" />
+                <SearchIcon />
               </View>
               <View style={styles.filterButtonWrap}>
                 <Pressable
@@ -453,9 +461,7 @@ export default function CommunityScreen() {
                     },
                   ]}
                 >
-                  <Ionicons
-                    name="options-outline"
-                    size={22}
+                  <FilterIcon
                     color={
                       hasCompanionFilters ? Colors.primary.default : "#17191D"
                     }
@@ -473,7 +479,7 @@ export default function CommunityScreen() {
                 onPress={() => setCompanionSortSheetVisible(true)}
                 style={styles.boardSortButton}
               >
-                <Ionicons name="swap-vertical" size={22} color="#17191D" />
+                <SortIcon />
               </Pressable>
             </View>
           </>
@@ -532,19 +538,21 @@ export default function CommunityScreen() {
                   </Text>
                 </View>
               )}
-              {filteredCompanions.map((post) => (
-                <CompanionPostCard
-                  key={post.id}
-                  post={post}
-                  style={isWide && styles.gridCard}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/community-detail",
-                      params: { type: "companion", id: String(post.id) },
-                    } as never)
-                  }
-                />
-              ))}
+              <View style={{ marginLeft: 2, gap: 14 }}>
+                {filteredCompanions.map((post) => (
+                  <CompanionPostCard
+                    key={post.id}
+                    post={post}
+                    style={isWide && styles.gridCard}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/community-detail",
+                        params: { type: "companion", id: String(post.id) },
+                      } as never)
+                    }
+                  />
+                ))}
+              </View>
             </View>
 
             {companionHasNext && (
@@ -569,10 +577,10 @@ export default function CommunityScreen() {
         accessibilityLabel={
           activeTab === "자유 게시판" ? "자유 게시판 글쓰기" : "동행 모집"
         }
-        style={styles.fab}
+        style={commonStyles.fab}
         onPress={handleFabPress}
       >
-        <Ionicons name="add" size={32} color="#FFFFFF" />
+        <PlusLineIcon />
       </Pressable>
 
       <BottomSheetModal
@@ -654,15 +662,11 @@ export default function CommunityScreen() {
           setCompanionFilterSheetVisible(false);
         }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
   centerContainer: {
     flex: 1,
     alignItems: "center",
@@ -727,18 +731,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     marginHorizontal: -7,
     marginBottom: 8,
-  },
-  tradeTypeButton: {
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    paddingTop: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  tradeTypeActive: {
-    borderBottomColor: "#252B35",
   },
   searchBox: {
     flex: 1,
@@ -829,77 +821,6 @@ const styles = StyleSheet.create({
     ...fonts.body1_m_16,
     color: Colors.gray[10],
   },
-  dropdownWrap: {
-    position: "relative",
-    zIndex: 20,
-    marginBottom: 12,
-    alignSelf: "flex-start",
-  },
-  dropdownWrapCompact: {
-    marginBottom: 0,
-    flexShrink: 0,
-  },
-  dropdownButton: {
-    minWidth: 128,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: "#DDDDDD",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingHorizontal: 14,
-  },
-  dropdownButtonCompact: {
-    minWidth: 98,
-    maxWidth: 150,
-    height: 40,
-    borderRadius: 12,
-    borderColor: "#E6EAF2",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 13,
-  },
-  dropdownText: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#333333",
-  },
-  dropdownMenu: {
-    position: "absolute",
-    top: 45,
-    left: 0,
-    minWidth: 132,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E7EAF0",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 6,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 6,
-    zIndex: 50,
-  },
-  dropdownItem: {
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  dropdownItemActive: {
-    backgroundColor: "#F0F3F7",
-  },
-  dropdownItemText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#555555",
-  },
-  dropdownItemTextActive: {
-    fontWeight: "900",
-    color: "#111111",
-  },
   loadMoreButton: {
     height: 44,
     borderRadius: 12,
@@ -922,47 +843,6 @@ const styles = StyleSheet.create({
   },
   gridCard: {
     width: "48.7%",
-  },
-  compactFilterBar: {
-    position: "relative",
-    zIndex: 30,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  companionFilterPanel: {
-    position: "relative",
-    zIndex: 30,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E8ECF3",
-    backgroundColor: "#F8FAFD",
-    padding: 13,
-    marginBottom: 18,
-    shadowColor: "#1B2A4A",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 2,
-  },
-  filterTopRow: {
-    minHeight: 24,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 11,
-  },
-  filterTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  filterPanelTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: "#111111",
   },
   clearDateButton: {
     height: 28,
@@ -1108,16 +988,5 @@ const styles = StyleSheet.create({
   iosPicker: {
     height: 210,
     backgroundColor: "#FFFFFF",
-  },
-  fab: {
-    position: "absolute",
-    right: 16,
-    bottom: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#252B35",
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

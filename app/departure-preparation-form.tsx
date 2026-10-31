@@ -1,4 +1,4 @@
-import { MarketCountrySheet } from '@/components/market/MarketCountrySheet';
+import { CountrySelectionSheet } from "@/components/ui/country-selection-sheet";
 import { AppBackButton } from '@/components/ui/app-back-button';
 import { Text } from '@/components/ui/app-text';
 import CalendarModal from '@/components/ui/calendar';
@@ -116,7 +116,7 @@ export default function DeparturePreparationFormScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       )}
-      <MarketCountrySheet visible={countryVisible} allowAll={false} selectedCountry={country} onClose={() => setCountryVisible(false)} onSelect={value => { setCountry(value); if (value !== country) setRegion(''); setCountryVisible(false); }} />
+      <CountrySelectionSheet visible={countryVisible} allowAll={false} selectedCountry={country} onClose={() => setCountryVisible(false)} onSelect={value => { setCountry(value); if (value !== country) setRegion(''); setCountryVisible(false); }} />
       <CalendarModal visible={calendarVisible} value={departureDate ? new Date(`${departureDate}T00:00:00`) : undefined} onClose={() => setCalendarVisible(false)} onSelect={date => { setDepartureDate(localDate(date)); setCalendarVisible(false); }} />
     </SafeAreaView>
   );

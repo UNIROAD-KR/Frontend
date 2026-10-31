@@ -56,6 +56,9 @@ export const Colors = {
     10: "#171717",
     5: "#0F0F0F",
   },
+  cool_neutral: {
+    5: "#B1B8C1",
+  },
   light: {
     text: "#11181C",
     background: "#fff",
@@ -214,7 +217,7 @@ export const fonts = StyleSheet.create({
   },
   long_body2_r_16: {
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "400",
     lineHeight: 25.6,
     letterSpacing: -0.64,
   },
@@ -308,5 +311,28 @@ export const commonStyles = StyleSheet.create({
   headerSpacer: {
     width: 38,
     marginLeft: 0,
+  },
+  fab: {
+    position: "absolute",
+    right: 16,
+    bottom: 15,
+    width: 52,
+    height: 52,
+    borderRadius: 1000,
+    backgroundColor: Colors.gray[10],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  smallTabButton: {
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    paddingTop: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+  },
+  smallTabButtonActive: {
+    borderBottomColor: Colors.gray[11],
   },
 });
