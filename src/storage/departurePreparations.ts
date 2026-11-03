@@ -21,13 +21,7 @@ export type PreparationGroup = {
   title: string;
   items: PreparationItem[];
 };
-export const SCHEDULE_TYPES = [
-  "여행",
-  "학업",
-  "국제 교류",
-  "커리어",
-  "개인 용무",
-] as const;
+export const SCHEDULE_TYPES = ["여행", "파견", "기타"] as const;
 export type ScheduleType = (typeof SCHEDULE_TYPES)[number];
 export type DeparturePreparation = {
   id: string;
@@ -46,7 +40,7 @@ export const makeId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 export function progress(list: DeparturePreparation) {
   const items = [
-    ...list.essentials,
+    ...(list.scheduleType === "파견" ? list.essentials : []),
     ...list.groups.flatMap((group) => group.items),
   ];
   const done = items.filter((item) => item.done).length;
@@ -71,8 +65,8 @@ export function createPreparation(
     ...fields,
     id: makeId(),
     createdAt: new Date().toISOString(),
-    essentials: initialEssentials(),
-    groups: DEFAULT_PACKING_CATEGORIES.map((group) => ({
+    essentials: fields.scheduleType === "파견" ? initialEssentials() : [],
+    groups: (fields.scheduleType === "파견" ? DEFAULT_PACKING_CATEGORIES : []).map((group) => ({
       id: group.id,
       title: group.title,
       items: group.items.map((title) => ({ id: makeId(), title, done: false })),
@@ -125,14 +119,25 @@ export async function loadPreparations(): Promise<DeparturePreparation[]> {
   }
   const requiredItems = INITIAL_ITEMS.filter((item) => item.required);
   return data.map((list) => {
+    if (list.scheduleType === "여행") {
+      return {
+        ...list,
+        essentials: [],
+        groups: list.groups.flatMap((group) => {
+          const defaults = DEFAULT_PACKING_CATEGORIES.find((entry) => entry.id === group.id);
+          if (!defaults) return [group];
+          const items = group.items.filter((item) => !defaults.items.includes(item.title));
+          return items.length ? [{ ...group, items }] : [];
+        }),
+      };
+    }
+    if (list.scheduleType !== "파견") return list;
     const existingIds = new Set(list.essentials.map((item) => item.id));
     const missingEssentials = requiredItems
       .filter((item) => !existingIds.has(item.id))
       .map((item) => ({ id: item.id, title: item.title, done: false }));
     const essentials = [...list.essentials, ...missingEssentials];
-    const order = new Map(
-      requiredItems.map((item, index) => [item.id, index]),
-    );
+    const order = new Map(requiredItems.map((item, index) => [item.id, index]));
     essentials.sort(
       (a, b) =>
         (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) -

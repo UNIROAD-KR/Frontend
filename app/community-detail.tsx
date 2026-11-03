@@ -81,6 +81,7 @@ type FreeComment = {
   time: string;
   mine?: boolean;
   deleted?: boolean;
+  reported?: boolean;
   replies: FreeComment[];
 };
 
@@ -170,10 +171,11 @@ const mapFreeComments = (comments: FreePostCommentResponse[]) => {
     return {
       id: comment.id,
       author: `익명 ${anonymousNumber}`,
-      content: comment.content,
+      content: comment.reported ? "신고된 댓글입니다" : comment.content,
       time: formatCompanionCreatedAt(comment.createdAt),
       mine: comment.mine,
       deleted: comment.deleted,
+      reported: comment.reported,
       replies: (comment.replies ?? []).map(mapComment),
     };
   };
@@ -284,6 +286,7 @@ export default function CommunityDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
+  const reportingComments = useRef(new Set<number>());
   const [commentSort, setCommentSort] = useState<"oldest" | "newest">("oldest");
   const [commentText, setCommentText] = useState("");
   const [replyTarget, setReplyTarget] = useState<FreeComment | null>(null);
@@ -704,17 +707,55 @@ export default function CommunityDetailScreen() {
     }
   };
 
+  const handleReportComment = (comment: FreeComment) => {
+    if (comment.mine || comment.deleted || comment.reported || detailType !== "free") return;
+    const reasons: { text: string; reason: ReportReason }[] = [
+      { text: "스팸 / 광고", reason: "SPAM" },
+      { text: "욕설 / 비방", reason: "ABUSE" },
+      { text: "부적절한 내용", reason: "INAPPROPRIATE" },
+    ];
+    showAlert("댓글 신고", "신고 사유를 선택해주세요.", [
+      ...reasons.map(({ text, reason }) => ({ text, onPress: async () => {
+        if (reportingComments.current.has(comment.id)) return;
+        reportingComments.current.add(comment.id);
+        try {
+          await createReport({ targetType: "FREE_POST_COMMENT", targetId: comment.id, reason });
+          const hideReported = (items: FreePostCommentResponse[]): FreePostCommentResponse[] => items.map(item => ({
+            ...item,
+            ...(item.id === comment.id ? { content: "신고된 댓글입니다", reported: true } : {}),
+            replies: hideReported(item.replies ?? []),
+          }));
+          setPost(current => current ? {
+            ...current,
+            comments: hideReported((current as FreePostDetailResponse).comments ?? []),
+          } : current);
+          setReplyTarget(current => current?.id === comment.id ? null : current);
+          showAlert("신고 완료", "신고가 접수되었어요.");
+        } catch {
+          showAlert("신고 실패", "잠시 후 다시 시도해주세요.");
+        } finally {
+          reportingComments.current.delete(comment.id);
+        }
+      } })),
+      { text: "취소", style: "cancel" },
+    ]);
+  };
+
   const renderCommentMeta = (comment: FreeComment) => (
     <View style={styles.commentMetaRow}>
       <View style={styles.commentAuthorBlock}>
         <Text style={styles.commentAuthor}>{comment.author}</Text>
         <Text style={styles.commentTime}>{comment.time}</Text>
       </View>
-      {comment.mine && (
+      {!comment.deleted && !comment.reported && (
         <Pressable
           hitSlop={8}
-          accessibilityLabel="댓글 메뉴"
-          onPress={() =>
+          accessibilityLabel={comment.mine ? "댓글 삭제" : "댓글 신고"}
+          onPress={() => {
+            if (!comment.mine) {
+              handleReportComment(comment);
+              return;
+            }
             showAlert("댓글 삭제", "댓글을 삭제하시겠어요?", [
               { text: "취소", style: "cancel" },
               {
@@ -722,10 +763,14 @@ export default function CommunityDetailScreen() {
                 style: "destructive",
                 onPress: () => handleDeleteComment(comment.id),
               },
-            ])
-          }
+            ]);
+          }}
         >
-          <Ionicons name="ellipsis-vertical" size={20} color="#536071" />
+          {comment.mine ? (
+            <DeleteIcon width={20} height={20} color="#536071" />
+          ) : (
+            <FlagIcon width={20} height={20} color="#536071" />
+          )}
         </Pressable>
       )}
     </View>
@@ -1112,10 +1157,10 @@ export default function CommunityDetailScreen() {
                       ) : (
                         <>
                           {renderCommentMeta(comment)}
-                          <Text style={styles.commentContent}>
+                          <Text style={comment.reported ? styles.commentDeleted : styles.commentContent}>
                             {comment.content}
                           </Text>
-                          <Pressable
+                          {!comment.reported && <Pressable
                             style={styles.replyButton}
                             hitSlop={8}
                             accessibilityRole="button"
@@ -1127,7 +1172,7 @@ export default function CommunityDetailScreen() {
                             <Text style={styles.replyButtonText}>
                               답글 달기
                             </Text>
-                          </Pressable>
+                          </Pressable>}
                         </>
                       )}
                     </View>
@@ -1137,8 +1182,8 @@ export default function CommunityDetailScreen() {
                       <ReplyIcon />
                       <View style={styles.commentMain}>
                         {renderCommentMeta(reply)}
-                        <Text style={styles.commentContent}>
-                          {reply.content}
+                        <Text style={reply.reported || reply.deleted ? styles.commentDeleted : styles.commentContent}>
+                          {reply.deleted ? "삭제된 댓글입니다" : reply.content}
                         </Text>
                       </View>
                     </View>

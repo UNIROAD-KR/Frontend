@@ -41,6 +41,7 @@ export interface FreePostCommentResponse {
   mine?: boolean;
   parentId?: number | null;
   deleted?: boolean;
+  reported?: boolean;
   replies?: FreePostCommentResponse[];
 }
 

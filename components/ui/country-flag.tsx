@@ -45,8 +45,8 @@ type CountryFlagProps = {
 
 export function CountryFlag({
   country,
-  width = 40,
-  height = 24,
+  width,
+  height,
   style,
 }: CountryFlagProps) {
   const name = country
@@ -60,8 +60,8 @@ export function CountryFlag({
   return (
     <FlagIcon
       name={name}
-      width={Math.min(width, 40)}
-      height={height}
+      width={width ?? 40}
+      height={height ?? 24}
       style={style}
     />
   );

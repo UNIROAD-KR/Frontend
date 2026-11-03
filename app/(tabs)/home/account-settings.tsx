@@ -1,11 +1,10 @@
 import { commonStyles, fonts, Colors } from "@/constants/theme";
 import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 
 import CompleteIcon from "@/assets/icon/complete.svg";
 import InfoIcon from "@/assets/icon/info-circle.svg";
@@ -14,11 +13,7 @@ import InputField from "@/components/ui/input-field";
 import { useAppAlert } from "@/hooks/use-app-alert";
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { getMemberMe, updatePassword } from "../../../src/api/auth";
-
-const NAVY = "#0F2042";
-const BLUE = "#2F66D0";
-const INK = "#111111";
-const MUTED = "#64748B";
+import Button from "@/components/ui/button";
 
 const getPasswordError = (value: string) => {
   if (!value) return "";
@@ -99,7 +94,7 @@ export default function AccountSettingsScreen() {
       await updatePassword({ newPassword });
       showAlert("비밀번호를 변경했어요", undefined, [
         {
-          text: "확인",
+          text: "확인했어요.",
           onPress: () => {
             setNewPassword("");
             setConfirmPassword("");
@@ -119,7 +114,7 @@ export default function AccountSettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={commonStyles.container}>
       <ProfileScreenHeader title="비밀번호 변경" />
 
       <ScrollView
@@ -128,22 +123,6 @@ export default function AccountSettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* <View style={styles.readOnlyCard}>
-          <View style={styles.readOnlyIconBox}>
-            <Ionicons name="person-circle-outline" size={26} color={BLUE} />
-          </View>
-          <View style={styles.readOnlyTextBox}>
-            <Text style={styles.readOnlyLabel}>아이디</Text>
-            <Text style={styles.readOnlyValue} numberOfLines={1}>
-              {username}
-            </Text>
-          </View>
-          <View style={styles.lockPill}>
-            <Ionicons name="lock-closed" size={12} color={MUTED} />
-            <Text style={styles.lockText}>확인만 가능</Text>
-          </View>
-        </View> */}
-
         <Text
           style={{
             ...fonts.title3_b_24,
@@ -191,16 +170,11 @@ export default function AccountSettingsScreen() {
           valid={confirmPassword.length > 0 && !confirmPasswordError}
         />
 
-        <Pressable
-          style={[
-            styles.submitButton,
-            submitDisabled && styles.submitButtonDisabled,
-          ]}
+        <Button
+          title="비밀번호 변경하기"
           onPress={handleSubmit}
           disabled={submitDisabled}
-        >
-          <Text style={styles.submitText}>비밀번호 변경하기</Text>
-        </Pressable>
+        />
       </ScrollView>
       {alertElement}
     </View>
@@ -259,72 +233,13 @@ function PasswordField({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 104,
-  },
-  readOnlyCard: {
-    minHeight: 88,
-    borderRadius: 9,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E9EE",
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  readOnlyIconBox: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    backgroundColor: "#EEF2F8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  readOnlyTextBox: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 8,
-  },
-  readOnlyLabel: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: MUTED,
-  },
-  readOnlyValue: {
-    marginTop: 5,
-    fontSize: 15,
-    fontWeight: "900",
-    color: INK,
-  },
-  lockPill: {
-    borderRadius: 5,
-    backgroundColor: "#F2F4F7",
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  lockText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: MUTED,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: NAVY,
-    marginBottom: 16,
+    paddingBottom: 20,
   },
   field: {
     marginBottom: 24,
@@ -349,32 +264,5 @@ const styles = StyleSheet.create({
   helpText: {
     ...fonts.caption3_m_13,
     color: Colors.gray[7],
-  },
-  ruleBox: {
-    borderRadius: 7,
-    backgroundColor: "#F3F5F7",
-    borderWidth: 1,
-    borderColor: "#E5E9EE",
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  ruleText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: MUTED,
-  },
-  submitButton: {
-    ...commonStyles.button,
-  },
-  submitButtonDisabled: {
-    backgroundColor: Colors.primary.light,
-  },
-  submitText: {
-    ...fonts.sub3_sb_16,
-    color: "#FFFFFF",
   },
 });
