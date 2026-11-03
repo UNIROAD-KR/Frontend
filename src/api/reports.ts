@@ -3,6 +3,7 @@ import { BaseResponse } from './types';
 
 export type ReportTargetType =
   | 'FREE_POST'
+  | 'FREE_POST_COMMENT'
   | 'USED_ITEM'
   | 'TICKET_TRANSFER'
   | 'COMPANION'

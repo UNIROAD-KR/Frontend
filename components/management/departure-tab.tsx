@@ -1,3 +1,4 @@
+import { PackingEmptyState } from "@/components/management/packing-empty-state";
 import MoneyActionIcon from "@/assets/icon/actions/money.svg";
 import type { ComponentType } from "react";
 import type { SvgProps } from "react-native-svg";
@@ -7,12 +8,14 @@ import WalletActionIcon from "@/assets/icon/actions/wallet.svg";
 import UsimActionIcon from "@/assets/icon/actions/usim.svg";
 import AirplaneActionIcon from "@/assets/icon/actions/airplane.svg";
 import CheckboxIcon from "@/assets/icon/checkbox.svg";
+import ArrowRightIcon from "@/assets/icon/arrow-right.svg";
 import CheckboxEmptyIcon from "@/assets/icon/checkbox-empty.svg";
 import { Modal } from "@/components/ui/modal";
 import { PopoverMenu } from "@/components/ui/popover-menu";
 import EditIcon from "@/assets/icon/edit.svg";
 import DeleteIcon from "@/assets/icon/delete.svg";
 import XIcon from "@/assets/icon/x-icon.svg";
+import PlusIcon from "@/assets/icon/plus-line.svg";
 import { FieldLabel } from "@/components/ui/field-label";
 import Svg, { Circle } from "react-native-svg";
 import { flags } from "@/src/constants/countries";
@@ -51,6 +54,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CountryFlag } from "../ui/country-flag";
 const ESSENTIAL_PRESENTATION: Record<
   string,
   { category: string; title: string; Icon: ComponentType<SvgProps> }
@@ -75,11 +79,6 @@ const ESSENTIAL_PRESENTATION: Record<
     title: "보험 가입하기",
     Icon: WalletActionIcon,
   },
-  // "blocked-account": {
-  //   category: "은행/재정",
-  //   title: "슈페어콘토 개설",
-  //   Icon: MoneyActionIcon,
-  // },
   "card-ready": {
     category: "은행/재정",
     title: "해외결제 카드 준비",
@@ -96,7 +95,6 @@ const ESSENTIAL_PRESENTATION: Record<
     Icon: AirplaneActionIcon,
   },
 };
-const displayDate = (value: string) => value.replaceAll("-", ".");
 const formatRegisteredAt = (value: string) => {
   const date = new Date(value);
   const pad = (part: number) => String(part).padStart(2, "0");
@@ -112,7 +110,6 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
   const [saving, setSaving] = useState(false);
   const busy = useRef(false);
   const [filter, setFilter] = useState("전체");
-  const [section, setSection] = useState("필수 준비물");
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [sheet, setSheet] = useState<Sheet>(null);
   const [menu, setMenu] = useState(false);
@@ -123,10 +120,11 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
     if (Platform.OS === "ios") pendingMenuAction.current = action;
     else action();
   };
-  const [category, setCategory] = useState("daily");
+  const [category, setCategory] = useState("custom");
   const [itemTitle, setItemTitle] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const list = lists.find((entry) => entry.id === preparationId);
+  const isTravelPackingEmpty = list?.scheduleType === "여행" && !list.groups.some(group => group.items.length > 0);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -411,19 +409,21 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
         {list && stats ? (
           <>
             <View style={s.summaryHeader}>
-              <View style={s.flex}>
+              <View style={s.summaryText}>
                 <Text
                   style={[fonts.title3_b_24, { color: Colors.common.black }]}
                 >
                   {list.title}
                 </Text>
+
                 <View style={s.summaryMeta}>
                   <Text style={[fonts.body4_r_14, { color: Colors.gray[7] }]}>
                     {formatRegisteredAt(list.createdAt)}
                   </Text>
-                  <Text style={s.typeBadge}>{list.scheduleType ?? "학업"}</Text>
+                  <Text style={s.typeBadge}>{list.scheduleType ?? "여행"}</Text>
                 </View>
               </View>
+
               <View
                 style={s.progressCircle}
                 accessibilityLabel={`준비 진행률 ${stats.percent}%`}
@@ -474,105 +474,133 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               </View>
             </View>
             <View style={s.row}>
-              {["필수 준비물", "짐싸기 준비"].map((title) => (
-                <Pressable
-                  key={title}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: section === title }}
-                  onPress={() => setSection(title)}
-                  style={[s.sectionTab, section === title && s.sectionActive]}
-                >
-                  <Text
-                    style={[
-                      fonts.sub4_sb_14,
-                      {
-                        color:
-                          section === title ? Colors.gray[10] : Colors.gray[6],
-                      },
-                    ]}
-                  >
-                    {title}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={s.row}>
-              <Text style={[fonts.sub3_sb_16, s.flex]}>
-                {section === "필수 준비물" ? "필수 준비물 체크" : "준비물 체크"}
-              </Text>
+              <Text style={[fonts.sub2_m_18, s.flex]}>짐싸기</Text>
               <Pressable
                 disabled={saving}
                 onPress={() => {
-                  if (section === "필수 준비물")
-                    void update({
-                      ...list,
-                      essentials: list.essentials.map((item) => ({
-                        ...item,
-                        done: !list.essentials.every((entry) => entry.done),
-                      })),
-                    });
-                  else {
-                    setCategory(list.groups[0]?.id ?? "custom");
-                    setItemTitle("");
-                    setCustomCategory("");
-                    setError("");
-                    setSheet("item");
-                  }
+                  setCategory(list.groups[0]?.id ?? "custom");
+                  setItemTitle("");
+                  setCustomCategory("");
+                  setError("");
+                  setSheet("item");
                 }}
               >
-                <Text style={s.link}>
-                  {section === "필수 준비물"
-                    ? list.essentials.every((item) => item.done)
-                      ? "전체 해제"
-                      : "전체 선택"
-                    : "추가하기"}
-                </Text>
+                <Text style={s.link}>추가하기</Text>
               </Pressable>
             </View>
-            {section === "필수 준비물" ? (
-              <View style={s.essentialList}>
-                {list.essentials.map(renderEssential)}
-              </View>
-            ) : (
-              list.groups.map((group) => (
-                <View key={group.id} style={s.group}>
-                  <Pressable
-                    style={s.groupHeader}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: !!openGroups[group.id] }}
-                    onPress={() =>
-                      setOpenGroups((previous) => ({
-                        ...previous,
-                        [group.id]: !previous[group.id],
-                      }))
+            {list.scheduleType === "파견" && list.essentials.length > 0 && (
+              <View style={s.group}>
+                <Pressable
+                  style={s.groupHeader}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    expanded: openGroups.essentials !== false,
+                  }}
+                  onPress={() =>
+                    setOpenGroups((previous) => ({
+                      ...previous,
+                      essentials: previous.essentials === false,
+                    }))
+                  }
+                >
+                  <View style={s.flex}>
+                    <Text style={fonts.sub4_sb_14}>필수 준비물</Text>
+                    <Text style={s.meta}>
+                      {list.essentials.filter((item) => item.done).length}/
+                      {list.essentials.length}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={
+                      openGroups.essentials !== false
+                        ? "chevron-up"
+                        : "chevron-down"
                     }
-                  >
-                    <View style={s.flex}>
-                      <Text style={fonts.sub4_sb_14}>{group.title}</Text>
-                      <Text style={s.meta}>
-                        {group.items.filter((item) => item.done).length}/
-                        {group.items.length}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name={
-                        openGroups[group.id] ? "chevron-up" : "chevron-down"
+                    size={18}
+                    color={Colors.gray[7]}
+                  />
+                </Pressable>
+                {openGroups.essentials !== false && (
+                  <View style={s.essentialList}>
+                    <Pressable
+                      disabled={saving}
+                      onPress={() =>
+                        void update({
+                          ...list,
+                          essentials: list.essentials.map((item) => ({
+                            ...item,
+                            done: !list.essentials.every((entry) => entry.done),
+                          })),
+                        })
                       }
-                      size={18}
-                      color={Colors.gray[7]}
-                    />
-                  </Pressable>
-                  {openGroups[group.id] && (
-                    <>
-                      {group.items.map((item) => renderItem(item, group.id))}
-                      {!group.items.length && (
-                        <Text style={s.meta}>준비물을 추가해주세요.</Text>
-                      )}
-                    </>
-                  )}
-                </View>
-              ))
+                    >
+                      <Text style={s.link}>
+                        {list.essentials.every((item) => item.done)
+                          ? "전체 해제"
+                          : "전체 선택"}
+                      </Text>
+                    </Pressable>
+                    {list.essentials.map(renderEssential)}
+                  </View>
+                )}
+              </View>
             )}
+            {isTravelPackingEmpty && (
+              <PackingEmptyState disabled={saving} onAdd={() => {
+                setCategory("custom");
+                setItemTitle("");
+                setCustomCategory("");
+                setError("");
+                setSheet("item");
+              }} />
+            )}
+            {!list.groups.length && list.scheduleType !== "파견" && !isTravelPackingEmpty && (
+              <Text style={s.meta}>준비물을 추가해주세요.</Text>
+            )}
+            {!isTravelPackingEmpty && list.groups.map((group) => (
+              <View key={group.id} style={s.group}>
+                <Pressable
+                  style={s.groupHeader}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: !!openGroups[group.id] }}
+                  onPress={() =>
+                    setOpenGroups((previous) => ({
+                      ...previous,
+                      [group.id]: !previous[group.id],
+                    }))
+                  }
+                >
+                  <View style={s.flex}>
+                    <Text style={fonts.sub4_sb_14}>{group.title}</Text>
+                    <Text style={s.meta}>
+                      {group.items.filter((item) => item.done).length}/
+                      {group.items.length}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={openGroups[group.id] ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={Colors.gray[7]}
+                  />
+                </Pressable>
+                {openGroups[group.id] && (
+                  <>
+                    {group.items.map((item) => renderItem(item, group.id))}
+                    {!group.items.length && (
+                      <Text
+                        style={{
+                          ...fonts.caption5_r_13,
+                          color: Colors.gray[6],
+                          marginBottom: 14,
+                        }}
+                      >
+                        준비물을 추가해주세요.
+                      </Text>
+                    )}
+                  </>
+                )}
+              </View>
+            ))}
           </>
         ) : (
           <>
@@ -590,10 +618,11 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
             >
               <View style={s.statusIcon}>
                 {recent ? (
-                  <Ionicons
-                    name="airplane"
-                    size={28}
-                    color={Colors.primary.default}
+                  <CountryFlag
+                    country={recent.country}
+                    width={32}
+                    height={32}
+                    style={{ borderRadius: 10 }}
                   />
                 ) : (
                   <InfoCircleIcon
@@ -604,15 +633,22 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                 )}
               </View>
               <View style={s.flex}>
-                <Text style={s.link}>준비 중인 일정</Text>
-                <Text style={[fonts.sub1_sb_18, { marginTop: 4 }]}>
-                  {recent
-                    ? `${recent.title} ${progress(recent).percent}%`
-                    : "준비 중 일정이 없습니다"}
+                <Text style={s.link}>준비 중 일정</Text>
+                <Text style={[fonts.sub1_sb_18, { marginTop: 2 }]}>
+                  {recent ? (
+                    <>
+                      {recent.title}{" "}
+                      <Text
+                        style={{ color: Colors.primary.default, marginLeft: 4 }}
+                      >{`${progress(recent).percent}%`}</Text>
+                    </>
+                  ) : (
+                    "준비 중 일정이 없습니다"
+                  )}
                 </Text>
                 <Text
                   style={[
-                    fonts.body4_r_14,
+                    fonts.caption5_r_13,
                     { color: Colors.gray[7], marginTop: 4 },
                   ]}
                 >
@@ -621,73 +657,85 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                     : "유니로드와 출국 준비 해봐요!"}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={24}
-                color={Colors.gray[8]}
-              />
+              <ArrowRightIcon width={24} height={24} color={Colors.gray[8]} />
             </Pressable>
-            <Text style={fonts.sub3_sb_16}>지난 일정 기록</Text>
-            <View style={s.chips}>
-              {["전체", "완료", "준비 중"].map((title) =>
-                chip(title, filter === title, () => setFilter(title)),
+            <View style={{ gap: 8 }}>
+              <Text style={fonts.title5_b_20}>지난 일정 기록</Text>
+              <View style={s.chips}>
+                {["전체", "완료", "준비 중"].map((title) =>
+                  chip(title, filter === title, () => setFilter(title)),
+                )}
+              </View>
+              {filtered.length ? (
+                <View>
+                  {[...filtered]
+                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                    .map((entry, index) => (
+                      <View key={entry.id}>
+                        <Pressable
+                          style={[s.listRow]}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/departure-preparation",
+                              params: { id: entry.id },
+                            })
+                          }
+                        >
+                          <CountryFlag
+                            country={entry.country}
+                            width={32}
+                            height={32}
+                          />
+                          <View style={s.flex}>
+                            <Text style={fonts.sub3_sb_16}>{entry.title}</Text>
+                            <Text
+                              style={[
+                                fonts.caption6_r_12,
+                                { color: Colors.gray[7], marginTop: 4 },
+                              ]}
+                            >
+                              {entry.country} · {entry.scheduleType}
+                            </Text>
+                          </View>
+                          <Text
+                            style={[
+                              s.badge,
+                              progress(entry).percent === 100 && s.complete,
+                            ]}
+                          >
+                            {progress(entry).percent === 100
+                              ? "완료"
+                              : "준비 중"}
+                          </Text>
+                        </Pressable>
+                        {index !== filtered.length - 1 && (
+                          <View
+                            style={{
+                              height: 1,
+                              backgroundColor: Colors.gray[2],
+                            }}
+                          />
+                        )}
+                      </View>
+                    ))}
+                </View>
+              ) : (
+                <View style={s.empty}>
+                  <EmptyState
+                    title={
+                      lists.length
+                        ? "해당하는 일정이 없습니다"
+                        : "등록된 일정이 없습니다"
+                    }
+                    description={
+                      lists.length
+                        ? "다른 필터를 선택해 일정을 확인해보세요."
+                        : "일정을 등록하고 유니로드와 함께\n체계적인 출국 준비 해봐요!"
+                    }
+                  />
+                </View>
               )}
             </View>
-            {filtered.length ? (
-              [...filtered]
-                .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                .map((entry, index) => (
-                  <Pressable
-                    key={entry.id}
-                    style={[
-                      s.listRow,
-                      index === filtered.length - 1 && s.lastListRow,
-                    ]}
-                    onPress={() =>
-                      router.push({
-                        pathname: "/departure-preparation",
-                        params: { id: entry.id },
-                      })
-                    }
-                  >
-                    <Ionicons
-                      name="airplane"
-                      size={24}
-                      color={Colors.primary.default}
-                    />
-                    <View style={s.flex}>
-                      <Text style={fonts.sub4_sb_14}>{entry.title}</Text>
-                      <Text style={s.meta}>
-                        {entry.country} · {displayDate(entry.departureDate)} ·{" "}
-                        {progress(entry).percent}%
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        s.badge,
-                        progress(entry).percent === 100 && s.complete,
-                      ]}
-                    >
-                      {progress(entry).percent === 100 ? "완료" : "준비 중"}
-                    </Text>
-                  </Pressable>
-                ))
-            ) : (
-              <View style={s.empty}>
-                <EmptyState
-                  title={
-                    lists.length
-                      ? "해당하는 일정이 없습니다"
-                      : "등록된 일정이 없습니다"
-                  }
-                  description={
-                    lists.length
-                      ? "다른 필터를 선택해 일정을 확인해보세요."
-                      : "일정을 등록하고 유니로드와 함께\n체계적인 출국 준비 해봐요!"
-                  }
-                />
-              </View>
-            )}
           </>
         )}
       </ScrollView>
@@ -696,9 +744,9 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
           accessibilityRole="button"
           accessibilityLabel="출국 준비 목록 추가"
           onPress={() => void openCreate()}
-          style={s.fab}
+          style={commonStyles.fab}
         >
-          <Ionicons name="add" size={28} color={Colors.common.white} />
+          <PlusIcon />
         </Pressable>
       )}
       <BottomSheetModal visible={sheet === "item"} onRequestClose={close}>
@@ -741,16 +789,18 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               {sheet === "item" ? (
                 <>
                   <FieldLabel title="카테고리" required={false} />
-                  <View style={s.chips}>
-                    {chip("직접 추가", category === "custom", () =>
-                      setCategory("custom"),
-                    )}
-                    {list?.groups.map((group) =>
-                      chip(group.title, category === group.id, () =>
-                        setCategory(group.id),
-                      ),
-                    )}
-                  </View>
+                  {!!list?.groups.length && (
+                    <View style={s.chips}>
+                      {chip("직접 추가", category === "custom", () =>
+                        setCategory("custom"),
+                      )}
+                      {list?.groups.map((group) =>
+                        chip(group.title, category === group.id, () =>
+                          setCategory(group.id),
+                        ),
+                      )}
+                    </View>
+                  )}
                   {category === "custom" && (
                     <TextInput
                       value={customCategory}
@@ -840,14 +890,13 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
 const s = StyleSheet.create({
   flex: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
-  content: { flexGrow: 1, paddingHorizontal: 20, paddingBottom: 100, gap: 16 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
+  content: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 20, gap: 16 },
+  row: { flexDirection: "row", alignItems: "center", marginTop: 20, gap: 12 },
   essentialList: { gap: 10 },
   essentialCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    minHeight: 84,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderRadius: 16,
@@ -880,29 +929,29 @@ const s = StyleSheet.create({
     backgroundColor: Colors.common.white,
   },
   meta: { ...fonts.caption4_m_12, color: Colors.gray[6], marginTop: 4 },
-  link: { ...fonts.caption1_sb_13, color: Colors.primary.default },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  link: { ...fonts.caption4_m_12, color: Colors.primary.default },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: {
-    borderRadius: 20,
-    backgroundColor: Colors.gray[2],
-    paddingHorizontal: 13,
+    borderRadius: 100,
+    backgroundColor: Colors.gray[1],
+    paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipActive: { backgroundColor: Colors.gray[10] },
+  chipActive: { backgroundColor: Colors.gray[11] },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 18, // 14가 맞지만 국기 아이콘이 현재 확정 x
+    paddingRight: 12,
+    paddingLeft: 4, // 마찬가지로 국기 아이콘 때문에
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderColor: Colors.gray[2],
   },
-  lastListRow: { borderBottomWidth: 0 },
   badge: {
-    ...fonts.caption4_m_12,
+    ...fonts.caption1_sb_13,
     color: Colors.gray[7],
     backgroundColor: Colors.gray[2],
-    padding: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
   },
   complete: {
@@ -913,10 +962,11 @@ const s = StyleSheet.create({
   statusCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    padding: 18,
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 20,
     marginBottom: 20,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: Colors.common.white,
     shadowColor: Colors.gray[9],
     shadowOpacity: 0.08,
@@ -927,19 +977,8 @@ const s = StyleSheet.create({
   statusIcon: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: Colors.gray[2],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 24,
-    backgroundColor: Colors.gray[10],
-    borderRadius: 28,
-    width: 56,
-    height: 56,
+    borderRadius: 1000,
+    backgroundColor: Colors.gray[1],
     alignItems: "center",
     justifyContent: "center",
   },
@@ -952,9 +991,11 @@ const s = StyleSheet.create({
   summaryHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
+    justifyContent: "space-between",
     gap: 16,
     paddingTop: 20,
   },
+  summaryText: { flex: 1, minWidth: 0 },
   summaryMeta: {
     flexDirection: "row",
     alignItems: "center",
@@ -963,19 +1004,19 @@ const s = StyleSheet.create({
     marginTop: 10,
   },
   typeBadge: {
-    ...fonts.caption3_m_13,
+    ...fonts.caption4_m_12,
     color: Colors.primary.default,
-    backgroundColor: Colors.gray[2],
+    backgroundColor: "#EAF3FF",
     borderRadius: 3,
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
   progressCircle: {
+    flexShrink: 0,
     width: 64,
     height: 64,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
   },
   progressText: {
     ...fonts.sub4_sb_14,
@@ -985,10 +1026,10 @@ const s = StyleSheet.create({
   summaryCard: {
     borderWidth: 1,
     borderColor: Colors.gray[3],
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    gap: 12,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 8,
     backgroundColor: Colors.gray[1],
     marginTop: 8,
   },
