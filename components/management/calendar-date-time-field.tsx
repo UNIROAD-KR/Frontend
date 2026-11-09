@@ -6,7 +6,6 @@ import {
 import { Colors, fonts } from "@/constants/theme";
 import CalendarModal from "@/components/ui/calendar";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

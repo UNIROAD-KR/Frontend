@@ -5,7 +5,6 @@ import {
 } from "@/components/ui/bottom-sheet";
 import { Colors, fonts } from "@/constants/theme";
 import { getCalendarEvent, type CalendarEvent } from "@/src/api/calendar";
-import { Ionicons } from "@expo/vector-icons";
 import XIcon from "@/assets/icon/x-icon.svg";
 import { useEffect, useState } from "react";
 import {
@@ -31,8 +30,10 @@ export function CalendarEventDetailSheet({
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [failedPhotos, setFailedPhotos] = useState<Set<number>>(new Set());
-  const { height } = useWindowDimensions();
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const { height, width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const photoWidth = width - 32;
   useEffect(() => {
     if (eventId === null) return;
     let active = true;
@@ -40,6 +41,7 @@ export function CalendarEventDetailSheet({
     setLoading(true);
     setError(false);
     setFailedPhotos(new Set());
+    setPhotoIndex(0);
     const attempt = retry;
     getCalendarEvent(eventId)
       .then((response) => {
@@ -94,7 +96,10 @@ export function CalendarEventDetailSheet({
               accessibilityLabel="닫기"
               onPress={onClose}
             >
-              <XIcon />
+              <XIcon
+                style={{ width: 24, height: 24 }}
+                color={Colors.common.black}
+              />
             </Pressable>
           </View>
           {loading ? (
@@ -118,27 +123,53 @@ export function CalendarEventDetailSheet({
                 contentContainerStyle={styles.content}
               >
                 {!!event.memo && <Text style={styles.memo}>{event.memo}</Text>}
-                {event.photos?.length > 0 &&
-                  event.photos.map((photo) => {
-                    const uri = photo.imageUrl || photo.thumbnailUrl;
-                    return (
-                      <View key={photo.id} style={styles.photo}>
-                        {uri ? (
-                          <Image
-                            source={{ uri }}
-                            style={styles.image}
-                            resizeMode="cover"
-                            accessibilityLabel={`${event.title || "일정"} 첨부 사진`}
-                            onError={() =>
-                              setFailedPhotos(
-                                (previous) => new Set([...previous, photo.id]),
-                              )
-                            }
-                          />
-                        ) : null}
+                {event.photos?.length > 0 && (
+                  <View style={[styles.photoCarousel, { width: photoWidth }]}>
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onMomentumScrollEnd={(nativeEvent) => {
+                        setPhotoIndex(
+                          Math.round(
+                            nativeEvent.nativeEvent.contentOffset.x / photoWidth,
+                          ),
+                        );
+                      }}
+                    >
+                      {event.photos.map((photo) => {
+                        const uri = photo.imageUrl || photo.thumbnailUrl;
+                        return (
+                          <View
+                            key={photo.id}
+                            style={[styles.photo, { width: photoWidth }]}
+                          >
+                            {uri ? (
+                              <Image
+                                source={{ uri }}
+                                style={styles.image}
+                                resizeMode="cover"
+                                accessibilityLabel={`${event.title || "일정"} 첨부 사진`}
+                                onError={() =>
+                                  setFailedPhotos(
+                                    (previous) => new Set([...previous, photo.id]),
+                                  )
+                                }
+                              />
+                            ) : null}
+                          </View>
+                        );
+                      })}
+                    </ScrollView>
+                    {event.photos.length > 1 && (
+                      <View style={styles.photoIndicator}>
+                        <Text style={styles.photoIndicatorText}>
+                          {photoIndex + 1}/{event.photos.length}
+                        </Text>
                       </View>
-                    );
-                  })}
+                    )}
+                  </View>
+                )}
               </ScrollView>
             )
           )}
@@ -196,16 +227,34 @@ const styles = StyleSheet.create({
   },
   content: { gap: 16, paddingBottom: 12 },
   memo: { ...fonts.body4_r_14, color: Colors.gray[7] },
-  photo: {
-    width: "100%",
-    aspectRatio: 1,
+  photoCarousel: {
+    position: "relative",
     borderRadius: 12,
     overflow: "hidden",
+  },
+  photo: {
+    aspectRatio: 1,
     backgroundColor: Colors.gray[3],
     alignItems: "center",
     justifyContent: "center",
   },
   image: { width: "100%", height: "100%" },
+  photoIndicator: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    minWidth: 46,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoIndicatorText: {
+    ...fonts.body2_m_14,
+    color: Colors.common.white,
+  },
   state: {
     minHeight: 160,
     alignItems: "center",

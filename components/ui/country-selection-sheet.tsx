@@ -69,7 +69,10 @@ export function CountrySelectionSheet({
               accessibilityRole="button"
               accessibilityLabel="닫기"
             >
-              <XIcon />
+              <XIcon
+                style={{ width: 24, height: 24 }}
+                color={Colors.common.black}
+              />
             </Pressable>
           </View>
           {visible && (

@@ -9,7 +9,7 @@ import { CalendarEventDetailSheet } from "@/components/management/calendar-event
 import { Colors, fonts } from "@/constants/theme";
 import { deleteCalendarEvent, type CalendarEvent } from "@/src/api/calendar";
 import { useAppAlert } from "@/hooks/use-app-alert";
-import { Ionicons } from "@expo/vector-icons";
+import MoreIcon from "@/assets/icon/menu.svg";
 import { useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
 import TrashIcon from "@/assets/icon/delete.svg";
@@ -112,16 +112,15 @@ export function CalendarEventList({
               </View>
               <Text style={styles.period}>{eventPeriod(event)}</Text>
             </Pressable>
-            <Pressable
-              style={styles.thumbnail}
-              accessibilityRole="button"
-              accessibilityLabel={`${event.title || "일정"} 사진 상세 보기`}
-              onPress={() => setDetailId(event.id)}
-            >
-              {uri ? (
+            {uri ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${event.title || "일정"} 사진 상세 보기`}
+                onPress={() => setDetailId(event.id)}
+              >
                 <Image key={photo.id} source={{ uri }} style={styles.image} />
-              ) : null}
-            </Pressable>
+              </Pressable>
+            ) : null}
             <Pressable
               disabled={deleting !== null}
               accessibilityRole="button"
@@ -130,11 +129,7 @@ export function CalendarEventList({
               style={styles.more}
               onPress={() => setMenu(event)}
             >
-              <Ionicons
-                name="ellipsis-vertical"
-                size={18}
-                color={Colors.gray[7]}
-              />
+              <MoreIcon />
             </Pressable>
           </View>
         );
@@ -208,14 +203,12 @@ const styles = StyleSheet.create({
   badgeText: { ...fonts.caption4_m_12, color: Colors.primary.default },
   title: { ...fonts.body1_m_16, color: Colors.common.black, flex: 1 },
   period: { ...fonts.caption3_m_13, color: Colors.gray[7] },
-  thumbnail: {
+  image: {
     width: 44,
     height: 44,
     borderRadius: 4,
-    backgroundColor: Colors.gray[3],
     overflow: "hidden",
   },
-  image: { width: "100%", height: "100%" },
   more: {
     width: 24,
     minHeight: 44,

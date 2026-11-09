@@ -9,7 +9,6 @@ import {
   BottomSheetModal,
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -50,6 +49,7 @@ import {
   matchesCompanionFilters,
   type CompanionFilters,
 } from "@/components/community/CompanionFilterSheet";
+import EmptyState from "@/components/ui/empty-state";
 
 const communityTabs = ["자유 게시판", "동행 모집"] as const;
 const boardStatusFilters: FreePostStatusFilter[] = [
@@ -518,25 +518,18 @@ export default function CommunityScreen() {
           <View>
             <View style={[styles.companionList, isWide && styles.gridList]}>
               {filteredCompanions.length === 0 && (
-                <View style={styles.companionEmpty}>
-                  <Ionicons
-                    name={
-                      hasCompanionFilters ? "search-outline" : "people-outline"
-                    }
-                    size={40}
-                    color={Colors.gray[5]}
-                  />
-                  <Text style={styles.companionEmptyTitle}>
-                    {hasCompanionFilters
+                <EmptyState
+                  title={
+                    hasCompanionFilters
                       ? "조건에 맞는 동행이 없어요"
-                      : "아직 모집 중인 동행이 없어요"}
-                  </Text>
-                  <Text style={styles.companionEmptyDesc}>
-                    {hasCompanionFilters
+                      : "아직 모집 중인 동행이 없어요"
+                  }
+                  description={
+                    hasCompanionFilters
                       ? "필터를 바꾸거나 초기화해 보세요"
-                      : "첫 번째 동행 모집 글을 올려 보세요!"}
-                  </Text>
-                </View>
+                      : "첫 번째 동행 모집 글을 올려 보세요!"
+                  }
+                />
               )}
               <View style={{ marginLeft: 2, gap: 14 }}>
                 {filteredCompanions.map((post) => (

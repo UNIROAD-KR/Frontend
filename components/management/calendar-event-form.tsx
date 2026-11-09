@@ -15,6 +15,7 @@ import {
   updateCalendarEvent,
   getCalendarEvent,
   type CalendarEvent,
+  type CalendarEventRequest,
   getCalendarCategories,
   type CalendarCategory,
   type CalendarRepeatType,
@@ -37,14 +38,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-const repeatOptions = [
-  { label: "없음", value: "NONE" },
-  { label: "매일", value: "DAILY" },
-  { label: "매주", value: "WEEKLY" },
-  { label: "매월", value: "MONTHLY" },
-  { label: "매년", value: "YEARLY" },
-];
 
 export function CalendarEventForm() {
   const params = useLocalSearchParams<{
@@ -139,7 +132,6 @@ export function CalendarEventForm() {
       active = false;
     };
   }, [isEdit, eventId, editAttempt]);
-  const [repeatOpen, setRepeatOpen] = useState(false);
   const submitted = useRef(false);
   const startDateTime = `${startDate}T${startTime || "00:00"}`;
   const endDateTime = `${endDate}T${endTime || "23:59"}`;
@@ -176,19 +168,15 @@ export function CalendarEventForm() {
           return uploaded;
         }),
       );
-      const payload = {
+      const payload: CalendarEventRequest = {
         categoryId: category,
         title: title.trim(),
         memo: description.trim(),
         allDay: !startTime && !endTime,
-        startAt:
-          original?.startAt.slice(0, 16) === startDateTime
-            ? original.startAt
-            : `${startDateTime}:00`,
-        endAt:
-          original?.endAt.slice(0, 16) === endDateTime
-            ? original.endAt
-            : `${endDateTime}:00`,
+        startDate,
+        startTime: startTime || null,
+        endDate,
+        endTime: endTime || null,
         reminder: original?.reminder ?? ("NONE" as const),
         repeatType: repeat,
         ...(isEdit && repeat === original?.repeatType
@@ -485,6 +473,9 @@ const styles = StyleSheet.create({
   titleInput: {
     ...fonts.body1_m_16,
     color: Colors.common.black,
+    height: 56,
+    paddingVertical: 0,
+    textAlignVertical: "center",
     paddingRight: 58,
     borderColor: Colors.gray[3],
   },

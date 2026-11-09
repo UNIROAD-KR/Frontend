@@ -1,5 +1,4 @@
 import { Text } from "@/components/ui/app-text";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";

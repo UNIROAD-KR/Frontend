@@ -1,5 +1,4 @@
 import { Text } from "@/components/ui/app-text";
-import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useMemo, useState } from "react";
@@ -22,6 +21,7 @@ import {
   getNotices,
   NoticeResponse,
 } from "../src/api/notices";
+import EmptyState from "@/components/ui/empty-state";
 
 const BLUE = Colors.primary.default;
 const MUTED = Colors.gray[7];
@@ -208,21 +208,18 @@ export default function NoticesScreen() {
             <ActivityIndicator color={BLUE} />
           </View>
         ) : notices.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <View style={styles.emptyIconBox}>
-              <Ionicons name="megaphone-outline" size={28} color={BLUE} />
-            </View>
-            <Text style={styles.emptyTitle}>
-              {loadFailed
+          <EmptyState
+            title={
+              loadFailed
                 ? "공지사항을 불러오지 못했어요"
-                : "등록된 공지사항이 없어요"}
-            </Text>
-            <Text style={styles.emptyText}>
-              {loadFailed
+                : "등록된 공지사항이 없어요"
+            }
+            description={
+              loadFailed
                 ? "잠시 후 다시 시도해주세요."
-                : "새 공지가 등록되면 이곳에서 확인할 수 있어요."}
-            </Text>
-          </View>
+                : "새 공지가 등록되면 이곳에서 확인할 수 있어요."
+            }
+          />
         ) : (
           <>
             <View style={styles.summaryRow}>
@@ -375,38 +372,6 @@ const styles = StyleSheet.create({
     minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyBox: {
-    minHeight: 260,
-    borderRadius: 9,
-    borderWidth: 1,
-    borderColor: LINE,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  emptyIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: "#EEF2F8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: Colors.gray[11],
-    textAlign: "center",
-  },
-  emptyText: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: MUTED,
-    textAlign: "center",
   },
   noticeRow: {
     position: "relative",
