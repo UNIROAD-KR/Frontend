@@ -915,15 +915,22 @@ export default function CommunityDetailScreen() {
             fromProfileList === "saved" ||
             fromProfileList === "written"
           ) {
-            router.replace({
-              pathname:
-                fromProfileList === "liked"
-                  ? "/liked-posts"
-                  : fromProfileList === "free" || fromProfileList === "written"
-                    ? "/profile-posts"
-                    : "/home/profile-list",
-              params: { type: fromProfileList },
-            } as never);
+            const fallbackHref =
+              fromProfileList === "liked"
+                ? {
+                    pathname: "/liked-posts",
+                    params: { type: fromProfileList },
+                  }
+                : fromProfileList === "free" || fromProfileList === "written"
+                  ? {
+                      pathname: "/profile-posts",
+                      params: { type: fromProfileList },
+                    }
+                  : {
+                      pathname: "/home/profile-list",
+                      params: { type: fromProfileList },
+                    };
+            goBackOrReplace(fallbackHref as never);
             return;
           }
 

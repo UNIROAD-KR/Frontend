@@ -23,8 +23,6 @@ import {
 } from "../../../src/api/companion";
 import {
   FreePostSummaryResponse,
-  getFreePostDetail,
-  getFreePosts,
   getLikedFreePosts,
   getMyFreePosts,
   getScrappedFreePosts,
@@ -57,11 +55,7 @@ const INK = "#1A2029";
 const MUTED = "#7A8491";
 const LINE = "#E3E7EC";
 const SOFT = "#F1F3F6";
-const SAVED_TICKET_POSTS_STORAGE_KEY = "univ:profile:saved-ticket-posts";
 const RECENT_POSTS_STORAGE_KEY = "univ:profile:recent-posts";
-const LIKED_FREE_POSTS_STORAGE_KEY = "univ:profile:liked-free-posts";
-const LIKED_MARKET_POSTS_STORAGE_KEY = "univ:profile:liked-market-posts";
-const LIKED_TICKET_POSTS_STORAGE_KEY = "univ:profile:liked-ticket-posts";
 
 type ProfileListType =
   | "saved"
@@ -72,30 +66,6 @@ type ProfileListType =
   | "companion"
   | "written";
 type ProfileListGroup = "community" | "market";
-
-type SavedTicket = {
-  id?: number;
-  title?: string;
-  country?: string;
-  semester?: string;
-  region?: string;
-  category?: string;
-  date?: string;
-  price?: string;
-  time?: string;
-};
-
-type LikedMarketPost = {
-  id?: number;
-  title?: string;
-  country?: string;
-  region?: string;
-  semester?: string;
-  price?: string;
-  time?: string;
-  imageUrl?: string;
-  status?: "AVAILABLE" | "COMPLETED";
-};
 
 type RecentPost = {
   id?: number | string;
@@ -303,46 +273,33 @@ const toFreePostCard = (
 });
 
 const toTicketCard = (
-  item: SavedTicket | TicketTransferResponse,
+  item: TicketTransferResponse,
   prefix: string,
   badge = "티켓 양도",
 ): ListCard => ({
   id: makeCardId(prefix, item.id),
   title: item.title || "티켓 양도 글",
-  subtitle:
-    "ticketType" in item
-      ? [item.country, formatDate(item.eventDate)].filter(Boolean).join(" · ")
-      : [item.country, item.semester, item.region]
-          .filter(Boolean)
-          .join(" · ") || "티켓 양도 글",
-  meta:
-    "ticketType" in item
-      ? [
-          `${item.quantity}매`,
-          formatPrice(item.transferPrice),
-          formatRelativeTime(item.createdAt ?? item.updatedAt),
-        ]
-          .filter(Boolean)
-          .join(" · ")
-      : [item.category, item.date, item.price, item.time]
-          .filter(Boolean)
-          .join(" · ") || "상세 정보를 확인해보세요.",
+  subtitle: [item.country, formatDate(item.eventDate)].filter(Boolean).join(" · "),
+  meta: [
+    `${item.quantity}매`,
+    formatPrice(item.transferPrice),
+    formatRelativeTime(item.createdAt ?? item.updatedAt),
+  ]
+    .filter(Boolean)
+    .join(" · "),
   badge,
   category: "ticket",
-  icon: "bookmark-outline",
-  imageUrl:
-    "thumbnailImageUrl" in item
-      ? item.thumbnailImageUrl || item.imageUrls?.[0]
-      : undefined,
+  icon: prefix.startsWith("liked") ? "heart-outline" : "bookmark-outline",
+  imageUrl: item.thumbnailImageUrl || item.imageUrls?.[0],
   country: item.country,
-  region: "location" in item ? item.location : item.region,
-  price: "transferPrice" in item ? item.transferPrice : item.price,
-  originalPrice: "originalPrice" in item ? item.originalPrice : undefined,
-  eventDate: "eventDate" in item ? item.eventDate : item.date,
-  eventTime: "eventTime" in item ? item.eventTime : item.time,
-  ticketType: "ticketType" in item ? item.ticketType : item.category,
-  createdAt: "createdAt" in item ? item.createdAt : undefined,
-  status: "status" in item ? item.status : undefined,
+  region: item.location,
+  price: item.transferPrice,
+  originalPrice: item.originalPrice,
+  eventDate: item.eventDate,
+  eventTime: item.eventTime,
+  ticketType: item.ticketType,
+  createdAt: item.createdAt,
+  status: item.status,
   route: item.id
     ? {
         pathname: "/market/ticket-preview",
@@ -356,29 +313,6 @@ const toTicketCard = (
         },
       }
     : "/market/ticket-preview",
-});
-
-const toLikedMarketCard = (item: LikedMarketPost): ListCard => ({
-  id: makeCardId("liked-market", item.id),
-  title: item.title || "중고거래 글",
-  subtitle:
-    [item.region, item.semester].filter(Boolean).join(" · ") || "중고마켓 글",
-  meta:
-    [item.price, item.time].filter(Boolean).join(" · ") || "좋아요한 중고거래",
-  badge: "중고마켓",
-  category: "used",
-  icon: "heart-outline",
-  imageUrl: item.imageUrl,
-  country: item.country,
-  region: item.region,
-  price: item.price,
-  status: item.status,
-  route: item.id
-    ? {
-        pathname: "/market/[id]",
-        params: { id: String(item.id), fromProfileList: "liked" },
-      }
-    : "/market",
 });
 
 const toUsedItemCard = (
@@ -396,7 +330,7 @@ const toUsedItemCard = (
     .join(" · "),
   badge: item.status === "COMPLETED" ? "거래 완료" : "중고거래",
   category: "used",
-  icon: "bookmark-outline",
+  icon: from === "liked" ? "heart-outline" : "bookmark-outline",
   imageUrl: item.thumbnailImageUrl,
   country: item.country,
   region: item.region,
@@ -433,40 +367,6 @@ const toCompanionCard = (
     },
   },
 });
-
-const mergePostsById = (posts: FreePostSummaryResponse[]) => {
-  const postMap = new Map<number, FreePostSummaryResponse>();
-
-  posts.forEach((post) => {
-    postMap.set(post.id, post);
-  });
-
-  return Array.from(postMap.values());
-};
-
-const mergeTicketsById = (tickets: SavedTicket[]) => {
-  const ticketMap = new Map<number, SavedTicket>();
-
-  tickets.forEach((ticket) => {
-    if (typeof ticket.id === "number") {
-      ticketMap.set(ticket.id, ticket);
-    }
-  });
-
-  return Array.from(ticketMap.values());
-};
-
-const parseStoredList = <T,>(rawValue: string | null): T[] => {
-  if (!rawValue) return [];
-
-  try {
-    const parsedValue = JSON.parse(rawValue);
-
-    return Array.isArray(parsedValue) ? (parsedValue as T[]) : [];
-  } catch {
-    return [];
-  }
-};
 
 const categoryTabsByType: Partial<
   Record<ProfileListType, { key: ProfileListCategory; label: string }[]>
@@ -666,55 +566,41 @@ export default function ProfileListScreen() {
       }
 
       if (listType === "liked") {
-        let posts: FreePostSummaryResponse[] = [];
-        const rawLocalLikedPosts = await AsyncStorage.getItem(
-          LIKED_FREE_POSTS_STORAGE_KEY,
-        );
-        const rawLikedMarketPosts = await AsyncStorage.getItem(
-          LIKED_MARKET_POSTS_STORAGE_KEY,
-        );
-        const rawLikedTicketPosts = await AsyncStorage.getItem(
-          LIKED_TICKET_POSTS_STORAGE_KEY,
-        );
-        const rawSavedTickets = await AsyncStorage.getItem(
-          SAVED_TICKET_POSTS_STORAGE_KEY,
-        );
-        const localLikedPosts =
-          parseStoredList<FreePostSummaryResponse>(rawLocalLikedPosts);
-        const likedMarketPosts =
-          parseStoredList<LikedMarketPost>(rawLikedMarketPosts);
-        const likedTickets = mergeTicketsById([
-          ...parseStoredList<SavedTicket>(rawLikedTicketPosts),
-          ...parseStoredList<SavedTicket>(rawSavedTickets),
-        ]);
-
         const [companionResult, usedResult, ticketResult] =
           await Promise.allSettled([
             getScrappedCompanionPosts({ size: 30 }),
             getScrappedUsedItems({ size: 30 }),
             getScrappedTickets({ size: 30 }),
           ]);
+        const getScrappedItems = <T,>(
+          result: PromiseSettledResult<{ data: { data: unknown } }>,
+          label: string,
+        ) => {
+          if (result.status === "rejected") {
+            console.log(`${label} 조회 실패:`, result.reason);
+            return [];
+          }
+
+          return extractItems<T>(result.value.data.data);
+        };
         const companionPosts =
-          companionResult.status === "fulfilled"
-            ? extractItems<CompanionPostResponse>(
-                companionResult.value.data.data,
-              )
-            : [];
-        const usedItems =
-          usedResult.status === "fulfilled"
-            ? extractItems<UsedItemSummaryResponse>(usedResult.value.data.data)
-            : [];
-        const ticketPosts =
-          ticketResult.status === "fulfilled"
-            ? extractItems<TicketTransferResponse>(ticketResult.value.data.data)
-            : [];
+          getScrappedItems<CompanionPostResponse>(
+            companionResult,
+            "스크랩한 동행 글",
+          );
+        const usedItems = getScrappedItems<UsedItemSummaryResponse>(
+          usedResult,
+          "좋아요한 중고거래 글",
+        );
+        const ticketPosts = getScrappedItems<TicketTransferResponse>(
+          ticketResult,
+          "좋아요한 티켓 양도 글",
+        );
+        let posts: FreePostSummaryResponse[] = [];
 
         try {
           const response = await getLikedFreePosts({ size: 30 });
           posts = extractItems<FreePostSummaryResponse>(response.data.data);
-          if (posts.length === 0) {
-            posts = extractItems<FreePostSummaryResponse>(response.data);
-          }
         } catch (error: any) {
           console.log(
             "좋아요한 글 목록 API 실패:",
@@ -722,44 +608,11 @@ export default function ProfileListScreen() {
           );
         }
 
-        if (posts.length === 0) {
-          try {
-            const response = await getFreePosts({}, "전체");
-            const candidatePosts = extractItems<FreePostSummaryResponse>(
-              response.data,
-            );
-            const candidates =
-              candidatePosts.length > 0
-                ? candidatePosts
-                : extractItems<FreePostSummaryResponse>(response.data);
-            const detailResults = await Promise.allSettled(
-              candidates.map((post) => getFreePostDetail(post.id)),
-            );
-
-            posts = detailResults.flatMap((result, index) => {
-              if (result.status !== "fulfilled") return [];
-
-              return result.value.data.data.liked ? [candidates[index]] : [];
-            });
-          } catch (error: any) {
-            console.log(
-              "좋아요한 글 상세 확인 실패:",
-              error.response?.data || error.message,
-            );
-          }
-        }
-
-        posts = mergePostsById([...localLikedPosts, ...posts]);
-
         setItems([
           ...posts.map((post) => toFreePostCard(post, "liked", "자유게시판")),
           ...companionPosts.map((post) => toCompanionCard(post, "liked")),
-          ...(usedItems.length > 0
-            ? usedItems.map((item) => toUsedItemCard(item, "liked"))
-            : likedMarketPosts.map(toLikedMarketCard)),
-          ...(ticketPosts.length > 0
-            ? ticketPosts.map((item) => toTicketCard(item, "liked-ticket"))
-            : likedTickets.map((item) => toTicketCard(item, "liked-ticket"))),
+          ...usedItems.map((item) => toUsedItemCard(item, "liked")),
+          ...ticketPosts.map((item) => toTicketCard(item, "liked-ticket")),
         ]);
         return;
       }

@@ -1,11 +1,20 @@
-import { Text } from '@/components/ui/app-text';
+import { Text } from "@/components/ui/app-text";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 
-import { AppBackButton } from "@/components/ui/app-back-button";
+import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
+import { Colors, fonts } from "@/constants/theme";
 import {
   getNotifications,
   getUnreadNotificationCount,
@@ -15,12 +24,9 @@ import {
   NotificationType,
 } from "@/src/api/notifications";
 
-const NAVY = "#0F2042";
-const BLUE = "#2F66D0";
-const INK = "#111111";
-const MUTED = "#64748B";
-const LINE = "#E2E8F0";
-const SOFT = "#F6F8FC";
+const BLUE = Colors.primary.default;
+const MUTED = Colors.gray[7];
+const LINE = Colors.gray[3];
 
 const notificationMeta: Record<
   NotificationType,
@@ -74,7 +80,7 @@ const defaultNotificationMeta = {
   icon: "notifications-outline" as const,
   label: "알림",
   color: MUTED,
-  bg: SOFT,
+  bg: Colors.gray[2],
 };
 
 export default function NotificationsScreen() {
@@ -212,13 +218,18 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <AppBackButton style={styles.iconBtn} />
-        <Text style={styles.headerTitle}>알림</Text>
-        <Pressable style={styles.headerAction} onPress={markAllAsRead}>
-          <Text style={styles.headerActionText}>모두 읽음</Text>
-        </Pressable>
-      </View>
+      <ProfileScreenHeader
+        title="알림"
+        rightAction={
+          <Pressable
+            accessibilityRole="button"
+            style={styles.headerAction}
+            onPress={markAllAsRead}
+          >
+            <Text style={styles.headerActionText}>모두 읽음</Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView
         style={styles.scroll}
@@ -265,7 +276,7 @@ export default function NotificationsScreen() {
               return (
                 <Pressable
                   key={item.notificationId}
-                  style={[styles.card, styles.unreadCard]}
+                  style={[styles.card, !item.read && styles.unreadCard]}
                   onPress={() => openNotification(item)}
                 >
                   <View
@@ -292,7 +303,7 @@ export default function NotificationsScreen() {
                           {meta.label}
                         </Text>
                       </View>
-                      <View style={styles.unreadDot} />
+                      {!item.read && <View style={styles.unreadDot} />}
                     </View>
                   </View>
                 </Pressable>
@@ -308,133 +319,108 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 50,
-    paddingBottom: 15,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: SOFT,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: "900",
-    color: NAVY,
+    backgroundColor: Colors.common.white,
   },
   headerAction: {
-    minWidth: 62,
-    height: 38,
-    borderRadius: 19,
+    minHeight: 34,
+    paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
   },
   headerActionText: {
-    fontSize: 12,
-    fontWeight: "900",
+    ...fonts.body2_m_14,
     color: BLUE,
   },
   scroll: {
     flex: 1,
   },
   content: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 130,
   },
   summaryCard: {
-    borderRadius: 20,
-    backgroundColor: "#F4F8FF",
+    minHeight: 72,
+    borderRadius: 8,
+    backgroundColor: Colors.gray[1],
     borderWidth: 1,
-    borderColor: "#DCE7FF",
-    padding: 18,
+    borderColor: LINE,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
   },
   summaryIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
+    width: 40,
+    height: 40,
+    borderRadius: 9,
+    backgroundColor: "#EAF0FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 13,
+    marginRight: 12,
   },
   summaryTextBox: {
     flex: 1,
   },
   summaryTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: INK,
+    ...fonts.sub3_sb_16,
+    color: Colors.gray[11],
   },
   summaryDesc: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
+    marginTop: 3,
+    ...fonts.caption3_m_13,
     color: MUTED,
   },
   list: {
-    marginTop: 16,
-    gap: 10,
+    marginTop: 14,
+    gap: 8,
   },
   stateBox: {
-    minHeight: 180,
+    minHeight: 220,
     alignItems: "center",
     justifyContent: "center",
   },
   emptyBox: {
-    minHeight: 180,
-    borderRadius: 18,
+    minHeight: 220,
+    marginTop: 4,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: LINE,
+    backgroundColor: Colors.common.white,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
   },
   emptyTitle: {
-    marginTop: 10,
-    fontSize: 16,
-    fontWeight: "900",
-    color: INK,
+    marginTop: 12,
+    ...fonts.sub3_sb_16,
+    color: Colors.gray[11],
   },
   emptyDesc: {
-    marginTop: 6,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
+    marginTop: 5,
+    ...fonts.caption3_m_13,
     color: MUTED,
     textAlign: "center",
   },
   card: {
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
+    minHeight: 82,
+    borderRadius: 8,
+    backgroundColor: Colors.common.white,
     borderWidth: 1,
     borderColor: LINE,
-    padding: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     flexDirection: "row",
+    alignItems: "center",
   },
   unreadCard: {
-    borderColor: "#CFE0FF",
-    backgroundColor: "#FCFDFF",
+    borderColor: "#C8D5FF",
+    backgroundColor: "#FAFBFF",
   },
   cardIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 15,
+    width: 38,
+    height: 38,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -442,45 +428,41 @@ const styles = StyleSheet.create({
   cardTextBox: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 2,
   },
   cardTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
   cardTitle: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: "900",
-    color: INK,
+    ...fonts.body2_m_14,
+    color: Colors.gray[11],
   },
   cardTime: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#A4ADBA",
+    ...fonts.caption4_m_12,
+    color: Colors.gray[5],
   },
   cardBody: {
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "700",
+    marginTop: 4,
+    ...fonts.caption3_m_13,
     color: MUTED,
   },
   cardBottomRow: {
-    marginTop: 10,
+    marginTop: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   badge: {
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
   badgeText: {
-    fontSize: 11,
-    fontWeight: "900",
+    ...fonts.caption4_m_12,
   },
   unreadDot: {
     width: 8,

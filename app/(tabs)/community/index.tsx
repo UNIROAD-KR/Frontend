@@ -158,6 +158,7 @@ export default function CommunityScreen() {
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
   const didMountRef = useRef(false);
+  const hasLoadedCommunityRef = useRef(false);
   const boardKeywordRef = useRef("");
   const selectedBoardStatusRef = useRef(selectedBoardStatus);
   const didMountBoardStatusRef = useRef(false);
@@ -224,11 +225,14 @@ export default function CommunityScreen() {
   );
 
   const loadCommunityPosts = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoadedCommunityRef.current) {
+      setLoading(true);
+    }
 
     try {
       await Promise.all([loadFreePosts(), loadCompanionPosts()]);
     } finally {
+      hasLoadedCommunityRef.current = true;
       setLoading(false);
     }
   }, [loadCompanionPosts, loadFreePosts]);

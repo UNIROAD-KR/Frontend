@@ -492,15 +492,22 @@ export default function TicketPreviewPage() {
               fromProfileList === "saved" ||
               fromProfileList === "written"
             ) {
-              router.replace({
-                pathname:
-                  fromProfileList === "liked"
-                    ? "/liked-posts"
-                    : fromProfileList === "written"
-                      ? "/profile-posts"
-                      : "/home/profile-list",
-                params: { type: fromProfileList },
-              } as any);
+              const fallbackHref =
+                fromProfileList === "liked"
+                  ? {
+                      pathname: "/liked-posts",
+                      params: { type: fromProfileList },
+                    }
+                  : fromProfileList === "written"
+                    ? {
+                        pathname: "/profile-posts",
+                        params: { type: fromProfileList },
+                      }
+                    : {
+                        pathname: "/home/profile-list",
+                        params: { type: fromProfileList },
+                      };
+              goBackOrReplace(fallbackHref as never);
               return;
             }
 
@@ -781,15 +788,22 @@ export default function TicketPreviewPage() {
               fromProfileList === "saved" ||
               fromProfileList === "written"
             ) {
-              router.replace({
-                pathname:
-                  fromProfileList === "liked"
-                    ? "/liked-posts"
-                    : fromProfileList === "written"
-                      ? "/profile-posts"
-                      : "/home/profile-list",
-                params: { type: fromProfileList },
-              } as any);
+              const fallbackHref =
+                fromProfileList === "liked"
+                  ? {
+                      pathname: "/liked-posts",
+                      params: { type: fromProfileList },
+                    }
+                  : fromProfileList === "written"
+                    ? {
+                        pathname: "/profile-posts",
+                        params: { type: fromProfileList },
+                      }
+                    : {
+                        pathname: "/home/profile-list",
+                        params: { type: fromProfileList },
+                      };
+              goBackOrReplace(fallbackHref as never);
               return;
             }
 

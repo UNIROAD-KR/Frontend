@@ -521,8 +521,8 @@ export default function MarketDetailPage() {
   const tags = useMemo(() => {
     if (!post) return [];
 
-    return [post.country || "국가 미정", post.region || "장소 미정"].filter(
-      Boolean,
+    return Array.from(
+      new Set([post.country || "국가 미정", post.region || "장소 미정"]),
     );
   }, [post]);
 
