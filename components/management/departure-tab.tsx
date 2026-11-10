@@ -124,7 +124,9 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
   const [itemTitle, setItemTitle] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const list = lists.find((entry) => entry.id === preparationId);
-  const isTravelPackingEmpty = list?.scheduleType === "여행" && !list.groups.some(group => group.items.length > 0);
+  const isTravelPackingEmpty =
+    list?.scheduleType === "여행" &&
+    !list.groups.some((group) => group.items.length > 0);
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -546,61 +548,69 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               </View>
             )}
             {isTravelPackingEmpty && (
-              <PackingEmptyState disabled={saving} onAdd={() => {
-                setCategory("custom");
-                setItemTitle("");
-                setCustomCategory("");
-                setError("");
-                setSheet("item");
-              }} />
+              <PackingEmptyState
+                disabled={saving}
+                onAdd={() => {
+                  setCategory("custom");
+                  setItemTitle("");
+                  setCustomCategory("");
+                  setError("");
+                  setSheet("item");
+                }}
+              />
             )}
-            {!list.groups.length && list.scheduleType !== "파견" && !isTravelPackingEmpty && (
-              <Text style={s.meta}>준비물을 추가해주세요.</Text>
-            )}
-            {!isTravelPackingEmpty && list.groups.map((group) => (
-              <View key={group.id} style={s.group}>
-                <Pressable
-                  style={s.groupHeader}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: !!openGroups[group.id] }}
-                  onPress={() =>
-                    setOpenGroups((previous) => ({
-                      ...previous,
-                      [group.id]: !previous[group.id],
-                    }))
-                  }
-                >
-                  <View style={s.flex}>
-                    <Text style={fonts.sub4_sb_14}>{group.title}</Text>
-                    <Text style={s.meta}>
-                      {group.items.filter((item) => item.done).length}/
-                      {group.items.length}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={openGroups[group.id] ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={Colors.gray[7]}
-                  />
-                </Pressable>
-                {openGroups[group.id] && (
-                  <>
-                    {group.items.map((item) => renderItem(item, group.id))}
-                    {!group.items.length && (
-                      <Text
-                        style={{
-                          ...fonts.caption5_r_13,
-                          color: Colors.gray[6],
-                          marginBottom: 14,
-                        }}
-                      >
-                        준비물을 추가해주세요.
+            {!list.groups.length &&
+              list.scheduleType !== "파견" &&
+              !isTravelPackingEmpty && (
+                <Text style={s.meta}>준비물을 추가해주세요.</Text>
+              )}
+            {!isTravelPackingEmpty &&
+              list.groups.map((group) => (
+                <View key={group.id} style={s.group}>
+                  <Pressable
+                    style={s.groupHeader}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: !!openGroups[group.id] }}
+                    onPress={() =>
+                      setOpenGroups((previous) => ({
+                        ...previous,
+                        [group.id]: !previous[group.id],
+                      }))
+                    }
+                  >
+                    <View style={s.flex}>
+                      <Text style={fonts.sub4_sb_14}>{group.title}</Text>
+                      <Text style={s.meta}>
+                        {group.items.filter((item) => item.done).length}/
+                        {group.items.length}
                       </Text>
-                    )}
-                  </>
-                )}
-              </View>
-            ))}
+                    </View>
+                    <Ionicons
+                      name={
+                        openGroups[group.id] ? "chevron-up" : "chevron-down"
+                      }
+                      size={18}
+                      color={Colors.gray[7]}
+                    />
+                  </Pressable>
+                  {openGroups[group.id] && (
+                    <>
+                      {group.items.map((item) => renderItem(item, group.id))}
+                      {!group.items.length && (
+                        <Text
+                          style={{
+                            ...fonts.caption5_r_13,
+                            color: Colors.gray[6],
+                            marginBottom: 14,
+                          }}
+                        >
+                          준비물을 추가해주세요.
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </View>
+              ))}
           </>
         ) : (
           <>
@@ -778,7 +788,10 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                 onPress={close}
                 style={s.icon}
               >
-                <XIcon width={24} height={24} />
+                <XIcon
+                  style={{ width: 24, height: 24 }}
+                  color={Colors.common.black}
+                />
               </Pressable>
             </View>
             <ScrollView

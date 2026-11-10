@@ -5,10 +5,6 @@ import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { TERMS_OF_SERVICE } from "../constants/legal";
 import { fonts, Colors } from "@/constants/theme";
 
-const NAVY = "#18202B";
-const MUTED = "#7A8491";
-const LINE = "#E3E7EC";
-
 function renderLegalText(content: string) {
   return content.split("\n").map((line, index) => {
     const trimmedLine = line.trim();
@@ -74,7 +70,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: LINE,
+    borderColor: Colors.gray[3],
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 24,

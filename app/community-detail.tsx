@@ -10,6 +10,8 @@ import FlagIcon from "@/assets/icon/flag.svg";
 import CalendarIcon from "@/assets/icon/calendar.svg";
 import PersonIcon from "@/assets/icon/person.svg";
 import CheckmarkCircleIcon from "@/assets/icon/complete.svg";
+import XIcon from "@/assets/icon/x-icon.svg";
+import ShareIcon from "@/assets/icon/share.svg";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Toast } from "@/components/ui/fade-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,7 +36,6 @@ import {
 } from "react-native";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
 import ReplyIcon from "@/assets/icon/reply.svg";
-import CompleteIcon from "@/assets/icon/complete.svg";
 import EditIcon from "@/assets/icon/edit.svg";
 import DeleteIcon from "@/assets/icon/delete.svg";
 import { createOrGetChatRoom } from "../src/api/chat";
@@ -708,35 +709,61 @@ export default function CommunityDetailScreen() {
   };
 
   const handleReportComment = (comment: FreeComment) => {
-    if (comment.mine || comment.deleted || comment.reported || detailType !== "free") return;
+    if (
+      comment.mine ||
+      comment.deleted ||
+      comment.reported ||
+      detailType !== "free"
+    )
+      return;
     const reasons: { text: string; reason: ReportReason }[] = [
       { text: "스팸 / 광고", reason: "SPAM" },
       { text: "욕설 / 비방", reason: "ABUSE" },
       { text: "부적절한 내용", reason: "INAPPROPRIATE" },
     ];
     showAlert("댓글 신고", "신고 사유를 선택해주세요.", [
-      ...reasons.map(({ text, reason }) => ({ text, onPress: async () => {
-        if (reportingComments.current.has(comment.id)) return;
-        reportingComments.current.add(comment.id);
-        try {
-          await createReport({ targetType: "FREE_POST_COMMENT", targetId: comment.id, reason });
-          const hideReported = (items: FreePostCommentResponse[]): FreePostCommentResponse[] => items.map(item => ({
-            ...item,
-            ...(item.id === comment.id ? { content: "신고된 댓글입니다", reported: true } : {}),
-            replies: hideReported(item.replies ?? []),
-          }));
-          setPost(current => current ? {
-            ...current,
-            comments: hideReported((current as FreePostDetailResponse).comments ?? []),
-          } : current);
-          setReplyTarget(current => current?.id === comment.id ? null : current);
-          showAlert("신고 완료", "신고가 접수되었어요.");
-        } catch {
-          showAlert("신고 실패", "잠시 후 다시 시도해주세요.");
-        } finally {
-          reportingComments.current.delete(comment.id);
-        }
-      } })),
+      ...reasons.map(({ text, reason }) => ({
+        text,
+        onPress: async () => {
+          if (reportingComments.current.has(comment.id)) return;
+          reportingComments.current.add(comment.id);
+          try {
+            await createReport({
+              targetType: "FREE_POST_COMMENT",
+              targetId: comment.id,
+              reason,
+            });
+            const hideReported = (
+              items: FreePostCommentResponse[],
+            ): FreePostCommentResponse[] =>
+              items.map((item) => ({
+                ...item,
+                ...(item.id === comment.id
+                  ? { content: "신고된 댓글입니다", reported: true }
+                  : {}),
+                replies: hideReported(item.replies ?? []),
+              }));
+            setPost((current) =>
+              current
+                ? {
+                    ...current,
+                    comments: hideReported(
+                      (current as FreePostDetailResponse).comments ?? [],
+                    ),
+                  }
+                : current,
+            );
+            setReplyTarget((current) =>
+              current?.id === comment.id ? null : current,
+            );
+            showAlert("신고 완료", "신고가 접수되었어요.");
+          } catch {
+            showAlert("신고 실패", "잠시 후 다시 시도해주세요.");
+          } finally {
+            reportingComments.current.delete(comment.id);
+          }
+        },
+      })),
       { text: "취소", style: "cancel" },
     ]);
   };
@@ -888,15 +915,22 @@ export default function CommunityDetailScreen() {
             fromProfileList === "saved" ||
             fromProfileList === "written"
           ) {
-            router.replace({
-              pathname:
-                fromProfileList === "liked"
-                  ? "/liked-posts"
-                  : fromProfileList === "free" || fromProfileList === "written"
-                    ? "/profile-posts"
-                    : "/home/profile-list",
-              params: { type: fromProfileList },
-            } as never);
+            const fallbackHref =
+              fromProfileList === "liked"
+                ? {
+                    pathname: "/liked-posts",
+                    params: { type: fromProfileList },
+                  }
+                : fromProfileList === "free" || fromProfileList === "written"
+                  ? {
+                      pathname: "/profile-posts",
+                      params: { type: fromProfileList },
+                    }
+                  : {
+                      pathname: "/home/profile-list",
+                      params: { type: fromProfileList },
+                    };
+            goBackOrReplace(fallbackHref as never);
             return;
           }
 
@@ -947,10 +981,9 @@ export default function CommunityDetailScreen() {
                   onPress={handleShareCompanionPost}
                   style={styles.shareButton}
                 >
-                  <Ionicons
-                    name="share-social-outline"
-                    size={22}
-                    color="#191F28"
+                  <ShareIcon
+                    style={{ width: 24, height: 24 }}
+                    color={Colors.common.black}
                   />
                 </Pressable>
               </View>
@@ -1049,10 +1082,9 @@ export default function CommunityDetailScreen() {
                   onPress={handleShareCompanionPost}
                   style={styles.shareButton}
                 >
-                  <Ionicons
-                    name="share-social-outline"
-                    size={22}
-                    color="#191F28"
+                  <ShareIcon
+                    style={{ width: 24, height: 24 }}
+                    color={Colors.common.black}
                   />
                 </Pressable>
               </View>
@@ -1157,22 +1189,30 @@ export default function CommunityDetailScreen() {
                       ) : (
                         <>
                           {renderCommentMeta(comment)}
-                          <Text style={comment.reported ? styles.commentDeleted : styles.commentContent}>
+                          <Text
+                            style={
+                              comment.reported
+                                ? styles.commentDeleted
+                                : styles.commentContent
+                            }
+                          >
                             {comment.content}
                           </Text>
-                          {!comment.reported && <Pressable
-                            style={styles.replyButton}
-                            hitSlop={8}
-                            accessibilityRole="button"
-                            onPress={() => {
-                              setReplyTarget(comment);
-                              commentInputRef.current?.focus();
-                            }}
-                          >
-                            <Text style={styles.replyButtonText}>
-                              답글 달기
-                            </Text>
-                          </Pressable>}
+                          {!comment.reported && (
+                            <Pressable
+                              style={styles.replyButton}
+                              hitSlop={8}
+                              accessibilityRole="button"
+                              onPress={() => {
+                                setReplyTarget(comment);
+                                commentInputRef.current?.focus();
+                              }}
+                            >
+                              <Text style={styles.replyButtonText}>
+                                답글 달기
+                              </Text>
+                            </Pressable>
+                          )}
                         </>
                       )}
                     </View>
@@ -1182,7 +1222,13 @@ export default function CommunityDetailScreen() {
                       <ReplyIcon />
                       <View style={styles.commentMain}>
                         {renderCommentMeta(reply)}
-                        <Text style={reply.reported || reply.deleted ? styles.commentDeleted : styles.commentContent}>
+                        <Text
+                          style={
+                            reply.reported || reply.deleted
+                              ? styles.commentDeleted
+                              : styles.commentContent
+                          }
+                        >
                           {reply.deleted ? "삭제된 댓글입니다" : reply.content}
                         </Text>
                       </View>
@@ -1212,7 +1258,10 @@ export default function CommunityDetailScreen() {
                 accessibilityLabel="답글 취소"
                 onPress={() => setReplyTarget(null)}
               >
-                <Ionicons name="close" size={16} color={Colors.gray[6]} />
+                <XIcon
+                  style={{ width: 16, height: 16 }}
+                  color={Colors.gray[8]}
+                />
               </Pressable>
             </View>
           )}
@@ -1294,7 +1343,7 @@ export default function CommunityDetailScreen() {
                       {
                         label: "모집 완료",
                         icon: (
-                          <CompleteIcon
+                          <CheckmarkCircleIcon
                             color={Colors.gray[8]}
                             width={16}
                             height={16}
@@ -1312,7 +1361,7 @@ export default function CommunityDetailScreen() {
                     <Ionicons
                       name={scrapped ? "bookmark" : "bookmark-outline"}
                       size={16}
-                      color={scrapped ? BLUE : "#111111"}
+                      color={scrapped ? Colors.primary.default : "#111111"}
                     />
                   ),
                   onPress: handleScrapPress,
@@ -1343,7 +1392,12 @@ function CompanionInfoItem({
   alignTop?: boolean;
 }) {
   return (
-    <View style={[styles.companionInfoRow, alignTop && { alignItems: "flex-start" }]}>
+    <View
+      style={[
+        styles.companionInfoRow,
+        alignTop && { alignItems: "flex-start" },
+      ]}
+    >
       {icon}
       <Text style={styles.companionInfoLabel}>{label}</Text>
       <Text style={styles.companionInfoValue}>{value}</Text>
@@ -1371,7 +1425,7 @@ const styles = StyleSheet.create({
   startChatButton: {
     paddingVertical: 15,
     borderRadius: 10,
-    backgroundColor: BLUE,
+    backgroundColor: Colors.primary.default,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1398,7 +1452,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     height: 44,
     borderRadius: 12,
-    backgroundColor: BLUE,
+    backgroundColor: Colors.primary.default,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,

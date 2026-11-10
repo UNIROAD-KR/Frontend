@@ -7,7 +7,7 @@ import {
   BottomSheetView,
 } from "@/components/ui/bottom-sheet";
 import { Colors, fonts, commonStyles } from "@/constants/theme";
-import { Ionicons } from "@expo/vector-icons";
+import TrashIcon from "../assets/icon/delete.svg";
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
@@ -753,9 +753,8 @@ export default function AccountBookTab({
                 style={styles.actionOption}
                 onPress={handleDeletePress}
               >
-                <Ionicons
-                  name="trash-outline"
-                  size={24}
+                <TrashIcon
+                  style={{ width: 24, height: 24 }}
                   color={Colors.gray[10]}
                 />
                 <Text style={styles.actionText}>삭제하기</Text>

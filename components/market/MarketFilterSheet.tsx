@@ -101,7 +101,10 @@ export function MarketFilterSheet({
               accessibilityRole="button"
               accessibilityLabel="필터 닫기"
             >
-              <XIcon width={24} height={24} />
+              <XIcon
+                style={{ width: 24, height: 24 }}
+                color={Colors.common.black}
+              />
             </Pressable>
           </View>
           <ScrollView

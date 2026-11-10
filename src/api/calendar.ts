@@ -5,7 +5,8 @@ export type CalendarRepeatType = "NONE" | "DAILY" | "WEEKLY" | "MONTHLY" | "YEAR
 export type CalendarCategory = { id: number; name: string; color: string };
 export type CalendarPhotoInput = { photoId: number } | { key: string; thumbnailKey?: string; width?: number; height?: number };
 export type CalendarEventRequest = {
-  categoryId: number | null; title: string; allDay: boolean; startAt: string; endAt: string;
+  categoryId: number | null; title: string; allDay: boolean;
+  startDate: string; startTime: string | null; endDate: string; endTime: string | null;
   reminder: "NONE" | "AT_TIME" | "MIN_10" | "HOUR_1" | "DAY_1"; repeatType: CalendarRepeatType; repeatUntil?: string | null; memo: string; photos: CalendarPhotoInput[];
 };
 export type CalendarEvent = {

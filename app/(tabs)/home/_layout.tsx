@@ -1,11 +1,11 @@
-import { Stack } from 'expo-router';
+import { Stack } from "expo-router";
 
 export default function HomeLayout() {
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: "slide_from_right",
         gestureEnabled: true,
         fullScreenGestureEnabled: true,
       }}
@@ -21,14 +21,12 @@ export default function HomeLayout() {
       <Stack.Screen name="profile-card" />
       <Stack.Screen name="account-settings" />
       <Stack.Screen name="profile-edit" />
-      <Stack.Screen name="profile-field-edit" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="profile-list" />
       <Stack.Screen name="profile-notifications" />
       <Stack.Screen name="profile-password" />
       <Stack.Screen name="profile-settings" />
       <Stack.Screen name="more-menu" />
-      <Stack.Screen name="app-info" />
       <Stack.Screen name="notices" />
       <Stack.Screen name="terms" />
       <Stack.Screen name="privacy-policy" />

@@ -86,7 +86,10 @@ export function OnboardingSelectModal({
                 onPress={onClose}
                 style={styles.closeButton}
               >
-                <XIcon />
+                <XIcon
+                  style={{ width: 24, height: 24 }}
+                  color={Colors.common.black}
+                />
               </Pressable>
             </View>
           ) : (

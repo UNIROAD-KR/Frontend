@@ -159,7 +159,10 @@ export function MarketItemList({ groups }: Props) {
                 accessibilityLabel="닫기"
                 style={styles.close}
               >
-                <XIcon />
+                <XIcon
+                  style={{ width: 24, height: 24 }}
+                  color={Colors.common.black}
+                />
               </Pressable>
             </View>
             <ScrollView

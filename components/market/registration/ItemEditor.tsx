@@ -70,7 +70,10 @@ export function ItemEditor({
           <View style={[styles.sheetHeader, { marginBottom: 28 }]}>
             <Text style={fonts.title4_sb_24}>세부 물품 등록하기</Text>
             <Pressable hitSlop={12} onPress={onClose} accessibilityLabel="닫기">
-              <XIcon width={24} height={24} />
+              <XIcon
+                style={{ width: 24, height: 24 }}
+                color={Colors.common.black}
+              />
             </Pressable>
           </View>
           <ScrollView

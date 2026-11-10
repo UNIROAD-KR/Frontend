@@ -142,7 +142,7 @@ export function CompanionFilterSheet({
       setDraft(value);
       setOpenPart(null);
       setCountryPageOpen(false);
-        progress.setValue(0);
+      progress.setValue(0);
     }
   }, [visible, value, progress]);
 
@@ -235,7 +235,10 @@ export function CompanionFilterSheet({
                   accessibilityRole="button"
                   accessibilityLabel="필터 닫기"
                 >
-                  <XIcon />
+                  <XIcon
+                    style={{ width: 24, height: 24 }}
+                    color={Colors.common.black}
+                  />
                 </Pressable>
               </View>
               <ScrollView
@@ -461,10 +464,16 @@ export function CompanionFilterSheet({
                 </Pressable>
                 <Text style={styles.title}>국가 및 지역 선택</Text>
               </View>
-              <CountrySelectionList selectedCountry={draft.country} onSelect={(country) => {
-                patch({ country, region: country === draft.country ? draft.region : "" });
-                showCountryPage(false);
-              }} />
+              <CountrySelectionList
+                selectedCountry={draft.country}
+                onSelect={(country) => {
+                  patch({
+                    country,
+                    region: country === draft.country ? draft.region : "",
+                  });
+                  showCountryPage(false);
+                }}
+              />
             </Animated.View>
           </View>
         </BottomSheetView>
