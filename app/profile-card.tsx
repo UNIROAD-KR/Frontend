@@ -58,7 +58,7 @@ type MenuItem = {
 
 const activityItems: MenuItem[] = [
   {
-    title: "좋아요 누른 글",
+    title: "스크랩한 글",
     icon: HeartIcon,
     route: {
       pathname: "/liked-posts",

@@ -1,12 +1,6 @@
 import { PackingEmptyState } from "@/components/management/packing-empty-state";
-import MoneyActionIcon from "@/assets/icon/actions/money.svg";
-import type { ComponentType } from "react";
-import type { SvgProps } from "react-native-svg";
+import { ESSENTIAL_PRESENTATION } from "@/components/management/constants";
 import DocumentActionIcon from "@/assets/icon/actions/document.svg";
-import HomeActionIcon from "@/assets/icon/actions/home.svg";
-import WalletActionIcon from "@/assets/icon/actions/wallet.svg";
-import UsimActionIcon from "@/assets/icon/actions/usim.svg";
-import AirplaneActionIcon from "@/assets/icon/actions/airplane.svg";
 import CheckboxIcon from "@/assets/icon/checkbox.svg";
 import ArrowRightIcon from "@/assets/icon/arrow-right.svg";
 import CheckboxEmptyIcon from "@/assets/icon/checkbox-empty.svg";
@@ -55,46 +49,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CountryFlag } from "../ui/country-flag";
-const ESSENTIAL_PRESENTATION: Record<
-  string,
-  { category: string; title: string; Icon: ComponentType<SvgProps> }
-> = {
-  "visa-apply": {
-    category: "비자",
-    title: "비자 신청하기",
-    Icon: DocumentActionIcon,
-  },
-  "visa-pickup": {
-    category: "비자",
-    title: "비자 수령하기",
-    Icon: DocumentActionIcon,
-  },
-  "housing-secure": {
-    category: "거주",
-    title: "숙소 확보하기",
-    Icon: HomeActionIcon,
-  },
-  "insurance-join": {
-    category: "보험",
-    title: "보험 가입하기",
-    Icon: WalletActionIcon,
-  },
-  "card-ready": {
-    category: "은행/재정",
-    title: "해외결제 카드 준비",
-    Icon: MoneyActionIcon,
-  },
-  "esim-ready": {
-    category: "통신",
-    title: "유심/eSIM 준비",
-    Icon: UsimActionIcon,
-  },
-  "flight-booking": {
-    category: "항공",
-    title: "항공권 예약하기",
-    Icon: AirplaneActionIcon,
-  },
-};
+
 const formatRegisteredAt = (value: string) => {
   const date = new Date(value);
   const pad = (part: number) => String(part).padStart(2, "0");
@@ -291,11 +246,11 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
         onPress={() => toggleItem(item.id, groupId)}
         style={s.itemToggle}
       >
-        <Ionicons
-          name={item.done ? "checkbox" : "square-outline"}
-          size={22}
-          color={item.done ? Colors.primary.default : Colors.gray[4]}
-        />
+        {item.done ? (
+          <CheckboxIcon width={24} height={24} />
+        ) : (
+          <CheckboxEmptyIcon width={24} height={24} />
+        )}
         <Text style={[fonts.body2_m_14, s.flex, item.done && s.done]}>
           {item.title}
         </Text>
@@ -512,6 +467,7 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                       {list.essentials.length}
                     </Text>
                   </View>
+
                   <Ionicons
                     name={
                       openGroups.essentials !== false

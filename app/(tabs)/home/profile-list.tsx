@@ -101,7 +101,7 @@ const screenConfig: Record<
     icon: "time-outline",
   },
   liked: {
-    title: "좋아요 누른 글",
+    title: "스크랩한 글",
     description: "내가 좋아요를 누르거나 저장한 글을 모아봤어요.",
     emptyTitle: "좋아요한 글이 아직 없어요",
     emptyText:
@@ -279,7 +279,9 @@ const toTicketCard = (
 ): ListCard => ({
   id: makeCardId(prefix, item.id),
   title: item.title || "티켓 양도 글",
-  subtitle: [item.country, formatDate(item.eventDate)].filter(Boolean).join(" · "),
+  subtitle: [item.country, formatDate(item.eventDate)]
+    .filter(Boolean)
+    .join(" · "),
   meta: [
     `${item.quantity}매`,
     formatPrice(item.transferPrice),
@@ -583,11 +585,10 @@ export default function ProfileListScreen() {
 
           return extractItems<T>(result.value.data.data);
         };
-        const companionPosts =
-          getScrappedItems<CompanionPostResponse>(
-            companionResult,
-            "스크랩한 동행 글",
-          );
+        const companionPosts = getScrappedItems<CompanionPostResponse>(
+          companionResult,
+          "스크랩한 동행 글",
+        );
         const usedItems = getScrappedItems<UsedItemSummaryResponse>(
           usedResult,
           "좋아요한 중고거래 글",
