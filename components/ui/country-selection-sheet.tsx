@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import SearchIcon from "@/assets/icon/search-icon.svg";
 import XIcon from "@/assets/icon/x-icon.svg";
 
 type Props = {
@@ -32,7 +33,7 @@ export function CountrySelectionSheet({
   title = "국가 및 지역 선택",
   options,
   selectionMode = "immediate",
-  searchPlaceholder,
+  searchPlaceholder = "국가명으로 찾아보세요",
   visible,
   allowAll = true,
   selectedCountry,
@@ -117,24 +118,33 @@ export function CountrySelectionList({
 }) {
   const [initial, setInitial] = useState("전체");
   const [query, setQuery] = useState("");
+  const keyword = query.trim().toLowerCase();
   const displayed = options.filter(
     (country) =>
       (initial === "전체" || initialOf(country) === initial) &&
-      country.toLowerCase().includes(query.trim().toLowerCase()),
+      country.toLowerCase().includes(keyword),
   );
   return (
     <View style={{ flex: 1 }}>
       {searchPlaceholder && (
-        <TextInput
-          accessibilityLabel={searchPlaceholder}
-          placeholder={searchPlaceholder}
-          value={query}
-          onChangeText={setQuery}
-          style={{ minHeight: 44, marginBottom: 12 }}
-        />
+        <View style={styles.searchField}>
+          <TextInput
+            accessibilityLabel={searchPlaceholder}
+            placeholder={searchPlaceholder}
+            placeholderTextColor={Colors.gray[6]}
+            value={query}
+            onChangeText={setQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            style={styles.searchInput}
+          />
+          <SearchIcon />
+        </View>
       )}
       <ScrollView
         horizontal
+        keyboardShouldPersistTaps="handled"
         showsHorizontalScrollIndicator={false}
         style={styles.filterScroll}
         contentContainerStyle={styles.filters}
@@ -163,10 +173,11 @@ export function CountrySelectionList({
       </ScrollView>
       <ScrollView
         key={initial}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.list}
       >
-        {allowAll && initial === "전체" && (
+        {allowAll && initial === "전체" && !keyword && (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ selected: selectedCountry === "전체" }}
@@ -208,7 +219,9 @@ export function CountrySelectionList({
           </Pressable>
         ))}
         {!displayed.length && (
-          <Text style={styles.empty}>해당 초성의 국가가 없어요.</Text>
+          <Text style={styles.empty}>
+            {keyword ? "검색 결과가 없어요." : "해당 초성의 국가가 없어요."}
+          </Text>
         )}
       </ScrollView>
     </View>
@@ -236,6 +249,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 20,
+  },
+  searchField: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.gray[3],
+    borderRadius: 100,
+    backgroundColor: Colors.common.white,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    ...fonts.body3_r_16,
+    lineHeight: undefined,
+    color: Colors.common.black,
+    padding: 0,
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   filterScroll: { flexGrow: 0, flexShrink: 0, marginBottom: 12 },
   filters: { gap: 8 },

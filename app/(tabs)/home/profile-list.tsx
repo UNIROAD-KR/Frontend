@@ -17,7 +17,6 @@ import {
 } from "../../../src/api/companion";
 import {
   FreePostSummaryResponse,
-  getLikedFreePosts,
   getMyFreePosts,
   getScrappedFreePosts,
 } from "../../../src/api/freePosts";
@@ -542,8 +541,9 @@ export default function ProfileListScreen() {
       }
 
       if (listType === "liked") {
-        const [companionResult, usedResult, ticketResult] =
+        const [freeResult, companionResult, usedResult, ticketResult] =
           await Promise.allSettled([
+            getScrappedFreePosts({ size: 30 }),
             getScrappedCompanionPosts({ size: 30 }),
             getScrappedUsedItems({ size: 30 }),
             getScrappedTickets({ size: 30 }),
@@ -559,29 +559,22 @@ export default function ProfileListScreen() {
 
           return extractItems<T>(result.value.data.data);
         };
+        const posts = getScrappedItems<FreePostSummaryResponse>(
+          freeResult,
+          "스크랩한 자유게시판 글",
+        );
         const companionPosts = getScrappedItems<CompanionPostResponse>(
           companionResult,
           "스크랩한 동행 글",
         );
         const usedItems = getScrappedItems<UsedItemSummaryResponse>(
           usedResult,
-          "좋아요한 중고거래 글",
+          "스크랩한 중고거래 글",
         );
         const ticketPosts = getScrappedItems<TicketTransferResponse>(
           ticketResult,
-          "좋아요한 티켓 양도 글",
+          "스크랩한 티켓 양도 글",
         );
-        let posts: FreePostSummaryResponse[] = [];
-
-        try {
-          const response = await getLikedFreePosts({ size: 30 });
-          posts = extractItems<FreePostSummaryResponse>(response.data.data);
-        } catch (error: any) {
-          console.log(
-            "좋아요한 글 목록 API 실패:",
-            error.response?.data || error.message,
-          );
-        }
 
         setItems([
           ...posts.map((post) => toFreePostCard(post, "liked", "자유게시판")),

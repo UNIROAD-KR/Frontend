@@ -154,7 +154,6 @@ const mergeUniqueById = <T extends { id: number }>(groups: T[][]) => {
 };
 
 export default function MarketPage() {
-  const [selectedTab, setSelectedTab] = useState<"bulk" | "ticket">("bulk");
   const { tab, openItemId, openTicketId } = useLocalSearchParams<{
     tab?: string;
     fromTab?: string;
@@ -162,8 +161,11 @@ export default function MarketPage() {
     openItemId?: string;
     openTicketId?: string;
   }>();
+  const initialTab = tab === "ticket" ? "ticket" : "bulk";
+  const [selectedTab, setSelectedTab] = useState<"bulk" | "ticket">(initialTab);
   const [likedIds, setLikedIds] = useState<number[]>([]);
   const [items, setItems] = useState<UsedItem[]>([]);
+  const [usedItemsLoading, setUsedItemsLoading] = useState(true);
   const [tickets, setTickets] = useState<TicketTransferResponse[]>([]);
   const [marketListError, setMarketListError] = useState("");
   const [ticketListError, setTicketListError] = useState("");
@@ -178,8 +180,10 @@ export default function MarketPage() {
   );
   const [ticketHasNext, setTicketHasNext] = useState(false);
   const [ticketLoadingMore, setTicketLoadingMore] = useState(false);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
   const ticketLoadingMoreRef = useRef(false);
-  const [selectedType, setSelectedType] = useState<"bulk" | "ticket">("bulk");
+  const ticketRequestId = useRef(0);
+  const [selectedType, setSelectedType] = useState<"bulk" | "ticket">(initialTab);
   const [selectedCountry, setSelectedCountry] = useState("전체");
   const [countrySheetVisible, setCountrySheetVisible] = useState(false);
   const [sortSheetVisible, setSortSheetVisible] = useState(false);
@@ -317,6 +321,7 @@ export default function MarketPage() {
   const fetchUsedItems = useCallback(
     async (keyword = "", country = "전체") => {
       const requestId = ++usedItemsRequestId.current;
+      setUsedItemsLoading(true);
       try {
         setMarketListError("");
         const keywordText = keyword.trim();
@@ -363,6 +368,8 @@ export default function MarketPage() {
           "중고거래 목록을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
         );
         setItems([]);
+      } finally {
+        if (requestId === usedItemsRequestId.current) setUsedItemsLoading(false);
       }
     },
     [bulkFilters.status, bulkFilters.minPrice, bulkFilters.maxPrice, sortOrder],
@@ -370,17 +377,16 @@ export default function MarketPage() {
 
   const fetchTickets = useCallback(
     async (cursorId?: number, keyword = "", country = "전체") => {
+      const keywordText = keyword.trim();
+      if (cursorId && keywordText) return;
+      const requestId = cursorId ? ticketRequestId.current : ++ticketRequestId.current;
       try {
         if (!cursorId) {
+          setTicketsLoading(true);
           setTicketListError("");
         }
-        const keywordText = keyword.trim();
         const countryParam = country === "전체" ? undefined : country;
         const shouldSearchByKeyword = keywordText.length > 0;
-
-        if (shouldSearchByKeyword && cursorId) {
-          return;
-        }
 
         if (cursorId) {
           ticketLoadingMoreRef.current = true;
@@ -414,6 +420,7 @@ export default function MarketPage() {
                 })
               : await getTickets(cursorId, 10)
             ).data.data;
+        if (requestId !== ticketRequestId.current) return;
         const { items: nextItems = [], nextCursorId, hasNext } = responseData;
 
         setTickets((prev) => {
@@ -431,6 +438,7 @@ export default function MarketPage() {
         setTicketNextCursorId(nextCursorId ?? null);
         setTicketHasNext(hasNext);
       } catch (error: any) {
+        if (requestId !== ticketRequestId.current) return;
         console.log(
           "티켓 양도 목록 조회 실패:",
           error.response?.data || error.message,
@@ -447,6 +455,8 @@ export default function MarketPage() {
         if (cursorId) {
           ticketLoadingMoreRef.current = false;
           setTicketLoadingMore(false);
+        } else if (requestId === ticketRequestId.current) {
+          setTicketsLoading(false);
         }
       }
     },
@@ -454,7 +464,7 @@ export default function MarketPage() {
   );
 
   const fetchNextTickets = () => {
-    if (!ticketHasNext || !ticketNextCursorId || ticketLoadingMoreRef.current) {
+    if (ticketsLoading || !ticketHasNext || !ticketNextCursorId || ticketLoadingMoreRef.current) {
       return;
     }
 
@@ -464,7 +474,7 @@ export default function MarketPage() {
   const handleMarketScroll = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
   ) => {
-    if (selectedType !== "ticket") {
+    if (selectedType !== "ticket" || event.nativeEvent.contentOffset.y <= 0) {
       return;
     }
 
@@ -868,6 +878,7 @@ export default function MarketPage() {
         {selectedTab === "bulk" ? (
           <UsedMarketScreen
             items={filteredItems}
+            loading={usedItemsLoading && filteredItems.length === 0}
             error={marketListError}
             hasActiveFilters={hasActiveMarketFilters(bulkFilters)}
             onRetry={() => fetchUsedItems(searchKeyword, selectedCountry)}
@@ -877,6 +888,7 @@ export default function MarketPage() {
             hasMore={ticketHasNext}
             onLoadMore={fetchNextTickets}
             items={filteredTickets}
+            loading={ticketsLoading && filteredTickets.length === 0}
             error={ticketListError}
             loadingMore={ticketLoadingMore}
             hasActiveFilters={hasActiveMarketFilters(ticketFilters)}

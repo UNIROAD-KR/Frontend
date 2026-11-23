@@ -1,14 +1,10 @@
 import type { LifecycleStatus } from "@/components/types";
 import { CurrentSituation } from "@/src/api/auth";
-import AirplaneIcon from "../assets/icon/actions/airplane.svg";
-import BuildingIcon from "../assets/icon/actions/building.svg";
 import CartIcon from "../assets/icon/actions/cart.svg";
 import DocumentIcon from "../assets/icon/actions/document.svg";
 import HandshakeIcon from "../assets/icon/actions/handshake.svg";
 import PeopleGreenIcon from "../assets/icon/actions/people-green.svg";
-import SchoolIcon from "../assets/icon/actions/school.svg";
 import TicketIcon from "../assets/icon/actions/ticket.svg";
-import TrophyIcon from "../assets/icon/actions/trophy.svg";
 import MoneyIcon from "../assets/icon/actions/money.svg";
 import CalendarIcon from "../assets/icon/actions/calendar.svg";
 import BookIcon from "../assets/icon/actions/book.svg";

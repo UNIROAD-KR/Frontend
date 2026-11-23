@@ -24,7 +24,8 @@ export async function submitRegistration(form: RegistrationForm, items: Registra
   const semester = form.semester || profile?.dispatchSemester || "";
   const request: UsedItemRequest = {
     title: form.title.trim(), content: form.content.trim(), price: Number(form.price.replace(/\D/g, "")),
-    country: form.country.trim(), region: form.region.trim(), returnDate: form.returnDate, semester,
+    country: form.country.trim(), region: form.region.trim(), semester,
+    ...(form.returnDate ? { returnDate: form.returnDate } : {}),
     thumbnailImageUrl: photos[0],
     items: uploadedItems.map((item) => ({ category: categoryCodes[item.category] ?? "ETC", name: item.name.trim(), quantity: item.quantity, description: item.description.trim() })),
     categoryImages: uploadedItems.flatMap((item) => item.photos.map((imageUrl) => ({ category: categoryCodes[item.category] ?? "ETC", imageUrl }))),

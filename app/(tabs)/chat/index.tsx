@@ -1,16 +1,9 @@
 import { Text } from "@/components/ui/app-text";
+import { ListLoadingIndicator } from "@/components/ui/list-loading-indicator";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCallback, useRef, useState } from "react";
+import { Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { ChatRoomResponse, getChatRooms } from "../../../src/api/chat";
 import { Colors, commonStyles, fonts } from "@/constants/theme";
@@ -51,36 +44,13 @@ const roomLabels = {
 
 const getRoomTitle = (room: ChatRoomResponse) =>
   room.referenceTitle ?? roomLabels[room.referenceType]?.title ?? "채팅";
-const getRoomSubtitle = (room: ChatRoomResponse) =>
-  `${roomLabels[room.referenceType]?.reference ?? "게시글"} #${room.referenceId}`;
-
-// const formatRoomTime = (value?: string) => {
-//   if (!value) return "";
-
-//   const date = new Date(value);
-
-//   if (Number.isNaN(date.getTime())) {
-//     return value.slice(0, 10).replaceAll("-", ".");
-//   }
-
-//   const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
-
-//   if (diffMinutes < 1) return "방금 전";
-//   if (diffMinutes < 60) return `${diffMinutes}분 전`;
-
-//   const diffHours = Math.floor(diffMinutes / 60);
-//   if (diffHours < 24) return `${diffHours}시간 전`;
-
-//   return value.slice(0, 10).replaceAll("-", ".");
-// };
 
 export default function ChatListPage() {
-  const insets = useSafeAreaInsets();
   const [rooms, setRooms] = useState<ChatRoomResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const roomsRequestPending = useRef(false);
   const [selectedFilter, setSelectedFilter] = useState<ChatFilter>("ALL");
   const { sortOrder, roomOrder, refreshSettings } = useChatListSettings();
-  // 전체에는 멘토링을 포함하고, 개별 카테고리는 기존 referenceType으로 구분한다.
   const filteredRooms = sortChatRooms(
     selectedFilter === "ALL"
       ? rooms
@@ -90,6 +60,8 @@ export default function ChatListPage() {
   );
 
   const loadRooms = useCallback(async (showSpinner = true) => {
+    if (roomsRequestPending.current) return;
+    roomsRequestPending.current = true;
     try {
       if (showSpinner) {
         setLoading(true);
@@ -101,8 +73,8 @@ export default function ChatListPage() {
         "채팅방 목록 조회 실패:",
         error.response?.data || error.message,
       );
-      setRooms([]);
     } finally {
+      roomsRequestPending.current = false;
       if (showSpinner) {
         setLoading(false);
       }
@@ -163,16 +135,12 @@ export default function ChatListPage() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {loading ? (
-          <View style={styles.centerState}>
-            <ActivityIndicator color={Colors.primary.default} />
-            <Text style={styles.centerText}>채팅방을 불러오는 중이에요</Text>
-          </View>
+        {loading && rooms.length === 0 ? (
+          <ListLoadingIndicator label="채팅방을 불러오는 중이에요" />
         ) : filteredRooms.length > 0 ? (
           <View style={styles.roomList}>
             {filteredRooms.map((room) => {
               const title = getRoomTitle(room);
-              const subtitle = getRoomSubtitle(room);
 
               // const opponentName =
               //   room.opponentNickname || room.opponentName || title;
@@ -204,18 +172,6 @@ export default function ChatListPage() {
                     } as any)
                   }
                 >
-                  {/* <View style={styles.roomIcon}>
-                    <Ionicons
-                      name={
-                        roomLabels[room.referenceType]?.icon ??
-                        "chatbubble-outline"
-                      }
-                      size={22}
-                      color={BLUE}
-                    />
-
-                  </View> */}
-
                   <View
                     style={{
                       width: 60,
@@ -257,27 +213,21 @@ export default function ChatListPage() {
                     {/* <Text style={styles.roomSubtitle} numberOfLines={1}>
                       {subtitle}
                     </Text> */}
-                    <Text style={styles.roomPreview} numberOfLines={1}>
-                      {previewMessage}
-                    </Text>
+                    <View style={styles.roomPreviewRow}>
+                      <Text style={styles.roomPreview} numberOfLines={1}>
+                        {previewMessage}
+                      </Text>
+                      {Number(room.unreadCount) > 0 ? (
+                        <View style={styles.unreadBadge}>
+                          <Text style={styles.unreadText}>
+                            {Number(room.unreadCount) > 99
+                              ? "99+"
+                              : room.unreadCount}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </View>
-
-                  {
-                    Number(room.unreadCount) > 0 ? (
-                      <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadText}>
-                          {Number(room.unreadCount) > 99
-                            ? "99+"
-                            : room.unreadCount}
-                        </Text>
-                      </View>
-                    ) : null
-                    // <Ionicons
-                    //   name="chevron-forward"
-                    //   size={20}
-                    //   color="#999999"
-                    // />
-                  }
                 </Pressable>
               );
             })}
@@ -331,20 +281,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#111111",
     marginBottom: 22,
-  },
-
-  centerState: {
-    minHeight: 360,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-  },
-
-  centerText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#777777",
-    textAlign: "center",
   },
 
   roomList: {
@@ -402,25 +338,30 @@ const styles = StyleSheet.create({
     color: "#777777",
   },
 
+  roomPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   roomPreview: {
+    flex: 1,
     ...fonts.body4_r_14,
     color: Colors.gray[7],
   },
 
   unreadBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    backgroundColor: Colors.primary.default,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 1000,
+    backgroundColor: Colors.error.normal,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 8,
   },
 
   unreadText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#FFFFFF",
+    ...fonts.caption4_m_12,
+    color: Colors.common.white,
   },
 });

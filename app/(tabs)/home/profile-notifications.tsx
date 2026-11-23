@@ -1,28 +1,23 @@
-import { Text } from '@/components/ui/app-text';
-import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/components/ui/app-text";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
 
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import {
   getNotificationSettings,
   NotificationCategory,
-  updateAllNotificationsEnabled,
   updateNotificationCategoryEnabled,
 } from "@/src/api/notifications";
-import {
-  disableDevicePushNotifications,
-  NOTIFICATION_SETTINGS_STORAGE_KEY,
-  registerDeviceForPushNotifications,
-  requestNotificationPermission,
-} from "@/src/notifications/push";
+import { NOTIFICATION_SETTINGS_STORAGE_KEY } from "@/src/notifications/push";
+import { fonts, Colors } from "@/constants/theme";
+import ChatIcon from "@/assets/icon/chat.svg";
+import ShopIcon from "@/assets/icon/shop.svg";
+import PeopleIcon from "@/assets/icon/people-line.svg";
+import CalendarIcon from "@/assets/icon/calendar.svg";
+import NoticeIcon from "@/assets/icon/notice.svg";
 
-const NAVY = "#0F2042";
-const BLUE = "#2F66D0";
-const INK = "#111111";
-const MUTED = "#64748B";
 const STORAGE_KEY = NOTIFICATION_SETTINGS_STORAGE_KEY;
 const MASTER_SETTING_KEY = "allEnabled";
 
@@ -49,7 +44,7 @@ type NotificationItem = {
   key: NotificationKey;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: React.ReactNode;
 };
 
 const defaultSettings: NotificationSettings = {
@@ -65,38 +60,32 @@ const notificationItems: NotificationItem[] = [
   {
     key: "chat",
     title: "채팅 알림",
-    description: "거래와 동행 채팅 메시지를 바로 받아요.",
-    icon: "chatbubble-ellipses-outline",
+    description: "거래 알림과 동행 채팅 알림",
+    icon: <ChatIcon width={24} height={24} color={Colors.gray[9]} />,
   },
   {
     key: "market",
     title: "중고마켓 알림",
-    description: "저장한 거래글, 가격 문의, 거래 상태를 알려드려요.",
-    icon: "bag-handle-outline",
+    description: "저장한 거래글, 가격 문의, 거래 상태 알림",
+    icon: <ShopIcon width={24} height={24} color={Colors.gray[9]} />,
   },
   {
     key: "community",
     title: "커뮤니티 알림",
-    description: "내 글의 댓글과 관심 게시판 소식을 받아요.",
-    icon: "people-outline",
+    description: "내 게시글에 달린 댓글과 답글 알림",
+    icon: <PeopleIcon width={24} height={24} color={Colors.gray[9]} />,
   },
   {
     key: "schedule",
     title: "출국 준비 알림",
-    description: "체크리스트 마감일과 준비 일정을 놓치지 않게 도와드려요.",
-    icon: "calendar-outline",
-  },
-  {
-    key: "marketing",
-    title: "혜택 및 이벤트",
-    description: "교환학생에게 맞는 혜택과 새 소식을 선택적으로 받아요.",
-    icon: "sparkles-outline",
+    description: "체크리스트 마감일 및 준비 일정 알림",
+    icon: <CalendarIcon width={24} height={24} color={Colors.gray[9]} />,
   },
   {
     key: "notice",
     title: "공지 알림",
-    description: "서비스 공지와 운영 안내를 받아요.",
-    icon: "megaphone-outline",
+    description: "서비스 공지 및 운영 알림",
+    icon: <NoticeIcon width={24} height={24} color={Colors.gray[9]} />,
   },
 ];
 
@@ -104,7 +93,6 @@ export default function ProfileNotificationsScreen() {
   const [settings, setSettings] =
     useState<NotificationSettings>(defaultSettings);
   const [allEnabled, setAllEnabled] = useState(true);
-  const [checkingPermission, setCheckingPermission] = useState(false);
 
   // 푸시 모듈(areNotificationsEnabled)이 참조하는 로컬 캐시를 최신 값으로 유지한다.
   const cacheSettings = async (
@@ -175,73 +163,6 @@ export default function ProfileNotificationsScreen() {
     }, []),
   );
 
-  const toggleAllNotifications = async () => {
-    if (checkingPermission) {
-      return;
-    }
-
-    if (allEnabled) {
-      setCheckingPermission(true);
-      try {
-        console.log("[Notifications][Settings] 전체 알림 꺼기 요청");
-        const response = await updateAllNotificationsEnabled(false);
-        console.log("[Notifications][Settings] 전체 알림 꺼기 응답 성공:", {
-          status: response.status,
-          data: response.data,
-        });
-        await cacheSettings(settings, false);
-        await disableDevicePushNotifications();
-        setAllEnabled(false);
-      } catch (error: any) {
-        console.log(
-          "[Notifications][Settings] 전체 알림 꺼기 실패:",
-          error.response?.data || error.message,
-        );
-        Alert.alert(
-          "알림 설정 실패",
-          "전체 알림을 끄지 못했어요. 다시 시도해주세요.",
-        );
-      } finally {
-        setCheckingPermission(false);
-      }
-      return;
-    }
-
-    setCheckingPermission(true);
-
-    try {
-      const permissionGranted = await requestNotificationPermission();
-
-      if (!permissionGranted) {
-        Alert.alert(
-          "알림 권한이 필요해요",
-          "유니로드에서 알림을 받으려면 설정에서 알림 권한을 허용해주세요.",
-          [
-            { text: "취소", style: "cancel" },
-            { text: "설정 열기", onPress: () => void Linking.openSettings() },
-          ],
-        );
-        return;
-      }
-
-      await updateAllNotificationsEnabled(true);
-      console.log("[Notifications][Settings] 전체 알림 켜기 성공");
-      setAllEnabled(true);
-      await cacheSettings(settings, true);
-      registerDeviceForPushNotifications({ force: true }).catch((error) => {
-        console.log("FCM 토큰 재등록 실패:", error);
-      });
-    } catch (error: any) {
-      console.log(
-        "알림 권한 확인 실패:",
-        error.response?.data || error.message,
-      );
-      Alert.alert("알림 설정 실패", "알림 권한을 확인하지 못했어요.");
-    } finally {
-      setCheckingPermission(false);
-    }
-  };
-
   const toggleSetting = (key: NotificationKey) => {
     if (!allEnabled) {
       return;
@@ -292,42 +213,8 @@ export default function ProfileNotificationsScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{
-            checked: allEnabled,
-            disabled: checkingPermission,
-          }}
-          disabled={checkingPermission}
-          onPress={toggleAllNotifications}
-          style={styles.heroCard}
-        >
-          <View style={styles.heroIconBox}>
-            <Ionicons name="notifications-outline" size={25} color={BLUE} />
-          </View>
-
-          <View style={styles.heroTextBox}>
-            <Text style={styles.heroTitle}>전체 알림</Text>
-          </View>
-
-          <View
-            style={[
-              styles.switchTrack,
-              allEnabled && styles.switchTrackActive,
-              checkingPermission && styles.switchDisabled,
-            ]}
-          >
-            <View
-              style={[
-                styles.switchThumb,
-                allEnabled && styles.switchThumbActive,
-              ]}
-            />
-          </View>
-        </Pressable>
-
         <View style={styles.sectionCard}>
-          {notificationItems.map((item, index) => (
+          {notificationItems.map((item) => (
             <Pressable
               key={item.key}
               accessibilityRole="switch"
@@ -336,16 +223,10 @@ export default function ProfileNotificationsScreen() {
                 disabled: !allEnabled,
               }}
               disabled={!allEnabled}
-              style={[
-                styles.row,
-                index < notificationItems.length - 1 && styles.divider,
-                !allEnabled && styles.rowDisabled,
-              ]}
+              style={[styles.row, !allEnabled && styles.rowDisabled]}
               onPress={() => toggleSetting(item.key)}
             >
-              <View style={styles.rowIconBox}>
-                <Ionicons name={item.icon} size={21} color={NAVY} />
-              </View>
+              {item.icon}
 
               <View style={styles.rowTextBox}>
                 <Text style={styles.rowTitle}>{item.title}</Text>
@@ -378,7 +259,7 @@ export default function ProfileNotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F6F7F9",
+    backgroundColor: "#FFFFFF",
   },
   scroll: {
     flex: 1,
@@ -386,57 +267,22 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 104,
-  },
-  heroCard: {
-    minHeight: 106,
-    borderRadius: 20,
-    backgroundColor: "#F4F8FF",
-    borderWidth: 1,
-    borderColor: "#DCE7FF",
-    padding: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-    marginBottom: 12,
-  },
-  heroIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroTextBox: {
-    flex: 1,
-  },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: "900",
-    color: INK,
-  },
-  heroDesc: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
-    color: MUTED,
   },
   sectionCard: {
     marginTop: 0,
-    borderRadius: 9,
+    borderRadius: 8,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#E5E9EE",
+    borderColor: Colors.gray[3],
     overflow: "hidden",
+    gap: 4,
+    padding: 4,
   },
   row: {
-    minHeight: 74,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 13,
-    paddingVertical: 12,
+    gap: 20,
+    padding: 16,
   },
   rowDisabled: {
     opacity: 0.42,
@@ -457,18 +303,15 @@ const styles = StyleSheet.create({
   rowTextBox: {
     flex: 1,
     paddingRight: 12,
+    gap: 6,
   },
   rowTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: INK,
+    ...fonts.sub3_sb_16,
+    color: "#000000",
   },
   rowDesc: {
-    marginTop: 4,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: "700",
-    color: MUTED,
+    ...fonts.caption3_m_13,
+    color: Colors.gray[7],
   },
   switchTrack: {
     width: 42,
@@ -479,7 +322,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   switchTrackActive: {
-    backgroundColor: "#4F63FF",
+    backgroundColor: Colors.primary.default,
   },
   switchDisabled: {
     opacity: 0.55,

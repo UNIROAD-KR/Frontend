@@ -25,7 +25,6 @@ import React, {
 import {
   ActivityIndicator,
   Image,
-  Linking,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -284,7 +283,6 @@ export default function CommunityDetailScreen() {
   const chatPending = useRef(false);
   const [currentMemberName, setCurrentMemberName] = useState("");
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const commentInputRef = useRef<TextInput>(null);
   const reportingComments = useRef(new Set<number>());
@@ -1002,20 +1000,6 @@ export default function CommunityDetailScreen() {
               </View>
             </View>
 
-            {/* {!!viewModel.chatLink && (
-              <Pressable
-                accessibilityRole="link"
-                accessibilityLabel="오픈채팅 링크 열기"
-                style={styles.companionLink}
-                onPress={handleOpenCompanionChatLink}
-              >
-                <Ionicons name="link-outline" size={20} color={BLUE} />
-                <Text style={styles.companionLinkText} numberOfLines={1}>
-                  {viewModel.chatLink}
-                </Text>
-              </Pressable>
-            )} */}
-
             <View style={styles.companionBodyBlock}>
               <Text style={styles.bodyText}>{viewModel.content}</Text>
             </View>
@@ -1186,16 +1170,14 @@ export default function CommunityDetailScreen() {
                         <Text style={styles.commentDeleted}>
                           삭제된 댓글입니다
                         </Text>
+                      ) : comment.reported ? (
+                        <Text style={styles.commentDeleted}>
+                          신고된 댓글입니다
+                        </Text>
                       ) : (
                         <>
                           {renderCommentMeta(comment)}
-                          <Text
-                            style={
-                              comment.reported
-                                ? styles.commentDeleted
-                                : styles.commentContent
-                            }
-                          >
+                          <Text style={styles.commentContent}>
                             {comment.content}
                           </Text>
                           {!comment.reported && (

@@ -157,7 +157,7 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
                 );
               }}
             >
-              <SettingIcon />
+              <SettingIcon width={24} height={24} color={Colors.common.black} />
             </Pressable>
           </View>
         ) : (

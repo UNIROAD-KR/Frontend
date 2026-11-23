@@ -3,7 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { AppBackButton } from '@/components/ui/app-back-button';
+import { AppBackButton, goBackOrReplace } from '@/components/ui/app-back-button';
+import { router } from 'expo-router';
+import { Colors, fonts } from '@/constants/theme';
+import DocumentIcon from '@/assets/icon/actions/document.svg';
+import AirplaneIcon from '@/assets/icon/actions/airplane.svg';
+import MoneyIcon from '@/assets/icon/actions/money.svg';
+import WalletIcon from '@/assets/icon/actions/wallet.svg';
+import UsimIcon from '@/assets/icon/actions/usim.svg';
 
 const NAVY = '#0F2042';
 const BLUE = '#2F66D0';
@@ -318,11 +325,36 @@ const normalizeCountry = (country: string | null) => {
     : COUNTRY_CHECKLISTS[0].name;
 };
 
-export default function VisaGuideScreen() {
+const departureIcons = {
+  '슈페어콘토 개설': DocumentIcon,
+  비자: AirplaneIcon,
+  '은행/카드': MoneyIcon,
+  보험: WalletIcon,
+  '유심/eSIM': UsimIcon,
+};
+const departureTitles: Record<string, string> = {
+  비자: '비자 신청',
+  '은행/카드': '은행 및 카드',
+  보험: '보험 가입',
+  '유심/eSIM': '유심 및 eSIM',
+};
+const categoryModes: Record<string, 'visa' | 'bank' | 'sim' | 'insurance' | 'blockedAccount'> = {
+  비자: 'visa',
+  '은행/카드': 'bank',
+  '유심/eSIM': 'sim',
+  보험: 'insurance',
+  '슈페어콘토 개설': 'blockedAccount',
+};
+
+export default function VisaGuideScreen({ embedded = false, initialCountry, detailCategory }: {
+  embedded?: boolean;
+  initialCountry?: string;
+  detailCategory?: string;
+} = {}) {
   const [screenMode, setScreenMode] = useState<
     'checklist' | 'visa' | 'bank' | 'sim' | 'insurance' | 'blockedAccount'
-  >('checklist');
-  const [selectedCountry, setSelectedCountry] = useState(COUNTRY_CHECKLISTS[0].name);
+  >((detailCategory && categoryModes[detailCategory]) || 'checklist');
+  const [selectedCountry, setSelectedCountry] = useState(() => normalizeCountry(initialCountry ?? null));
   const [checkedVisaSteps, setCheckedVisaSteps] = useState<Record<number, boolean>>({ 0: true });
   const [checkedDocs, setCheckedDocs] = useState<Record<string, boolean>>({
     여권: true,
@@ -341,18 +373,43 @@ export default function VisaGuideScreen() {
   }, [country.checklist]);
 
   useEffect(() => {
+    if (initialCountry || detailCategory) return;
+    let active = true;
     const loadCountry = async () => {
       const savedCountry = await AsyncStorage.getItem('dispatchedCountry');
       const initialCountry = normalizeCountry(savedCountry);
-      setSelectedCountry(initialCountry);
+      if (active) setSelectedCountry(initialCountry);
     };
 
-    loadCountry();
-  }, []);
+    void loadCountry().catch(() => {});
+    return () => { active = false; };
+  }, [initialCountry, detailCategory]);
 
   const selectCountry = (name: string) => {
     setSelectedCountry(name);
   };
+
+  const closeDetail = () => {
+    if (detailCategory) goBackOrReplace('/blog');
+    else setScreenMode('checklist');
+  };
+
+  if (detailCategory && (screenMode === 'checklist' || (screenMode === 'visa' && country.name !== '독일'))) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <AppBackButton onPress={closeDetail} style={styles.iconBtn} />
+          <Text style={styles.headerTitle}>{departureTitles[detailCategory] ?? detailCategory}</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <ScrollView contentContainerStyle={styles.exploreRows}>
+          {country.checklist.filter((item) => item.category === detailCategory).map((item) => (
+            <Text key={item.id} style={styles.exploreDescription}>{item.title}</Text>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
 
   if (screenMode === 'visa') {
     return (
@@ -360,7 +417,7 @@ export default function VisaGuideScreen() {
         countryName={country.name}
         checkedVisaSteps={checkedVisaSteps}
         checkedDocs={checkedDocs}
-        onBack={() => setScreenMode('checklist')}
+        onBack={closeDetail}
         onToggleStep={(index) =>
           setCheckedVisaSteps((prev) => ({ ...prev, [index]: !prev[index] }))
         }
@@ -370,19 +427,77 @@ export default function VisaGuideScreen() {
   }
 
   if (screenMode === 'bank') {
-    return <BankAccountGuide onBack={() => setScreenMode('checklist')} />;
+    return <BankAccountGuide onBack={closeDetail} />;
   }
 
   if (screenMode === 'sim') {
-    return <SimGuide onBack={() => setScreenMode('checklist')} />;
+    return <SimGuide onBack={closeDetail} />;
   }
 
   if (screenMode === 'insurance') {
-    return <InsuranceGuide onBack={() => setScreenMode('checklist')} />;
+    return <InsuranceGuide onBack={closeDetail} />;
   }
 
   if (screenMode === 'blockedAccount') {
-    return <BlockedAccountGuide onBack={() => setScreenMode('checklist')} />;
+    return <BlockedAccountGuide onBack={closeDetail} />;
+  }
+
+  if (embedded) {
+    return (
+      <View style={styles.container}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.exploreChipScroll}
+          contentContainerStyle={styles.exploreChips}
+        >
+          {COUNTRY_CHECKLISTS.map(({ name }) => {
+            const selected = name === selectedCountry;
+            return (
+              <TouchableOpacity
+                key={name}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                activeOpacity={0.86}
+                onPress={() => selectCountry(name)}
+                style={[styles.exploreChip, selected && styles.exploreChipActive]}
+              >
+                <Text style={[styles.exploreChipText, selected && styles.exploreChipTextActive]}>{name}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.exploreRows}
+        >
+          {guideCategories.map((category) => {
+            const Icon = departureIcons[category as keyof typeof departureIcons] ?? DocumentIcon;
+            return (
+              <TouchableOpacity
+                key={category}
+                style={styles.exploreRow}
+                activeOpacity={0.86}
+                accessibilityRole="button"
+                onPress={() => router.push({
+                  pathname: '/departure-guide-detail',
+                  params: { country: country.name, category },
+                })}
+              >
+                <View style={styles.exploreIcon}>
+                  <Icon width={28} height={28} />
+                </View>
+                <View style={styles.exploreText}>
+                  <Text style={styles.exploreTitle}>{departureTitles[category] ?? PREP_CATEGORY_META[category]?.title ?? category}</Text>
+                  <Text style={styles.exploreDescription}>{PREP_CATEGORY_META[category]?.desc}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={Colors.gray[6]} />
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
   }
 
   return (
@@ -1427,6 +1542,31 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  exploreChipScroll: { flexGrow: 0, flexShrink: 0, marginTop: 12 },
+  exploreChips: { paddingHorizontal: 16, gap: 6 },
+  exploreChip: {
+    backgroundColor: Colors.gray[1],
+    borderRadius: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  exploreChipActive: { backgroundColor: Colors.gray[11] },
+  exploreChipText: { ...fonts.body2_m_14, color: Colors.gray[7] },
+  exploreChipTextActive: { color: Colors.common.white },
+  exploreRows: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 32, gap: 18 },
+  exploreRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60 },
+  exploreIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.gray[2],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exploreText: { flex: 1, gap: 4 },
+  exploreTitle: { ...fonts.sub3_sb_16, color: Colors.gray[10] },
+  exploreDescription: { ...fonts.body2_m_14, color: Colors.gray[7] },
+
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',

@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import PersonIcon from "@/assets/icon/person.svg";
 import SchoolIcon from "@/assets/icon/school.svg";
@@ -364,7 +364,8 @@ export default function TicketPreviewPage() {
     chatReferenceType?: string;
     chatReferenceId?: string;
   }>();
-  const [liked, setLiked] = useState(false);
+  const [scrapped, setScrapped] = useState(false);
+  const scrapPending = useRef(false);
   const [tab, setTab] = useState<"ticket" | "seller">("ticket");
   const [ticket, setTicket] = useState<TicketTransferResponse | null>(null);
   const [canManageTicket, setCanManageTicket] = useState(false);
@@ -414,7 +415,7 @@ export default function TicketPreviewPage() {
 
           if (active) {
             setTicket(nextTicket);
-            setLiked(savedLiked);
+            setScrapped(savedLiked);
             setCanManageTicket(isMine);
             setCurrencyUnit(savedCurrencyUnit || "€");
           }
@@ -552,23 +553,20 @@ export default function TicketPreviewPage() {
   );
   // const sellerJoinedDate = formatJoinedDate(ticket.authorDispatchStartDate);
   const ticketPhotos = getTicketPhotos(ticket);
-  const handleToggleLike = async () => {
-    const wasSaved = liked;
-
-    setLiked((prev) => {
-      const next = !prev;
-
-      syncLikedTicketPost(ticket, next, currencyUnit).catch((error) => {
-        console.log("저장한 티켓 양도 글 로컬 저장 실패:", error);
-      });
-      return next;
-    });
+  const handleToggleScrap = async () => {
+    if (scrapPending.current) return;
+    scrapPending.current = true;
+    const wasSaved = scrapped;
+    setScrapped(!wasSaved);
 
     try {
       const response = await toggleTicketScrap(ticket.id);
       const nextSaved = response.data.data;
 
-      setLiked(nextSaved);
+      setScrapped(nextSaved);
+      await syncLikedTicketPost(ticket, nextSaved, currencyUnit).catch((error) => {
+        console.log("티켓 스크랩 로컬 저장 실패:", error);
+      });
       setTicket((prev) =>
         prev
           ? {
@@ -583,8 +581,10 @@ export default function TicketPreviewPage() {
       );
     } catch (error: any) {
       console.log("티켓 스크랩 실패:", error.response?.data || error.message);
-      setLiked(wasSaved);
+      setScrapped(wasSaved);
       Alert.alert("저장 실패", "티켓 저장 상태를 변경하지 못했어요.");
+    } finally {
+      scrapPending.current = false;
     }
   };
   const handleEditTicket = () => {
@@ -857,18 +857,37 @@ export default function TicketPreviewPage() {
                 </Pressable>
               </>
             ) : (
-              <Pressable
-                style={styles.postMenuRow}
-                onPress={() => {
-                  setMenuVisible(false);
-                  handleReportTicket();
-                }}
-              >
-                <FlagIcon color="#E5484D" width={24} height={24} />
-                <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
-                  {reporting ? "신고 접수 중..." : "신고하기"}
-                </Text>
-              </Pressable>
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  style={styles.postMenuRow}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    void handleToggleScrap();
+                  }}
+                >
+                  <Ionicons
+                    name={scrapped ? "bookmark" : "bookmark-outline"}
+                    size={24}
+                    color={scrapped ? Colors.primary.default : Colors.gray[9]}
+                  />
+                  <Text style={styles.postMenuText}>
+                    {scrapped ? "스크랩 취소" : "스크랩하기"}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={styles.postMenuRow}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    handleReportTicket();
+                  }}
+                >
+                  <FlagIcon color="#E5484D" width={24} height={24} />
+                  <Text style={[styles.postMenuText, styles.postMenuDangerText]}>
+                    {reporting ? "신고 접수 중..." : "신고하기"}
+                  </Text>
+                </Pressable>
+              </>
             )}
           </View>
         </>
@@ -1121,13 +1140,6 @@ export default function TicketPreviewPage() {
           },
         ]}
       >
-        <Pressable onPress={handleToggleLike} style={styles.heartButton}>
-          <Ionicons
-            name={liked ? "heart" : "heart-outline"}
-            size={30}
-            color={liked ? "#E5484D" : "#111111"}
-          />
-        </Pressable>
         <Button
           onPress={handleStartChat}
           disabled={chatLoading}
@@ -1504,18 +1516,6 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     flexDirection: "row",
     alignItems: "flex-start",
-  },
-  heartButton: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  heartIcon: {
-    width: 40,
-    height: 40,
-    resizeMode: "contain",
   },
   chatButton: {
     flex: 1,

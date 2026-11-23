@@ -424,7 +424,8 @@ export default function MarketDetailPage() {
     chatReferenceId?: string;
   }>();
   const [tab, setTab] = useState<"trade" | "items" | "seller">("items");
-  const [liked, setLiked] = useState(false);
+  const [scrapped, setScrapped] = useState(false);
+  const scrapPending = useRef(false);
   const [post, setPost] = useState<MarketDetailPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [chatLoading, setChatLoading] = useState(false);
@@ -504,7 +505,7 @@ export default function MarketDetailPage() {
                 }
               : null,
           );
-          setLiked(savedLiked);
+          setScrapped(savedLiked);
           setCurrentMemberId(nextCurrentMemberId);
           setLoading(false);
         }
@@ -598,30 +599,28 @@ export default function MarketDetailPage() {
     }
   };
 
-  const handleToggleLike = async () => {
-    if (!post) return;
+  const handleToggleScrap = async () => {
+    if (!post || scrapPending.current) return;
 
-    const wasSaved = liked;
-
-    setLiked((prev) => {
-      const next = !prev;
-
-      syncLikedMarketPost(post, next).catch((error) => {
-        console.log("좋아요한 중고거래 상세 저장 실패:", error);
+    const wasSaved = scrapped;
+    const syncSaved = (saved: boolean) =>
+      syncLikedMarketPost(post, saved).catch((error) => {
+        console.log("중고거래 스크랩 로컬 저장 실패:", error);
       });
 
-      return next;
-    });
-
+    setScrapped(!wasSaved);
     if (typeof post.id !== "number") {
+      void syncSaved(!wasSaved);
       return;
     }
 
+    scrapPending.current = true;
     try {
       const response = await toggleUsedItemScrap(post.id);
       const nextSaved = response.data.data;
 
-      setLiked(nextSaved);
+      setScrapped(nextSaved);
+      await syncSaved(nextSaved);
       setPost((prev) =>
         prev
           ? {
@@ -639,8 +638,10 @@ export default function MarketDetailPage() {
         "중고거래 스크랩 실패:",
         error.response?.data || error.message,
       );
-      setLiked(wasSaved);
+      setScrapped(wasSaved);
       showAlert("저장 실패", "게시글 저장 상태를 변경하지 못했어요.");
+    } finally {
+      scrapPending.current = false;
     }
   };
 
@@ -843,6 +844,8 @@ export default function MarketDetailPage() {
         onDelete={handleDeletePost}
         onChangeStatus={handleChangeTradeStatus}
         tradeStatus={post.status ?? "AVAILABLE"}
+        onScrap={handleToggleScrap}
+        scrapped={scrapped}
         onReport={handleReportPost}
         reporting={reporting}
         fromChatRoom={fromChatRoom}
@@ -962,14 +965,6 @@ export default function MarketDetailPage() {
           },
         ]}
       >
-        <Pressable style={styles.bottomHeartButton} onPress={handleToggleLike}>
-          <Ionicons
-            name={liked ? "heart" : "heart-outline"}
-            size={28}
-            color={liked ? "#E5484D" : Colors.common.black}
-          />
-        </Pressable>
-
         <Button
           onPress={handleStartChat}
           disabled={chatLoading}
@@ -1025,6 +1020,8 @@ function HeaderBack({
   onDelete,
   onChangeStatus,
   tradeStatus = "AVAILABLE",
+  onScrap,
+  scrapped = false,
   onReport,
   reporting = false,
   fromHome,
@@ -1045,6 +1042,8 @@ function HeaderBack({
   onDelete?: () => void;
   onChangeStatus?: (nextStatus: UsedItemTradeStatus) => void;
   tradeStatus?: UsedItemTradeStatus;
+  onScrap?: () => void;
+  scrapped?: boolean;
   onReport?: () => void;
   reporting?: boolean;
   fromChatRoom?: string;
@@ -1186,6 +1185,17 @@ function HeaderBack({
                 },
               ]
             : [
+                ...(onScrap ? [{
+                  label: scrapped ? "스크랩 취소" : "스크랩하기",
+                  icon: (
+                    <Ionicons
+                      name={scrapped ? "bookmark" : "bookmark-outline"}
+                      size={24}
+                      color={scrapped ? Colors.primary.default : Colors.gray[9]}
+                    />
+                  ),
+                  onPress: onScrap,
+                }] : []),
                 {
                   label: reporting ? "신고 접수 중..." : "신고하기",
                   icon: <FlagIcon color="#E5484D" width={24} height={24} />,
@@ -1360,7 +1370,7 @@ function TradeInfo({ post }: { post: MarketDetailPost }) {
                 ) : row.label === "거래 장소" ? (
                   <LocationIcon width={18} height={18} color={Colors.gray[7]} />
                 ) : row.label === "판매자 귀국일" ? (
-                  <CalendarIcon width={18} height={18} />
+                  <CalendarIcon width={18} height={18} color={Colors.gray[7]} />
                 ) : null}
                 <Text style={[fonts.body1_m_16, { color: Colors.gray[8] }]}>
                   {row.label}
@@ -1775,11 +1785,4 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
 
-  bottomHeartButton: {
-    width: 48,
-    height: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
 });
