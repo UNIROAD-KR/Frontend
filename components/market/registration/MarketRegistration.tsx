@@ -139,7 +139,7 @@ export default function MarketRegistration() {
   const patch = (value: Partial<RegistrationForm>) =>
     setForm((prev) => ({ ...prev, ...value }));
   const basicValid = Boolean(
-    form.country.trim() && form.region.trim() && form.returnDate,
+    form.country.trim() && form.region.trim(),
   );
   const postValid = Boolean(
     form.title.trim() &&
@@ -405,7 +405,7 @@ export default function MarketRegistration() {
             </View>
             <View style={{ gap: 4 }}>
               <Text style={[commonStyles.inputLabel, { marginBottom: 0 }]}>
-                귀국일
+                귀국일 (선택)
               </Text>
               <View
                 style={[styles.row, { alignItems: "flex-start", zIndex: 30 }]}

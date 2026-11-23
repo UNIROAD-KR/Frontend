@@ -1,7 +1,8 @@
 import { Text } from "@/components/ui/app-text";
+import { ListLoadingIndicator } from "@/components/ui/list-loading-indicator";
 import { Colors, fonts } from "@/constants/theme";
 import { router } from "expo-router";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { CountryFlag } from "@/components/ui/country-flag";
 import EmptyState from "../ui/empty-state";
 
@@ -22,6 +23,7 @@ export type TicketListing = {
 type Props = {
   items: TicketListing[];
   error: string;
+  loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
   hasActiveFilters?: boolean;
@@ -32,11 +34,13 @@ type Props = {
 export function TicketTransferScreen({
   items,
   error,
+  loading,
   loadingMore,
   hasMore,
   hasActiveFilters = false,
   onLoadMore,
 }: Props) {
+  if (loading) return <ListLoadingIndicator label="티켓을 불러오는 중이에요" />;
   return (
     <View>
       {error ? (
@@ -129,16 +133,13 @@ export function TicketTransferScreen({
               </Text>
             </Pressable>
           )}
-          {loadingMore && (
-            <View style={styles.loading}>
-              <ActivityIndicator color={Colors.primary.default} />
-            </View>
-          )}
+          {loadingMore && <ListLoadingIndicator label="티켓을 더 불러오는 중이에요" compact />}
         </>
       )}
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
 import { Text } from "@/components/ui/app-text";
+import { ListLoadingIndicator } from "@/components/ui/list-loading-indicator";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Image, Pressable, StyleSheet, View } from "react-native";
@@ -21,6 +22,7 @@ export type UsedMarketListing = {
 };
 type Props = {
   items: UsedMarketListing[];
+  loading?: boolean;
   error: string;
   onRetry: () => void;
   hasActiveFilters?: boolean;
@@ -28,10 +30,19 @@ type Props = {
 
 export function UsedMarketScreen({
   items,
+  loading = false,
   error,
   onRetry,
   hasActiveFilters = false,
 }: Props) {
+  if (loading) return <ListLoadingIndicator label="거래글을 불러오는 중이에요" />;
+  if (error && !items.length) {
+    return (
+      <Pressable accessibilityRole="button" onPress={onRetry}>
+        <EmptyState title="거래글 조회 실패" description="눌러서 다시 시도해 주세요." />
+      </Pressable>
+    );
+  }
   if (!items.length)
     return (
       <EmptyState

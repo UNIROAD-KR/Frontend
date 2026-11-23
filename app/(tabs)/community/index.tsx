@@ -2,7 +2,7 @@ import { Text, TextInput } from "@/components/ui/app-text";
 import { FilterResetButton } from "@/components/ui/filter-reset-button";
 import type { FreePostStatusFilter } from "../../../src/api/freePosts";
 import PlusLineIcon from "@/assets/icon/plus-line.svg";
-import SearchIcon from "@/assets/icon/search.svg";
+import SearchIcon from "@/assets/icon/search-icon.svg";
 import SortIcon from "@/assets/icon/sort.svg";
 import FilterIcon from "@/assets/icon/filter.svg";
 import {
@@ -19,7 +19,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,6 +35,7 @@ import {
   getCompanionPosts,
 } from "../../../src/api/companion";
 import { CompanionPostCard } from "@/components/community/CompanionPostCard";
+import { ListLoadingIndicator } from "@/components/ui/list-loading-indicator";
 import {
   FreePostSummaryResponse,
   getFreePosts,
@@ -124,7 +124,10 @@ export default function CommunityScreen() {
   }>();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const [activeTab, setActiveTab] = useState<CommunityTab>("자유 게시판");
+  const initialTab = Array.isArray(tab) ? tab[0] : tab;
+  const [activeTab, setActiveTab] = useState<CommunityTab>(
+    initialTab === "companion" ? "동행 모집" : "자유 게시판",
+  );
   const [boardKeyword, setBoardKeyword] = useState("");
   const [companionKeyword, setCompanionKeyword] = useState("");
   const [companionFilterSheetVisible, setCompanionFilterSheetVisible] =
@@ -154,11 +157,11 @@ export default function CommunityScreen() {
   >(null);
   const [boardHasNext, setBoardHasNext] = useState(false);
   const [companionHasNext, setCompanionHasNext] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [boardLoading, setBoardLoading] = useState(true);
+  const [companionLoading, setCompanionLoading] = useState(true);
   const [loadingMoreBoard, setLoadingMoreBoard] = useState(false);
   const [loadingMoreCompanion, setLoadingMoreCompanion] = useState(false);
   const didMountRef = useRef(false);
-  const hasLoadedCommunityRef = useRef(false);
   const boardKeywordRef = useRef("");
   const selectedBoardStatusRef = useRef(selectedBoardStatus);
   const didMountBoardStatusRef = useRef(false);
@@ -194,6 +197,8 @@ export default function CommunityScreen() {
           "자유게시판 목록 조회 실패:",
           error.response?.data || error.message,
         );
+      } finally {
+        if (!append) setBoardLoading(false);
       }
     },
     [],
@@ -219,22 +224,15 @@ export default function CommunityScreen() {
           "동행 구하기 목록 조회 실패:",
           error.response?.data || error.message,
         );
+      } finally {
+        if (!append) setCompanionLoading(false);
       }
     },
     [],
   );
 
   const loadCommunityPosts = useCallback(async () => {
-    if (!hasLoadedCommunityRef.current) {
-      setLoading(true);
-    }
-
-    try {
-      await Promise.all([loadFreePosts(), loadCompanionPosts()]);
-    } finally {
-      hasLoadedCommunityRef.current = true;
-      setLoading(false);
-    }
+    await Promise.all([loadFreePosts(), loadCompanionPosts()]);
   }, [loadCompanionPosts, loadFreePosts]);
 
   const handleLoadMoreBoard = async () => {
@@ -301,7 +299,6 @@ export default function CommunityScreen() {
     void loadFreePosts();
   }, [selectedBoardStatus, loadFreePosts]);
 
-  const initialTab = Array.isArray(tab) ? tab[0] : tab;
   const openedFromTab =
     (Array.isArray(fromTab) ? fromTab[0] : fromTab) === "true";
 
@@ -365,14 +362,6 @@ export default function CommunityScreen() {
     } as never);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator color={BLUE} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView
       edges={["left", "right", "bottom"]}
@@ -419,7 +408,7 @@ export default function CommunityScreen() {
                 <TextInput
                   style={styles.searchInput}
                   placeholder="키워드로 검색해보세요"
-                  placeholderTextColor="#8B95A1"
+                  placeholderTextColor={Colors.gray[6]}
                   value={boardKeyword}
                   onChangeText={setBoardKeyword}
                 />
@@ -447,7 +436,7 @@ export default function CommunityScreen() {
                 <TextInput
                   style={styles.searchInput}
                   placeholder="키워드로 검색해보세요"
-                  placeholderTextColor="#8B95A1"
+                  placeholderTextColor={Colors.gray[6]}
                   value={companionKeyword}
                   onChangeText={setCompanionKeyword}
                 />
@@ -495,7 +484,11 @@ export default function CommunityScreen() {
         contentContainerStyle={[styles.content, isWide && styles.contentWide]}
         showsVerticalScrollIndicator={false}
       >
-        {activeTab === "자유 게시판" ? (
+        {activeTab === "자유 게시판" && boardLoading ? (
+          <ListLoadingIndicator label="게시글을 불러오는 중이에요" />
+        ) : activeTab === "동행 모집" && companionLoading ? (
+          <ListLoadingIndicator label="동행 모집을 불러오는 중이에요" />
+        ) : activeTab === "자유 게시판" ? (
           <View>
             <FreePostList
               data={filteredBoardPosts}
@@ -504,17 +497,14 @@ export default function CommunityScreen() {
               onRetry={() => loadFreePosts(undefined, false, boardKeyword)}
             />
 
-            {boardHasNext && (
+            {loadingMoreBoard ? (
+              <ListLoadingIndicator label="게시글을 더 불러오는 중이에요" compact />
+            ) : boardHasNext && (
               <Pressable
                 style={styles.loadMoreButton}
                 onPress={handleLoadMoreBoard}
-                disabled={loadingMoreBoard}
               >
-                {loadingMoreBoard ? (
-                  <ActivityIndicator color={BLUE} />
-                ) : (
-                  <Text style={styles.loadMoreText}>더보기</Text>
-                )}
+                <Text style={styles.loadMoreText}>더보기</Text>
               </Pressable>
             )}
           </View>
@@ -552,17 +542,14 @@ export default function CommunityScreen() {
               </View>
             </View>
 
-            {companionHasNext && (
+            {loadingMoreCompanion ? (
+              <ListLoadingIndicator label="동행 모집을 더 불러오는 중이에요" compact />
+            ) : companionHasNext && (
               <Pressable
                 style={styles.loadMoreButton}
                 onPress={handleLoadMoreCompanion}
-                disabled={loadingMoreCompanion}
               >
-                {loadingMoreCompanion ? (
-                  <ActivityIndicator color={BLUE} />
-                ) : (
-                  <Text style={styles.loadMoreText}>더보기</Text>
-                )}
+                <Text style={styles.loadMoreText}>더보기</Text>
               </Pressable>
             )}
           </View>
@@ -664,12 +651,6 @@ export default function CommunityScreen() {
 }
 
 const styles = StyleSheet.create({
-  centerContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -731,21 +712,24 @@ const styles = StyleSheet.create({
   },
   searchBox: {
     flex: 1,
-    borderRadius: 32,
+    borderRadius: 100,
     borderWidth: 1,
-    borderColor: "#E2E5E9",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
+    borderColor: Colors.gray[3],
+    backgroundColor: Colors.common.white,
+    paddingHorizontal: 20,
     paddingVertical: 14,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: 8,
   },
   searchInput: {
     ...fonts.body3_r_16,
-    color: "#191F28",
-    paddingVertical: 0,
+    flex: 1,
+    lineHeight: undefined,
+    color: Colors.common.black,
+    padding: 0,
+    textAlignVertical: "center",
+    includeFontPadding: false,
   },
   boardSearchRow: {
     flexDirection: "row",

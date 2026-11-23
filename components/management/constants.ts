@@ -5,7 +5,6 @@ import HomeActionIcon from "@/assets/icon/actions/home.svg";
 import WalletActionIcon from "@/assets/icon/actions/wallet.svg";
 import MoneyActionIcon from "@/assets/icon/actions/money.svg";
 import UsimActionIcon from "@/assets/icon/actions/usim.svg";
-import AirplaneActionIcon from "@/assets/icon/actions/airplane.svg";
 import { AccountBookCategory } from "@/src/api/accountBook";
 
 export const ESSENTIAL_PRESENTATION: Record<
@@ -45,7 +44,7 @@ export const ESSENTIAL_PRESENTATION: Record<
   "flight-booking": {
     category: "항공",
     title: "항공권 예약하기",
-    Icon: AirplaneActionIcon,
+    Icon: UsimActionIcon,
   },
 };
 

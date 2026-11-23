@@ -1,6 +1,4 @@
 import { PackingEmptyState } from "@/components/management/packing-empty-state";
-import { ESSENTIAL_PRESENTATION } from "@/components/management/constants";
-import DocumentActionIcon from "@/assets/icon/actions/document.svg";
 import CheckboxIcon from "@/assets/icon/checkbox.svg";
 import ArrowRightIcon from "@/assets/icon/arrow-right.svg";
 import CheckboxEmptyIcon from "@/assets/icon/checkbox-empty.svg";
@@ -32,6 +30,7 @@ import {
   progress,
   savePreparations,
   type DeparturePreparation,
+  type PreparationGroup,
   type PreparationItem,
 } from "@/src/storage/departurePreparations";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,6 +64,7 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
   const [saving, setSaving] = useState(false);
   const busy = useRef(false);
   const [filter, setFilter] = useState("전체");
+  const [essentialsOpen, setEssentialsOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [sheet, setSheet] = useState<Sheet>(null);
   const [menu, setMenu] = useState(false);
@@ -78,6 +78,7 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
   const [category, setCategory] = useState("custom");
   const [itemTitle, setItemTitle] = useState("");
   const [customCategory, setCustomCategory] = useState("");
+  const [pendingGroups, setPendingGroups] = useState<PreparationGroup[]>([]);
   const list = lists.find((entry) => entry.id === preparationId);
   const isTravelPackingEmpty =
     list?.scheduleType === "여행" &&
@@ -95,8 +96,9 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
   }, []);
   useFocusEffect(
     useCallback(() => {
+      setEssentialsOpen(false);
       void load();
-    }, [load]),
+    }, [load, preparationId]),
   );
   // Persist before showing success. A failed write leaves the previous list intact.
   const commit = async (next: DeparturePreparation[]) => {
@@ -144,29 +146,84 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
         : { ...list, essentials: toggle(list.essentials) },
     );
   };
-  const addItem = async () => {
-    if (!list || !itemTitle.trim()) return;
-    const title = customCategory.trim();
-    if (category === "custom" && !title) {
-      setError("카테고리 이름을 입력해주세요.");
-      return;
-    }
-    const item = { id: makeId(), title: itemTitle.trim(), done: false };
-    const existing = list.groups.find(
-      (group) =>
-        group.id === category ||
-        (category === "custom" && group.title === title),
+  const newGroups = pendingGroups.filter(
+    (pending) => !list?.groups.some((group) => group.id === pending.id),
+  );
+  const categoryOptions = [...(list?.groups ?? []), ...newGroups];
+  const draftTitle = itemTitle.trim();
+  const draftCategoryTitle = customCategory.trim();
+  const canStageItem = !!draftTitle && (category === "custom"
+    ? !!draftCategoryTitle
+    : categoryOptions.some((group) => group.id === category));
+  const pendingCount = pendingGroups.reduce((count, group) => count + group.items.length, 0);
+  const canSaveItems = !saving && pendingCount > 0;
+
+  const openItemSheet = (initialCategory: string) => {
+    setCategory(initialCategory);
+    setItemTitle("");
+    setCustomCategory("");
+    setPendingGroups([]);
+    setError("");
+    setSheet("item");
+  };
+
+  const stageDraft = () => {
+    const selectedGroup = categoryOptions.find((group) =>
+      category === "custom" ? group.title === draftCategoryTitle : group.id === category,
     );
-    const groupId = existing?.id ?? makeId();
-    const groups = existing
-      ? list.groups.map((group) =>
-          group.id === existing.id
-            ? { ...group, items: [...group.items, item] }
-            : group,
-        )
-      : [{ id: groupId, title, items: [item] }, ...list.groups];
-    if (await update({ ...list, groups })) {
-      setOpenGroups((previous) => ({ ...previous, [groupId]: true }));
+    const id = selectedGroup?.id ?? makeId();
+    const title = selectedGroup?.title ?? draftCategoryTitle;
+    const item: PreparationItem = { id: makeId(), title: draftTitle, done: false };
+    const pending = pendingGroups.find((group) => group.id === id);
+    return {
+      id,
+      groups: pending
+        ? pendingGroups.map((group) =>
+            group.id === id ? { ...group, items: [...group.items, item] } : group,
+          )
+        : [...pendingGroups, { id, title, items: [item] }],
+    };
+  };
+
+  const addPendingItem = () => {
+    if (!canStageItem || saving) return;
+    const next = stageDraft();
+    setPendingGroups(next.groups);
+    setCategory(next.id);
+    setCustomCategory("");
+    setItemTitle("");
+    setError("");
+  };
+
+  const removePendingItem = (group: PreparationGroup, itemId: string) => {
+    const items = group.items.filter((item) => item.id !== itemId);
+    setPendingGroups((current) => current.flatMap((entry) => {
+      if (entry.id !== group.id) return [entry];
+      return items.length ? [{ ...entry, items }] : [];
+    }));
+    if (!items.length && category === group.id && newGroups.some((entry) => entry.id === group.id)) {
+      setCategory("custom");
+      setCustomCategory(group.title);
+    }
+  };
+
+  const addItems = async () => {
+    if (!list || !canSaveItems || busy.current) return;
+    const additions = pendingGroups;
+    const itemsByGroup = new Map(additions.map((group) => [group.id, group.items]));
+    const existingGroups = list.groups.map((group) => {
+      const items = itemsByGroup.get(group.id);
+      return items ? { ...group, items: [...group.items, ...items] } : group;
+    });
+    const createdGroups = additions.filter(
+      ({ id }) => !list.groups.some((group) => group.id === id),
+    );
+    if (await update({ ...list, groups: [...createdGroups, ...existingGroups] })) {
+      setOpenGroups((previous) => ({
+        ...previous,
+        ...Object.fromEntries(additions.map(({ id }) => [id, true])),
+      }));
+      setPendingGroups([]);
       setSheet(null);
     }
   };
@@ -204,39 +261,6 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
       </Text>
     </Pressable>
   );
-  const renderEssential = (item: PreparationItem) => {
-    const { category, title, Icon } = ESSENTIAL_PRESENTATION[item.id] ?? {
-      category: "준비",
-      title: item.title,
-      Icon: DocumentActionIcon,
-    };
-    return (
-      <Pressable
-        key={item.id}
-        style={s.essentialCard}
-        accessibilityRole="checkbox"
-        accessibilityLabel={item.title}
-        accessibilityState={{ checked: item.done, disabled: saving }}
-        disabled={saving}
-        onPress={() => toggleItem(item.id)}
-      >
-        <View style={s.essentialIcon}>
-          <Icon width={28} height={28} />
-        </View>
-        <View style={s.flex}>
-          <Text style={s.essentialCategory}>{category}</Text>
-          <Text style={[fonts.sub3_sb_16, { color: Colors.common.black }]}>
-            {title}
-          </Text>
-        </View>
-        {item.done ? (
-          <CheckboxIcon width={24} height={24} />
-        ) : (
-          <CheckboxEmptyIcon width={24} height={24} />
-        )}
-      </Pressable>
-    );
-  };
   const renderItem = (item: PreparationItem, groupId?: string) => (
     <View key={item.id} style={s.item}>
       <Pressable
@@ -434,13 +458,7 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               <Text style={[fonts.sub2_m_18, s.flex]}>짐싸기</Text>
               <Pressable
                 disabled={saving}
-                onPress={() => {
-                  setCategory(list.groups[0]?.id ?? "custom");
-                  setItemTitle("");
-                  setCustomCategory("");
-                  setError("");
-                  setSheet("item");
-                }}
+                onPress={() => openItemSheet(list.groups[0]?.id ?? "custom")}
               >
                 <Text style={s.link}>추가하기</Text>
               </Pressable>
@@ -451,14 +469,9 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                   style={s.groupHeader}
                   accessibilityRole="button"
                   accessibilityState={{
-                    expanded: openGroups.essentials !== false,
+                    expanded: essentialsOpen,
                   }}
-                  onPress={() =>
-                    setOpenGroups((previous) => ({
-                      ...previous,
-                      essentials: previous.essentials === false,
-                    }))
-                  }
+                  onPress={() => setEssentialsOpen((previous) => !previous)}
                 >
                   <View style={s.flex}>
                     <Text style={fonts.sub4_sb_14}>필수 준비물</Text>
@@ -469,17 +482,13 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                   </View>
 
                   <Ionicons
-                    name={
-                      openGroups.essentials !== false
-                        ? "chevron-up"
-                        : "chevron-down"
-                    }
+                    name={essentialsOpen ? "chevron-up" : "chevron-down"}
                     size={18}
                     color={Colors.gray[7]}
                   />
                 </Pressable>
-                {openGroups.essentials !== false && (
-                  <View style={s.essentialList}>
+                {essentialsOpen && (
+                  <>
                     <Pressable
                       disabled={saving}
                       onPress={() =>
@@ -498,21 +507,15 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                           : "전체 선택"}
                       </Text>
                     </Pressable>
-                    {list.essentials.map(renderEssential)}
-                  </View>
+                    {list.essentials.map((item) => renderItem(item))}
+                  </>
                 )}
               </View>
             )}
             {isTravelPackingEmpty && (
               <PackingEmptyState
                 disabled={saving}
-                onAdd={() => {
-                  setCategory("custom");
-                  setItemTitle("");
-                  setCustomCategory("");
-                  setError("");
-                  setSheet("item");
-                }}
+                onAdd={() => openItemSheet("custom")}
               />
             )}
             {!list.groups.length &&
@@ -758,12 +761,12 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               {sheet === "item" ? (
                 <>
                   <FieldLabel title="카테고리" required={false} />
-                  {!!list?.groups.length && (
+                  {categoryOptions.length > 0 && (
                     <View style={s.chips}>
                       {chip("직접 추가", category === "custom", () =>
                         setCategory("custom"),
                       )}
-                      {list?.groups.map((group) =>
+                      {categoryOptions.map((group) =>
                         chip(group.title, category === group.id, () =>
                           setCategory(group.id),
                         ),
@@ -789,15 +792,49 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
                       <TextInput
                         value={itemTitle}
                         onChangeText={setItemTitle}
+                        onSubmitEditing={addPendingItem}
+                        returnKeyType="done"
                         placeholder="이름을 입력해주세요"
                         maxLength={20}
                         style={s.nameInput}
                       />
-                      <Text style={fonts.caption3_m_13}>
-                        {itemTitle.length}/20
-                      </Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="준비물 담기"
+                        disabled={saving || !canStageItem}
+                        hitSlop={8}
+                        onPress={addPendingItem}
+                      >
+                        <Text style={[fonts.body2_m_14, { color: canStageItem && !saving ? Colors.primary.default : Colors.gray[5] }]}>
+                          담기
+                        </Text>
+                      </Pressable>
                     </View>
                   </View>
+                  {pendingCount > 0 && (
+                    <View style={s.pendingList}>
+                      <Text style={fonts.sub4_sb_14}>담은 준비물 {pendingCount}개</Text>
+                      {pendingGroups.map((group) => (
+                        <View key={group.id} style={s.pendingGroup}>
+                          <Text style={s.pendingCategory}>{group.title}</Text>
+                          {group.items.map((item) => (
+                            <View key={item.id} style={s.pendingItem}>
+                              <Text style={[fonts.body2_m_14, s.flex]}>{item.title}</Text>
+                              <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={`${item.title} 빼기`}
+                                disabled={saving}
+                                hitSlop={6}
+                                onPress={() => removePendingItem(group, item.id)}
+                              >
+                                <Ionicons name="close" size={18} color={Colors.gray[7]} />
+                              </Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </>
               ) : (
                 <Text style={fonts.body2_m_14}>
@@ -811,15 +848,15 @@ export function DepartureTab({ preparationId }: { preparationId?: string }) {
               )}
             </ScrollView>
             <Pressable
-              disabled={saving || !itemTitle.trim()}
-              style={[
-                s.submit,
-                (saving || !itemTitle.trim()) && { opacity: 0.4 },
-              ]}
-              onPress={() => void addItem()}
+              disabled={!canSaveItems}
+              accessibilityRole="button"
+              style={[s.submit, !canSaveItems && { opacity: 0.4 }]}
+              onPress={() => void addItems()}
             >
               <Text style={[fonts.sub3_sb_16, { color: Colors.common.white }]}>
-                {saving ? "저장 중…" : "추가하기"}
+                {saving ? "저장 중…" : pendingCount > 0
+                  ? `${pendingCount}개 추가하기`
+                  : "추가하기"}
               </Text>
             </Pressable>
           </BottomSheetView>
@@ -861,34 +898,6 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16 },
   content: { flexGrow: 1, paddingHorizontal: 16, paddingBottom: 20, gap: 16 },
   row: { flexDirection: "row", alignItems: "center", marginTop: 20, gap: 12 },
-  essentialList: { gap: 10 },
-  essentialCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 16,
-    backgroundColor: Colors.common.white,
-    shadowColor: Colors.gray[9],
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  essentialIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.gray[2],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  essentialCategory: {
-    ...fonts.caption5_r_13,
-    color: Colors.gray[6],
-    marginBottom: 4,
-  },
   card: {
     borderWidth: 1,
     borderColor: Colors.gray[2],
@@ -1051,7 +1060,11 @@ const s = StyleSheet.create({
     marginTop: -8,
     marginBottom: 4,
   },
-  itemNameField: { marginTop: 24 },
+  itemNameField: { marginTop: 12 },
+  pendingList: { gap: 10, marginTop: 8 },
+  pendingGroup: { borderRadius: 8, backgroundColor: Colors.gray[1], paddingHorizontal: 12, paddingVertical: 8 },
+  pendingCategory: { ...fonts.caption3_m_13, color: Colors.gray[7], marginBottom: 2 },
+  pendingItem: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 12 },
   nameInputRow: {
     flexDirection: "row",
     alignItems: "center",
