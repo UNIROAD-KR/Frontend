@@ -29,8 +29,8 @@ import { OnboardingSelectModal } from "@/components/ui/onboarding-select-modal";
 import CalanderFillIcon from "@/assets/icon/calendar-fill.svg";
 import CalendarModal from "@/components/ui/calendar";
 import DropdownArrowIcon from "@/assets/icon/Property 1=arrow2, Property 2=down.svg";
-import ProfileEditAvatarActionIcon from "@/assets/icon/profile/profile-edit-avatar-action.svg";
-import ProfileEditAvatarBackground from "@/assets/icon/profile/profile-edit-avatar-background.svg";
+import ProfileEditAvatarActionIcon from "@/assets/icon/pen-with-circle.svg";
+import ProfileEditAvatarBackground from "@/assets/icon/profile-edit-avatar-background.svg";
 import {
   CUSTOM_COUNTRY_OPTION,
   countryOptions,
@@ -40,10 +40,6 @@ import {
   parseDispatchSemester,
   universityOptions,
 } from "@/src/constants/onboarding";
-
-const INK = "#1A2029";
-const MUTED = "#7A8491";
-const PAGE = "#F6F7F9";
 
 const statusOptions = ["지원 준비 중", "출국 준비 중", "파견 중"];
 const semesterYearOptions = Array.from({ length: 12 }, (_, index) =>
@@ -1321,13 +1317,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
   },
   inlineDropdownOptionText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: INK,
+    ...fonts.body1_m_16,
+    color: Colors.common.black,
   },
   inlineDropdownOptionTextSelected: {
-    fontWeight: "900",
-    color: "#006BFF",
+    color: Colors.primary.default,
   },
   semesterChip: {
     flex: 1,
@@ -1364,12 +1358,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  optionalText: {
-    marginBottom: 8,
-    fontSize: 13,
-    fontWeight: "800",
-    color: MUTED,
   },
   dateSelect: {
     height: 52,
@@ -1409,16 +1397,6 @@ const styles = StyleSheet.create({
   },
   statusChipTextSelected: {
     color: Colors.primary.default,
-  },
-  footer: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 30,
-    backgroundColor: PAGE,
   },
   footerButton: {
     height: 52,

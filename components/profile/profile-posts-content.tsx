@@ -1,4 +1,3 @@
-import LikedPostsEmptyInfoIcon from "@/assets/icon/profile/liked-posts-empty-info.svg";
 import { Text } from "@/components/ui/app-text";
 import { CountryFlag } from "@/components/ui/country-flag";
 import { SortSheet } from "@/components/ui/sort-sheet";

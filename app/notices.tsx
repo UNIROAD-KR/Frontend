@@ -15,7 +15,7 @@ import ArrowUpIcon from "@/assets/icon/Property 1=arrow2, Property 2=up.svg";
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { SortSheet } from "@/components/ui/sort-sheet";
 import { Colors, fonts } from "@/constants/theme";
-import NoticeReadDotIcon from "@/assets/icon/profile/notice-read-dot.svg";
+import NoticeReadDotIcon from "@/assets/icon/dot.svg";
 import {
   getNoticeDetail,
   getNotices,
@@ -25,7 +25,6 @@ import EmptyState from "@/components/ui/empty-state";
 
 const BLUE = Colors.primary.default;
 const MUTED = Colors.gray[7];
-const LINE = Colors.gray[3];
 const READ_NOTICE_IDS_STORAGE_KEY = "univ:profile:read-notice-ids";
 
 type NoticeSortMode = "latest" | "oldest";

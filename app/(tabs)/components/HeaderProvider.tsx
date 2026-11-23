@@ -166,7 +166,11 @@ export default function HeaderProvider({ isChat }: { isChat: boolean }) {
               accessibilityLabel={`알림, 읽지 않은 알림 ${unreadCount}개`}
               onPress={() => router.push("/notifications")}
             >
-              <NotificationIcon />
+              <NotificationIcon
+                width={24}
+                height={24}
+                color={Colors.common.black}
+              />
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge} pointerEvents="none">
                   <Text style={styles.notificationBadgeText}>

@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, {
+  AxiosError,
+  InternalAxiosRequestConfig,
+  create,
+  isAxiosError,
+} from "axios";
 
 import { mockApiAdapter } from "./mockAdapter";
 
@@ -18,7 +23,7 @@ type FailedQueueItem = {
   reject: (reason?: unknown) => void;
 };
 
-export const api = axios.create({
+export const api = create({
   baseURL: API_BASE_URL,
   timeout: REQUEST_TIMEOUT_MS,
   adapter: USE_MOCK_API ? mockApiAdapter : undefined,
@@ -48,9 +53,10 @@ export class SessionExpiredError extends Error {
     this.originalError = originalError;
     this.cause = cause;
     // 기존 호출부의 error.response 로깅에 서버 상태와 본문을 그대로 전달한다.
-    this.response = axios.isAxiosError(cause) && cause.response
-      ? cause.response
-      : originalError.response;
+    this.response =
+      isAxiosError(cause) && cause.response
+        ? cause.response
+        : originalError.response;
   }
 }
 
@@ -58,8 +64,14 @@ let sessionExpiration: Promise<void> | null = null;
 const expireSession = async () => {
   if (!sessionExpiration) {
     sessionExpiration = (async () => {
-      console.log("[Auth] 인증 복구 실패: 저장된 액세스·리프레시 토큰 삭제 시작");
-      await AsyncStorage.multiRemove(["accessToken", "refreshToken", "nickname"]);
+      console.log(
+        "[Auth] 인증 복구 실패: 저장된 액세스·리프레시 토큰 삭제 시작",
+      );
+      await AsyncStorage.multiRemove([
+        "accessToken",
+        "refreshToken",
+        "nickname",
+      ]);
       delete api.defaults.headers.common.Authorization;
       console.log("[Auth] 로그인 토큰 삭제 완료 → 로그인 화면 이동");
       router.replace("/login");
@@ -89,10 +101,7 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    if (
-      error.response?.status !== 401 ||
-      !originalRequest
-    ) {
+    if (error.response?.status !== 401 || !originalRequest) {
       return Promise.reject(error);
     }
 
@@ -125,7 +134,10 @@ api.interceptors.response.use(
       const refreshToken = await AsyncStorage.getItem("refreshToken");
 
       if (!refreshToken) {
-        throw new SessionExpiredError(error, new Error("No refresh token available"));
+        throw new SessionExpiredError(
+          error,
+          new Error("No refresh token available"),
+        );
       }
 
       const { data } = await axios.post(
@@ -151,14 +163,17 @@ api.interceptors.response.use(
 
       return api(originalRequest);
     } catch (refreshError) {
-      const sessionInvalid = refreshError instanceof SessionExpiredError ||
-        (axios.isAxiosError(refreshError) &&
-          (refreshError.response?.status === 401 || refreshError.response?.status === 403));
-      const failure = refreshError instanceof SessionExpiredError
-        ? refreshError
-        : sessionInvalid
-          ? new SessionExpiredError(error, refreshError)
-          : refreshError;
+      const sessionInvalid =
+        refreshError instanceof SessionExpiredError ||
+        (isAxiosError(refreshError) &&
+          (refreshError.response?.status === 401 ||
+            refreshError.response?.status === 403));
+      const failure =
+        refreshError instanceof SessionExpiredError
+          ? refreshError
+          : sessionInvalid
+            ? new SessionExpiredError(error, refreshError)
+            : refreshError;
       if (sessionInvalid) {
         await expireSession();
       }

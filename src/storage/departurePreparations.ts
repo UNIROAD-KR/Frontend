@@ -66,7 +66,10 @@ export function createPreparation(
     id: makeId(),
     createdAt: new Date().toISOString(),
     essentials: fields.scheduleType === "파견" ? initialEssentials() : [],
-    groups: (fields.scheduleType === "파견" ? DEFAULT_PACKING_CATEGORIES : []).map((group) => ({
+    groups: (fields.scheduleType === "파견"
+      ? DEFAULT_PACKING_CATEGORIES
+      : []
+    ).map((group) => ({
       id: group.id,
       title: group.title,
       items: group.items.map((title) => ({ id: makeId(), title, done: false })),
@@ -124,9 +127,13 @@ export async function loadPreparations(): Promise<DeparturePreparation[]> {
         ...list,
         essentials: [],
         groups: list.groups.flatMap((group) => {
-          const defaults = DEFAULT_PACKING_CATEGORIES.find((entry) => entry.id === group.id);
+          const defaults = DEFAULT_PACKING_CATEGORIES.find(
+            (entry) => entry.id === group.id,
+          );
           if (!defaults) return [group];
-          const items = group.items.filter((item) => !defaults.items.includes(item.title));
+          const items = group.items.filter(
+            (item) => !defaults.items.includes(item.title),
+          );
           return items.length ? [{ ...group, items }] : [];
         }),
       };

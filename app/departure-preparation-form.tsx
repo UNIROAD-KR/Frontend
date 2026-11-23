@@ -26,7 +26,16 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import ArrowRightIcon from "@/assets/icon/arrow-right.svg";
+import XIcon from "@/assets/icon/x-icon.svg";
+import {
+  BottomSheetModal,
+  BottomSheetView,
+} from "@/components/ui/bottom-sheet";
 
 const localDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -44,7 +53,9 @@ export default function DeparturePreparationFormScreen() {
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [packageVisible, setPackageVisible] = useState(false);
   const busy = useRef(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!id) return;
@@ -266,6 +277,35 @@ export default function DeparturePreparationFormScreen() {
                 />
               </Pressable>
             </View>
+            <View style={styles.field}>
+              <FieldLabel
+                title="준비물 (선택)"
+                required={false}
+                marginBottom={6}
+              />
+              <Pressable
+                style={styles.select}
+                accessibilityRole="button"
+                accessibilityLabel="준비물 불러오기"
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setPackageVisible(true);
+                }}
+              >
+                <Text style={[fonts.body1_m_16, { color: Colors.gray[11] }]}>
+                  내 항목 불러오기
+                </Text>
+                <ArrowRightIcon width={22} height={22} color={Colors.gray[5]} />
+              </Pressable>
+              <Text
+                style={[
+                  fonts.caption5_r_13,
+                  { color: Colors.gray[7], marginTop: 4, marginLeft: 8 },
+                ]}
+              >
+                미리 만든 준비물을 불러올 수 있습니다.
+              </Text>
+            </View>
             {!!error && (
               <Text accessibilityRole="alert" style={styles.error}>
                 {error}
@@ -296,12 +336,53 @@ export default function DeparturePreparationFormScreen() {
           setCalendarVisible(false);
         }}
       />
+      <BottomSheetModal
+        visible={packageVisible}
+        onRequestClose={() => setPackageVisible(false)}
+      >
+        <View style={styles.overlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setPackageVisible(false)}
+            accessibilityRole="button"
+            accessibilityLabel="준비물 선택 닫기"
+          />
+          <BottomSheetView
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(insets.bottom, 16) },
+            ]}
+          >
+            <View style={styles.handle} />
+            <View style={styles.sheetHeader}>
+              <Text style={fonts.title4_sb_24}>내 항목 불러오기</Text>
+              <Pressable
+                onPress={() => setPackageVisible(false)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
+              >
+                <XIcon
+                  style={{ width: 24, height: 24 }}
+                  color={Colors.common.black}
+                />
+              </Pressable>
+            </View>
+          </BottomSheetView>
+        </View>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   header: { ...commonStyles.header, paddingHorizontal: 16 },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
   headerSide: { width: 68 },
   action: { color: Colors.primary.default, textAlign: "right" },
   actionDisabled: { color: Colors.gray[5] },
@@ -332,5 +413,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  overlay: { flex: 1, justifyContent: "flex-end" },
+  sheet: {
+    height: "88%",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+  },
+  handle: {
+    width: 72,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.gray[4],
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 26,
+  },
+
   error: { ...fonts.caption3_m_13, color: Colors.error.normal, padding: 16 },
 });
