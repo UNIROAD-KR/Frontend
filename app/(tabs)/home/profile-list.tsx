@@ -1,17 +1,11 @@
 import { Text } from "@/components/ui/app-text";
-import { Colors } from "@/constants/theme";
+import { Colors, commonStyles } from "@/constants/theme";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppBackButton } from "@/components/ui/app-back-button";
@@ -395,30 +389,11 @@ const categoryTabsByType: Partial<
   ],
 };
 
-const groupTabs = [
-  { key: "community" as const, label: "커뮤니티" },
-  { key: "market" as const, label: "중고마켓" },
-];
-
 const categoryGroupMap: Record<ProfileListCategory, ProfileListGroup> = {
   free: "community",
   companion: "community",
   used: "market",
   ticket: "market",
-};
-
-const subCategoryTabsByGroup: Record<
-  ProfileListGroup,
-  { key: ProfileListCategory; label: string }[]
-> = {
-  community: [
-    { key: "free", label: "자유게시판" },
-    { key: "companion", label: "동행구하기" },
-  ],
-  market: [
-    { key: "used", label: "귀국 전 일괄거래" },
-    { key: "ticket", label: "티켓양도" },
-  ],
 };
 
 export default function ProfileListScreen() {
@@ -431,7 +406,6 @@ export default function ProfileListScreen() {
   const categoryTabs = categoryTabsByType[listType];
   const defaultCategory = categoryTabs?.[0]?.key ?? "free";
   const routeCategory = asListCategory(category, defaultCategory);
-  const usesGroupedTabs = listType === "saved";
   const usesPostListLayout = listType === "liked" || listType === "written";
   const [items, setItems] = useState<ListCard[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<ProfileListGroup>(
@@ -777,22 +751,8 @@ export default function ProfileListScreen() {
     listType,
     selectedCategory,
   ]);
-  const currentCategoryTabs = usesGroupedTabs
-    ? subCategoryTabsByGroup[selectedGroup]
-    : categoryTabs;
-  const itemCountLabel = useMemo(
-    () => `${visibleItems.length}개`,
-    [visibleItems.length],
-  );
-  const selectedGroupLabel = groupTabs.find(
-    (tab) => tab.key === selectedGroup,
-  )?.label;
-  const selectedCategoryLabel = currentCategoryTabs?.find(
-    (tab) => tab.key === selectedCategory,
-  )?.label;
-  const compactSummary = listType === "saved";
-  const usesProfileHeader =
-    listType === "liked" || listType === "free" || listType === "written";
+
+  const usesProfileHeader = listType === "liked" || listType === "written";
 
   const postListProps = {
     selectedCategory,
@@ -813,12 +773,7 @@ export default function ProfileListScreen() {
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        usesPostListLayout && { backgroundColor: Colors.common.white },
-      ]}
-    >
+    <View style={commonStyles.container}>
       {usesProfileHeader ? (
         <ProfileScreenHeader title={config.title} />
       ) : (
@@ -843,153 +798,8 @@ export default function ProfileListScreen() {
       >
         {listType === "liked" ? (
           <LikedPostsContent {...postListProps} />
-        ) : listType === "written" ? (
-          <WrittenPostsContent {...postListProps} />
         ) : (
-          <>
-            {compactSummary ? (
-              <View style={styles.compactSummaryBox}>
-                <View>
-                  <Text style={styles.compactSummaryTitle}>저장한 글</Text>
-                  <Text style={styles.compactSummaryMeta}>
-                    {[selectedGroupLabel, selectedCategoryLabel]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Text>
-                </View>
-                <Text style={styles.compactSummaryCount}>{itemCountLabel}</Text>
-              </View>
-            ) : (
-              <View style={styles.heroCard}>
-                <View style={styles.heroIconBox}>
-                  <Ionicons name={config.icon} size={25} color={BLUE} />
-                </View>
-                <View style={styles.heroTextBox}>
-                  <Text style={styles.heroTitle}>{config.title}</Text>
-                  <Text style={styles.heroDesc}>{config.description}</Text>
-                </View>
-                <Text style={styles.countPill} numberOfLines={1}>
-                  {itemCountLabel}
-                </Text>
-              </View>
-            )}
-
-            {usesGroupedTabs ? (
-              <View style={styles.groupTabs}>
-                {groupTabs.map((tabItem) => {
-                  const active = selectedGroup === tabItem.key;
-
-                  return (
-                    <Pressable
-                      key={tabItem.key}
-                      style={[styles.groupTab, active && styles.groupTabActive]}
-                      onPress={() => {
-                        setSelectedGroup(tabItem.key);
-                        setSelectedCategory(
-                          subCategoryTabsByGroup[tabItem.key][0].key,
-                        );
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.groupTabText,
-                          active && styles.groupTabTextActive,
-                        ]}
-                      >
-                        {tabItem.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {currentCategoryTabs ? (
-              <View style={styles.categoryTabs}>
-                {currentCategoryTabs.map((tabItem) => {
-                  const active = selectedCategory === tabItem.key;
-
-                  return (
-                    <Pressable
-                      key={tabItem.key}
-                      style={[
-                        styles.categoryTab,
-                        active && styles.categoryTabActive,
-                      ]}
-                      onPress={() => setSelectedCategory(tabItem.key)}
-                    >
-                      <Text
-                        style={[
-                          styles.categoryTabText,
-                          active && styles.categoryTabTextActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {tabItem.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {loading ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator color={BLUE} />
-                <Text style={styles.loadingText}>목록을 불러오는 중이에요</Text>
-              </View>
-            ) : visibleItems.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <View style={styles.emptyIconBox}>
-                  <Ionicons name={config.icon} size={30} color={BLUE} />
-                </View>
-                <Text style={styles.emptyTitle}>{config.emptyTitle}</Text>
-                <Text style={styles.emptyText}>{config.emptyText}</Text>
-              </View>
-            ) : (
-              <View style={styles.list}>
-                {visibleItems.map((item) => (
-                  <Pressable
-                    key={item.id}
-                    style={styles.card}
-                    onPress={() => item.route && router.push(item.route as any)}
-                  >
-                    <View style={styles.cardIconBox}>
-                      <Ionicons name={item.icon} size={21} color={NAVY} />
-                    </View>
-
-                    <View style={styles.cardTextBox}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={styles.cardTitle} numberOfLines={1}>
-                          {item.title}
-                        </Text>
-                        {item.badge ? (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText} numberOfLines={1}>
-                              {item.badge}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-
-                      <Text style={styles.cardSubtitle} numberOfLines={1}>
-                        {item.subtitle || "상세 정보를 확인해보세요."}
-                      </Text>
-                      <Text style={styles.cardMeta} numberOfLines={1}>
-                        {item.meta || "내 활동"}
-                      </Text>
-                    </View>
-
-                    <Ionicons
-                      name="chevron-forward"
-                      size={19}
-                      color="#A4ADBA"
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </>
+          <WrittenPostsContent {...postListProps} />
         )}
       </ScrollView>
     </View>
@@ -997,10 +807,6 @@ export default function ProfileListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F6F7F9",
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -1033,188 +839,6 @@ const styles = StyleSheet.create({
   postListContent: {
     paddingHorizontal: 16,
     paddingTop: 2,
-  },
-  heroCard: {
-    minHeight: 82,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E9EE",
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-  },
-  heroIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 9,
-    backgroundColor: "#EEF2F8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  heroTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-  heroTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: INK,
-  },
-  heroDesc: {
-    marginTop: 5,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "700",
-    color: MUTED,
-  },
-  countPill: {
-    flexShrink: 0,
-    borderRadius: 5,
-    backgroundColor: "#EDF2FF",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 12,
-    fontWeight: "900",
-    color: BLUE,
-  },
-  compactSummaryBox: {
-    minHeight: 58,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: LINE,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  compactSummaryTitle: {
-    fontSize: 14,
-    fontWeight: "900",
-    color: INK,
-  },
-  compactSummaryMeta: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "800",
-    color: MUTED,
-  },
-  compactSummaryCount: {
-    flexShrink: 0,
-    borderRadius: 5,
-    backgroundColor: "#EDF2FF",
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    fontSize: 12,
-    fontWeight: "900",
-    color: BLUE,
-  },
-  categoryTabs: {
-    marginTop: 14,
-    flexDirection: "row",
-    borderRadius: 8,
-    backgroundColor: "#EEF1F4",
-    padding: 4,
-    gap: 4,
-  },
-  groupTabs: {
-    marginTop: 14,
-    flexDirection: "row",
-    borderRadius: 8,
-    backgroundColor: "#EAF0FF",
-    padding: 4,
-    gap: 4,
-  },
-  groupTab: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  groupTabActive: {
-    backgroundColor: "#FFFFFF",
-  },
-  groupTabText: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: MUTED,
-  },
-  groupTabTextActive: {
-    color: BLUE,
-  },
-  categoryTab: {
-    flex: 1,
-    minHeight: 36,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 6,
-  },
-  categoryTabActive: {
-    backgroundColor: "#FFFFFF",
-    shadowColor: NAVY,
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  categoryTabText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: MUTED,
-  },
-  categoryTabTextActive: {
-    color: BLUE,
-  },
-  loadingBox: {
-    minHeight: 220,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: MUTED,
-  },
-  emptyBox: {
-    marginTop: 18,
-    minHeight: 260,
-    borderRadius: 8,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: LINE,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-  },
-  emptyIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 10,
-    backgroundColor: "#EEF2F8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: INK,
-    textAlign: "center",
-  },
-  emptyText: {
-    marginTop: 8,
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: MUTED,
-    textAlign: "center",
   },
   list: {
     marginTop: 16,

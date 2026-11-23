@@ -17,22 +17,19 @@ import {
 import type { SvgProps } from "react-native-svg";
 
 import ArrowRightIcon from "@/assets/icon/Property 1=arrow2, Property 2=right.svg";
-import AllServicesIcon from "@/assets/icon/profile/all-services.svg";
-import AccountSettingsIcon from "@/assets/icon/profile/account-settings.svg";
-import AppVersionIcon from "@/assets/icon/profile/app-version.svg";
-import BlogIcon from "@/assets/icon/profile/blog.svg";
-import ContactIcon from "@/assets/icon/profile/contact.svg";
-import FreePostsIcon from "@/assets/icon/profile/free-posts.svg";
-import HeartIcon from "@/assets/icon/profile/heart.svg";
-import LogoutIcon from "@/assets/icon/profile/logout.svg";
-import NoticesIcon from "@/assets/icon/profile/notices.svg";
-import NotificationsIcon from "@/assets/icon/profile/notifications.svg";
-import PrivacyIcon from "@/assets/icon/profile/privacy.svg";
-import TermsIcon from "@/assets/icon/profile/terms.svg";
+import AllServicesIcon from "@/assets/icon/squares.svg";
+import AccountSettingsIcon from "@/assets/icon/setting.svg";
+import AppVersionIcon from "@/assets/icon/phone.svg";
+import ContactIcon from "@/assets/icon/chat.svg";
+import BookMarkIcon from "@/assets/icon/bookmark.svg";
+import LogoutIcon from "@/assets/icon/logout.svg";
+import NoticesIcon from "@/assets/icon/notice.svg";
+import NotificationsIcon from "@/assets/icon/notification.svg";
+import PrivacyIcon from "@/assets/icon/protect.svg";
+import TermsIcon from "@/assets/icon/file.svg";
 import ApprovedIcon from "@/assets/icon/approved.svg";
-import VerificationIcon from "@/assets/icon/profile/verification.svg";
 import PendingIcon from "@/assets/icon/pending.svg";
-import WrittenPostsIcon from "@/assets/icon/profile/written-posts.svg";
+import WrittenPostsIcon from "@/assets/icon/pen.svg";
 import { ProfileScreenHeader } from "@/components/ui/profile-screen-header";
 import { getMemberMe, logout } from "../src/api/auth";
 import { getMyVerifications } from "../src/api/verification";
@@ -59,7 +56,7 @@ type MenuItem = {
 const activityItems: MenuItem[] = [
   {
     title: "스크랩한 글",
-    icon: HeartIcon,
+    icon: BookMarkIcon,
     route: {
       pathname: "/liked-posts",
       params: { type: "liked" },
@@ -77,7 +74,7 @@ const activityItems: MenuItem[] = [
 
 const accountItems: MenuItem[] = [
   {
-    title: "계정 설정",
+    title: "비밀번호 변경",
     icon: AccountSettingsIcon,
     route: "/account-settings",
   },
@@ -86,11 +83,6 @@ const accountItems: MenuItem[] = [
     icon: NotificationsIcon,
     route: "/notification-settings",
   },
-  // {
-  //   title: "파견교 인증",
-  //   icon: VerificationIcon,
-  //   route: "/verification",
-  // },
 ];
 
 const serviceItems: MenuItem[] = [
@@ -553,7 +545,7 @@ function MenuSection({
                   resizeMode="contain"
                 />
               ) : (
-                <MenuIcon width={21} height={21} />
+                <MenuIcon width={24} height={24} color={Colors.common.black} />
               )}
             </View>
 
